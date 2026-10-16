@@ -28,6 +28,9 @@ public final class GrabadoraVoz: ObservableObject {
     }
 
     @Published public private(set) var estado: Estado = .quieta
+    /// Una vez: la nota recien guardada (`nil` si no se guardo), antes de
+    /// pasarla a texto. El microfono flotante ofrece con ella la llamada.
+    public var alGuardar: (@MainActor (MensajeChat?) -> Void)?
 
     private var motor: AVAudioEngine?
     private var escritor: EscritorVoz?
@@ -99,11 +102,16 @@ public final class GrabadoraVoz: ObservableObject {
         // Cerrar el fichero escribe el indice del MPEG-4: fuera del principal.
         let nota = await Task.detached(priority: .userInitiated) { escritor.terminar() }.value
         defer { try? FileManager.default.removeItem(at: nota.url) }
+        let avisar = alGuardar
+        alGuardar = nil
         guard nota.duracionMs >= FormatoVoz.minimoMs else {
             // Un resbalon en el boton, no una nota (`Voz.MINIMO_MS`).
+            avisar?(nil)
             return
         }
-        guard let mensaje = await almacen.adjuntarVoz(nota, en: chat) else { return }
+        let mensaje = await almacen.adjuntarVoz(nota, en: chat)
+        avisar?(mensaje)
+        guard let mensaje else { return }
         estado = .transcribiendo
         await almacen.transcribir(mensaje, en: chat)
     }

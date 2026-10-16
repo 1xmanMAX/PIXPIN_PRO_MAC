@@ -1,6 +1,9 @@
 // Las vistas de las notas de voz: la burbuja `VOZ` (reproducir, la onda con
-// su avance, la duracion y lo que se dijo) y el boton del microfono de la
-// caja de escribir.
+// su avance, la duracion y lo que se dijo), el boton del microfono de la
+// caja de escribir y la barra de lo que suena (D3), que es la del movil
+// (`BarraDelReproductor.kt`) y la de Windows: atras 10, play o pausa,
+// adelante 10, la velocidad en ciclo, el titulo con el tiempo, el aspa y la
+// linea de avance, que se pincha o se arrastra para ir a un punto.
 
 import AppKit
 import PixPinCore
@@ -58,6 +61,12 @@ struct BurbujaVoz: View {
                     .disabled(transcribiendo)
                 }
                 if let url {
+                    Button {
+                        ReproductorFlotante.compartido.abrir([Pista(id: mensaje.id, url: url,
+                                                                    titulo: BibliotecaAudio.titulo(de: mensaje))])
+                    } label: {
+                        Label("Escuchar en flotante", systemImage: "pip")
+                    }
                     Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
                         Label("Mostrar en el Finder", systemImage: "folder")
                     }
@@ -120,7 +129,7 @@ struct BurbujaVoz: View {
 
     private func alternar() {
         guard let url else { return NSSound.beep() }
-        reproductor.alternar(mensaje.id, url: url)
+        reproductor.alternar(mensaje.id, url: url, titulo: BibliotecaAudio.titulo(de: mensaje))
     }
 
     private func transcribir() {
@@ -159,6 +168,13 @@ struct BotonVoz: View {
             .buttonStyle(.borderless)
             .help(grabadora.grabando(en: chat) ? "Parar y mandar la nota de voz" : "Grabar una nota de voz")
             .disabled(ocupadaEnOtro)
+            .contextMenu {
+                Button("Grabar en flotante") {
+                    let nombre = almacen.chats.first { $0.id == chat }?.nombre ?? ""
+                    MicrofonoFlotante.compartido.alternar(en: chat, nombre: nombre, almacen: almacen)
+                }
+                .disabled(grabadora.estado != .quieta)
+            }
         }
     }
 
@@ -169,5 +185,115 @@ struct BotonVoz: View {
         case let .grabando(c, _): c != chat
         case .guardando, .transcribiendo: true
         }
+    }
+}
+
+/// **La barra de lo que suena**: sale solo si hay algo cargado. Va encima de
+/// la caja de escribir del chat, abajo en la biblioteca y en el reproductor
+/// flotante.
+struct BarraReproductor: View {
+    @ObservedObject private var r = ReproductorVoz.compartido
+    /// Sin el aspa (el flotante tiene la suya).
+    var conCerrar = true
+
+    var body: some View {
+        if r.hayAlgo {
+            VStack(spacing: 4) {
+                HStack(spacing: 2) {
+                    boton("gobackward.10", "Atrás 10 s") { r.atras() }
+                    boton(r.sonando ? "pause.fill" : "play.fill", r.sonando ? "Pausa" : "Escuchar") {
+                        if r.sonando { r.pausar() } else { r.seguir() }
+                    }
+                    boton("goforward.10", "Adelante 10 s") { r.adelante() }
+                    // La velocidad se escribe: «1,5×» dice mas que un icono.
+                    Button { r.otraVelocidad() } label: {
+                        Text(VozAlta.rotulo(r.velocidad))
+                            .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(Color.accentColor)
+                            .frame(minWidth: 40, minHeight: 28)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .help("Velocidad")
+                    Text(r.titulo)
+                        .font(.system(size: 12))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.leading, 4)
+                    TiempoReproductor()
+                    if !r.cola.isEmpty {
+                        Text("+\(r.cola.count)").font(.caption2).foregroundStyle(.secondary)
+                            .help("En la fila")
+                    }
+                    if conCerrar { boton("xmark", "Cerrar") { r.parar() } }
+                }
+                PistaAvance()
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        }
+    }
+
+    private func boton(_ simbolo: String, _ ayuda: String, _ accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            Image(systemName: simbolo).font(.system(size: 14)).frame(width: 30, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(ayuda)
+    }
+}
+
+/// «0:07 / 1:24», al dia mientras suena.
+struct TiempoReproductor: View {
+    @ObservedObject private var r = ReproductorVoz.compartido
+
+    var body: some View {
+        Group {
+            if r.sonando {
+                TimelineView(.periodic(from: .now, by: 0.25)) { _ in Text(texto) }
+            } else {
+                Text(texto)
+            }
+        }
+        .font(.caption.monospacedDigit())
+        .foregroundStyle(.secondary)
+    }
+
+    private var texto: String { "\(FormatoVoz.marca(ms: r.posicionMs)) / \(FormatoVoz.marca(ms: r.duracionMs))" }
+}
+
+/// La linea de avance con su bolita: pinchar o arrastrar va a ese punto.
+struct PistaAvance: View {
+    @ObservedObject private var r = ReproductorVoz.compartido
+
+    var body: some View {
+        GeometryReader { g in
+            Group {
+                if r.sonando {
+                    TimelineView(.animation(minimumInterval: 0.1, paused: false)) { _ in linea(g.size.width) }
+                } else {
+                    linea(g.size.width)
+                }
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0).onChanged { v in
+                r.irA(fraccion: Double(v.location.x / max(g.size.width, 1)))
+            })
+        }
+        .frame(height: 10)
+        .help("Ir a un punto")
+    }
+
+    private func linea(_ ancho: CGFloat) -> some View {
+        let f = CGFloat(r.fraccion)
+        return ZStack(alignment: .leading) {
+            Capsule().fill(Color.secondary.opacity(0.3)).frame(height: 3)
+            Capsule().fill(Color.accentColor).frame(width: max(ancho * f, 0), height: 3)
+            Circle().fill(Color.accentColor).frame(width: 9, height: 9).offset(x: max(ancho * f - 4.5, 0))
+        }
+        .frame(height: 10)
     }
 }

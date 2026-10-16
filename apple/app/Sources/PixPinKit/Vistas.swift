@@ -39,6 +39,10 @@ public struct VentanaProyectos: View {
                     // Todo el proyecto en la hoja de compartir comun (D1):
                     // sus hojas en PDF, web..., sus originales y el .pixpin.
                     Button("Compartir…") { HojaCompartir.abrir(.proyectos([chat]), almacen: almacen) }
+                    // La musica y las notas de voz de todos, como en Windows (D3).
+                    if chat.esGuardados {
+                        Button("Biblioteca de audio") { BibliotecaAudio.abrir(almacen: almacen) }
+                    }
                     if !chat.esGuardados {
                         Button("Borrar", role: .destructive) { aBorrar = chat }
                     }
@@ -251,6 +255,8 @@ public struct VistaChat: View {
                 Divider()
                 BarraDeRespuesta(citado: respondido) { menu.respondiendo = nil }
             }
+            // Lo que suena, encima de la caja de escribir (D3).
+            BarraReproductor().padding(.horizontal, 10).padding(.top, 4)
             IslaDeEscribir(borrador: $borrador, chat: chat, almacen: almacen, foco: focoCaja,
                            enviar: enviar, escaparVacio: escaparVacio, adjuntar: adjuntar)
                 .environment(\.escalaChat, f)

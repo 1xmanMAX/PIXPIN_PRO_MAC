@@ -63,9 +63,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | asistente (recetas, pensado, permiso) | Recetas, lo pensado, permisos Sí/No | falta | — | Todo |
 | asistente (ojos, hoja_a_lienzo, anotar_inteligente, al_lienzo, documentos) | El asistente mira el lienzo, pasa una hoja al lienzo, anota documentos | falta | — | Todo; hace falta antes el `pixpin-ia` al día (§3.2) |
 | asistente (en_el_chat, externa/MCP) | Asistente dentro de cualquier chat; servidor MCP | falta | K/Asistente (es una ventana aparte) | Asistente en el chat; MCP para Mac |
-| audio | Un reproductor para toda la app: barra, saltos, velocidad | parcial | K/Voz/ReproductorVoz.swift | Velocidad, saltos ±, barra global de «lo que suena» |
+| audio | Un reproductor para toda la app: barra, saltos, velocidad | completo | K/Voz/ReproductorVoz.swift, VistasVoz.swift, MandosSistema.swift | Hecho (D3): uno solo para todo, las 5 velocidades del móvil (sobreviven a parar), ±10 s, ir a un punto, la fila, «Está sonando» y teclas multimedia; la barra de lo que suena encima de la caja del chat y en la biblioteca; pausa la voz que lee. Falta la pantalla de la letra sincronizada |
 | automatizaciones (cola, encargo, motor) | Disparadores con pasos; cola de encargos | falta | — | Todo; `auto-automatizaciones` llega y no se usa |
-| biblioteca_audio | Música y notas de voz de todos los chats | falta | — | Todo |
+| biblioteca_audio | Música y notas de voz de todos los chats | completo | K/Voz/BibliotecaAudio.swift | Hecho (D3): clic derecho en «Mensajes guardados» → «Biblioteca de audio»; todos los chats, música (`estadoDelTexto = letra`, leído del cuaderno) y notas, lo más nuevo arriba, color si tiene letra, apagada si el fichero no está; clic o ↩ suena, ⌥↩ en flotante, «Grabar» con el micrófono flotante |
 | biblioteca_figuras | Figuras del lienzo (`figuras.json`, viaja) | parcial | K/Lienzo/FigurasLienzo.swift, N/editor_figuras.rs | Hechos: gráfica, tabla en blanco y pegada, plano/recta/espacio, guardar, estampar y quitar (en el chat «Asistente», con su mensaje `auto-figuras`). Faltan editar una tabla ya dibujada, meter en su celda y las tablas de coordenadas |
 | buscador | Ctrl+F en los lectores, «3 de 12», F3 | completo | K/Documentos/BuscadorLector.swift | — (en el visor reflujado, con E7) |
 | buscar_todo | «Buscar en PixPin»: pestañas, recientes, acciones | parcial | K/Buscar/Buscar.swift, N/buscar.rs | Pestañas; recientes; lecciones y capturas; botones por fila; usar `pixpin-lanzador` |
@@ -206,8 +206,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Buscar dentro del chat (Ctrl+F) | completo | K/Chat/BuscarEnChat.swift | Hecho (B3): ⌘F con un chat abierto (sin chat, sigue «Buscar en todo»); en todo el chat, no solo lo cargado; filtra las burbujas (texto o lo dicho y nombre del fichero, sin tildes), resalta en las notas, chips de etiqueta, «N resultados · Ver en contexto», ↑/↓ o ⌘G/⇧⌘G entre resultados («3 de 12»), ↩ lo ve en su sitio, Esc apaga |
 | Escala (Ctrl + / − / 0) | parcial | K/Chat/EscalaChat.swift | Hecho (B3): ⌘+ / ⌘− / ⌘0 con los escalones de Windows (75–250 %), su aviso, y se recuerda. Crece el chat (letra, burbujas, fotos, dibujos y la caja); la lista de proyectos y la franja no. Falta la entrada «Escala de la interfaz» del menú de la cabecera (el Mac aún no tiene cabecera del chat) |
 | Fondos del chat | falta | — | Todo |
-| Micrófono flotante con hora | falta | — | Todo |
-| Reproductor flotante | parcial | K/Voz/VistasVoz.swift | Espacio, ←/→, barra |
+| Micrófono flotante con hora | completo | K/Voz/FlotantesVoz.swift | Hecho (D3): siempre encima, aro que late y tiempo; clic o ↩ guarda, ⎋ tira; «Convertir en llamada» con la hora (nace una hora después y en punto, «En 15 min», «En 1 hora», «Mañana 9:00», ↑↓ de 5 en 5, teclearla) que pone `recuerdaEn`; se va sola. Se abre con clic derecho en el micrófono del chat o «Grabar» de la biblioteca (el pedido «grabar» es C2; «quién llama», E5) |
+| Reproductor flotante | completo | K/Voz/FlotantesVoz.swift | Hecho (D3): «Escuchar en flotante» (burbuja y biblioteca), Espacio, ←/→, ⎋, la fila y se va al acabar (el pedido «reproducir» es C2) |
 | Chat «Asistente» del sistema; aviso y voz del asistente | falta | — | Todo |
 
 ### 1.4 Ajustes (`ventana_ajustes.rs`)
@@ -337,7 +337,7 @@ Choques con macOS que hay que esquivar:
 | Esc en cascada | — | ⎋ | parcial |
 | Menú: R, Ctrl+C, P, A, E, N, T, F, L, F2, Supr | Acciones del mensaje | R, ⌘C, P, E, N, T, F, L, F2 (en «Más»), ⌫ con el menú abierto; falta A (anotar encima) | parcial |
 | Ctrl+clic, Mayús+clic | Elegir varios | ⌘-clic, ⇧-clic | completo |
-| Hoja «+»: flechas, Intro · Reproductor: Espacio, ←→ · Micrófono: Esc, Intro, ↑↓ | — | Hoja: 1–8, flechas, ↩, Esc (B3); reproductor y micrófono flotantes, no | parcial |
+| Hoja «+»: flechas, Intro · Reproductor: Espacio, ←→ · Micrófono: Esc, Intro, ↑↓ | — | Hoja: 1–8, flechas, ↩, Esc (B3); reproductor flotante: espacio, ←→, ⎋; micrófono: ⎋, ↩, ↑↓, ⌫ y las cifras (D3) | completo |
 | Renombrar o describir: Intro, Esc | — | Intro guarda, Esc lo deja (hoja de una línea; también «Elegir la hora…») | completo |
 
 ### 2.5 Lienzo
@@ -547,7 +547,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 |---|---|---|
 | D1 | ✅ **Compartir y exportar común** (hecho): la hoja (HTML, PDF, PNG, JPG, SVG, original, editable, `.pixpin`, texto) con la hoja del Mac en «Más…», la ventanita «Salida» y «Abrir con…»; enganchada al chat (mensaje, lo elegido, Exportar/Imprimir de un lienzo), a los proyectos, al pin y al exportar del lienzo. Queda engancharla en los lectores (`Documentos/*`), el PDF anotado y la web de un documento, Word, enlace y wifi | K/Compartir/{Compartible,PreparadoCompartir,PrepararCompartir,HojaCompartir,Salida,AbrirCon}.swift, N/compartir.rs |
 | D2 | ✅ **Leer en voz** (hecho): `AVSpeechSynthesizer`, resaltar el trozo y la palabra, el 🟢, `MPRemoteCommandCenter`, L en el lector, notas (clic derecho) | K/Voz/{LeerEnVoz,VozAlta,MandosSistema}.swift, K/Documentos/{VozDelLector,VozDeLaNota}.swift, K/Documentos/LectorDocumento.swift |
-| D3 | **Audio**: reproductor global (velocidad, ±saltos, barra de lo que suena), biblioteca de audio, micrófono flotante con hora | K/Voz/ReproductorVoz.swift, K/Voz/VistasVoz.swift, nuevo K/Voz/BibliotecaAudio.swift |
+| D3 | ✅ **Audio** (hecho): reproductor global (velocidad, ±saltos, barra de lo que suena, fila, «Está sonando»), biblioteca de audio, reproductor y micrófono flotantes con la hora | K/Voz/{ReproductorVoz,VistasVoz,BibliotecaAudio,FlotantesVoz,GrabadoraVoz}.swift, K/Vistas.swift (la barra y la entrada del menú) |
 | D4 ✅ | **Notas Markdown** (hecho, 16-oct): el editor de Windows (su página en un `WKWebView`) con sus atajos, fotos, documentos y audios en la nota, «Del chat», comentarios (`.comentarios.json`, viajan), copia `.md`, Word y compartir. Quedan las páginas vivas y los enlaces a hojas, y saltar al mensaje de un incrustado | K/Documentos/EditorNotaWeb.swift, K/Documentos/EditorNota.swift, N/notas.rs, N/notas/{web,adjuntos,comentarios,vista}.rs |
 | D5 | **Hojas**: editar un `.xlsx` como libro con pestañas, todas las hojas del móvil, los atajos de Windows (sin ⌘N, ⌘K ni ⌘S) | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/libro.rs |
 | D6 | **Asistente, parte 1**: nube con URLSession, bajar el modelo y su catálogo para Mac, que no quede `llama-server` huérfano | K/Asistente/*, N/asistente.rs (**después de A7**) |
