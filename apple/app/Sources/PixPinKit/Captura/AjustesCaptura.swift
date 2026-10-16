@@ -59,6 +59,10 @@ public struct AjustesCaptura: Equatable, Sendable {
     /// Segundos de la captura con retardo (de fabrica, 3; 0 = sin espera).
     public var retardoSegundos: Int
     public var formatoColor: FormatoColorLupa
+    /// `[gif] por_segundo`: fotogramas por segundo del GIF (10).
+    public var gifPorSegundo = 10
+    /// `[gif] retardo_s`: segundos entre «Grabar» y el primer fotograma (0).
+    public var gifRetardo = 0
 
     public static let deFabrica = AjustesCaptura(retardoSegundos: 3, formatoColor: .hex)
 
@@ -70,21 +74,38 @@ public struct AjustesCaptura: Equatable, Sendable {
         self.formatoColor = formatoColor
     }
 
-    /// Lee las dos claves de la raiz de un TOML. Lo que falte o no se
-    /// entienda se queda como de fabrica.
+    /// Los ritmos del GIF que se ofrecen (`RITMOS` de Windows).
+    public static let ritmosGif = [5, 10, 15, 20, 25, 30]
+
+    /// El ritmo ofrecido mas cercano a `n` (`indice_de_ritmo` de Windows).
+    public static func ritmoGif(cercaDe n: Int) -> Int {
+        ritmosGif.min { abs($0 - n) < abs($1 - n) } ?? 10
+    }
+
+    /// Lee las claves de la raiz de un TOML y las de `[gif]`. Lo que falte
+    /// o no se entienda se queda como de fabrica.
     public static func leer(toml: String) -> AjustesCaptura {
         var a = deFabrica
+        var seccion = ""
         for linea in toml.split(whereSeparator: \.isNewline) {
             let l = linea.trimmingCharacters(in: .whitespaces)
-            // La primera seccion acaba la raiz: una `retardo_captura_s`
-            // dentro de otra tabla no es la nuestra.
-            if l.hasPrefix("[") { break }
+            // Una `retardo_captura_s` dentro de otra tabla no es la nuestra.
+            if l.hasPrefix("[") {
+                seccion = l.trimmingCharacters(in: CharacterSet(charactersIn: "[] "))
+                continue
+            }
             guard !l.hasPrefix("#"), let igual = l.firstIndex(of: "=") else { continue }
             let clave = l[..<igual].trimmingCharacters(in: .whitespaces)
             var valor = l[l.index(after: igual)...].trimmingCharacters(in: .whitespaces)
             if let almohadilla = valor.firstIndex(of: "#") {
                 valor = valor[..<almohadilla].trimmingCharacters(in: .whitespaces)
             }
+            if seccion == "gif" {
+                if clave == "por_segundo", let n = Int(valor), n > 0 { a.gifPorSegundo = min(n, 60) }
+                if clave == "retardo_s", let n = Int(valor), n >= 0 { a.gifRetardo = min(n, retardoMaximo) }
+                continue
+            }
+            guard seccion.isEmpty else { continue }
             switch clave {
             case "retardo_captura_s":
                 if let n = Int(valor), n >= 0 { a.retardoSegundos = min(n, retardoMaximo) }

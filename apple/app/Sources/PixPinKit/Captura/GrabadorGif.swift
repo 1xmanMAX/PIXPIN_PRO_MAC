@@ -1,7 +1,10 @@
 // Grabar una zona en GIF (modo `G` de la captura, P5 de Windows): la zona
-// se elige con la captura y se graba con ScreenCaptureKit a 10 fotogramas
-// por segundo (el ritmo de partida de Windows) con tope de 12 s, y se
-// guarda en `capturas/captura-AAAAMMDD-HHMMSS.gif`, el nombre de Windows.
+// se elige con la captura y luego, en dos fases como en Windows, el marco
+// azul con su barra (el ritmo y «Grabar», Intro) y el rojo grabando (el
+// reloj y «Parar», Intro); Esc sale aunque el foco este en otra app. Se
+// graba con ScreenCaptureKit a los fotogramas por segundo de `[gif]` (10
+// de partida) con tope de 12 s, y se guarda en
+// `capturas/captura-AAAAMMDD-HHMMSS.gif`, el nombre de Windows.
 //
 // Rendimiento (§4bis del plan):
 // - ScreenCaptureKit reduce la zona en la propia captura (la tarjeta
@@ -105,7 +108,8 @@ public struct DeduplicadorGif {
 public final class GrabadorGif: ObservableObject {
     public static let compartido = GrabadorGif()
 
-    /// Fotogramas por segundo (`RITMOS[1]` de Windows).
+    /// Fotogramas por segundo de partida (`RITMOS[1]` de Windows); el de
+    /// cada sesion sale de `[gif] por_segundo` y se cambia en la barra.
     public nonisolated static let porSegundo: Int32 = 10
     /// Tope de reloj (`TIEMPO_MAXIMO` de Windows): mas largo es un video.
     public nonisolated static let segundosMaximos: Double = 12
@@ -113,6 +117,9 @@ public final class GrabadorGif: ObservableObject {
     public nonisolated static let memoriaMaxima = 160 * 1024 * 1024
 
     @Published public private(set) var grabando = false
+    /// Hay una sesion abierta (esperando con el marco azul, contando o
+    /// grabando).
+    @Published public private(set) var enSesion = false
     public var carpetaDeCapturas = carpetaDeDatos().appendingPathComponent("capturas", isDirectory: true)
     public var alGuardar: ((URL) -> Void)?
 
@@ -120,12 +127,156 @@ public final class GrabadorGif: ObservableObject {
     private var salida: SalidaGif?
     private var marco: MarcoDeZona?
     private var tope: Task<Void, Never>?
+    private var vigiaEsc: Task<Void, Never>?
     private var desde = Date()
+    private var zona: ZonaDeGrabacion?
+    /// Los fotogramas por segundo de esta sesion.
+    public private(set) var ritmo = Int(GrabadorGif.porSegundo)
+    private var retardo = 0
+    private var objetivos: [ObjetivoBoton] = []
+    private weak var rotuloRitmo: NSTextField?
+    private weak var rotuloReloj: NSTextField?
 
     public init() {}
 
+    /// **La grabacion en dos fases** (`gif.rs` de Windows): primero el
+    /// marco azul alrededor de la zona con su barra (el ritmo, «Grabar»);
+    /// Intro (o el boton, o el atajo otra vez) empieza y vuelve a parar.
+    /// Esc, que se mira aunque el foco este en la app que se graba, cierra
+    /// sin grabar antes de empezar y para (guardando) despues.
     public func empezar(_ zona: ZonaDeGrabacion) async {
-        guard !grabando, flujo == nil else { return }
+        guard !enSesion, !grabando, flujo == nil else { return }
+        let ajustes = AjustesCaptura.actuales()
+        ritmo = AjustesCaptura.ritmoGif(cercaDe: ajustes.gifPorSegundo)
+        retardo = ajustes.gifRetardo
+        self.zona = zona
+        enSesion = true
+        marco = MarcoDeZona.abrir(zona: zona, rojo: false, contenido: barraDeEspera())
+        guard marco != nil else { return cerrarSesion() }
+        vigilarEsc()
+    }
+
+    /// El atajo de grabar GIF con la sesion abierta: empieza o para.
+    public func alternar() {
+        if grabando {
+            Task { await parar() }
+        } else if enSesion, flujo == nil {
+            grabar()
+        }
+    }
+
+    /// Cierra la sesion sin grabar (Esc antes de empezar, o la ✕).
+    public func cancelar() {
+        guard enSesion, !grabando else { return }
+        CuentaAtras.cancelar()
+        cerrarSesion()
+    }
+
+    private func cerrarSesion() {
+        vigiaEsc?.cancel()
+        vigiaEsc = nil
+        marco?.cerrar()
+        marco = nil
+        objetivos = []
+        zona = nil
+        enSesion = false
+    }
+
+    /// Esc se mira cada 16 ms (como la cuenta atras): durante la grabacion
+    /// el foco esta en la app que se graba, no en la barra.
+    private func vigilarEsc() {
+        vigiaEsc?.cancel()
+        vigiaEsc = Task { @MainActor [weak self] in
+            var antes = CGEventSource.keyState(.combinedSessionState, key: 53)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(16))
+                guard let self else { return }
+                let ahora = CGEventSource.keyState(.combinedSessionState, key: 53)
+                defer { antes = ahora }
+                // Al bajar la tecla, no mientras sigue pulsada.
+                guard ahora, !antes else { continue }
+                if self.grabando {
+                    await self.parar()
+                } else {
+                    self.cancelar()
+                }
+                return
+            }
+        }
+    }
+
+    // MARK: Las barras
+
+    private func boton(_ titulo: String, tecla: String = "", azul: Bool = false,
+                       accion: @escaping @MainActor () -> Void) -> NSButton {
+        let objetivo = ObjetivoBoton { MainActor.assumeIsolated { accion() } }
+        objetivos.append(objetivo)
+        let b = NSButton(title: titulo, target: objetivo, action: #selector(ObjetivoBoton.pulsado))
+        b.keyEquivalent = tecla
+        b.refusesFirstResponder = true
+        if azul { b.bezelColor = .controlAccentColor }
+        return b
+    }
+
+    private func fila(_ vistas: [NSView]) -> NSView {
+        let pila = NSStackView(views: vistas)
+        pila.spacing = 8
+        pila.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 8)
+        return pila
+    }
+
+    /// Esperando: «GIF · 10 fps», − y +, Grabar (Intro) y ✕ (Esc).
+    private func barraDeEspera() -> NSView {
+        objetivos = []
+        let rotulo = NSTextField(labelWithString: textoRitmo)
+        rotulo.font = .monospacedDigitSystemFont(ofSize: 12, weight: .medium)
+        rotuloRitmo = rotulo
+        let menos = boton("−") { [weak self] in self?.cambiarRitmo(-1) }
+        let mas = boton("+") { [weak self] in self?.cambiarRitmo(1) }
+        menos.toolTip = "Menos fotogramas por segundo"
+        mas.toolTip = "Más fotogramas por segundo"
+        let grabar = boton("Grabar ↩", tecla: "\r", azul: true) { [weak self] in self?.grabar() }
+        let cerrar = boton("✕") { [weak self] in self?.cancelar() }
+        cerrar.toolTip = "Cerrar sin grabar (Esc)"
+        return fila([rotulo, menos, mas, grabar, cerrar])
+    }
+
+    private var textoRitmo: String { "GIF · \(ritmo) fps" }
+
+    private func cambiarRitmo(_ paso: Int) {
+        let ritmos = AjustesCaptura.ritmosGif
+        let i = ritmos.firstIndex(of: ritmo) ?? 1
+        ritmo = ritmos[min(max(i + paso, 0), ritmos.count - 1)]
+        rotuloRitmo?.stringValue = textoRitmo
+    }
+
+    /// Grabando: el reloj y Parar (Intro).
+    private func barraDeGrabacion() -> NSView {
+        objetivos = []
+        let reloj = NSTextField(labelWithString: "● 0:00")
+        reloj.font = .monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
+        reloj.textColor = .systemRed
+        rotuloReloj = reloj
+        let parar = boton("Parar ↩", tecla: "\r") { [weak self] in Task { await self?.parar() } }
+        parar.bezelColor = .systemRed
+        return fila([reloj, parar])
+    }
+
+    /// «Grabar»: tras el retardo de los ajustes (con su cuenta atras),
+    /// empieza.
+    private func grabar() {
+        guard enSesion, !grabando, flujo == nil, let zona else { return }
+        if retardo > 0 {
+            CuentaAtras.empezar(segundos: retardo) { [weak self] in
+                Task { await self?.arrancar(zona) }
+            }
+        } else {
+            Task { await arrancar(zona) }
+        }
+    }
+
+    private func arrancar(_ zona: ZonaDeGrabacion) async {
+        guard enSesion, !grabando, flujo == nil else { return }
         do {
             let contenido = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             guard let pantalla = contenido.displays.first(where: { $0.displayID == zona.pantalla }) else {
@@ -143,7 +294,7 @@ public final class GrabadorGif: ObservableObject {
             config.width = tam.ancho
             config.height = tam.alto
             config.scalesToFit = true
-            config.minimumFrameInterval = CMTime(value: 1, timescale: GrabadorGif.porSegundo)
+            config.minimumFrameInterval = CMTime(value: 1, timescale: Int32(ritmo))
             config.pixelFormat = kCVPixelFormatType_32BGRA
             config.queueDepth = 3
             config.showsCursor = true
@@ -159,15 +310,25 @@ public final class GrabadorGif: ObservableObject {
             self.salida = salida
             desde = Date()
             grabando = true
-            // El marco rojo alrededor de la zona, con el boton de parar.
-            marco = MarcoDeZona.abrir(zona: zona, rojo: true, texto: "Grabando GIF", boton: "Detener") { [weak self] in
-                Task { await self?.parar() }
-            }
+            // El marco se pone rojo y la barra pasa a ser el reloj y Parar.
+            marco?.ponerRojo(true)
+            marco?.ponerContenido(barraDeGrabacion())
             tope = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(GrabadorGif.segundosMaximos * 1_000_000_000))
-                await self?.parar()
+                let inicio = Date()
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(250))
+                    guard let self else { return }
+                    let t = Date().timeIntervalSince(inicio)
+                    let s = Int(t)
+                    self.rotuloReloj?.stringValue = "● \(s / 60):" + String(format: "%02d", s % 60)
+                    if t >= GrabadorGif.segundosMaximos {
+                        await self.parar()
+                        return
+                    }
+                }
             }
         } catch {
+            cerrarSesion()
             PermisoCaptura.avisarDenegado(detalle: "No se pudo grabar el GIF: \(error.localizedDescription)")
         }
     }
@@ -178,9 +339,8 @@ public final class GrabadorGif: ObservableObject {
         self.salida = nil
         tope?.cancel()
         tope = nil
-        marco?.cerrar()
-        marco = nil
         grabando = false
+        cerrarSesion()
         let empezo = desde
         try? await flujo.stopCapture()
         guard let hecho = await salida.terminar() else {

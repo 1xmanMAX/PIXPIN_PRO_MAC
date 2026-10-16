@@ -61,6 +61,25 @@ final class CapturaB8Tests: XCTestCase {
                        AjustesCaptura.retardoMaximo)
     }
 
+    func testElGifLeeSuSeccionYSeQuedaEnLosRitmosDeWindows() {
+        let toml = """
+        retardo_captura_s = 4
+
+        [gif]
+        por_segundo = 15
+        retardo_s = 2
+        """
+        let a = AjustesCaptura.leer(toml: toml)
+        XCTAssertEqual(a.retardoSegundos, 4)
+        XCTAssertEqual(a.gifPorSegundo, 15)
+        XCTAssertEqual(a.gifRetardo, 2)
+        XCTAssertEqual(AjustesCaptura.deFabrica.gifPorSegundo, 10)
+        // `indice_de_ritmo` de Windows: el ofrecido mas cercano.
+        XCTAssertEqual(AjustesCaptura.ritmoGif(cercaDe: 11), 10)
+        XCTAssertEqual(AjustesCaptura.ritmoGif(cercaDe: 1), 5)
+        XCTAssertEqual(AjustesCaptura.ritmoGif(cercaDe: 1000), 30)
+    }
+
     func testElColorSeEscribeEnLosTresFormatosDeWindows() {
         XCTAssertEqual(FormatoColorLupa.hex.texto(255, 59, 48), "#FF3B30")
         XCTAssertEqual(FormatoColorLupa.rgb.texto(255, 59, 48), "rgb(255, 59, 48)")

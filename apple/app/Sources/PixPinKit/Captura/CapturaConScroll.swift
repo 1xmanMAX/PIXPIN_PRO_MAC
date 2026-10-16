@@ -150,9 +150,9 @@ final class MarcoDeZona {
     private let borde: NSPanel
     private let barra: NSPanel
     /// El destino del boton (el boton no lo retiene).
-    private let objetivo: ObjetivoBoton
+    private let objetivo: ObjetivoBoton?
 
-    private init(borde: NSPanel, barra: NSPanel, objetivo: ObjetivoBoton) {
+    private init(borde: NSPanel, barra: NSPanel, objetivo: ObjetivoBoton?) {
         self.borde = borde
         self.barra = barra
         self.objetivo = objetivo
@@ -165,8 +165,25 @@ final class MarcoDeZona {
         return CGRect(x: pantalla.minX + r.minX, y: pantalla.maxY - r.maxY, width: r.width, height: r.height)
     }
 
+    /// El marco con una barrita de un rotulo y un boton (Esc lo pulsa).
     static func abrir(zona: ZonaDeGrabacion, rojo: Bool, texto: String, boton: String,
                       accion: @escaping () -> Void) -> MarcoDeZona? {
+        let rotulo = NSTextField(labelWithString: texto)
+        rotulo.font = .systemFont(ofSize: 12, weight: .medium)
+        let objetivo = ObjetivoBoton(accion)
+        let b = NSButton(title: boton, target: objetivo, action: #selector(ObjetivoBoton.pulsado))
+        b.bezelColor = rojo ? .systemRed : .controlAccentColor
+        b.keyEquivalent = "\u{1b}"
+        let pila = NSStackView(views: [rotulo, b])
+        pila.spacing = 10
+        pila.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 8)
+        return abrir(zona: zona, rojo: rojo, contenido: pila, objetivo: objetivo)
+    }
+
+    /// El marco con `contenido` en su barra (quien lo pone retiene los
+    /// destinos de sus botones, o pasa uno en `objetivo`).
+    static func abrir(zona: ZonaDeGrabacion, rojo: Bool, contenido: NSView,
+                      objetivo: ObjetivoBoton? = nil) -> MarcoDeZona? {
         guard let pantalla = NSScreen.screens.first(where: { $0.numeroDePantalla == zona.pantalla }) else { return nil }
         let r = marcoGlobal(zona.rect, pantalla: pantalla.frame)
         let grosor: CGFloat = 3
@@ -187,26 +204,7 @@ final class MarcoDeZona {
         borde.contentView = vista
         borde.orderFrontRegardless()
 
-        let rotulo = NSTextField(labelWithString: texto)
-        rotulo.font = .systemFont(ofSize: 12, weight: .medium)
-        let objetivo = ObjetivoBoton(accion)
-        let b = NSButton(title: boton, target: objetivo, action: #selector(ObjetivoBoton.pulsado))
-        b.bezelColor = rojo ? .systemRed : .controlAccentColor
-        b.keyEquivalent = "\u{1b}"
-        let pila = NSStackView(views: [rotulo, b])
-        pila.spacing = 10
-        pila.edgeInsets = NSEdgeInsets(top: 6, left: 12, bottom: 6, right: 8)
-        let fondo = NSVisualEffectView()
-        fondo.material = .hudWindow
-        fondo.state = .active
-        fondo.wantsLayer = true
-        fondo.layer?.cornerRadius = 10
-        fondo.layer?.masksToBounds = true
-        let tam = pila.fittingSize
-        fondo.frame = NSRect(origin: .zero, size: tam)
-        pila.frame = fondo.bounds
-        fondo.addSubview(pila)
-
+        let tam = contenido.fittingSize
         var origen = CGPoint(x: fuera.maxX - tam.width, y: fuera.minY - tam.height - 6)
         if origen.y < pantalla.visibleFrame.minY { origen.y = fuera.maxY + 6 }
         if origen.y + tam.height > pantalla.visibleFrame.maxY { origen.y = fuera.minY + 8 }
@@ -218,10 +216,43 @@ final class MarcoDeZona {
         barra.level = .screenSaver
         barra.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         barra.isReleasedWhenClosed = false
-        barra.contentView = fondo
+        barra.contentView = fondo(contenido, tam: tam)
         barra.makeKeyAndOrderFront(nil)
 
         return MarcoDeZona(borde: borde, barra: barra, objetivo: objetivo)
+    }
+
+    /// El panel de la barra (para darle el teclado).
+    var panelDeBarra: NSPanel { barra }
+
+    /// Rojo (grabando) o azul (esperando).
+    func ponerRojo(_ rojo: Bool) {
+        borde.contentView?.layer?.borderColor = (rojo ? NSColor.systemRed : NSColor.controlAccentColor).cgColor
+    }
+
+    /// Cambia lo de dentro de la barra (y su tamano, sin moverla de su
+    /// esquina derecha).
+    func ponerContenido(_ contenido: NSView) {
+        let tam = contenido.fittingSize
+        var marco = barra.frame
+        marco.origin.x = marco.maxX - tam.width
+        marco.size = tam
+        barra.setFrame(marco, display: true)
+        barra.contentView = MarcoDeZona.fondo(contenido, tam: tam)
+    }
+
+    private static func fondo(_ contenido: NSView, tam: CGSize) -> NSView {
+        let fondo = NSVisualEffectView()
+        fondo.material = .hudWindow
+        fondo.state = .active
+        fondo.wantsLayer = true
+        fondo.layer?.cornerRadius = 10
+        fondo.layer?.masksToBounds = true
+        fondo.frame = NSRect(origin: .zero, size: tam)
+        contenido.frame = fondo.bounds
+        contenido.autoresizingMask = [.width, .height]
+        fondo.addSubview(contenido)
+        return fondo
     }
 
     func cerrar() {

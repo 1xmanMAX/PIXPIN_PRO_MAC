@@ -27,8 +27,9 @@ public enum ComandosApp {
         atajos.poner(.capturarConScroll) { capturador.capturar(.scroll) }
         atajos.poner(.capturarYAnotar) { capturador.capturar(.anotar) }
         atajos.poner(.grabarGif) {
-            if GrabadorGif.compartido.grabando {
-                Task { await GrabadorGif.compartido.parar() }
+            // Con la sesion del GIF abierta, el mismo atajo empieza o para.
+            if GrabadorGif.compartido.enSesion {
+                GrabadorGif.compartido.alternar()
             } else {
                 capturador.capturar(.gif)
             }
