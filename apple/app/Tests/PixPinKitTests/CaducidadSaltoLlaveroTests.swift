@@ -202,12 +202,14 @@ final class LlaveroDelSistemaTests: XCTestCase {
         XCTAssertNil(llavero.leer(servicio: "PixPinMax.asistente", cuenta: "prueba"))
         XCTAssertNoThrow(try llavero.borrar(servicio: "PixPinMax.asistente", cuenta: "prueba"))
 
-        // Por el puente: Rust guarda y lee la clave en este llavero.
-        XCTAssertTrue(LlaveroDelSistema.instalar(llavero))
+        // Por el puente: Rust guarda y lee la clave en el llavero de las
+        // pruebas (el nucleo instala uno por proceso: el mismo para todas).
+        let puente = LlaveroDelSistema.dePruebas
+        XCTAssertTrue(LlaveroDelSistema.instalar(puente))
         try iaGuardarClave(proveedorId: "claude", clave: "  sk-ant-api03-PRUEBA1234567890abcd  ")
         XCTAssertTrue(iaHayClave(proveedorId: "claude"))
         XCTAssertEqual(iaClaveEnmascarada(proveedorId: "claude"), "sk-ant-…abcd")
-        XCTAssertEqual(llavero.leer(servicio: "PixPinMax.asistente", cuenta: "claude"),
+        XCTAssertEqual(puente.leer(servicio: "PixPinMax.asistente", cuenta: "claude"),
                        "sk-ant-api03-PRUEBA1234567890abcd", "recortada, en su servicio y cuenta")
         try iaBorrarClave(proveedorId: "claude")
         XCTAssertFalse(iaHayClave(proveedorId: "claude"))

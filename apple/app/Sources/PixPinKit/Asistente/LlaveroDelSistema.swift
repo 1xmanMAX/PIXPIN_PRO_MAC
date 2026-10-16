@@ -22,6 +22,10 @@ public final class LlaveroDelSistema: LlaveroApp, @unchecked Sendable {
         self.sufijo = sufijo
     }
 
+    /// El de las pruebas (un servicio propio, para no tocar las claves de
+    /// verdad): uno solo por proceso, porque el nucleo instala uno solo.
+    static let dePruebas = LlaveroDelSistema(sufijo: ".pruebas-\(UUID().uuidString)")
+
     private static let cerrojo = NSLock()
     private static var instalado = false
 

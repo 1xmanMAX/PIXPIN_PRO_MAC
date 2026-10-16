@@ -33,7 +33,9 @@ enum MotorApple {
         let respuesta = try await sesion.respond(to: textoConHistorial(pedido, historial: historial))
         return RespuestaIa(texto: respuesta.content,
                            herramientas: recolector.usadas(),
-                           lienzo: recolector.lienzo())
+                           lienzo: recolector.lienzo(),
+                           pensamiento: "", segundosPensando: nil,
+                           motor: "Apple Intelligence", hoja: "")
     }
 
     /// Las herramientas que vienen a cuento, ya como `Tool` de Apple. Una

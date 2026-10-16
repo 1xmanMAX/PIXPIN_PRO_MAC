@@ -344,21 +344,42 @@ struct ControlArranque: View {
 }
 
 /// **La clave de un proveedor de la nube** (la «pantalla de claves» de
-/// Windows): pegarla y guardarla en el Llavero, ver la que hay (enmascarada)
-/// y borrarla. Nunca se ensena entera.
+/// Windows): pegarla y guardarla en el Llavero, ver la que hay (enmascarada),
+/// **probarla** (una llamada minima: unos pocos tokens; al guardar se prueba
+/// sola, como en Windows) y borrarla. Nunca se ensena entera.
 struct ClaveNube: View {
     let proveedor: ProveedorNube
     @State private var escrita = ""
     @State private var guardada: String?
     @State private var aviso: String?
+    /// La ultima prueba: en curso (`nil` dentro) o su resultado.
+    @State private var prueba: Result<String, Error>??
+
+    private var probando: Bool {
+        if case .some(.none) = prueba { return true }
+        return false
+    }
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 6) {
             if let guardada {
                 HStack(spacing: 8) {
                     Text(guardada).font(.system(.caption, design: .monospaced)).foregroundStyle(Paleta.v2.verde)
+                    Button("Probar") { probar() }.buttonStyle(BotonAjustes())
+                        .disabled(probando)
+                        .help("Una llamada mínima con la clave (unos pocos tokens)")
                     Button("Borrar") { borrar() }.buttonStyle(BotonAjustes())
                 }
+            }
+            switch prueba {
+            case .some(.none):
+                HStack(spacing: 6) { ProgressView().controlSize(.mini); Text("Probando…").font(.caption) }
+            case let .some(.some(.success(t))):
+                Text("✓ " + t).font(.caption).foregroundStyle(Paleta.v2.verde)
+            case let .some(.some(.failure(e))):
+                Text("⚠️ " + ModeloAjustes.texto(de: e)).font(.caption).foregroundStyle(Paleta.v2.rojo)
+            case .none:
+                EmptyView()
             }
             HStack(spacing: 6) {
                 SecureField(guardada == nil ? "Pega aquí la clave" : "Pega otra para cambiarla", text: $escrita)
@@ -385,16 +406,32 @@ struct ClaveNube: View {
             try iaGuardarClave(proveedorId: proveedor.rawValue, clave: clave)
             escrita = ""
             aviso = nil
+            leer()
+            probar()
+            return
         } catch {
             aviso = "No se pudo guardar: \(ModeloAjustes.texto(de: error))"
         }
         leer()
     }
 
+    private func probar() {
+        prueba = .some(nil)
+        let id = proveedor.rawValue
+        TransporteHttps.instalar()
+        Task {
+            let r = await Task.detached(priority: .userInitiated) {
+                Result { try iaProbarClave(proveedorId: id) }
+            }.value
+            prueba = .some(r)
+        }
+    }
+
     private func borrar() {
         do {
             try iaBorrarClave(proveedorId: proveedor.rawValue)
             aviso = nil
+            prueba = nil
         } catch {
             aviso = "No se pudo borrar: \(ModeloAjustes.texto(de: error))"
         }
