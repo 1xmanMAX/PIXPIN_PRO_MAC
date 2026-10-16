@@ -46,6 +46,19 @@ public struct VentanaTimeline: View {
         .onChange(of: modelo.consulta) { _, _ in modelo.consultaCambiada() }
         .task { await modelo.recargar() }
         .onDisappear { dictado.cancelar() }
+        // Un momento elegido en «Buscar en PixPin»: se busca y se abre su
+        // detalle (aunque la ventana se abra ahora).
+        .onReceive(PeticionDeMomento.compartida.$pedido) { p in
+            guard let p else { return }
+            PeticionDeMomento.compartida.pedido = nil
+            Task {
+                modelo.consulta = p.consulta
+                await modelo.buscar()
+                if let m = modelo.visibles.first(where: { $0.id == p.id }) {
+                    abrirDetalle(m, foto: 0)
+                }
+            }
+        }
     }
 
     /// «Últimas 24 horas · 4 momentos», o lo de lo que se ve.

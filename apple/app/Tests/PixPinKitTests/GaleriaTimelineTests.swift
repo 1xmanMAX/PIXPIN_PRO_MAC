@@ -216,10 +216,11 @@ final class GaleriaTimelineTests: XCTestCase {
         XCTAssertEqual(modelo.resultados.count, 60)
         XCTAssertFalse(modelo.hayMas)
         XCTAssertEqual(Set(modelo.resultados.compactMap(\.mensaje)).count, 60, "sin repetidos")
-        // Vaciar la caja vacia la lista sin buscar.
+        // Vaciar la caja ensena lo abierto hace poco (D8), no los mensajes.
         modelo.cambiar("  ")
-        XCTAssertTrue(modelo.resultados.isEmpty)
-        XCTAssertNil(modelo.tarea)
+        _ = await modelo.tarea?.value
+        XCTAssertTrue(modelo.estado.esInicio)
+        XCTAssertFalse(modelo.resultados.contains { $0.clase == .mensaje })
 
         // Una busqueda cancelada en Rust lo dice.
         let b = Busqueda.nueva()

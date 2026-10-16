@@ -21,10 +21,14 @@ import SwiftUI
 public struct BuscadorCabecera {
     let texto: Binding<String>
     let pista: String
+    /// Con el foco nada mas abrir la ventana («Buscar en PixPin»: se abre
+    /// para escribir).
+    let enfocar: Bool
 
-    public init(_ texto: Binding<String>, pista: String) {
+    public init(_ texto: Binding<String>, pista: String, enfocar: Bool = false) {
         self.texto = texto
         self.pista = pista
+        self.enfocar = enfocar
     }
 }
 
@@ -142,6 +146,7 @@ struct CajaBuscador: View {
                 .strokeBorder(foco ? Paleta.v2.acento : Color.white.opacity(encima ? 0.2 : 0.1), lineWidth: 1)
         }
         .onHover { encima = $0 }
+        .onAppear { if buscador.enfocar { foco = true } }
         .background {
             // ⌘F: al buscador, como el Ctrl F de la barra de Windows.
             Button("") { foco = true }

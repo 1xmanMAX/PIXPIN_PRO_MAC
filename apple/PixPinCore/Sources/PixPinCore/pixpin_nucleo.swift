@@ -4349,6 +4349,56 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func buscar(consulta: String, desde: UInt32, cuantos: UInt32, busqueda: Busqueda?) throws  -> PaginaBusqueda
     
     /**
+     * Apunta lo elegido (Intro sobre un resultado): la busqueda en las
+     * recientes y el resultado en «Abierto hace poco».
+     */
+    func buscarApuntar(consulta: String, abierto: ResultadoBusqueda?) throws 
+    
+    /**
+     * «Borrar todas» las busquedas recientes.
+     */
+    func buscarBorrarBusquedas() throws 
+    
+    /**
+     * **Busca en todo** lo de [`OpcionesBusqueda`]: ver el modulo. Con
+     * `busqueda`, se puede cancelar desde otro hilo.
+     */
+    func buscarEnTodo(opciones: OpcionesBusqueda, busqueda: Busqueda?) throws  -> ResultadosEnTodo
+    
+    /**
+     * **«Abierto hace poco»** (la caja vacia en «Todo»): lo elegido aqui
+     * antes que siga existiendo y, si es poco, la ultima captura y los
+     * chats recientes, sin repetir, como mucho [`ABIERTOS_A_LA_VISTA`].
+     */
+    func buscarInicio(diasCaducidad: Int64, desfaseMs: Int64)  -> [ResultadoBusqueda]
+    
+    /**
+     * Quita una busqueda reciente (su ✕).
+     */
+    func buscarQuitarBusqueda(indice: UInt32) throws 
+    
+    /**
+     * Las busquedas recientes y lo abierto hace poco, tal cual.
+     */
+    func buscarRecientes()  -> RecientesBusqueda
+    
+    /**
+     * **Lee el texto de los documentos de los chats que aun no se leyo**:
+     * los que sabe leer Rust los lee y guarda aqui (como mucho `cuantos`);
+     * los PDF los devuelve (como mucho `cuantos`) para que Swift los lea
+     * con PDFKit y los apunte con [`Nucleo::poner_texto_de_documento`].
+     * Swift lo llama en segundo plano hasta que no quede nada.
+     */
+    func documentosSinTexto(cuantos: UInt32) throws  -> PendientesDeTexto
+    
+    /**
+     * Apunta el texto de un documento leido por Swift (vacio tambien vale:
+     * «no tiene texto», y no se vuelve a pedir). Solo de dentro de los
+     * datos de PixPin.
+     */
+    func ponerTextoDeDocumento(ruta: String, texto: String) throws 
+    
+    /**
      * **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
      * Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
      * **la marca de cada uno** para sincronizar (sin ella, la vuelta
@@ -5692,6 +5742,118 @@ open func buscar(consulta: String, desde: UInt32, cuantos: UInt32, busqueda: Bus
         FfiConverterOptionTypeBusqueda.lower(busqueda),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Apunta lo elegido (Intro sobre un resultado): la busqueda en las
+     * recientes y el resultado en «Abierto hace poco».
+     */
+open func buscarApuntar(consulta: String, abierto: ResultadoBusqueda?)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_buscar_apuntar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(consulta),
+        FfiConverterOptionTypeResultadoBusqueda.lower(abierto),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * «Borrar todas» las busquedas recientes.
+     */
+open func buscarBorrarBusquedas()throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_buscar_borrar_busquedas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Busca en todo** lo de [`OpcionesBusqueda`]: ver el modulo. Con
+     * `busqueda`, se puede cancelar desde otro hilo.
+     */
+open func buscarEnTodo(opciones: OpcionesBusqueda, busqueda: Busqueda?)throws  -> ResultadosEnTodo  {
+    return try  FfiConverterTypeResultadosEnTodo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_buscar_en_todo(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeOpcionesBusqueda_lower(opciones),
+        FfiConverterOptionTypeBusqueda.lower(busqueda),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Abierto hace poco»** (la caja vacia en «Todo»): lo elegido aqui
+     * antes que siga existiendo y, si es poco, la ultima captura y los
+     * chats recientes, sin repetir, como mucho [`ABIERTOS_A_LA_VISTA`].
+     */
+open func buscarInicio(diasCaducidad: Int64, desfaseMs: Int64) -> [ResultadoBusqueda]  {
+    return try!  FfiConverterSequenceTypeResultadoBusqueda.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_buscar_inicio(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(diasCaducidad),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Quita una busqueda reciente (su ✕).
+     */
+open func buscarQuitarBusqueda(indice: UInt32)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_buscar_quitar_busqueda(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(indice),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Las busquedas recientes y lo abierto hace poco, tal cual.
+     */
+open func buscarRecientes() -> RecientesBusqueda  {
+    return try!  FfiConverterTypeRecientesBusqueda_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_buscar_recientes(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lee el texto de los documentos de los chats que aun no se leyo**:
+     * los que sabe leer Rust los lee y guarda aqui (como mucho `cuantos`);
+     * los PDF los devuelve (como mucho `cuantos`) para que Swift los lea
+     * con PDFKit y los apunte con [`Nucleo::poner_texto_de_documento`].
+     * Swift lo llama en segundo plano hasta que no quede nada.
+     */
+open func documentosSinTexto(cuantos: UInt32)throws  -> PendientesDeTexto  {
+    return try  FfiConverterTypePendientesDeTexto_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_documentos_sin_texto(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(cuantos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Apunta el texto de un documento leido por Swift (vacio tambien vale:
+     * «no tiene texto», y no se vuelve a pedir). Solo de dentro de los
+     * datos de PixPin.
+     */
+open func ponerTextoDeDocumento(ruta: String, texto: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_texto_de_documento(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ruta),
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -12516,6 +12678,63 @@ public func FfiConverterTypeDireccionRecordada_lower(_ value: DireccionRecordada
 
 
 /**
+ * Un PDF cuyo texto falta (lo lee Swift con PDFKit).
+ */
+public struct DocumentoSinTexto: Equatable, Hashable {
+    public var ruta: String
+    public var nombre: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ruta: String, nombre: String) {
+        self.ruta = ruta
+        self.nombre = nombre
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DocumentoSinTexto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentoSinTexto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentoSinTexto {
+        return
+            try DocumentoSinTexto(
+                ruta: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DocumentoSinTexto, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ruta, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentoSinTexto_lift(_ buf: RustBuffer) throws -> DocumentoSinTexto {
+    return try FfiConverterTypeDocumentoSinTexto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentoSinTexto_lower(_ value: DocumentoSinTexto) -> RustBuffer {
+    return FfiConverterTypeDocumentoSinTexto.lower(value)
+}
+
+
+/**
  * Lo que hay bajo el raton.
  */
 public struct Eleccion3d: Equatable, Hashable {
@@ -16764,6 +16983,99 @@ public func FfiConverterTypeOfertaRecibida_lower(_ value: OfertaRecibida) -> Rus
 
 
 /**
+ * Que se busca.
+ */
+public struct OpcionesBusqueda: Equatable, Hashable {
+    public var consulta: String
+    /**
+     * En que clases; vacio es en todas.
+     */
+    public var clases: [ClaseDeResultado]
+    /**
+     * Cuantos de cada clase como mucho (hasta [`TOPE_DE_RESULTADOS`]).
+     */
+    public var tope: UInt32
+    /**
+     * Los dias que dura una captura (el ajuste de la galeria).
+     */
+    public var diasCaducidad: Int64
+    /**
+     * Lo que se suma a UTC para la hora de aqui (los dias de las capturas).
+     */
+    public var desfaseMs: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(consulta: String, 
+        /**
+         * En que clases; vacio es en todas.
+         */clases: [ClaseDeResultado], 
+        /**
+         * Cuantos de cada clase como mucho (hasta [`TOPE_DE_RESULTADOS`]).
+         */tope: UInt32, 
+        /**
+         * Los dias que dura una captura (el ajuste de la galeria).
+         */diasCaducidad: Int64, 
+        /**
+         * Lo que se suma a UTC para la hora de aqui (los dias de las capturas).
+         */desfaseMs: Int64) {
+        self.consulta = consulta
+        self.clases = clases
+        self.tope = tope
+        self.diasCaducidad = diasCaducidad
+        self.desfaseMs = desfaseMs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OpcionesBusqueda: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOpcionesBusqueda: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OpcionesBusqueda {
+        return
+            try OpcionesBusqueda(
+                consulta: FfiConverterString.read(from: &buf), 
+                clases: FfiConverterSequenceTypeClaseDeResultado.read(from: &buf), 
+                tope: FfiConverterUInt32.read(from: &buf), 
+                diasCaducidad: FfiConverterInt64.read(from: &buf), 
+                desfaseMs: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OpcionesBusqueda, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.consulta, into: &buf)
+        FfiConverterSequenceTypeClaseDeResultado.write(value.clases, into: &buf)
+        FfiConverterUInt32.write(value.tope, into: &buf)
+        FfiConverterInt64.write(value.diasCaducidad, into: &buf)
+        FfiConverterInt64.write(value.desfaseMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionesBusqueda_lift(_ buf: RustBuffer) throws -> OpcionesBusqueda {
+    return try FfiConverterTypeOpcionesBusqueda.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionesBusqueda_lower(_ value: OpcionesBusqueda) -> RustBuffer {
+    return FfiConverterTypeOpcionesBusqueda.lower(value)
+}
+
+
+/**
  * Una pagina de «Momentos», del dia mas nuevo al mas viejo.
  */
 public struct PaginaArchivo: Equatable, Hashable {
@@ -17524,6 +17836,75 @@ public func FfiConverterTypeParTxt_lower(_ value: ParTxt) -> RustBuffer {
 
 
 /**
+ * Lo que queda por leer de los documentos.
+ */
+public struct PendientesDeTexto: Equatable, Hashable {
+    /**
+     * Los PDF sin leer (como mucho los pedidos).
+     */
+    public var pdfs: [DocumentoSinTexto]
+    /**
+     * Cuantos leyo Rust en esta vuelta (Word, PowerPoint...).
+     */
+    public var leidos: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Los PDF sin leer (como mucho los pedidos).
+         */pdfs: [DocumentoSinTexto], 
+        /**
+         * Cuantos leyo Rust en esta vuelta (Word, PowerPoint...).
+         */leidos: UInt32) {
+        self.pdfs = pdfs
+        self.leidos = leidos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PendientesDeTexto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePendientesDeTexto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PendientesDeTexto {
+        return
+            try PendientesDeTexto(
+                pdfs: FfiConverterSequenceTypeDocumentoSinTexto.read(from: &buf), 
+                leidos: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PendientesDeTexto, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeDocumentoSinTexto.write(value.pdfs, into: &buf)
+        FfiConverterUInt32.write(value.leidos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePendientesDeTexto_lift(_ buf: RustBuffer) throws -> PendientesDeTexto {
+    return try FfiConverterTypePendientesDeTexto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePendientesDeTexto_lower(_ value: PendientesDeTexto) -> RustBuffer {
+    return FfiConverterTypePendientesDeTexto.lower(value)
+}
+
+
+/**
  * Una persona (un aparato de una persona) de un chat compartido.
  */
 public struct PersonaCompartida: Equatable, Hashable {
@@ -18073,6 +18454,63 @@ public func FfiConverterTypeRecibidoEnvio_lower(_ value: RecibidoEnvio) -> RustB
 
 
 /**
+ * Las busquedas recientes y lo abierto hace poco.
+ */
+public struct RecientesBusqueda: Equatable, Hashable {
+    public var busquedas: [String]
+    public var abiertos: [ResultadoBusqueda]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(busquedas: [String], abiertos: [ResultadoBusqueda]) {
+        self.busquedas = busquedas
+        self.abiertos = abiertos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RecientesBusqueda: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecientesBusqueda: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecientesBusqueda {
+        return
+            try RecientesBusqueda(
+                busquedas: FfiConverterSequenceString.read(from: &buf), 
+                abiertos: FfiConverterSequenceTypeResultadoBusqueda.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RecientesBusqueda, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.busquedas, into: &buf)
+        FfiConverterSequenceTypeResultadoBusqueda.write(value.abiertos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecientesBusqueda_lift(_ buf: RustBuffer) throws -> RecientesBusqueda {
+    return try FfiConverterTypeRecientesBusqueda.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecientesBusqueda_lower(_ value: RecientesBusqueda) -> RustBuffer {
+    return FfiConverterTypeRecientesBusqueda.lower(value)
+}
+
+
+/**
  * Un recordatorio puesto, de un mensaje o de una tarea.
  */
 public struct RecordatorioMac: Equatable, Hashable {
@@ -18403,6 +18841,50 @@ public struct ResultadoBusqueda: Equatable, Hashable {
      * Milisegundos desde 1970.
      */
     public var cuando: Int64
+    /**
+     * Lo que lo identifica entre todos (`captura/<nombre>`,
+     * `mensaje/<chat>/<id>`...), como la `recordKey` de Windows.
+     */
+    public var clave: String
+    /**
+     * La ruta absoluta del fichero en este aparato (un fichero, una
+     * captura, la primera foto de un momento), si se resuelve.
+     */
+    public var ruta: String?
+    /**
+     * El id de la leccion.
+     */
+    public var leccion: String?
+    /**
+     * Cuanto vale la coincidencia (`puntos::puntuar`); 0 sin consulta.
+     */
+    public var puntos: UInt32
+    /**
+     * Las letras de `titulo` que coinciden, en UTF-16 (`NSString`).
+     */
+    public var resaltado: [UInt32]
+    /**
+     * Se encontro dentro (el texto del documento o el leido de la
+     * captura), no en el nombre.
+     */
+    public var dentro: Bool
+    /**
+     * El tamano del fichero o la captura.
+     */
+    public var bytes: UInt64
+    /**
+     * Una captura conservada (no caduca).
+     */
+    public var conservada: Bool
+    /**
+     * Los dias que le quedan a una captura (0: hoy); `None` si no se va.
+     */
+    public var diasQueQuedan: Int64?
+    /**
+     * El texto de la tarea tal cual esta en su lista (lo que pide
+     * [`Nucleo::marcar_tarea`]); vacio en lo demas.
+     */
+    public var crudo: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -18435,7 +18917,41 @@ public struct ResultadoBusqueda: Equatable, Hashable {
          */fragmento: String, 
         /**
          * Milisegundos desde 1970.
-         */cuando: Int64) {
+         */cuando: Int64, 
+        /**
+         * Lo que lo identifica entre todos (`captura/<nombre>`,
+         * `mensaje/<chat>/<id>`...), como la `recordKey` de Windows.
+         */clave: String, 
+        /**
+         * La ruta absoluta del fichero en este aparato (un fichero, una
+         * captura, la primera foto de un momento), si se resuelve.
+         */ruta: String?, 
+        /**
+         * El id de la leccion.
+         */leccion: String?, 
+        /**
+         * Cuanto vale la coincidencia (`puntos::puntuar`); 0 sin consulta.
+         */puntos: UInt32, 
+        /**
+         * Las letras de `titulo` que coinciden, en UTF-16 (`NSString`).
+         */resaltado: [UInt32], 
+        /**
+         * Se encontro dentro (el texto del documento o el leido de la
+         * captura), no en el nombre.
+         */dentro: Bool, 
+        /**
+         * El tamano del fichero o la captura.
+         */bytes: UInt64, 
+        /**
+         * Una captura conservada (no caduca).
+         */conservada: Bool, 
+        /**
+         * Los dias que le quedan a una captura (0: hoy); `None` si no se va.
+         */diasQueQuedan: Int64?, 
+        /**
+         * El texto de la tarea tal cual esta en su lista (lo que pide
+         * [`Nucleo::marcar_tarea`]); vacio en lo demas.
+         */crudo: String) {
         self.clase = clase
         self.chat = chat
         self.nombreChat = nombreChat
@@ -18448,6 +18964,16 @@ public struct ResultadoBusqueda: Equatable, Hashable {
         self.titulo = titulo
         self.fragmento = fragmento
         self.cuando = cuando
+        self.clave = clave
+        self.ruta = ruta
+        self.leccion = leccion
+        self.puntos = puntos
+        self.resaltado = resaltado
+        self.dentro = dentro
+        self.bytes = bytes
+        self.conservada = conservada
+        self.diasQueQuedan = diasQueQuedan
+        self.crudo = crudo
     }
 
     
@@ -18477,7 +19003,17 @@ public struct FfiConverterTypeResultadoBusqueda: FfiConverterRustBuffer {
                 tipo: FfiConverterString.read(from: &buf), 
                 titulo: FfiConverterString.read(from: &buf), 
                 fragmento: FfiConverterString.read(from: &buf), 
-                cuando: FfiConverterInt64.read(from: &buf)
+                cuando: FfiConverterInt64.read(from: &buf), 
+                clave: FfiConverterString.read(from: &buf), 
+                ruta: FfiConverterOptionString.read(from: &buf), 
+                leccion: FfiConverterOptionString.read(from: &buf), 
+                puntos: FfiConverterUInt32.read(from: &buf), 
+                resaltado: FfiConverterSequenceUInt32.read(from: &buf), 
+                dentro: FfiConverterBool.read(from: &buf), 
+                bytes: FfiConverterUInt64.read(from: &buf), 
+                conservada: FfiConverterBool.read(from: &buf), 
+                diasQueQuedan: FfiConverterOptionInt64.read(from: &buf), 
+                crudo: FfiConverterString.read(from: &buf)
         )
     }
 
@@ -18494,6 +19030,16 @@ public struct FfiConverterTypeResultadoBusqueda: FfiConverterRustBuffer {
         FfiConverterString.write(value.titulo, into: &buf)
         FfiConverterString.write(value.fragmento, into: &buf)
         FfiConverterInt64.write(value.cuando, into: &buf)
+        FfiConverterString.write(value.clave, into: &buf)
+        FfiConverterOptionString.write(value.ruta, into: &buf)
+        FfiConverterOptionString.write(value.leccion, into: &buf)
+        FfiConverterUInt32.write(value.puntos, into: &buf)
+        FfiConverterSequenceUInt32.write(value.resaltado, into: &buf)
+        FfiConverterBool.write(value.dentro, into: &buf)
+        FfiConverterUInt64.write(value.bytes, into: &buf)
+        FfiConverterBool.write(value.conservada, into: &buf)
+        FfiConverterOptionInt64.write(value.diasQueQuedan, into: &buf)
+        FfiConverterString.write(value.crudo, into: &buf)
     }
 }
 
@@ -18510,6 +19056,85 @@ public func FfiConverterTypeResultadoBusqueda_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeResultadoBusqueda_lower(_ value: ResultadoBusqueda) -> RustBuffer {
     return FfiConverterTypeResultadoBusqueda.lower(value)
+}
+
+
+/**
+ * Lo encontrado.
+ */
+public struct ResultadosEnTodo: Equatable, Hashable {
+    /**
+     * Por puntos y, entre iguales, lo mas nuevo primero.
+     */
+    public var resultados: [ResultadoBusqueda]
+    /**
+     * Las clases que se cortaron en el tope: habria mas.
+     */
+    public var recortadas: [ClaseDeResultado]
+    /**
+     * Se cancelo a mitad: lo que hay es lo que dio tiempo.
+     */
+    public var cancelada: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Por puntos y, entre iguales, lo mas nuevo primero.
+         */resultados: [ResultadoBusqueda], 
+        /**
+         * Las clases que se cortaron en el tope: habria mas.
+         */recortadas: [ClaseDeResultado], 
+        /**
+         * Se cancelo a mitad: lo que hay es lo que dio tiempo.
+         */cancelada: Bool) {
+        self.resultados = resultados
+        self.recortadas = recortadas
+        self.cancelada = cancelada
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ResultadosEnTodo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeResultadosEnTodo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ResultadosEnTodo {
+        return
+            try ResultadosEnTodo(
+                resultados: FfiConverterSequenceTypeResultadoBusqueda.read(from: &buf), 
+                recortadas: FfiConverterSequenceTypeClaseDeResultado.read(from: &buf), 
+                cancelada: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ResultadosEnTodo, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeResultadoBusqueda.write(value.resultados, into: &buf)
+        FfiConverterSequenceTypeClaseDeResultado.write(value.recortadas, into: &buf)
+        FfiConverterBool.write(value.cancelada, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeResultadosEnTodo_lift(_ buf: RustBuffer) throws -> ResultadosEnTodo {
+    return try FfiConverterTypeResultadosEnTodo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeResultadosEnTodo_lower(_ value: ResultadosEnTodo) -> RustBuffer {
+    return FfiConverterTypeResultadosEnTodo.lower(value)
 }
 
 
@@ -21089,7 +21714,7 @@ public enum ClaseDeResultado: Equatable, Hashable {
      */
     case chat
     /**
-     * Un mensaje de un chat.
+     * Un mensaje de un chat (una nota, un texto, una mini-app).
      */
     case mensaje
     /**
@@ -21100,6 +21725,19 @@ public enum ClaseDeResultado: Equatable, Hashable {
      * Un momento del timeline.
      */
     case momento
+    /**
+     * Un fichero de un chat (documento, foto, audio, lienzo u hoja), por
+     * su nombre o por lo que pone dentro.
+     */
+    case fichero
+    /**
+     * Una captura de la galeria, por su nombre, su fecha o su texto.
+     */
+    case captura
+    /**
+     * Una leccion aprendida.
+     */
+    case leccion
 
 
 
@@ -21129,6 +21767,12 @@ public struct FfiConverterTypeClaseDeResultado: FfiConverterRustBuffer {
         
         case 4: return .momento
         
+        case 5: return .fichero
+        
+        case 6: return .captura
+        
+        case 7: return .leccion
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -21151,6 +21795,18 @@ public struct FfiConverterTypeClaseDeResultado: FfiConverterRustBuffer {
         
         case .momento:
             writeInt(&buf, Int32(4))
+        
+        
+        case .fichero:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .captura:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .leccion:
+            writeInt(&buf, Int32(7))
         
         }
     }
@@ -25507,6 +26163,30 @@ fileprivate struct FfiConverterOptionTypeRecursoNota: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeResultadoBusqueda: FfiConverterRustBuffer {
+    typealias SwiftType = ResultadoBusqueda?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeResultadoBusqueda.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeResultadoBusqueda.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeResumenMini: FfiConverterRustBuffer {
     typealias SwiftType = ResumenMini?
 
@@ -26340,6 +27020,31 @@ fileprivate struct FfiConverterSequenceTypeDireccionRecordada: FfiConverterRustB
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDireccionRecordada.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDocumentoSinTexto: FfiConverterRustBuffer {
+    typealias SwiftType = [DocumentoSinTexto]
+
+    public static func write(_ value: [DocumentoSinTexto], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDocumentoSinTexto.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DocumentoSinTexto] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DocumentoSinTexto]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDocumentoSinTexto.read(from: &buf))
         }
         return seq
     }
@@ -27265,6 +27970,31 @@ fileprivate struct FfiConverterSequenceTypeVistoEnRed: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeVistoEnRed.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeClaseDeResultado: FfiConverterRustBuffer {
+    typealias SwiftType = [ClaseDeResultado]
+
+    public static func write(_ value: [ClaseDeResultado], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeClaseDeResultado.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ClaseDeResultado] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ClaseDeResultado]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeClaseDeResultado.read(from: &buf))
         }
         return seq
     }
@@ -28968,6 +29698,30 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar() != 14532) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar_apuntar() != 7852) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar_borrar_busquedas() != 46510) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar_en_todo() != 41653) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar_inicio() != 43948) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar_quitar_busqueda() != 9634) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar_recientes() != 25515) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_documentos_sin_texto() != 13689) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_texto_de_documento() != 3914) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_mensajes() != 49997) {
