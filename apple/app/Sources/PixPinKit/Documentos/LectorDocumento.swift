@@ -68,12 +68,25 @@ public final class ModeloLector: ObservableObject {
     public var anotando: Bool { herramienta != "leer" }
 }
 
-/// La barra de arriba del lector.
+/// **La barra del lector**, como la de Windows (`lector_pin.rs`): flota
+/// encima de la ventana y sale con el raton (`BarraFlotante`). El asa y el
+/// nombre a la izquierda, las herramientas, y al final pantalla completa,
+/// el pin (siempre encima) y la ✕.
 struct BarraLector: View {
     @ObservedObject var modelo: ModeloLector
+    let nombre: String
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
+            AsaBarra()
+            Text(nombre)
+                .font(.system(size: 13))
+                .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: 260, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+            Divider().frame(height: 22)
             Picker("", selection: Binding(get: { modelo.herramienta },
                                           set: { modelo.controlador?.elegir($0) })) {
                 Image(systemName: "book").help("Leer (elegir texto)").tag("leer")
@@ -123,38 +136,35 @@ struct BarraLector: View {
             .help("Marcadores (M)")
             Button { modelo.controlador?.deshacer() } label: { Image(systemName: "arrow.uturn.backward") }
                 .help("Deshacer (⌘Z)")
-            Spacer()
             if modelo.maquetando { ProgressView().controlSize(.small) }
             Text(modelo.paginas > 0 ? "\(modelo.pagina + 1) / \(modelo.paginas)" : "")
-                .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                .font(.caption.monospacedDigit()).foregroundStyle(Color(white: 0.78))
+                .fixedSize()
             if modelo.donde == .chat {
-                Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.secondary)
+                Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(Color(white: 0.78))
                     .help("Lo anotado viaja con el mensaje a tus otros aparatos")
             }
-            Toggle(isOn: Binding(get: { modelo.encima }, set: { modelo.controlador?.ponerEncima($0) })) {
-                Image(systemName: "pin")
+            Divider().frame(height: 22)
+            BotonFlotante(simbolo: "arrow.up.left.and.arrow.down.right", ayuda: "Pantalla completa (⌃⌘F)") {
+                modelo.controlador?.pantallaCompleta()
             }
-            .toggleStyle(.button)
-            .help("Siempre encima, como un pin")
-            Button { modelo.controlador?.pantallaCompleta() } label: {
-                Image(systemName: "arrow.up.left.and.arrow.down.right")
+            BotonFlotante(simbolo: modelo.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
+                       encendido: modelo.encima) {
+                modelo.controlador?.ponerEncima(!modelo.encima)
             }
-            .help("Pantalla completa (⌃⌘F)")
-            // Sin el marco del Mac (`VentanaLisa`): −, ☐ y ✕ van aqui, al
-            // final, como en la barra del lector de Windows.
-            BotonesDeVentana(ventana: RefVentana(modelo.controlador?.ventana))
+            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar (⌘W)") {
+                VentanaLisa.cerrar(modelo.controlador?.ventana)
+            }
         }
-        .padding(.leading, 10)
-        .padding(.trailing, 6)
-        .padding(.vertical, 6)
-        // Desde los huecos de la barra se lleva la ventana.
-        .contentShape(Rectangle())
-        .gesture(WindowDragGesture())
+        .fixedSize()
+        // Planos, como los de la barra de Windows.
+        .buttonStyle(.borderless)
         .overlay(alignment: .bottom) {
             if let aviso = modelo.aviso {
                 Text(aviso).font(.caption).padding(4)
-                    .background(.red.opacity(0.15), in: RoundedRectangle(cornerRadius: 4))
-                    .offset(y: 26)
+                    .background(.red.opacity(0.25), in: RoundedRectangle(cornerRadius: 4))
+                    .fixedSize()
+                    .offset(y: 30)
             }
         }
     }
@@ -230,6 +240,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     let ventana: VentanaLectorNS
     let vistaPDF = PDFView()
     private let capa = CapaTintaNS()
+    /// La barra, fuera de la ventana (sale con el raton).
+    private var barra: BarraFlotante?
 
     /// La tinta de cada hoja abierta, y lo ultimo leido de ella.
     private var editores: [Int: EditorLienzo] = [:]
@@ -262,7 +274,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         modelo.controlador = self
         ventana.controlador = self
         ventana.title = titulo
-        // Lisa, como el lector de Windows: la barra del lector hace de titulo.
+        // Lisa y sin marco, como el lector de Windows: su barra flota fuera.
         VentanaLisa.vestirEntera(ventana)
         ventana.isReleasedWhenClosed = false
         ventana.collectionBehavior.insert(.fullScreenPrimary)
@@ -271,32 +283,22 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     private func montar() {
-        let barra = NSHostingView(rootView: BarraLector(modelo: modelo))
-        // Hasta arriba: la barra del titulo, lisa, no aparta la del lector.
-        barra.safeAreaRegions = []
-        barra.translatesAutoresizingMaskIntoConstraints = false
-        vistaPDF.translatesAutoresizingMaskIntoConstraints = false
+        // El documento ocupa la ventana entera; la barra flota fuera.
         vistaPDF.displayMode = .singlePageContinuous
         vistaPDF.displaysPageBreaks = true
         vistaPDF.autoScales = true
         vistaPDF.backgroundColor = NSColor.windowBackgroundColor
-        let raiz = NSView()
-        raiz.addSubview(barra)
-        raiz.addSubview(vistaPDF)
-        NSLayoutConstraint.activate([
-            barra.topAnchor.constraint(equalTo: raiz.topAnchor),
-            barra.leadingAnchor.constraint(equalTo: raiz.leadingAnchor),
-            barra.trailingAnchor.constraint(equalTo: raiz.trailingAnchor),
-            vistaPDF.topAnchor.constraint(equalTo: barra.bottomAnchor),
-            vistaPDF.leadingAnchor.constraint(equalTo: raiz.leadingAnchor),
-            vistaPDF.trailingAnchor.constraint(equalTo: raiz.trailingAnchor),
-            vistaPDF.bottomAnchor.constraint(equalTo: raiz.bottomAnchor),
-        ])
+        let raiz = vistaPDF
         ventana.contentView = raiz
         ventana.setContentSize(NSSize(width: 900, height: 1000))
         ventana.center()
         _ = ventana.setFrameAutosaveName("PixPinLector")
         capa.controlador = self
+        let modelo = self.modelo
+        let nombre = ventana.title
+        let barra = BarraFlotante(ventana: ventana) { BarraLector(modelo: modelo, nombre: nombre) }
+        barra.fija = { modelo.aviso != nil }
+        self.barra = barra
         let centro = NotificationCenter.default
         for nombre in [Notification.Name.PDFViewScaleChanged, .PDFViewPageChanged, .PDFViewDocumentChanged] {
             vigias.append(centro.addObserver(forName: nombre, object: vistaPDF, queue: .main) { [weak self] _ in
@@ -311,6 +313,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     /// maquetan en segundo plano, hoja a hoja.
     func abrir() {
         ventana.makeKeyAndOrderFront(nil)
+        barra?.empezar()
         NSApp.activate()
         let ruta = url.path
         let nucleo = self.nucleo
@@ -772,6 +775,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     // MARK: NSWindowDelegate
 
     public func windowWillClose(_ notification: Notification) {
+        barra?.terminar()
         tareaOffice?.cancel()
         guardadoPendiente?.cancel()
         guardarLectura()

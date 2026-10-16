@@ -20,6 +20,7 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
     private struct Abierto {
         let panel: NSPanel
         let vista: QLPreviewView
+        let barra: BarraFlotante
     }
 
     private var abiertos: [String: Abierto] = [:]
@@ -38,8 +39,8 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
         }
         let marco = PinesDeOffice.marcoInicial()
         // Lisa, como el lector de Windows (`lector_pin.rs`): sin el marco del
-        // Mac, con su barra arriba (asa, nombre, «Leer y anotar», el pin y
-        // la ✕) y el documento debajo.
+        // Mac, el documento en todo el panel y su barra (asa, nombre, «Leer
+        // y anotar», el pin y la ✕) flotando encima, con el raton.
         let panel = NSPanel(contentRect: marco,
                             styleMask: [.titled, .closable, .miniaturizable, .resizable, .nonactivatingPanel],
                             backing: .buffered, defer: false)
@@ -67,26 +68,13 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
                 panel?.close()
             }
         }
-        let barra = NSHostingView(rootView: BarraPinOffice(nombre: url.lastPathComponent,
-                                                           ventana: RefVentana(panel), leer: leer))
-        // Hasta arriba del todo: la barra del titulo no se ve, no aparta nada.
-        barra.safeAreaRegions = []
-        let contenedor = NSView(frame: CGRect(origin: .zero, size: marco.size))
-        for v in [barra, vista] as [NSView] {
-            v.translatesAutoresizingMaskIntoConstraints = false
-            contenedor.addSubview(v)
+        let nombre = url.lastPathComponent
+        let barra = BarraFlotante(ventana: panel) {
+            BarraPinOffice(nombre: nombre, ventana: RefVentana(panel), leer: leer)
         }
-        NSLayoutConstraint.activate([
-            barra.topAnchor.constraint(equalTo: contenedor.topAnchor),
-            barra.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
-            barra.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
-            vista.topAnchor.constraint(equalTo: barra.bottomAnchor),
-            vista.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
-            vista.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
-            vista.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
-        ])
-        panel.contentView = contenedor
-        abiertos[clave] = Abierto(panel: panel, vista: vista)
+        panel.contentView = vista
+        abiertos[clave] = Abierto(panel: panel, vista: vista, barra: barra)
+        barra.empezar()
         panel.makeKeyAndOrderFront(nil)
     }
 
@@ -103,13 +91,14 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
         guard let panel = notification.object as? NSPanel,
               let clave = panel.identifier?.rawValue,
               let a = abiertos.removeValue(forKey: clave) else { return }
+        a.barra.terminar()
         a.vista.close()
     }
 }
 
 /// **La barra del pin de Office**, como la de los lectores de Windows: el
-/// asa y el nombre a la izquierda (se arrastra desde cualquier hueco), y a
-/// la derecha «Leer y anotar», el pin (siempre encima o no) y la ✕.
+/// asa y el nombre a la izquierda, y a la derecha «Leer y anotar», el pin
+/// (siempre encima o no) y la ✕. Flota encima del panel (`BarraFlotante`).
 struct BarraPinOffice: View {
     let nombre: String
     let ventana: RefVentana
@@ -117,36 +106,25 @@ struct BarraPinOffice: View {
     @State private var encima = true
 
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "line.3.horizontal")
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
-                .accessibilityHidden(true)
+        HStack(spacing: 8) {
+            AsaBarra()
             Text(nombre)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 13))
+                .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
                 .lineLimit(1)
                 .truncationMode(.middle)
-            Spacer(minLength: 8)
+                .frame(maxWidth: 260, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
             if let leer {
-                Button("Leer y anotar", action: leer)
-                    .controlSize(.small)
-                    .help("Abrirlo en el lector, para anotar encima")
+                BotonFlotante(simbolo: "pencil.tip", ayuda: "Leer y anotar: abrirlo en el lector", accion: leer)
             }
-            BotonPlano(simbolo: encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
+            BotonFlotante(simbolo: encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
                        encendido: encima) {
                 encima.toggle()
                 ventana.ventana?.level = encima ? .floating : .normal
             }
-            BotonesDeVentana(ventana: ventana)
+            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar (⌘W)") { VentanaLisa.cerrar(ventana.ventana) }
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 6)
-        .frame(height: 36)
-        // Los huecos de la barra (y el nombre) llevan la ventana, como el asa
-        // de Windows; los botones van antes.
-        .contentShape(Rectangle())
-        .gesture(WindowDragGesture())
-        .allowsWindowActivationEvents(true)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .fixedSize()
     }
 }
