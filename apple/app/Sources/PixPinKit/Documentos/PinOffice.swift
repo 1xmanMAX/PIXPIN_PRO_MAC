@@ -11,6 +11,7 @@
 import AppKit
 import PixPinCore
 import Quartz
+import SwiftUI
 
 @MainActor
 public final class PinesDeOffice: NSObject, NSWindowDelegate {
@@ -19,8 +20,6 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
     private struct Abierto {
         let panel: NSPanel
         let vista: QLPreviewView
-        /// La accion del boton «Leer y anotar» (el boton no la retiene).
-        let accion: AccionDeBoton?
     }
 
     private var abiertos: [String: Abierto] = [:]
@@ -38,10 +37,14 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
             return
         }
         let marco = PinesDeOffice.marcoInicial()
+        // Lisa, como el lector de Windows (`lector_pin.rs`): sin el marco del
+        // Mac, con su barra arriba (asa, nombre, «Leer y anotar», el pin y
+        // la ✕) y el documento debajo.
         let panel = NSPanel(contentRect: marco,
-                            styleMask: [.titled, .closable, .resizable, .utilityWindow, .nonactivatingPanel],
+                            styleMask: [.titled, .closable, .miniaturizable, .resizable, .nonactivatingPanel],
                             backing: .buffered, defer: false)
         panel.title = url.lastPathComponent
+        VentanaLisa.vestirEntera(panel)
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = false
@@ -53,32 +56,37 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
             NSSound.beep()
             return
         }
-        vista.autoresizingMask = [.width, .height]
         vista.shouldCloseWithWindow = true
         vista.autostarts = true
         vista.previewItem = url as NSURL
-        let contenedor = NSView(frame: CGRect(origin: .zero, size: marco.size))
-        contenedor.addSubview(vista)
-        var accionGuardada: AccionDeBoton?
+        var leer: (() -> Void)?
         if let nucleo, TiposDeDocumento.clase(de: url) == .officePaginado {
             // «Leer y anotar»: el lector paginado como Office, con tinta.
-            let boton = NSButton(title: "Leer y anotar", target: nil, action: nil)
-            boton.bezelStyle = .rounded
-            boton.controlSize = .small
-            boton.sizeToFit()
-            boton.frame.origin = CGPoint(x: marco.width - boton.frame.width - 8, y: 8)
-            boton.autoresizingMask = [.minXMargin, .maxYMargin]
-            let accion = AccionDeBoton { [weak panel] in
+            leer = { [weak panel] in
                 LectoresDeDocumentos.compartidos.abrir(url, nucleo: nucleo)
                 panel?.close()
             }
-            boton.target = accion
-            boton.action = #selector(AccionDeBoton.pulsar)
-            accionGuardada = accion
-            contenedor.addSubview(boton)
         }
+        let barra = NSHostingView(rootView: BarraPinOffice(nombre: url.lastPathComponent,
+                                                           ventana: RefVentana(panel), leer: leer))
+        // Hasta arriba del todo: la barra del titulo no se ve, no aparta nada.
+        barra.safeAreaRegions = []
+        let contenedor = NSView(frame: CGRect(origin: .zero, size: marco.size))
+        for v in [barra, vista] as [NSView] {
+            v.translatesAutoresizingMaskIntoConstraints = false
+            contenedor.addSubview(v)
+        }
+        NSLayoutConstraint.activate([
+            barra.topAnchor.constraint(equalTo: contenedor.topAnchor),
+            barra.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
+            barra.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
+            vista.topAnchor.constraint(equalTo: barra.bottomAnchor),
+            vista.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
+            vista.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
+            vista.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
+        ])
         panel.contentView = contenedor
-        abiertos[clave] = Abierto(panel: panel, vista: vista, accion: accionGuardada)
+        abiertos[clave] = Abierto(panel: panel, vista: vista)
         panel.makeKeyAndOrderFront(nil)
     }
 
@@ -99,10 +107,46 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
     }
 }
 
-/// Un boton de AppKit con un cierre (sin subclases de controladores).
-@MainActor
-final class AccionDeBoton: NSObject {
-    private let hacer: @MainActor () -> Void
-    init(_ hacer: @escaping @MainActor () -> Void) { self.hacer = hacer }
-    @objc func pulsar() { hacer() }
+/// **La barra del pin de Office**, como la de los lectores de Windows: el
+/// asa y el nombre a la izquierda (se arrastra desde cualquier hueco), y a
+/// la derecha «Leer y anotar», el pin (siempre encima o no) y la ✕.
+struct BarraPinOffice: View {
+    let nombre: String
+    let ventana: RefVentana
+    let leer: (() -> Void)?
+    @State private var encima = true
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
+            Text(nombre)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 8)
+            if let leer {
+                Button("Leer y anotar", action: leer)
+                    .controlSize(.small)
+                    .help("Abrirlo en el lector, para anotar encima")
+            }
+            BotonPlano(simbolo: encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
+                       encendido: encima) {
+                encima.toggle()
+                ventana.ventana?.level = encima ? .floating : .normal
+            }
+            BotonesDeVentana(ventana: ventana)
+        }
+        .padding(.leading, 12)
+        .padding(.trailing, 6)
+        .frame(height: 36)
+        // Los huecos de la barra (y el nombre) llevan la ventana, como el asa
+        // de Windows; los botones van antes.
+        .contentShape(Rectangle())
+        .gesture(WindowDragGesture())
+        .allowsWindowActivationEvents(true)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
 }

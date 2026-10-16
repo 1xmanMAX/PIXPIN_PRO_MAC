@@ -140,9 +140,16 @@ struct BarraLector: View {
                 Image(systemName: "arrow.up.left.and.arrow.down.right")
             }
             .help("Pantalla completa (⌃⌘F)")
+            // Sin el marco del Mac (`VentanaLisa`): −, ☐ y ✕ van aqui, al
+            // final, como en la barra del lector de Windows.
+            BotonesDeVentana(ventana: RefVentana(modelo.controlador?.ventana))
         }
-        .padding(.horizontal, 10)
+        .padding(.leading, 10)
+        .padding(.trailing, 6)
         .padding(.vertical, 6)
+        // Desde los huecos de la barra se lleva la ventana.
+        .contentShape(Rectangle())
+        .gesture(WindowDragGesture())
         .overlay(alignment: .bottom) {
             if let aviso = modelo.aviso {
                 Text(aviso).font(.caption).padding(4)
@@ -255,6 +262,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         modelo.controlador = self
         ventana.controlador = self
         ventana.title = titulo
+        // Lisa, como el lector de Windows: la barra del lector hace de titulo.
+        VentanaLisa.vestirEntera(ventana)
         ventana.isReleasedWhenClosed = false
         ventana.collectionBehavior.insert(.fullScreenPrimary)
         ventana.delegate = self
@@ -263,6 +272,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
 
     private func montar() {
         let barra = NSHostingView(rootView: BarraLector(modelo: modelo))
+        // Hasta arriba: la barra del titulo, lisa, no aparta la del lector.
+        barra.safeAreaRegions = []
         barra.translatesAutoresizingMaskIntoConstraints = false
         vistaPDF.translatesAutoresizingMaskIntoConstraints = false
         vistaPDF.displayMode = .singlePageContinuous

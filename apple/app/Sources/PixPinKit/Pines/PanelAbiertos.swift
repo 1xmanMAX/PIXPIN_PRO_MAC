@@ -198,6 +198,8 @@ final class PanelPinesAbiertos {
                         styleMask: [.titled, .closable, .resizable, .utilityWindow, .nonactivatingPanel],
                         backing: .buffered, defer: true)
         p.title = "Pines abiertos"
+        // Liso, como el panel de Windows: sin titulo, solo la ✕ plana.
+        VentanaLisa.vestir(p)
         p.isFloatingPanel = true
         p.level = .floating
         p.hidesOnDeactivate = false

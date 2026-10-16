@@ -74,7 +74,8 @@ public final class RefVentana {
 }
 
 /// **−, ☐ y ✕ planos**, como los de Windows: sin fondo hasta pasar el raton
-/// (gris; la ✕, roja con la cruz blanca). ☐ solo si la ventana se estira.
+/// (gris; la ✕, roja con la cruz blanca). − solo si la ventana se minimiza,
+/// y ☐ si ademas se estira.
 public struct BotonesDeVentana: View {
     let ref: RefVentana
     var minimizar = true
@@ -84,11 +85,16 @@ public struct BotonesDeVentana: View {
         self.minimizar = minimizar
     }
 
+    private var mascara: NSWindow.StyleMask {
+        ref.ventana?.styleMask ?? [.miniaturizable, .resizable]
+    }
+
     public var body: some View {
         HStack(spacing: 0) {
-            if minimizar {
+            // Un panel (pines abiertos) no se minimiza: solo la ✕.
+            if minimizar, mascara.contains(.miniaturizable) {
                 BotonPlano(simbolo: "minus", ayuda: "Minimizar (⌘M)") { ref.ventana?.miniaturize(nil) }
-                if ref.ventana?.styleMask.contains(.resizable) ?? true {
+                if mascara.contains(.resizable) {
                     BotonPlano(simbolo: "square", ayuda: "Maximizar") { ref.ventana?.zoom(nil) }
                 }
             }
@@ -117,7 +123,9 @@ public struct BotonPlano: View {
 
     public var body: some View {
         Button(action: accion) {
-            Image(systemName: simbolo)
+            // Con su nombre para VoiceOver; se ve solo el icono.
+            Label(ayuda, systemImage: simbolo)
+                .labelStyle(.iconOnly)
                 .font(.system(size: 11, weight: .regular))
                 .foregroundStyle(encima && rojo ? Color.white : encendido ? Color.white : Color.secondary)
                 .frame(width: 38, height: 26)
@@ -132,7 +140,6 @@ public struct BotonPlano: View {
         .buttonStyle(.plain)
         .onHover { encima = $0 }
         .help(ayuda)
-        .accessibilityLabel(ayuda)
     }
 }
 

@@ -105,6 +105,8 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
                            backing: .buffered, defer: false)
         super.init()
         ventana.title = titulo
+        // Lisa, como en Windows: sin titulo ni semaforo, −, ☐ y ✕ planos.
+        VentanaLisa.vestir(ventana)
         ventana.isReleasedWhenClosed = false
         ventana.delegate = self
         montar()

@@ -244,6 +244,8 @@ final class ControladorNota: NSObject, NSTextViewDelegate, NSWindowDelegate {
         ventana.isReleasedWhenClosed = false
         ventana.delegate = self
         ventana.title = ControladorNota.titulo(mensaje.texto)
+        // Lisa, como en Windows: sin titulo ni semaforo, −, ☐ y ✕ planos.
+        VentanaLisa.vestir(ventana)
         ventana.center()
         _ = ventana.setFrameAutosaveName("PixPinNota")
         restilar()
