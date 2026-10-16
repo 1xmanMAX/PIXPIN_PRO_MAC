@@ -192,9 +192,14 @@ public enum BotonBarraLienzo: Hashable {
         }
     }
 
-    /// Si entre este y el siguiente va un separador.
-    static func corte(tras i: Int) -> Bool {
-        i + 1 < barra.count && barra[i].seccion != barra[i + 1].seccion
+    /// **La barra del anotador de la captura**: la misma, sin las figuras
+    /// (su biblioteca es del lienzo) ni compartir e imprimir (lo anotado sale
+    /// con las acciones de la captura). Cerrar descarta la captura.
+    public static let barraDeCaptura: [BotonBarraLienzo] = barra.filter { $0 != .figuras && $0 != .grupo(.sacar) }
+
+    /// Si entre este y el siguiente de `botones` va un separador.
+    static func corte(tras i: Int, en botones: [BotonBarraLienzo] = barra) -> Bool {
+        i + 1 < botones.count && botones[i].seccion != botones[i + 1].seccion
     }
 
     /// **Lo que mide a lo ancho una fila** con esos botones
@@ -212,7 +217,7 @@ public enum BotonBarraLienzo: Hashable {
     /// **Donde partir la barra en dos filas** si en una no cabe en `ancho`
     /// (`corte_para` de Windows): por el separador de seccion que deja las
     /// dos filas mas parejas. `barra.count` si cabe en una.
-    static func cortePara(ancho: CGFloat) -> Int {
+    static func cortePara(ancho: CGFloat, en barra: [BotonBarraLienzo] = barra) -> Int {
         let n = barra.count
         if anchoDeFila(barra[...]) <= ancho { return n }
         return (1..<n)

@@ -68,6 +68,9 @@ public final class ModeloEditorLienzo: ObservableObject {
 
     /// La vista que pinta (la pone ella al nacer).
     weak var vista: VistaEditorLienzoNS?
+    /// Lo que hace el boton de cerrar si el lienzo no vive en su ventana
+    /// (el anotador de la captura). Sin el, cierra la ventana.
+    public var alCerrar: (() -> Void)?
 
     /// Guardar, uno detras de otro y fuera del hilo principal.
     private let colaGuardar = DispatchQueue(label: "pixpin.lienzo.guardar", qos: .utility)
@@ -220,6 +223,15 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     public private(set) var origen = CGPoint.zero
     public private(set) var zoom: CGFloat = 1
+    /// **La camara quieta** (el anotador de la captura): el mundo (0, 0)
+    /// en la esquina, al 100 %, sin desplazar ni acercar. Lo dibujado cae
+    /// justo encima de lo que tiene debajo.
+    public var camaraFija = false {
+        didSet { if camaraFija { encajar() } }
+    }
+    /// Quien hospeda el lienzo ve antes cada tecla (salvo mientras se
+    /// escribe un texto) y se queda las que use (`true`).
+    public var teclaPrevia: ((NSEvent) -> Bool)?
     static let zoomMinimo: CGFloat = 0.05
     static let zoomMaximo: CGFloat = 30
 
@@ -282,7 +294,8 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     override public func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        window?.makeFirstResponder(self)
+        // Con la camara quieta la hospeda otra vista, que decide el foco.
+        if !camaraFija { window?.makeFirstResponder(self) }
     }
 
     override public func setFrameSize(_ newSize: NSSize) {
@@ -301,6 +314,12 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     /// Lo dibujado entero en la vista (o el origen al 100 % si esta vacio).
     public func encajar() {
+        if camaraFija {
+            origen = .zero
+            zoom = 1
+            needsDisplay = true
+            return
+        }
         // Con fondo, se mira el fondo entero (`encuadre_inicial`).
         let conFondo = modelo.fondo.map { f in
             let c = f.caja.union(editor.caja().map {
@@ -544,6 +563,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     // MARK: Mover y acercar la vista
 
     private func desplazar(dx: CGFloat, dy: CGFloat) {
+        guard !camaraFija else { return }
         origen.x -= dx / zoom
         origen.y -= dy / zoom
         needsDisplay = true
@@ -551,6 +571,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     /// Acerca `factor` veces dejando quieto el punto de la vista `foco`.
     private func acercar(_ factor: CGFloat, en foco: CGPoint) {
+        guard !camaraFija else { return }
         let nuevo = max(VistaEditorLienzoNS.zoomMinimo, min(VistaEditorLienzoNS.zoomMaximo, zoom * factor))
         guard nuevo != zoom else { return }
         let mundo = CGPoint(x: origen.x + foco.x / zoom, y: origen.y + foco.y / zoom)
@@ -598,6 +619,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             interpretKeyEvents([event])
             return
         }
+        if let teclaPrevia, teclaPrevia(event) { return }
         switch event.keyCode {
         case 51, 117: // borrar, suprimir
             modelo.borrarSeleccion()

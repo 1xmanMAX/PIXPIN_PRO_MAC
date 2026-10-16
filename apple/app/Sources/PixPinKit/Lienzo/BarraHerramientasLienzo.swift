@@ -134,8 +134,10 @@ extension ModeloEditorLienzo {
         }
     }
 
-    /// El boton de cerrar: como cerrar la ventana (se guarda al cerrarse).
+    /// El boton de cerrar: como cerrar la ventana (se guarda al cerrarse),
+    /// o lo que diga quien lo hospeda (`alCerrar`: la captura lo descarta).
     func cerrarVentana() {
+        if let alCerrar { return alCerrar() }
         vista?.window?.performClose(nil)
     }
 }
@@ -144,11 +146,13 @@ extension ModeloEditorLienzo {
 /// en `corte`.
 struct BarraHerramientasLienzo: View {
     @ObservedObject var modelo: ModeloEditorLienzo
+    /// Los botones (los del lienzo, o `barraDeCaptura` en la captura).
+    var botones = BotonBarraLienzo.barra
     var corte = BotonBarraLienzo.barra.count
 
     var body: some View {
         let tema = TemaBarraLienzo.de(modelo)
-        let n = BotonBarraLienzo.barra.count
+        let n = botones.count
         VStack(alignment: .leading, spacing: MedidasBarraLienzo.relleno) {
             fila(0..<min(corte, n), tema: tema)
             if corte < n { fila(corte..<n, tema: tema) }
@@ -163,8 +167,8 @@ struct BarraHerramientasLienzo: View {
     private func fila(_ indices: Range<Int>, tema: TemaBarraLienzo) -> some View {
         HStack(spacing: MedidasBarraLienzo.hueco) {
             ForEach(Array(indices), id: \.self) { i in
-                boton(BotonBarraLienzo.barra[i], tema: tema)
-                if i + 1 < indices.upperBound, BotonBarraLienzo.corte(tras: i) {
+                boton(botones[i], tema: tema)
+                if i + 1 < indices.upperBound, BotonBarraLienzo.corte(tras: i, en: botones) {
                     Rectangle().fill(tema.separador)
                         .frame(width: MedidasBarraLienzo.separador, height: MedidasBarraLienzo.altoSeparador)
                         .padding(.leading, MedidasBarraLienzo.margenSeparador)

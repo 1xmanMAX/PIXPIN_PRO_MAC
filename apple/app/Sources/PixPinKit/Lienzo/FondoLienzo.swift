@@ -25,6 +25,9 @@ public enum FuenteFondoLienzo: Equatable {
     case imagen(URL)
     /// La pagina `pagina` (desde 0) de un PDF.
     case paginaPDF(URL, pagina: Int)
+    /// Una imagen que ya esta en memoria y no tiene fichero (el recorte de
+    /// la captura que se anota).
+    case enMemoria
 }
 
 /// El fondo ya leido.
@@ -56,6 +59,9 @@ public final class FondoLienzo {
             pagina = p
             tamano = CGSize(width: FondoLienzo.anchoPapelPDF,
                             height: FondoLienzo.anchoPapelPDF * natural.height / natural.width)
+        case .enMemoria:
+            // No hay fichero que leer: se crea con `init(imagen:tamano:)`.
+            return nil
         }
     }
 
@@ -64,6 +70,17 @@ public final class FondoLienzo {
     static func tamanoNatural(_ p: CGPDFPage) -> CGSize {
         let caja = p.getBoxRect(.cropBox)
         return abs(p.rotationAngle) % 180 == 90 ? CGSize(width: caja.height, height: caja.width) : caja.size
+    }
+
+    /// **Una imagen en memoria** estirada a `tamano` (en unidades del
+    /// mundo): el anotador de la captura la pone a su tamano en PUNTOS, con
+    /// los pixeles de la pantalla (los grosores salen como en pantalla y al
+    /// exportar a la escala de la foto no se pierde un pixel).
+    public init(imagen: CGImage, tamano: CGSize) {
+        fuente = .enMemoria
+        self.imagen = imagen
+        pagina = nil
+        self.tamano = tamano
     }
 
     /// La caja que ocupa en el mundo.
