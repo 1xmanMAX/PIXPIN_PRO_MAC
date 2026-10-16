@@ -14,10 +14,14 @@
 //!    `pixpin-envio:1:<codigo>:<ip>:<puerto>`) y aprueba a cada aparato que
 //!    llega ([`PuertaEnvio`]); o al reves, quien recibe espera
 //!    (`_pixpinrecibe._tcp`, QR `pixpin-recibe:1:…`, [`PuertaRecibir`]) y el
-//!    que envia teclea su codigo. Cinco codigos malos queman la puerta. Lo
-//!    recibido va a su sitio como en Windows (`recibir.rs`): un proyecto a la
-//!    lista de proyectos (encima del mismo si ya estaba, con copia antes) y
-//!    lo demas a «Mensajes guardados».
+//!    que envia teclea su codigo. Cinco codigos malos queman la puerta. Se
+//!    mandan **archivos, proyectos enteros y lienzos** (un lienzo sale como
+//!    lienzo, un `.pixpin` de una hoja que el movil abre en su editor:
+//!    [`crate::lienzo_suelto`]). Lo recibido va a su sitio como en Windows
+//!    ([`crate::recepcion`]): un proyecto a la lista, un lienzo a su
+//!    proyecto y lo demas a «Mensajes guardados»; de lo que ya se tiene (los
+//!    tres codigos) se pregunta antes de aceptar **«Actualizar el que
+//!    tengo» o «Crear como nuevo»** ([`DecidirOferta`]).
 //!
 //! Todo bloqueante y sin hilos propios: las puertas se atienden desde un
 //! hilo de Swift (como [`crate::Escucha`]) y sus avisos (quien llega, cuanto
@@ -31,7 +35,6 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering}
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 
-use pixpin_proyecto::almacen::{self, Ficha};
 use pixpin_proyecto::vista::DiscoPc;
 use pixpin_sincro::al_lienzo::{self, Conexion, Donde, ErrorAlLienzo, Llegada, Recibe, Suelto};
 use pixpin_sincro::disco::Disco;
@@ -501,6 +504,9 @@ pub struct PuertaEnvio {
     codigo: String,
     yo: Remitente,
     cosas: Vec<(Elemento, PathBuf)>,
+    /// La carpeta de lo empaquetado para mandar (proyectos y lienzos), que
+    /// se borra al soltar la puerta.
+    temporal: Option<PathBuf>,
     cerrada: AtomicBool,
     malos: AtomicU32,
     llamadas: AtomicU64,
@@ -551,44 +557,202 @@ impl Nucleo {
         })
     }
 
-    fn cosas_de(&self, rutas: &[String]) -> Result<Vec<(Elemento, PathBuf)>, ErrorNucleo> {
+    /// Lo que se manda de `rutas`: cada archivo tal cual y **cada lienzo
+    /// como lienzo** (`.excalidraw` → un `.pixpin` de una hoja, como
+    /// `EnviarActivity.deLienzo`), empaquetado en una carpeta temporal que
+    /// se devuelve para borrarla despues.
+    fn cosas_de(&self, rutas: &[String]) -> Result<Preparado, ErrorNucleo> {
         let id = self.identidad()?.yo.id;
         if rutas.is_empty() {
             return Err(ErrorNucleo::Argumento {
                 detalle: "no hay nada que mandar".into(),
             });
         }
-        rutas
-            .iter()
-            .map(|r| elemento_de_archivo(&id, Path::new(r)))
-            .collect()
+        let ahora = crate::ahora_ms();
+        let carpeta = self.ruta().join("envio").join(format!("l-{ahora}"));
+        let mut hubo_lienzo = false;
+        let mut cosas = Vec::new();
+        for r in rutas {
+            let ruta = Path::new(r);
+            if crate::lienzo_suelto::es_lienzo(ruta)
+                && let Ok(c) =
+                    crate::lienzo_suelto::preparar_envio(self.ruta(), ruta, &carpeta, ahora)
+            {
+                hubo_lienzo = true;
+                cosas.push(c);
+                continue;
+            }
+            // Un lienzo que no se entiende sale como archivo, como Windows.
+            match elemento_de_archivo(&id, ruta) {
+                Ok(c) => cosas.push(c),
+                Err(e) => {
+                    if hubo_lienzo {
+                        let _ = std::fs::remove_dir_all(&carpeta);
+                    }
+                    return Err(e);
+                }
+            }
+        }
+        Ok((cosas, hubo_lienzo.then_some(carpeta)))
     }
+
+    /// **Un proyecto de la lista**, empaquetado (`de_proyecto` de Windows).
+    fn cosas_de_proyecto(&self, ficha: &str) -> Result<Preparado, ErrorNucleo> {
+        let ahora = crate::ahora_ms();
+        let carpeta = self.ruta().join("envio").join(ahora.to_string());
+        match de_proyecto(self.ruta(), ficha, &carpeta, ahora) {
+            Ok(c) => Ok((vec![c], Some(carpeta))),
+            Err(e) => {
+                let _ = std::fs::remove_dir_all(&carpeta);
+                Err(e)
+            }
+        }
+    }
+
+    /// La puerta de envio con lo ya preparado.
+    fn abrir_puerta_con(
+        &self,
+        (cosas, temporal): Preparado,
+    ) -> Result<Arc<PuertaEnvio>, ErrorNucleo> {
+        let abierta = (|| {
+            let escucha = crate::red::escuchar(0)?;
+            let puerto = escucha.local_addr()?.port();
+            let (salen, llegan) = mpsc::channel();
+            Ok::<_, ErrorNucleo>(PuertaEnvio {
+                escucha,
+                puerto,
+                codigo: codigo_nuevo()?,
+                yo: self.remitente()?,
+                cosas,
+                temporal: temporal.clone(),
+                cerrada: AtomicBool::new(false),
+                malos: AtomicU32::new(0),
+                llamadas: AtomicU64::new(0),
+                esperando: AtomicUsize::new(0),
+                aprobar_todos: AtomicBool::new(false),
+                decisiones: Mutex::new(HashMap::new()),
+                salen: Mutex::new(salen),
+                llegan: Mutex::new(llegan),
+            })
+        })();
+        match abierta {
+            Ok(p) => Ok(Arc::new(p)),
+            Err(e) => {
+                if let Some(t) = temporal {
+                    let _ = std::fs::remove_dir_all(t);
+                }
+                Err(e)
+            }
+        }
+    }
+
+    /// Manda `cosas` a quien espera en `host:puerto` con su `codigo`.
+    fn mandar_cosas(
+        &self,
+        host: &str,
+        puerto: u16,
+        codigo: &str,
+        cosas: &[(Elemento, PathBuf)],
+    ) -> Result<FinEnvio, ErrorNucleo> {
+        let yo = self.remitente()?;
+        let flujo = conectar(host, puerto)?;
+        let emisor = Emisor::nuevo(&yo, cosas);
+        let mut quien = String::new();
+        let r = emisor.atender(
+            flujo,
+            codigo,
+            nonce()?,
+            true,
+            |n| {
+                quien = n.to_string();
+                true
+            },
+            |_, _| {},
+        );
+        Ok(fin_de(r, quien))
+    }
+}
+
+/// Lo preparado para mandar, y la carpeta temporal que haya que borrar.
+type Preparado = (Vec<(Elemento, PathBuf)>, Option<PathBuf>);
+
+/// Las seis cifras limpias, o el error de siempre.
+fn valido_o_error(codigo: &str) -> Result<String, ErrorNucleo> {
+    let codigo = envio::limpiar(codigo);
+    if envio::valido(&codigo) {
+        Ok(codigo)
+    } else {
+        Err(ErrorNucleo::Argumento {
+            detalle: "el codigo de envio son seis cifras".into(),
+        })
+    }
+}
+
+/// Un proyecto de la lista, empaquetado en `carpeta` (`deProyecto` del
+/// movil). Su sena entre envios es la de `Recepcion.identidadDe`: el origen
+/// si vino de otro sitio, su id si nacio aqui; asi, si vuelve, el otro lado
+/// lo reconoce.
+fn de_proyecto(
+    raiz: &Path,
+    id: &str,
+    carpeta: &Path,
+    ahora: i64,
+) -> Result<(Elemento, PathBuf), ErrorNucleo> {
+    if pixpin_proyecto::almacen::Indice::leer(raiz)
+        .buscar(id)
+        .is_none()
+    {
+        return Err(ErrorNucleo::NoExiste {
+            que: format!("el proyecto {id}"),
+        });
+    }
+    let bytes = pixpin_proyecto::almacen::empaquetar(raiz, id, ahora)?;
+    let p = pixpin_proyecto::Paquete::desde_bytes(&bytes).map_err(|e| ErrorNucleo::Disco {
+        detalle: e.to_string(),
+    })?;
+    let pr = &p.proyecto;
+    let origen = pr
+        .resto
+        .get("origen")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&pr.id);
+    let destino = carpeta.join(format!("{}.pixpin", envio::nombre_sano(&pr.nombre)));
+    std::fs::create_dir_all(carpeta)?;
+    std::fs::write(&destino, &bytes)?;
+    Ok((
+        Elemento {
+            tipo: envio::PROYECTO.into(),
+            nombre: pr.nombre.clone(),
+            bytes: bytes.len() as i64,
+            mime: Some("application/zip".into()),
+            identidad: format!("proyecto:{origen}"),
+            proyecto: None,
+            proyecto_nombre: None,
+            creado: pr.creado,
+            uid: pr.uid.clone(),
+            codigo_de_chat: None,
+            aparato: pr.aparato.clone(),
+        },
+        destino,
+    ))
 }
 
 #[uniffi::export]
 impl Nucleo {
     /// **Abre la puerta para enviar** `rutas` con un codigo nuevo de seis
-    /// cifras, en un puerto que da el sistema (IPv6 con IPv4 dentro).
+    /// cifras, en un puerto que da el sistema (IPv6 con IPv4 dentro). Un
+    /// `.excalidraw` sale como lienzo; lo demas, como archivo.
     pub fn abrir_envio(&self, rutas: Vec<String>) -> Result<Arc<PuertaEnvio>, ErrorNucleo> {
-        let cosas = self.cosas_de(&rutas)?;
-        let escucha = crate::red::escuchar(0)?;
-        let puerto = escucha.local_addr()?.port();
-        let (salen, llegan) = mpsc::channel();
-        Ok(Arc::new(PuertaEnvio {
-            escucha,
-            puerto,
-            codigo: codigo_nuevo()?,
-            yo: self.remitente()?,
-            cosas,
-            cerrada: AtomicBool::new(false),
-            malos: AtomicU32::new(0),
-            llamadas: AtomicU64::new(0),
-            esperando: AtomicUsize::new(0),
-            aprobar_todos: AtomicBool::new(false),
-            decisiones: Mutex::new(HashMap::new()),
-            salen: Mutex::new(salen),
-            llegan: Mutex::new(llegan),
-        }))
+        let preparado = self.cosas_de(&rutas)?;
+        self.abrir_puerta_con(preparado)
+    }
+
+    /// **Abre la puerta para enviar un proyecto entero** de la lista (su
+    /// ficha), empaquetado como `.pixpin`: al otro lado entra en su lista de
+    /// proyectos, o pone al dia el mismo si ya lo tenia.
+    pub fn abrir_envio_de_proyecto(&self, ficha: String) -> Result<Arc<PuertaEnvio>, ErrorNucleo> {
+        let preparado = self.cosas_de_proyecto(&ficha)?;
+        self.abrir_puerta_con(preparado)
     }
 
     /// **Manda `rutas` a quien espera para recibir** en `host:puerto` con su
@@ -600,58 +764,66 @@ impl Nucleo {
         codigo: String,
         rutas: Vec<String>,
     ) -> Result<FinEnvio, ErrorNucleo> {
-        let codigo = envio::limpiar(&codigo);
-        if !envio::valido(&codigo) {
-            return Err(ErrorNucleo::Argumento {
-                detalle: "el codigo de envio son seis cifras".into(),
-            });
+        let codigo = valido_o_error(&codigo)?;
+        let (cosas, temporal) = self.cosas_de(&rutas)?;
+        let r = self.mandar_cosas(&host, puerto, &codigo, &cosas);
+        if let Some(t) = temporal {
+            let _ = std::fs::remove_dir_all(t);
         }
-        let cosas = self.cosas_de(&rutas)?;
-        let yo = self.remitente()?;
-        let flujo = conectar(&host, puerto)?;
-        let emisor = Emisor::nuevo(&yo, &cosas);
-        let mut quien = String::new();
-        let r = emisor.atender(
-            flujo,
-            &codigo,
-            nonce()?,
-            true,
-            |n| {
-                quien = n.to_string();
-                true
-            },
-            |_, _| {},
-        );
-        Ok(fin_de(r, quien))
+        r
+    }
+
+    /// **Manda un proyecto entero a quien espera para recibir**.
+    pub fn mandar_proyecto_a_quien_espera(
+        &self,
+        host: String,
+        puerto: u16,
+        codigo: String,
+        ficha: String,
+    ) -> Result<FinEnvio, ErrorNucleo> {
+        let codigo = valido_o_error(&codigo)?;
+        let (cosas, temporal) = self.cosas_de_proyecto(&ficha)?;
+        let r = self.mandar_cosas(&host, puerto, &codigo, &cosas);
+        if let Some(t) = temporal {
+            let _ = std::fs::remove_dir_all(t);
+        }
+        r
     }
 
     /// **Recibe de quien envia y espera** en `host:puerto` con su `codigo`:
-    /// trae lo que ofrece y lo pone en su sitio (proyectos a la lista, lo
-    /// demas a «Mensajes guardados»). Teclear el codigo es aceptar.
+    /// trae lo que ofrece y lo pone en su sitio (proyectos a la lista,
+    /// lienzos a su proyecto, lo demas a «Mensajes guardados»). Teclear el
+    /// codigo es aceptar; lo que ya se tiene se pone al dia.
     pub fn recibir_envio(
         &self,
         host: String,
         puerto: u16,
         codigo: String,
     ) -> Result<Vec<RecibidoEnvio>, ErrorNucleo> {
-        let codigo = envio::limpiar(&codigo);
-        if !envio::valido(&codigo) {
-            return Err(ErrorNucleo::Argumento {
-                detalle: "el codigo de envio son seis cifras".into(),
-            });
-        }
-        let flujo = conectar(&host, puerto)?;
-        let r = recibir_por(self, flujo, &codigo, true).map_err(|e| ErrorNucleo::Sincro {
-            detalle: e.to_string(),
-        })?;
-        self.vaciar_caches();
-        Ok(r.1)
+        Ok(self
+            .recibir_de(&host, puerto, &codigo, None)?
+            .unwrap_or_default())
+    }
+
+    /// Lo mismo, **preguntando antes de aceptar** (`Oferta` de
+    /// `RecibirActivity` del movil): `decidir` ve lo que se ofrece y que de
+    /// eso ya se tiene, y contesta que crear como nuevo (o `None`: «No,
+    /// gracias»). `None` si se dijo que no.
+    pub fn recibir_envio_preguntando(
+        &self,
+        host: String,
+        puerto: u16,
+        codigo: String,
+        decidir: Box<dyn DecidirOferta>,
+    ) -> Result<Option<Vec<RecibidoEnvio>>, ErrorNucleo> {
+        self.recibir_de(&host, puerto, &codigo, Some(decidir.as_ref()))
     }
 
     /// **Espera para recibir** («Recibir por Wi-Fi»): un codigo nuevo de
     /// seis cifras y un puerto; quien envia teclea el codigo (o lo ve en el
     /// QR) y llama. Se atiende desde un hilo de Swift con
-    /// [`PuertaRecibir::atender`].
+    /// [`PuertaRecibir::atender`]; con [`PuertaRecibir::preguntar_con`] se
+    /// pregunta antes de aceptar.
     pub fn esperar_envios(self: Arc<Self>) -> Result<Arc<PuertaRecibir>, ErrorNucleo> {
         let escucha = crate::red::escuchar(0)?;
         let puerto = escucha.local_addr()?.port();
@@ -663,7 +835,27 @@ impl Nucleo {
             cerrada: AtomicBool::new(false),
             malos: AtomicU32::new(0),
             esperando: AtomicUsize::new(0),
+            decidir: Mutex::new(None),
         }))
+    }
+}
+
+impl Nucleo {
+    fn recibir_de(
+        &self,
+        host: &str,
+        puerto: u16,
+        codigo: &str,
+        decidir: Option<&dyn DecidirOferta>,
+    ) -> Result<Option<Vec<RecibidoEnvio>>, ErrorNucleo> {
+        let codigo = valido_o_error(codigo)?;
+        let flujo = conectar(host, puerto)?;
+        let r =
+            recibir_por(self, flujo, &codigo, true, decidir).map_err(|e| ErrorNucleo::Sincro {
+                detalle: e.to_string(),
+            })?;
+        self.vaciar_caches();
+        Ok(r.map(|(_, cosas)| cosas))
     }
 }
 
@@ -890,6 +1082,9 @@ impl PuertaEnvio {
 impl Drop for PuertaEnvio {
     fn drop(&mut self) {
         self.cerrada.store(true, Ordering::SeqCst);
+        if let Some(t) = &self.temporal {
+            let _ = std::fs::remove_dir_all(t);
+        }
     }
 }
 
@@ -899,11 +1094,70 @@ impl Drop for PuertaEnvio {
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct RecibidoEnvio {
     pub nombre: String,
-    /// `proyecto` (nuevo en la lista), `proyecto_al_dia` (encima del que ya
-    /// habia, con copia antes) o `guardados` («Mensajes guardados»).
+    /// `proyecto` (nuevo en la lista, o un lienzo en su proyecto),
+    /// `proyecto_al_dia` (encima del que ya habia, con copia antes),
+    /// `guardados` («Mensajes guardados»), `guardados_al_dia` (un archivo
+    /// que vuelve, puesto al dia en su burbuja) o `carpeta` (no se entendio:
+    /// queda en `recibidos/`).
     pub donde: String,
-    /// El id del chat donde quedo.
+    /// El id del chat donde quedo (vacio si en la carpeta).
     pub chat: String,
+}
+
+/// Una cosa de lo que se ofrece, para decidir antes de aceptar.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CosaOfrecida {
+    /// Su sena entre envios: con ella se contesta «crear como nuevo».
+    pub identidad: String,
+    /// `archivo`, `proyecto` o `lienzo`.
+    pub tipo: String,
+    pub nombre: String,
+    pub bytes: i64,
+    /// De que proyecto es (un lienzo).
+    pub proyecto_nombre: Option<String>,
+    /// **Lo que aqui ya es esa cosa** (los tres codigos), por su nombre:
+    /// entonces se elige «Actualizar el que tengo» o «Crear como nuevo».
+    pub ya_tienes: Option<String>,
+}
+
+/// Lo que ofrece quien envia (`Oferta` de `RecibirActivity`).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct OfertaRecibida {
+    /// El nombre de quien envia.
+    pub de: String,
+    /// Sus cuatro signos (`K7Q2`).
+    pub de_codigo: String,
+    pub cosas: Vec<CosaOfrecida>,
+}
+
+/// **Decidir lo que se ofrece** antes de aceptar: devuelve las identidades
+/// que se crean como nuevas (lo demas que ya se tenga se pone al dia), o
+/// `None` para decir «No, gracias». Se llama desde el hilo que recibe, que
+/// se queda esperando lo que tarde el usuario.
+#[uniffi::export(callback_interface)]
+pub trait DecidirOferta: Send + Sync {
+    fn decidir(&self, oferta: OfertaRecibida) -> Option<Vec<String>>;
+}
+
+/// La oferta para Swift, con lo que de ella ya se tiene.
+pub fn oferta_para_swift(raiz: &Path, o: &envio::Oferta) -> OfertaRecibida {
+    let ya = crate::recepcion::que_sustituye(raiz, &o.elementos);
+    OfertaRecibida {
+        de: o.de.clone(),
+        de_codigo: o.de_codigo.clone(),
+        cosas: o
+            .elementos
+            .iter()
+            .map(|e| CosaOfrecida {
+                identidad: e.identidad.clone(),
+                tipo: e.tipo.clone(),
+                nombre: e.nombre.clone(),
+                bytes: e.bytes,
+                proyecto_nombre: e.proyecto_nombre.clone(),
+                ya_tienes: ya.get(&e.identidad).cloned(),
+            })
+            .collect(),
+    }
 }
 
 /// Como acabo una llamada a una [`PuertaRecibir`].
@@ -914,6 +1168,10 @@ pub enum FinRecibir {
     Recibido {
         de: String,
         cosas: Vec<RecibidoEnvio>,
+    },
+    /// Se dijo «No, gracias» a lo que ofrecia `de`.
+    Rechazado {
+        de: String,
     },
     CodigoMalo {
         intentos: u32,
@@ -935,10 +1193,18 @@ pub struct PuertaRecibir {
     cerrada: AtomicBool,
     malos: AtomicU32,
     esperando: AtomicUsize,
+    /// Quien decide cada oferta; sin el, se acepta todo y lo que ya se
+    /// tiene se pone al dia.
+    decidir: Mutex<Option<Box<dyn DecidirOferta>>>,
 }
 
 #[uniffi::export]
 impl PuertaRecibir {
+    /// **Pregunta antes de aceptar** cada oferta que llegue a esta puerta.
+    pub fn preguntar_con(&self, decidir: Box<dyn DecidirOferta>) {
+        *self.decidir.lock().unwrap_or_else(|e| e.into_inner()) = Some(decidir);
+    }
+
     pub fn codigo(&self) -> String {
         self.codigo.clone()
     }
@@ -962,11 +1228,18 @@ impl PuertaRecibir {
         let Some(flujo) = aceptar(&self.escucha, &self.esperando, &self.cerrada)? else {
             return Ok(FinRecibir::Cerrada);
         };
-        let fin = match recibir_por(&self.nucleo, flujo, &self.codigo, false) {
-            Ok((de, cosas)) => {
+        let decidir = self.decidir.lock().unwrap_or_else(|e| e.into_inner());
+        let hecho = recibir_por(&self.nucleo, flujo, &self.codigo, false, decidir.as_deref());
+        drop(decidir);
+        let fin = match hecho {
+            Ok(Some((de, cosas))) => {
                 self.malos.store(0, Ordering::SeqCst);
                 self.nucleo.vaciar_caches();
                 FinRecibir::Recibido { de, cosas }
+            }
+            Ok(None) => {
+                self.malos.store(0, Ordering::SeqCst);
+                FinRecibir::Rechazado { de: String::new() }
             }
             Err(e) if e.es_codigo_distinto() => {
                 let malos = self.malos.fetch_add(1, Ordering::SeqCst) + 1;
@@ -992,19 +1265,33 @@ impl PuertaRecibir {
 }
 
 /// Recibe por una conexion ya abierta (llamando o esperando) y lo pone en
-/// su sitio. El temporal se borra pase lo que pase.
+/// su sitio. Con `decidir`, se pregunta antes de aceptar; `Ok(None)` si se
+/// dijo que no. El temporal se borra pase lo que pase.
 fn recibir_por(
     nucleo: &Nucleo,
     flujo: TcpStream,
     codigo: &str,
     inicia: bool,
-) -> Result<(String, Vec<RecibidoEnvio>), envio::ErrorEnvio> {
+    decidir: Option<&dyn DecidirOferta>,
+) -> Result<Option<(String, Vec<RecibidoEnvio>)>, envio::ErrorEnvio> {
     let i = nucleo
         .identidad()
         .map_err(|e| envio::ErrorEnvio::Escritura(std::io::Error::other(e.to_string())))?;
     let azar =
         nonce().map_err(|e| envio::ErrorEnvio::Escritura(std::io::Error::other(e.to_string())))?;
     let mut r = Receptor::conectar(flujo, codigo, &i.yo.nombre, &i.yo.id, azar, inicia)?;
+    // **Que de esto ya se tiene**, antes de preguntar: es lo que hace que
+    // salgan «Actualizar el que tengo» y «Crear como nuevo».
+    let como_nuevo: crate::recepcion::ComoNuevo = match decidir {
+        None => Default::default(),
+        Some(d) => match d.decidir(oferta_para_swift(nucleo.ruta(), &r.oferta)) {
+            Some(nuevos) => nuevos.into_iter().map(|n| (n, true)).collect(),
+            None => {
+                r.rechazar();
+                return Ok(None);
+            }
+        },
+    };
     let temporal = nucleo.ruta().join("sincro").join(format!(
         "recibiendo-{}-{}",
         crate::ahora_ms(),
@@ -1012,126 +1299,26 @@ fn recibir_por(
     ));
     let de = r.oferta.de.clone();
     let llegado = r.aceptar(&temporal, |_, _| {});
-    let hecho = llegado.map(|cosas| (de, guardar_lo_recibido(nucleo, &cosas)));
+    let hecho = llegado.map(|cosas| {
+        let guardados = crate::recepcion::guardar_lo_recibido(
+            nucleo.ruta(),
+            &i.yo.id,
+            &cosas,
+            &como_nuevo,
+            crate::ahora_ms(),
+        );
+        let salida = guardados
+            .into_iter()
+            .map(|g| RecibidoEnvio {
+                nombre: g.nombre,
+                donde: g.donde.clave().into(),
+                chat: g.chat,
+            })
+            .collect();
+        Some((de, salida))
+    });
     let _ = std::fs::remove_dir_all(&temporal);
     hecho
-}
-
-/// `ficha_que_llega` de Windows: con lo que trae un proyecto se sabe si ya
-/// esta aqui (los tres codigos).
-fn ficha_que_llega(e: &Elemento) -> Ficha {
-    Ficha {
-        id: e
-            .identidad
-            .strip_prefix("proyecto:")
-            .unwrap_or(&e.identidad)
-            .to_string(),
-        nombre: e.nombre.clone(),
-        uid: e.uid.clone(),
-        creado: e.creado,
-        aparato: e.aparato.clone(),
-        ..Default::default()
-    }
-}
-
-/// `nombre_con_extension` de Windows: un proyecto o un lienzo es un
-/// `.pixpin` aunque el movil lo mande sin extension.
-fn nombre_con_extension(e: &Elemento) -> String {
-    let nombre = envio::nombre_sano(&e.nombre);
-    if e.tipo != envio::PROYECTO && e.tipo != envio::LIENZO {
-        return nombre;
-    }
-    if nombre.to_ascii_lowercase().ends_with(".pixpin") {
-        nombre
-    } else {
-        format!("{nombre}.pixpin")
-    }
-}
-
-/// Un proyecto que llega: encima del mismo si ya esta (con la copia de
-/// seguridad antes, como Windows) o nuevo en la lista.
-fn guardar_proyecto(
-    nucleo: &Nucleo,
-    e: &Elemento,
-    ruta: &Path,
-    aparato: &str,
-) -> std::io::Result<(Ficha, bool)> {
-    let raiz = nucleo.ruta();
-    let con_extension = ruta.with_file_name(nombre_con_extension(e));
-    let ruta = if con_extension != ruta && std::fs::rename(ruta, &con_extension).is_ok() {
-        con_extension
-    } else {
-        ruta.to_path_buf()
-    };
-    let paquete = pixpin_proyecto::Paquete::abrir(&ruta).map_err(std::io::Error::other)?;
-    let mismo = almacen::Indice::leer(raiz)
-        .misma(&ficha_que_llega(e))
-        .map(|f| f.id.clone());
-    let Some(id) = mismo else {
-        return almacen::importar_paquete(raiz, &paquete, aparato).map(|f| (f, false));
-    };
-    if let Some(chat) = pixpin_proyecto::vista::chat_de_ficha(raiz, &id) {
-        let disco = DiscoPc::nuevo(raiz);
-        pixpin_sincro::copias::hacer(
-            &disco,
-            &chat,
-            &format!("Antes de recibir «{}»", e.nombre),
-            crate::ahora_ms(),
-        )?;
-    }
-    almacen::actualizar_paquete(raiz, &id, &paquete).map(|f| (f, true))
-}
-
-/// **Lo que llego, a su sitio** (`guardar_lo_recibido` de Windows): los
-/// proyectos a la lista y lo demas a «Mensajes guardados». Un lienzo suelto
-/// del movil (un `.pixpin` de una hoja) va como fichero a «Mensajes
-/// guardados»: meterlo en su proyecto es de la fase del lienzo.
-fn guardar_lo_recibido(nucleo: &Nucleo, cosas: &[(Elemento, PathBuf)]) -> Vec<RecibidoEnvio> {
-    let aparato = nucleo
-        .identidad()
-        .map(|i| pixpin_proyecto::codigos::de_aparato(&i.yo.id))
-        .unwrap_or_default();
-    let mut salida = Vec::new();
-    for (e, ruta) in cosas {
-        if e.tipo == envio::PROYECTO
-            && let Ok((ficha, al_dia)) = guardar_proyecto(nucleo, e, ruta, &aparato)
-        {
-            salida.push(RecibidoEnvio {
-                nombre: e.nombre.clone(),
-                donde: if al_dia {
-                    "proyecto_al_dia"
-                } else {
-                    "proyecto"
-                }
-                .into(),
-                chat: ficha.id,
-            });
-            continue;
-        }
-        // El fichero pudo cambiar de nombre al intentar abrirlo como
-        // proyecto: se busca con la extension tambien.
-        let con_extension = ruta.with_file_name(nombre_con_extension(e));
-        let ruta = if ruta.exists() {
-            ruta.clone()
-        } else {
-            con_extension
-        };
-        let nombre =
-            envio::nombre_por_contenido(&nombre_con_extension(e), &envio::cabeza_de(&ruta));
-        let hecho = nucleo.chat_guardados().and_then(|g| {
-            nucleo
-                .adjuntar(g.id.clone(), ruta.display().to_string(), Some(nombre))
-                .map(|_| g.id)
-        });
-        if let Ok(chat) = hecho {
-            salida.push(RecibidoEnvio {
-                nombre: e.nombre.clone(),
-                donde: "guardados".into(),
-                chat,
-            });
-        }
-    }
-    salida
 }
 
 #[cfg(test)]
@@ -1192,8 +1379,11 @@ mod pruebas {
             codigo_de_chat: None,
             aparato: None,
         };
+        use crate::recepcion::{ficha_que_llega, nombre_con_extension};
         assert_eq!(nombre_con_extension(&e), "123.pixpin");
         assert_eq!(ficha_que_llega(&e).id, "p1");
+        e.tipo = envio::LIENZO.into();
+        assert_eq!(nombre_con_extension(&e), "123.pixpin");
         e.tipo = envio::ARCHIVO.into();
         assert_eq!(nombre_con_extension(&e), "123");
     }
