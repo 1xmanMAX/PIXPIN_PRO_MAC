@@ -4446,6 +4446,31 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func galeria(desde: UInt64, cuantos: UInt32, dias: Int64, desfaseMs: Int64) throws  -> PaginaGaleria
     
     /**
+     * **El buscador de la galeria** (`coincide` de Windows): las capturas
+     * donde esta cada palabra de `consulta`, sin mayusculas ni tildes, en
+     * su nombre, su fecha («viernes», «3 oct», «hoy») o el texto de dentro
+     * ya leido ([`Nucleo::galeria_poner_texto`]). De la mas nueva a la mas
+     * vieja, por paginas como [`Nucleo::galeria`]; `total` es cuantas
+     * encajan.
+     */
+    func galeriaBuscar(consulta: String, desde: UInt64, cuantos: UInt32, dias: Int64, desfaseMs: Int64) throws  -> PaginaGaleria
+    
+    /**
+     * Apunta el texto leido de una captura (vacio tambien vale: «no tiene
+     * texto», y no se vuelve a leer). Una captura que ya no esta no es un
+     * error: no se apunta nada.
+     */
+    func galeriaPonerTexto(nombre: String, texto: String) throws 
+    
+    /**
+     * **Las capturas cuyo texto aun no se leyo** (las imagenes, no los
+     * videos), de la mas nueva a la mas vieja, como mucho `cuantos`: Swift
+     * las pasa por Vision en segundo plano y apunta lo leido con
+     * [`Nucleo::galeria_poner_texto`].
+     */
+    func galeriaSinTexto(cuantos: UInt32)  -> [CapturaGaleria]
+    
+    /**
      * **Tras barrer**: olvida las conservadas y prorrogadas cuyo fichero
      * ya no esta (el numero de `captura-NNNN` se reutiliza: una nueva con
      * el nombre de una conservada que se fue no tiene por que quedarse
@@ -4756,6 +4781,34 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func tareas(desfaseMs: Int64) throws  -> [ListaTareas]
     
     /**
+     * **Lo manda a «Momentos», o lo saca** (el marcador de la tarjeta).
+     * Devuelve si queda dentro.
+     */
+    func timelineAMomentos(id: String) throws  -> Bool
+    
+    /**
+     * **Apunta un momento** (Intro en la caja de «Hoy»): `texto` se parte
+     * en titulo y descripcion (`frases::partir`), las fotos se copian a
+     * `medios/` (las temporales se mueven) y el audio se mueve. Sin titulo,
+     * «Nota de voz» o «Foto»; sin nada, error de argumento. `cuando` es el
+     * principio de lo dicho, o ahora.
+     */
+    func timelineApuntar(texto: String, fotos: [FotoNueva], audio: String?, duracionMs: Int64, dicho: String?, cuando: Int64?, desfaseMs: Int64) throws  -> MomentoTimeline
+    
+    /**
+     * **«Momentos»**, el archivo: los dias con algo mandado a «Momentos»,
+     * del mas nuevo al mas viejo, cada uno con sus momentos en orden, por
+     * paginas de dias (`archivo::agrupar`).
+     */
+    func timelineArchivo(desfaseMs: Int64, desde: UInt64, cuantos: UInt32) throws  -> PaginaArchivo
+    
+    /**
+     * **Borra un momento** y devuelve su linea, para «Deshacer»
+     * ([`Nucleo::timeline_devolver`]). Sus fotos y su audio se quedan.
+     */
+    func timelineBorrar(id: String) throws  -> String
+    
+    /**
      * Busca en el titulo y la descripcion de TODOS los momentos, sin
      * mayusculas ni tildes y con cada palabra en cualquier orden
      * (`pixpin_timeline::buscar`), del mas nuevo al mas viejo.
@@ -4763,11 +4816,48 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func timelineBuscar(consulta: String, desfaseMs: Int64, cuantos: UInt32) throws  -> [MomentoTimeline]
     
     /**
+     * **Corrige un momento** (↑ con la caja vacia, o «Corregir»): el texto
+     * nuevo se parte como al apuntar. Sin titulo se queda el de antes,
+     * salvo que no tenga foto ni voz: entonces es un error («escribe algo
+     * para el titulo»).
+     */
+    func timelineCorregir(id: String, texto: String, desfaseMs: Int64) throws  -> MomentoTimeline
+    
+    /**
+     * **Deshace un borrado**: vuelve el momento de la `linea` que dio
+     * [`Nucleo::timeline_borrar`]. Si ya estaba, no hace nada.
+     */
+    func timelineDevolver(linea: String) throws 
+    
+    /**
      * **Los dias con momentos**, del mas nuevo al mas viejo, por paginas.
      * Con `solo_en_momentos`, solo cuentan los mandados a «Momentos» (la
      * pestana del archivo); sin el, todos (la de «Hoy» y «Estado»).
      */
     func timelineDias(desfaseMs: Int64, soloEnMomentos: Bool, desde: UInt64, cuantos: UInt32) throws  -> PaginaDias
+    
+    /**
+     * **«Estado»**: una tarjeta por mes con algo (y la del mes de hoy
+     * siempre), del mas nuevo al mas viejo, con sus dias al reves y el
+     * circulo de cada dia con algo (`archivo::meses_del_estado`).
+     */
+    func timelineEstado(desfaseMs: Int64) throws  -> [MesEstado]
+    
+    /**
+     * **Exportar lo que se ve** (`exportar_lo_que_se_ve` de Windows): la
+     * pagina de linea de tiempo de `pixpin_timeline::html`, con las fotos
+     * y los audios dentro. Swift la guarda como HTML o la imprime a PDF.
+     * Sin nada que exportar, error de argumento.
+     */
+    func timelineExportar(que: ExportarTimeline, desfaseMs: Int64) throws  -> PaginaTimeline
+    
+    /**
+     * **La bombilla «Lección»** (`lecciones::alternar` de Windows): marca
+     * el momento haciendo su leccion en «Mensajes guardados» (o reenlaza la
+     * que tuvo, si sigue existiendo), o lo desmarca sin borrar la leccion.
+     * Devuelve el id de la leccion si queda marcado.
+     */
+    func timelineLeccion(id: String) throws  -> String?
     
     /**
      * **Los momentos de un dia**, del mas viejo al mas nuevo, por paginas.
@@ -6130,6 +6220,59 @@ open func galeria(desde: UInt64, cuantos: UInt32, dias: Int64, desfaseMs: Int64)
 }
     
     /**
+     * **El buscador de la galeria** (`coincide` de Windows): las capturas
+     * donde esta cada palabra de `consulta`, sin mayusculas ni tildes, en
+     * su nombre, su fecha («viernes», «3 oct», «hoy») o el texto de dentro
+     * ya leido ([`Nucleo::galeria_poner_texto`]). De la mas nueva a la mas
+     * vieja, por paginas como [`Nucleo::galeria`]; `total` es cuantas
+     * encajan.
+     */
+open func galeriaBuscar(consulta: String, desde: UInt64, cuantos: UInt32, dias: Int64, desfaseMs: Int64)throws  -> PaginaGaleria  {
+    return try  FfiConverterTypePaginaGaleria_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_galeria_buscar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(consulta),
+        FfiConverterUInt64.lower(desde),
+        FfiConverterUInt32.lower(cuantos),
+        FfiConverterInt64.lower(dias),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Apunta el texto leido de una captura (vacio tambien vale: «no tiene
+     * texto», y no se vuelve a leer). Una captura que ya no esta no es un
+     * error: no se apunta nada.
+     */
+open func galeriaPonerTexto(nombre: String, texto: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_galeria_poner_texto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(nombre),
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Las capturas cuyo texto aun no se leyo** (las imagenes, no los
+     * videos), de la mas nueva a la mas vieja, como mucho `cuantos`: Swift
+     * las pasa por Vision en segundo plano y apunta lo leido con
+     * [`Nucleo::galeria_poner_texto`].
+     */
+open func galeriaSinTexto(cuantos: UInt32) -> [CapturaGaleria]  {
+    return try!  FfiConverterSequenceTypeCapturaGaleria.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_galeria_sin_texto(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(cuantos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Tras barrer**: olvida las conservadas y prorrogadas cuyo fichero
      * ya no esta (el numero de `captura-NNNN` se reutiliza: una nueva con
      * el nombre de una conservada que se fue no tiene por que quedarse
@@ -6779,6 +6922,74 @@ open func tareas(desfaseMs: Int64)throws  -> [ListaTareas]  {
 }
     
     /**
+     * **Lo manda a «Momentos», o lo saca** (el marcador de la tarjeta).
+     * Devuelve si queda dentro.
+     */
+open func timelineAMomentos(id: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_a_momentos(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Apunta un momento** (Intro en la caja de «Hoy»): `texto` se parte
+     * en titulo y descripcion (`frases::partir`), las fotos se copian a
+     * `medios/` (las temporales se mueven) y el audio se mueve. Sin titulo,
+     * «Nota de voz» o «Foto»; sin nada, error de argumento. `cuando` es el
+     * principio de lo dicho, o ahora.
+     */
+open func timelineApuntar(texto: String, fotos: [FotoNueva], audio: String?, duracionMs: Int64, dicho: String?, cuando: Int64?, desfaseMs: Int64)throws  -> MomentoTimeline  {
+    return try  FfiConverterTypeMomentoTimeline_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_apuntar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(texto),
+        FfiConverterSequenceTypeFotoNueva.lower(fotos),
+        FfiConverterOptionString.lower(audio),
+        FfiConverterInt64.lower(duracionMs),
+        FfiConverterOptionString.lower(dicho),
+        FfiConverterOptionInt64.lower(cuando),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Momentos»**, el archivo: los dias con algo mandado a «Momentos»,
+     * del mas nuevo al mas viejo, cada uno con sus momentos en orden, por
+     * paginas de dias (`archivo::agrupar`).
+     */
+open func timelineArchivo(desfaseMs: Int64, desde: UInt64, cuantos: UInt32)throws  -> PaginaArchivo  {
+    return try  FfiConverterTypePaginaArchivo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_archivo(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),
+        FfiConverterUInt64.lower(desde),
+        FfiConverterUInt32.lower(cuantos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Borra un momento** y devuelve su linea, para «Deshacer»
+     * ([`Nucleo::timeline_devolver`]). Sus fotos y su audio se quedan.
+     */
+open func timelineBorrar(id: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_borrar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Busca en el titulo y la descripcion de TODOS los momentos, sin
      * mayusculas ni tildes y con cada palabra en cualquier orden
      * (`pixpin_timeline::buscar`), del mas nuevo al mas viejo.
@@ -6796,6 +7007,37 @@ open func timelineBuscar(consulta: String, desfaseMs: Int64, cuantos: UInt32)thr
 }
     
     /**
+     * **Corrige un momento** (↑ con la caja vacia, o «Corregir»): el texto
+     * nuevo se parte como al apuntar. Sin titulo se queda el de antes,
+     * salvo que no tenga foto ni voz: entonces es un error («escribe algo
+     * para el titulo»).
+     */
+open func timelineCorregir(id: String, texto: String, desfaseMs: Int64)throws  -> MomentoTimeline  {
+    return try  FfiConverterTypeMomentoTimeline_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_corregir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(texto),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Deshace un borrado**: vuelve el momento de la `linea` que dio
+     * [`Nucleo::timeline_borrar`]. Si ya estaba, no hace nada.
+     */
+open func timelineDevolver(linea: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_devolver(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(linea),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * **Los dias con momentos**, del mas nuevo al mas viejo, por paginas.
      * Con `solo_en_momentos`, solo cuentan los mandados a «Momentos» (la
      * pestana del archivo); sin el, todos (la de «Hoy» y «Estado»).
@@ -6809,6 +7051,54 @@ open func timelineDias(desfaseMs: Int64, soloEnMomentos: Bool, desde: UInt64, cu
         FfiConverterBool.lower(soloEnMomentos),
         FfiConverterUInt64.lower(desde),
         FfiConverterUInt32.lower(cuantos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Estado»**: una tarjeta por mes con algo (y la del mes de hoy
+     * siempre), del mas nuevo al mas viejo, con sus dias al reves y el
+     * circulo de cada dia con algo (`archivo::meses_del_estado`).
+     */
+open func timelineEstado(desfaseMs: Int64)throws  -> [MesEstado]  {
+    return try  FfiConverterSequenceTypeMesEstado.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_estado(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Exportar lo que se ve** (`exportar_lo_que_se_ve` de Windows): la
+     * pagina de linea de tiempo de `pixpin_timeline::html`, con las fotos
+     * y los audios dentro. Swift la guarda como HTML o la imprime a PDF.
+     * Sin nada que exportar, error de argumento.
+     */
+open func timelineExportar(que: ExportarTimeline, desfaseMs: Int64)throws  -> PaginaTimeline  {
+    return try  FfiConverterTypePaginaTimeline_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_exportar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeExportarTimeline_lower(que),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La bombilla «Lección»** (`lecciones::alternar` de Windows): marca
+     * el momento haciendo su leccion en «Mensajes guardados» (o reenlaza la
+     * que tuvo, si sigue existiendo), o lo desmarca sin borrar la leccion.
+     * Devuelve el id de la leccion si queda marcado.
+     */
+open func timelineLeccion(id: String)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_timeline_leccion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
@@ -10770,6 +11060,161 @@ public func FfiConverterTypeCuentaMini_lower(_ value: CuentaMini) -> RustBuffer 
 
 
 /**
+ * Un dia de «Momentos» (el archivo): sus momentos en el orden en que
+ * pasaron.
+ */
+public struct DiaArchivo: Equatable, Hashable {
+    public var dia: DiaTimeline
+    /**
+     * «lun».
+     */
+    public var diaCorto: String
+    /**
+     * «octubre».
+     */
+    public var nombreMes: String
+    public var momentos: [MomentoTimeline]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(dia: DiaTimeline, 
+        /**
+         * «lun».
+         */diaCorto: String, 
+        /**
+         * «octubre».
+         */nombreMes: String, momentos: [MomentoTimeline]) {
+        self.dia = dia
+        self.diaCorto = diaCorto
+        self.nombreMes = nombreMes
+        self.momentos = momentos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DiaArchivo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDiaArchivo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DiaArchivo {
+        return
+            try DiaArchivo(
+                dia: FfiConverterTypeDiaTimeline.read(from: &buf), 
+                diaCorto: FfiConverterString.read(from: &buf), 
+                nombreMes: FfiConverterString.read(from: &buf), 
+                momentos: FfiConverterSequenceTypeMomentoTimeline.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DiaArchivo, into buf: inout [UInt8]) {
+        FfiConverterTypeDiaTimeline.write(value.dia, into: &buf)
+        FfiConverterString.write(value.diaCorto, into: &buf)
+        FfiConverterString.write(value.nombreMes, into: &buf)
+        FfiConverterSequenceTypeMomentoTimeline.write(value.momentos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiaArchivo_lift(_ buf: RustBuffer) throws -> DiaArchivo {
+    return try FfiConverterTypeDiaArchivo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiaArchivo_lower(_ value: DiaArchivo) -> RustBuffer {
+    return FfiConverterTypeDiaArchivo.lower(value)
+}
+
+
+/**
+ * Un dia de la tarjeta de un mes de «Estado».
+ */
+public struct DiaEstado: Equatable, Hashable {
+    public var dia: UInt8
+    /**
+     * `AAAA-MM-DD`.
+     */
+    public var iso: String
+    public var cuantos: UInt32
+    /**
+     * `None` si no tiene nada (un puntito).
+     */
+    public var circulo: CirculoDia?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(dia: UInt8, 
+        /**
+         * `AAAA-MM-DD`.
+         */iso: String, cuantos: UInt32, 
+        /**
+         * `None` si no tiene nada (un puntito).
+         */circulo: CirculoDia?) {
+        self.dia = dia
+        self.iso = iso
+        self.cuantos = cuantos
+        self.circulo = circulo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DiaEstado: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDiaEstado: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DiaEstado {
+        return
+            try DiaEstado(
+                dia: FfiConverterUInt8.read(from: &buf), 
+                iso: FfiConverterString.read(from: &buf), 
+                cuantos: FfiConverterUInt32.read(from: &buf), 
+                circulo: FfiConverterOptionTypeCirculoDia.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DiaEstado, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.dia, into: &buf)
+        FfiConverterString.write(value.iso, into: &buf)
+        FfiConverterUInt32.write(value.cuantos, into: &buf)
+        FfiConverterOptionTypeCirculoDia.write(value.circulo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiaEstado_lift(_ buf: RustBuffer) throws -> DiaEstado {
+    return try FfiConverterTypeDiaEstado.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDiaEstado_lower(_ value: DiaEstado) -> RustBuffer {
+    return FfiConverterTypeDiaEstado.lower(value)
+}
+
+
+/**
  * Un dia con momentos.
  */
 public struct DiaTimeline: Equatable, Hashable {
@@ -12244,6 +12689,75 @@ public func FfiConverterTypeFiltroLecciones_lift(_ buf: RustBuffer) throws -> Fi
 #endif
 public func FfiConverterTypeFiltroLecciones_lower(_ value: FiltroLecciones) -> RustBuffer {
     return FfiConverterTypeFiltroLecciones.lower(value)
+}
+
+
+/**
+ * Una foto que se apunta con un momento.
+ */
+public struct FotoNueva: Equatable, Hashable {
+    /**
+     * Su ruta absoluta.
+     */
+    public var ruta: String
+    /**
+     * Un temporal nuestro (lo pegado): se mueve en vez de copiarse.
+     */
+    public var temporal: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Su ruta absoluta.
+         */ruta: String, 
+        /**
+         * Un temporal nuestro (lo pegado): se mueve en vez de copiarse.
+         */temporal: Bool) {
+        self.ruta = ruta
+        self.temporal = temporal
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FotoNueva: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFotoNueva: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FotoNueva {
+        return
+            try FotoNueva(
+                ruta: FfiConverterString.read(from: &buf), 
+                temporal: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FotoNueva, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ruta, into: &buf)
+        FfiConverterBool.write(value.temporal, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoNueva_lift(_ buf: RustBuffer) throws -> FotoNueva {
+    return try FfiConverterTypeFotoNueva.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoNueva_lower(_ value: FotoNueva) -> RustBuffer {
+    return FfiConverterTypeFotoNueva.lower(value)
 }
 
 
@@ -14226,6 +14740,91 @@ public func FfiConverterTypeMensajeIa_lower(_ value: MensajeIa) -> RustBuffer {
 
 
 /**
+ * La tarjeta de un mes de «Estado»: sus dias del mas reciente al 1.
+ */
+public struct MesEstado: Equatable, Hashable {
+    public var anio: Int32
+    public var mes: UInt8
+    /**
+     * «octubre».
+     */
+    public var nombre: String
+    /**
+     * Lo que mas se repitio («🍕») y cuantas veces, si hay.
+     */
+    public var loMas: String?
+    public var loMasVeces: UInt32
+    public var dias: [DiaEstado]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(anio: Int32, mes: UInt8, 
+        /**
+         * «octubre».
+         */nombre: String, 
+        /**
+         * Lo que mas se repitio («🍕») y cuantas veces, si hay.
+         */loMas: String?, loMasVeces: UInt32, dias: [DiaEstado]) {
+        self.anio = anio
+        self.mes = mes
+        self.nombre = nombre
+        self.loMas = loMas
+        self.loMasVeces = loMasVeces
+        self.dias = dias
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MesEstado: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMesEstado: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MesEstado {
+        return
+            try MesEstado(
+                anio: FfiConverterInt32.read(from: &buf), 
+                mes: FfiConverterUInt8.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                loMas: FfiConverterOptionString.read(from: &buf), 
+                loMasVeces: FfiConverterUInt32.read(from: &buf), 
+                dias: FfiConverterSequenceTypeDiaEstado.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MesEstado, into buf: inout [UInt8]) {
+        FfiConverterInt32.write(value.anio, into: &buf)
+        FfiConverterUInt8.write(value.mes, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterOptionString.write(value.loMas, into: &buf)
+        FfiConverterUInt32.write(value.loMasVeces, into: &buf)
+        FfiConverterSequenceTypeDiaEstado.write(value.dias, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMesEstado_lift(_ buf: RustBuffer) throws -> MesEstado {
+    return try FfiConverterTypeMesEstado.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMesEstado_lower(_ value: MesEstado) -> RustBuffer {
+    return FfiConverterTypeMesEstado.lower(value)
+}
+
+
+/**
  * Lo vertical de una letra **a tamano 1000**, en puntos.
  */
 public struct MetricasLetra: Equatable, Hashable {
@@ -14696,6 +15295,67 @@ public func FfiConverterTypeOfertaRecibida_lift(_ buf: RustBuffer) throws -> Ofe
 #endif
 public func FfiConverterTypeOfertaRecibida_lower(_ value: OfertaRecibida) -> RustBuffer {
     return FfiConverterTypeOfertaRecibida.lower(value)
+}
+
+
+/**
+ * Una pagina de «Momentos», del dia mas nuevo al mas viejo.
+ */
+public struct PaginaArchivo: Equatable, Hashable {
+    public var dias: [DiaArchivo]
+    public var desde: UInt64
+    public var total: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(dias: [DiaArchivo], desde: UInt64, total: UInt64) {
+        self.dias = dias
+        self.desde = desde
+        self.total = total
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaginaArchivo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaginaArchivo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaginaArchivo {
+        return
+            try PaginaArchivo(
+                dias: FfiConverterSequenceTypeDiaArchivo.read(from: &buf), 
+                desde: FfiConverterUInt64.read(from: &buf), 
+                total: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaginaArchivo, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeDiaArchivo.write(value.dias, into: &buf)
+        FfiConverterUInt64.write(value.desde, into: &buf)
+        FfiConverterUInt64.write(value.total, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaArchivo_lift(_ buf: RustBuffer) throws -> PaginaArchivo {
+    return try FfiConverterTypePaginaArchivo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaArchivo_lower(_ value: PaginaArchivo) -> RustBuffer {
+    return FfiConverterTypePaginaArchivo.lower(value)
 }
 
 
@@ -15270,6 +15930,74 @@ public func FfiConverterTypePaginaOffice_lift(_ buf: RustBuffer) throws -> Pagin
 #endif
 public func FfiConverterTypePaginaOffice_lower(_ value: PaginaOffice) -> RustBuffer {
     return FfiConverterTypePaginaOffice.lower(value)
+}
+
+
+/**
+ * La pagina exportada y el nombre que se propone para el fichero (sin
+ * extension).
+ */
+public struct PaginaTimeline: Equatable, Hashable {
+    public var nombre: String
+    public var html: String
+    /**
+     * Cuantos momentos lleva.
+     */
+    public var cuantos: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, html: String, 
+        /**
+         * Cuantos momentos lleva.
+         */cuantos: UInt32) {
+        self.nombre = nombre
+        self.html = html
+        self.cuantos = cuantos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaginaTimeline: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaginaTimeline: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaginaTimeline {
+        return
+            try PaginaTimeline(
+                nombre: FfiConverterString.read(from: &buf), 
+                html: FfiConverterString.read(from: &buf), 
+                cuantos: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaginaTimeline, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.html, into: &buf)
+        FfiConverterUInt32.write(value.cuantos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaTimeline_lift(_ buf: RustBuffer) throws -> PaginaTimeline {
+    return try FfiConverterTypePaginaTimeline.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaTimeline_lower(_ value: PaginaTimeline) -> RustBuffer {
+    return FfiConverterTypePaginaTimeline.lower(value)
 }
 
 
@@ -15880,63 +16608,6 @@ public func FfiConverterTypeRecibidoEnvio_lower(_ value: RecibidoEnvio) -> RustB
 
 
 /**
- * Como acabo «Recuperar todos».
- */
-public struct Recuperados: Equatable, Hashable {
-    public var n: UInt32
-    public var total: UInt32
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(n: UInt32, total: UInt32) {
-        self.n = n
-        self.total = total
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension Recuperados: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeRecuperados: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Recuperados {
-        return
-            try Recuperados(
-                n: FfiConverterUInt32.read(from: &buf), 
-                total: FfiConverterUInt32.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: Recuperados, into buf: inout [UInt8]) {
-        FfiConverterUInt32.write(value.n, into: &buf)
-        FfiConverterUInt32.write(value.total, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRecuperados_lift(_ buf: RustBuffer) throws -> Recuperados {
-    return try FfiConverterTypeRecuperados.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeRecuperados_lower(_ value: Recuperados) -> RustBuffer {
-    return FfiConverterTypeRecuperados.lower(value)
-}
-
-
-/**
  * Un recordatorio puesto, de un mensaje o de una tarea.
  */
 public struct RecordatorioMac: Equatable, Hashable {
@@ -16036,6 +16707,63 @@ public func FfiConverterTypeRecordatorioMac_lift(_ buf: RustBuffer) throws -> Re
 #endif
 public func FfiConverterTypeRecordatorioMac_lower(_ value: RecordatorioMac) -> RustBuffer {
     return FfiConverterTypeRecordatorioMac.lower(value)
+}
+
+
+/**
+ * Como acabo «Recuperar todos».
+ */
+public struct Recuperados: Equatable, Hashable {
+    public var n: UInt32
+    public var total: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(n: UInt32, total: UInt32) {
+        self.n = n
+        self.total = total
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Recuperados: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecuperados: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Recuperados {
+        return
+            try Recuperados(
+                n: FfiConverterUInt32.read(from: &buf), 
+                total: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Recuperados, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.n, into: &buf)
+        FfiConverterUInt32.write(value.total, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecuperados_lift(_ buf: RustBuffer) throws -> Recuperados {
+    return try FfiConverterTypeRecuperados.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecuperados_lower(_ value: Recuperados) -> RustBuffer {
+    return FfiConverterTypeRecuperados.lower(value)
 }
 
 
@@ -18585,6 +19313,100 @@ public func FfiConverterTypeCambioMensaje_lower(_ value: CambioMensaje) -> RustB
 
 
 /**
+ * Lo que va en el circulo de un dia de «Estado» (`estado_mes::Circulo`).
+ */
+
+public enum CirculoDia: Equatable, Hashable {
+    
+    /**
+     * Sus emoticonos distintos, en orden.
+     */
+    case emoticonos(lista: [String]
+    )
+    /**
+     * La primera foto del dia, con su ruta absoluta.
+     */
+    case foto(ruta: String
+    )
+    /**
+     * Ni emoticono ni foto: la inicial de su primer titulo.
+     */
+    case inicial(letra: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CirculoDia: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCirculoDia: FfiConverterRustBuffer {
+    typealias SwiftType = CirculoDia
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CirculoDia {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .emoticonos(lista: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        case 2: return .foto(ruta: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .inicial(letra: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CirculoDia, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .emoticonos(lista):
+            writeInt(&buf, Int32(1))
+            FfiConverterSequenceString.write(lista, into: &buf)
+            
+        
+        case let .foto(ruta):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(ruta, into: &buf)
+            
+        
+        case let .inicial(letra):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(letra, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCirculoDia_lift(_ buf: RustBuffer) throws -> CirculoDia {
+    return try FfiConverterTypeCirculoDia.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCirculoDia_lower(_ value: CirculoDia) -> RustBuffer {
+    return FfiConverterTypeCirculoDia.lower(value)
+}
+
+
+
+/**
  * Lo que se abre como modelo 3D o como plano (para el chat y el Finder).
  */
 
@@ -19697,6 +20519,97 @@ public func FfiConverterTypeEstiloMd_lift(_ buf: RustBuffer) throws -> EstiloMd 
 #endif
 public func FfiConverterTypeEstiloMd_lower(_ value: EstiloMd) -> RustBuffer {
     return FfiConverterTypeEstiloMd.lower(value)
+}
+
+
+
+/**
+ * Lo que se exporta: lo que se ve en la ventana.
+ */
+
+public enum ExportarTimeline: Equatable, Hashable {
+    
+    /**
+     * «Hoy»: las ultimas 24 horas.
+     */
+    case ultimas24h
+    /**
+     * Unos dias (`AAAA-MM-DD`): el abierto, o los elegidos en «Estado».
+     */
+    case dias(isos: [String]
+    )
+    /**
+     * Lo encontrado con el buscador.
+     */
+    case buscar(consulta: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ExportarTimeline: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeExportarTimeline: FfiConverterRustBuffer {
+    typealias SwiftType = ExportarTimeline
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ExportarTimeline {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .ultimas24h
+        
+        case 2: return .dias(isos: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        case 3: return .buscar(consulta: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ExportarTimeline, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .ultimas24h:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .dias(isos):
+            writeInt(&buf, Int32(2))
+            FfiConverterSequenceString.write(isos, into: &buf)
+            
+        
+        case let .buscar(consulta):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(consulta, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportarTimeline_lift(_ buf: RustBuffer) throws -> ExportarTimeline {
+    return try FfiConverterTypeExportarTimeline.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeExportarTimeline_lower(_ value: ExportarTimeline) -> RustBuffer {
+    return FfiConverterTypeExportarTimeline.lower(value)
 }
 
 
@@ -21789,30 +22702,6 @@ fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterOptionTypeTareaRecordada: FfiConverterRustBuffer {
-    typealias SwiftType = TareaRecordada?
-
-    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
-        guard let value = value else {
-            writeInt(&buf, Int8(0))
-            return
-        }
-        writeInt(&buf, Int8(1))
-        FfiConverterTypeTareaRecordada.write(value, into: &buf)
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
-        switch try readInt(&buf) as Int8 {
-        case 0: return nil
-        case 1: return try FfiConverterTypeTareaRecordada.read(from: &buf)
-        default: throw UniffiInternalError.unexpectedOptionalTag
-        }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
     typealias SwiftType = UInt64?
 
@@ -21831,31 +22720,6 @@ fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
         case 1: return try FfiConverterUInt64.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeRecordatorioMac: FfiConverterRustBuffer {
-    typealias SwiftType = [RecordatorioMac]
-
-    public static func write(_ value: [RecordatorioMac], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeRecordatorioMac.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RecordatorioMac] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [RecordatorioMac]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeRecordatorioMac.read(from: &buf))
-        }
-        return seq
     }
 }
 
@@ -22510,6 +23374,54 @@ fileprivate struct FfiConverterOptionTypeResumenMini: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeTareaRecordada: FfiConverterRustBuffer {
+    typealias SwiftType = TareaRecordada?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTareaRecordada.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTareaRecordada.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeCirculoDia: FfiConverterRustBuffer {
+    typealias SwiftType = CirculoDia?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCirculoDia.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCirculoDia.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDondeLlego: FfiConverterRustBuffer {
     typealias SwiftType = DondeLlego?
 
@@ -23129,6 +24041,56 @@ fileprivate struct FfiConverterSequenceTypeCotaPlano: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeDiaArchivo: FfiConverterRustBuffer {
+    typealias SwiftType = [DiaArchivo]
+
+    public static func write(_ value: [DiaArchivo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDiaArchivo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DiaArchivo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DiaArchivo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDiaArchivo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDiaEstado: FfiConverterRustBuffer {
+    typealias SwiftType = [DiaEstado]
+
+    public static func write(_ value: [DiaEstado], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDiaEstado.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DiaEstado] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DiaEstado]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDiaEstado.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeDiaTimeline: FfiConverterRustBuffer {
     typealias SwiftType = [DiaTimeline]
 
@@ -23346,6 +24308,31 @@ fileprivate struct FfiConverterSequenceTypeFilaElegir: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFilaElegir.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFotoNueva: FfiConverterRustBuffer {
+    typealias SwiftType = [FotoNueva]
+
+    public static func write(_ value: [FotoNueva], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFotoNueva.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FotoNueva] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FotoNueva]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFotoNueva.read(from: &buf))
         }
         return seq
     }
@@ -23654,6 +24641,31 @@ fileprivate struct FfiConverterSequenceTypeMensajeIa: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeMesEstado: FfiConverterRustBuffer {
+    typealias SwiftType = [MesEstado]
+
+    public static func write(_ value: [MesEstado], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMesEstado.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MesEstado] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MesEstado]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMesEstado.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMiembroGrupo: FfiConverterRustBuffer {
     typealias SwiftType = [MiembroGrupo]
 
@@ -23871,6 +24883,31 @@ fileprivate struct FfiConverterSequenceTypeRecibidoEnvio: FfiConverterRustBuffer
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeRecibidoEnvio.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRecordatorioMac: FfiConverterRustBuffer {
+    typealias SwiftType = [RecordatorioMac]
+
+    public static func write(_ value: [RecordatorioMac], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRecordatorioMac.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RecordatorioMac] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RecordatorioMac]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRecordatorioMac.read(from: &buf))
         }
         return seq
     }
@@ -25819,6 +26856,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_galeria() != 60309) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_galeria_buscar() != 7802) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_galeria_poner_texto() != 33453) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_galeria_sin_texto() != 22461) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_olvidar_capturas_ausentes() != 20700) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -25933,10 +26979,37 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_tareas() != 57407) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_a_momentos() != 50149) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_apuntar() != 36025) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_archivo() != 5821) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_borrar() != 35354) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_buscar() != 55306) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_corregir() != 52321) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_devolver() != 51865) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_dias() != 2504) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_estado() != 49285) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_exportar() != 36693) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_leccion() != 53140) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_momentos() != 17779) {
