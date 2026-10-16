@@ -43,7 +43,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
    - Falta escuchar en voz alta (`leer_en_voz`).
    - Falta recargar la tinta si cambia en el disco (`al_dia`).
 9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. Faltan el esquema `pixpinmax://`, los pedidos y el menú del Dock.
-10. **El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**: le faltan 10 módulos. También van detrás `pixpin-motor2d` y las letras de `pixpin-pdf`. Por eso el asistente del Mac no hace lo que hace el de Windows.
+10. ~~**El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**.~~ Hecho (A7, 16-oct): `pixpin-ia`, `pixpin-pdf` (letras), `pixpin-store` y `pixpin-motor2d` ya son los de Windows. Lo que falta es la parte de Swift del asistente (D6, E1).
 
 ---
 
@@ -246,7 +246,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 |---|---|---|
 | `apps/pixpin-mcp` (servidor MCP para Claude) | falta | Se podría hacer en Mac con el mismo protocolo (stdio) |
 | `apps/pixpin-puente` y `extensiones/navegador` | falta | Native Messaging de Chrome/Edge; en Mac también hay Safari |
-| `apps/pixpin-lanzador` (buscar) | parcial | Está en `por-adaptar/` y va por detrás de Windows (6 ficheros distintos) |
+| `apps/pixpin-lanzador` (buscar) | parcial | Está en `por-adaptar/`, igual que Windows (A7); falta adaptarlo |
 | `apps/pixpin-aligerar` | completo | Igual que Windows; el Mac usa N/aligerar.rs |
 | Integraciones: CLI, PowerShell, AutoHotkey, menú del Explorador | falta | En Mac: el esquema de URL, App Intents (4 hechos), Servicios del Finder |
 | Extensión Compartir y Quick Look | completo | Solo en Mac (XC/Compartir, XC/VistaPrevia) |
@@ -467,17 +467,17 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | pixpin-bim | `civil.rs`, `examples/ver3d.rs` | adaptación (clippy) |
 | pixpin-cad | 19 cambiados, y `enganche.rs` y `orbita.rs` nuevos | adaptación: `ventana`, `gpu3d` y `texto` tras `cfg(windows)`; la órbita sale de `ventana3d`; búferes `#[repr(C)]` para Metal; `letras.rs` por hilo |
 | pixpin-codec | `imagen.rs`, `vista.rs`, `wic.rs`, `portapapeles*.rs`, `lib.rs`, `Cargo.toml`; `portapapeles/fuera_de_windows.rs` nuevo | adaptación |
-| pixpin-docs | `lib.rs`; `formulas.rs` nuevo | Mac por delante (se sacó de `pixpin-notas`); llevarlo a Windows |
+| pixpin-docs | `lib.rs`; `formulas.rs` nuevo | adaptación: `formulas.rs` es copia exacta del de `crates/pixpin-notas` de Windows (A7), sacado aquí porque `pixpin-notas` es de RichEdit; `pixpin-ia` lo usa con el nombre `pixpin-notas` |
 | pixpin-proyecto | `almacen.rs` (NFC), `ubicacion.rs`, `formula*.rs`, `mini.rs` (comentarios), `Cargo.toml` | adaptación. **El NFC de `almacen::nombre_seguro` es un arreglo que Windows también necesita** |
 | pixpin-store | `ajustes.rs`, `comandos.rs`, `idioma.rs`, `regiones.rs` | adaptación (`pixpin_sistema`) |
-| pixpin-store | comentario de `ajustes.rs` | `estado.rs` ya igual (16-oct) |
+| pixpin-store | — | Igual que Windows (A7, 16-oct): traducciones y comentario de `ajustes.rs` |
 | pixpin-pdf | `lib.rs`, `aligerar.rs`, `png.rs`, `union.rs`, `Cargo.toml` | adaptación (`cfg(windows)`) |
-| pixpin-pdf | `escribir.rs` (291 líneas solo en Windows), `letra.rs` (289), ejemplos y pruebas | **Mac detrás**: varias letras incrustadas por página y letras de reserva (θ, ≤, emoji) |
+| pixpin-pdf | `escribir.rs` (una prueba), `letra.rs`, `tests/escribir.rs` | Igual que Windows (A7, 16-oct) salvo la adaptación: sin DirectWrite, `del_sistema` da `None` y las reservas del sistema no encuentran ninguna (Swift pasará las letras de Core Text a `Letra::desde_tablas` y `Reservas::de_letras`) |
 | pixpin-motor2d | `tests/asignaciones.rs` | Igual que Windows (16-oct). Solo la prueba de asignaciones cuenta por hilo en el Mac (`cargo test` en paralelo) |
-| pixpin-ia | Faltan `anotacion`, `calculo`, `complejidad`, `edicion`, `fisica`, `hoja`, `ojos`, `pizarra`, `problema` y `rotulos`. Muy por detrás: `agente.rs` (324), `acciones.rs` (264), `rapido.rs` (245), `calcar.rs` (488), `lienzo.rs`, `seleccion.rs`, `funciones.rs`, `herramientas.rs`, `ecuacion.rs`, `nube/mod.rs`, `acciones_documentos.rs` | **Mac muy detrás**. Adaptación solo en `nube/claves.rs`, `nube/http.rs`, `servidor.rs`, `descarga.rs` y `puente.rs` (nuevo) |
+| pixpin-ia | `Cargo.toml`, `lib.rs` (cabecera y `puente`), `nube/claves.rs`, `nube/http.rs`, `servidor.rs`, `descarga.rs`, `acciones.rs` (ruta de `docs/`), `tests/banco.rs` y `tests/calcar_medida.rs` (sin pintor de PDF ni OCR); `puente.rs` nuevo | Igual que Windows (A7, 16-oct) salvo esas adaptaciones. Los arreglos de clippy que tenía el Mac en `fechas`, `svg`, `tareas` e `instrucciones` se dejaron como en Windows |
 | por-adaptar/pixpin-voz | `Cargo.toml` | adaptación |
 | por-adaptar/pixpin-pila, pixpin-aligerar | 0 | iguales |
-| por-adaptar/pixpin-lanzador | `asistente`, `consulta`, `lecciones`, `pruebas`, `resultados`, `rpc` | Mac detrás |
+| por-adaptar/pixpin-lanzador | 0 | igual (A7, 16-oct) |
 | por-traducir/pixpin (la app de referencia) | 54 entradas | **La copia de referencia está vieja**. Le faltan, por ejemplo, `notificaciones.rs`, `orden.rs`, `recibir_de_windows.rs`, `asistente/{ojos,externa,en_el_chat,hoja_a_lienzo,anotar_inteligente}`, `automatizaciones/cola.rs`, `ventana_editor/modo_ventana.rs` y `visor_hoja/capa.rs`. Al traducir, leer siempre `ref/PIXPIN_PRO_WINDOWS` |
 | por-traducir/pixpin-shell | 16 (faltan `atajo`, `orden`, `notificacion`, `juntar`, `union`, `impresora`, `compartido`, `consola`) | Una parte se movió a `nucleo/pixpin-sistema` (`atajo`, `union`, `entorno`); lo demás, Mac detrás |
 | por-traducir/pixpin-notas | `lib.rs`; falta `formulas.rs` | se movió a pixpin-docs |
@@ -515,7 +515,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | A4 ✅ | **Recordatorios**: `recuerdaEn` en el mensaje, el vigía (reprogramar al arrancar y tras sincronizar), notificaciones con «Hecha», «+10 min» y «Abrir»; el `⏰` de las tareas en el núcleo | nuevo N/recordatorios.rs, nuevo K/Recordatorios/{Vigia,Avisos}.swift, N/tareas.rs (solo parsear `⏰`) |
 | A5 ✅ | **Copias**: listar y restaurar `copias/`, recuperar proyectos borrados | nuevo N/copias.rs, nuevo K/Sincro/VistaCopias.swift |
 | A6 ✅ | **Envío por código completo**: mandar proyectos y lienzos, poner el lienzo suelto en su proyecto, «actualizar o crear», reconocer un archivo que vuelve | N/envio.rs, K/Sincro/EnvioPorCodigo.swift |
-| A7 | **Poner el núcleo al día con Windows (sin el lienzo)**: copiar `pixpin-ia` (los 10 módulos que faltan, sin tocar la parte de `cfg`), `pixpin-pdf` `escribir.rs` y `letra.rs`, `pixpin-store/estado.rs`, `pixpin-lanzador`; pasar `cargo test --workspace`. Avisar a Windows del NFC y de `formulas.rs` | nucleo/pixpin-ia/**, nucleo/pixpin-pdf/src/{escribir,letra}.rs, nucleo/pixpin-store/src/estado.rs, por-adaptar/pixpin-lanzador/** |
+| A7 ✅ | ~~**Poner el núcleo al día con Windows (sin el lienzo)**~~ **hecho** (16-oct): `pixpin-ia` (los 10 módulos y lo demás), `pixpin-pdf` (`escribir.rs`, `letra.rs`), `pixpin-store` (traducciones), `pixpin-docs/formulas.rs` y `por-adaptar/pixpin-lanzador`, con sus pruebas (ver §3.2). Queda avisar a Windows del NFC de `almacen::nombre_seguro` | nucleo/pixpin-ia/**, nucleo/pixpin-pdf/src/{escribir,letra}.rs, nucleo/pixpin-store/src/estado.rs, por-adaptar/pixpin-lanzador/** |
 | A7b | ~~`pixpin-motor2d` al día~~ **hecho** (16-oct) | nucleo/pixpin-motor2d/** |
 
 ### Grupo B: uso diario
