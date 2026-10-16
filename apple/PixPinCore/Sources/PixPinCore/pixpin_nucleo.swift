@@ -10561,7 +10561,8 @@ public struct AjustesIa: Equatable, Hashable {
     public var respaldoLocal: Bool
     public var mejorVista: Bool
     /**
-     * `""` preguntar, `si`, `no` (lo usara `buscar_en_mis_cosas`, E1).
+     * `""` preguntar, `si`, `no`. `buscar_en_mis_cosas` lo lee (y lo
+     * guarda al preguntar) de la carpeta de datos; aqui va para saberlo.
      */
     public var documentosALaNube: String
     /**
@@ -10586,7 +10587,8 @@ public struct AjustesIa: Equatable, Hashable {
          * `None`: automatico.
          */pensar: Bool?, respaldoLocal: Bool, mejorVista: Bool, 
         /**
-         * `""` preguntar, `si`, `no` (lo usara `buscar_en_mis_cosas`, E1).
+         * `""` preguntar, `si`, `no`. `buscar_en_mis_cosas` lo lee (y lo
+         * guarda al preguntar) de la carpeta de datos; aqui va para saberlo.
          */documentosALaNube: String, 
         /**
          * La carpeta de los modelos bajados.
@@ -12670,6 +12672,85 @@ public func FfiConverterTypeChatCompartidoMac_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeChatCompartidoMac_lower(_ value: ChatCompartidoMac) -> RustBuffer {
     return FfiConverterTypeChatCompartidoMac.lower(value)
+}
+
+
+/**
+ * Una cita de los documentos del usuario.
+ */
+public struct CitaIa: Equatable, Hashable {
+    /**
+     * El `[n]` de la respuesta.
+     */
+    public var numero: UInt32
+    /**
+     * «Tesis.pdf · pág. 12».
+     */
+    public var titulo: String
+    /**
+     * El pedido `abrir` del protocolo que lo abre (JSON).
+     */
+    public var pedido: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El `[n]` de la respuesta.
+         */numero: UInt32, 
+        /**
+         * «Tesis.pdf · pág. 12».
+         */titulo: String, 
+        /**
+         * El pedido `abrir` del protocolo que lo abre (JSON).
+         */pedido: String) {
+        self.numero = numero
+        self.titulo = titulo
+        self.pedido = pedido
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CitaIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCitaIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CitaIa {
+        return
+            try CitaIa(
+                numero: FfiConverterUInt32.read(from: &buf), 
+                titulo: FfiConverterString.read(from: &buf), 
+                pedido: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CitaIa, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.numero, into: &buf)
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterString.write(value.pedido, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCitaIa_lift(_ buf: RustBuffer) throws -> CitaIa {
+    return try FfiConverterTypeCitaIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCitaIa_lower(_ value: CitaIa) -> RustBuffer {
+    return FfiConverterTypeCitaIa.lower(value)
 }
 
 
@@ -20452,6 +20533,11 @@ public struct RespuestaIa: Equatable, Hashable {
      * turno siguiente. Vacia si el turno no la lleva.
      */
     public var hoja: String
+    /**
+     * Lo citado de los documentos del usuario (`buscar_en_mis_cosas`): las
+     * tarjetas que abren el documento.
+     */
+    public var citas: [CitaIa]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -20472,7 +20558,11 @@ public struct RespuestaIa: Equatable, Hashable {
         /**
          * La hoja de trabajo de la conversacion, reescrita (JSON), para el
          * turno siguiente. Vacia si el turno no la lleva.
-         */hoja: String) {
+         */hoja: String, 
+        /**
+         * Lo citado de los documentos del usuario (`buscar_en_mis_cosas`): las
+         * tarjetas que abren el documento.
+         */citas: [CitaIa]) {
         self.texto = texto
         self.herramientas = herramientas
         self.lienzo = lienzo
@@ -20480,6 +20570,7 @@ public struct RespuestaIa: Equatable, Hashable {
         self.segundosPensando = segundosPensando
         self.motor = motor
         self.hoja = hoja
+        self.citas = citas
     }
 
     
@@ -20504,7 +20595,8 @@ public struct FfiConverterTypeRespuestaIa: FfiConverterRustBuffer {
                 pensamiento: FfiConverterString.read(from: &buf), 
                 segundosPensando: FfiConverterOptionFloat.read(from: &buf), 
                 motor: FfiConverterString.read(from: &buf), 
-                hoja: FfiConverterString.read(from: &buf)
+                hoja: FfiConverterString.read(from: &buf), 
+                citas: FfiConverterSequenceTypeCitaIa.read(from: &buf)
         )
     }
 
@@ -20516,6 +20608,7 @@ public struct FfiConverterTypeRespuestaIa: FfiConverterRustBuffer {
         FfiConverterOptionFloat.write(value.segundosPensando, into: &buf)
         FfiConverterString.write(value.motor, into: &buf)
         FfiConverterString.write(value.hoja, into: &buf)
+        FfiConverterSequenceTypeCitaIa.write(value.citas, into: &buf)
     }
 }
 
@@ -29116,6 +29209,31 @@ fileprivate struct FfiConverterSequenceTypeChatCompartidoMac: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCitaIa: FfiConverterRustBuffer {
+    typealias SwiftType = [CitaIa]
+
+    public static func write(_ value: [CitaIa], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCitaIa.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CitaIa] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CitaIa]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCitaIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeColorHoja: FfiConverterRustBuffer {
     typealias SwiftType = [ColorHoja]
 
@@ -30619,6 +30737,20 @@ public func llamaLocalPreguntarEnVivo(puerto: UInt16, historial: [MensajeIa], pe
 })
 }
 /**
+ * **Pone al dia el indice de los documentos** (al abrir la ventana del
+ * asistente, desde un hilo de fondo: lee lo que cambio). Devuelve cuantas
+ * fuentes leyo.
+ */
+public func iaDocumentosAlDia(nucleo: Nucleo, app: AppIa) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_documentos_al_dia(
+        FfiConverterTypeNucleo_lower(nucleo),
+        FfiConverterTypeAppIa_lower(app),uniffiCallStatus
+    )
+})
+}
+/**
  * La carpeta donde Swift saca el `.tar.gz` del motor (con `tar`), ya
  * creada.
  */
@@ -31927,6 +32059,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_llama_local_preguntar_en_vivo() != 12190) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_documentos_al_dia() != 14088) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ia_carpeta_motor() != 7044) {
