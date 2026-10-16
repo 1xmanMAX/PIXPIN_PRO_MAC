@@ -120,6 +120,7 @@ public struct SeccionAtajos: View {
                             get: { r.nombre },
                             set: { atajos.renombrarRegion(r.id, a: $0) }))
                             .textFieldStyle(.plain)
+                            .labelsHidden()
                         Text("\(r.ancho) × \(r.alto) en (\(r.x), \(r.y))")
                             .font(.caption).foregroundStyle(.secondary)
                         if let m = avisos[r.id.uuidString]?.mensaje {
