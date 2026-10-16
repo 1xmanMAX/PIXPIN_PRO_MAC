@@ -250,6 +250,11 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         super.init(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
         modelo.vista = self
         wantsLayer = true
+        // Desde macOS 14 una NSView NO recorta por defecto, y `draw` llena
+        // el `dirtyRect`, que puede pasar de sus bordes: el fondo del lienzo
+        // tapaba la barra de herramientas entera (el usuario no veia
+        // ninguna herramienta).
+        clipsToBounds = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
         registerForDraggedTypes(ImagenPegadaLienzo.tiposDelTablero)
         reloj.alPararse = { [weak self] in
