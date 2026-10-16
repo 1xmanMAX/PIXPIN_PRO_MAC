@@ -32,6 +32,11 @@
 //! [`Nucleo::olvidar_capturas_ausentes`] limpia del registro las
 //! conservadas y prorrogadas cuyo fichero ya no esta, como Windows.
 //!
+//! **Buscar** (B6) es el buscador de la v2 de Windows: el nombre, la fecha
+//! y el texto de dentro de la captura, que Swift lee con Vision en segundo
+//! plano y apunta aqui ([`Nucleo::galeria_poner_texto`]) en
+//! `cache/galeria/`, junto a donde Windows guarda el suyo.
+//!
 //! # Rendimiento
 //!
 //! La lista se lee **por paginas** ([`Nucleo::galeria`]). La carpeta se
@@ -131,11 +136,15 @@ pub(crate) struct Entrada {
 #[derive(Debug, Default)]
 pub struct CacheGaleria {
     lista: Option<(Option<SystemTime>, Arc<Vec<Entrada>>)>,
+    /// El texto leido de cada captura, ya plegado, por la ruta de su
+    /// fichero en `cache/galeria/` (que cambia si cambia la captura).
+    textos: std::collections::HashMap<String, String>,
 }
 
 impl CacheGaleria {
     pub(crate) fn vaciar(&mut self) {
         self.lista = None;
+        self.textos.clear();
     }
 }
 
@@ -273,29 +282,6 @@ pub(crate) fn caducadas<'a>(
         .collect()
 }
 
-/// Con cuanto de antelacion se avisa de que una captura se va
-/// (`caducidad_capturas::AVISAR_ANTES_MS` de Windows): un dia.
-pub const AVISAR_ANTES_MS: i64 = reglas::DIA_MS;
-
-/// **Las que se van en las proximas 24 h** (`caducidad_capturas::por_avisar`
-/// de Windows), con su fecha de irse. Las ya caducadas no: se van en este
-/// barrido. Las ya avisadas las quita quien avisa (Swift, una vez por
-/// sesion, como Windows).
-pub(crate) fn por_avisar<'a>(
-    registro: &Caducidad,
-    lista: &'a [Entrada],
-    ahora: i64,
-    dias: i64,
-) -> Vec<(&'a Entrada, i64)> {
-    lista
-        .iter()
-        .filter_map(|e| {
-            let t = reglas::se_va_el(registro, &e.nombre, e.cuando, dias)?;
-            (t > ahora && t <= ahora + AVISAR_ANTES_MS).then_some((e, t))
-        })
-        .collect()
-}
-
 /// Los nombres apuntados (conservadas y prorrogadas) cuyo fichero ya no
 /// esta en `presentes`.
 fn ausentes(registro: &Caducidad, presentes: &[Entrada]) -> Vec<String> {
@@ -380,21 +366,6 @@ impl Nucleo {
             .collect()
     }
 
-    /// [`Nucleo::capturas_por_avisar`] a una hora dada (las pruebas).
-    pub(crate) fn por_avisar_en(&self, dias: i64, ahora: i64) -> Vec<CapturaCaducada> {
-        let lista = self.lista_de_capturas();
-        let registro = leer_registro(self.ruta(), ahora);
-        let carpeta = self.carpeta_de_capturas();
-        por_avisar(&registro, &lista, ahora, dias)
-            .into_iter()
-            .map(|(e, se_va)| CapturaCaducada {
-                nombre: e.nombre.clone(),
-                ruta: carpeta.join(&e.nombre).display().to_string(),
-                se_va,
-            })
-            .collect()
-    }
-
     fn cuando_de_captura(ruta: &Path) -> i64 {
         std::fs::metadata(ruta)
             .and_then(|m| m.modified())
@@ -429,22 +400,9 @@ impl Nucleo {
         let total = lista.len();
         let desde = (desde.min(total as u64)) as usize;
         let hasta = (desde + cuantos.min(TOPE_DE_PAGINA_GALERIA) as usize).min(total);
-        let carpeta = self.carpeta_de_capturas();
         let capturas = lista[desde..hasta]
             .iter()
-            .map(|e| {
-                let se_va = reglas::se_va_el(&registro, &e.nombre, e.cuando, dias);
-                CapturaGaleria {
-                    ruta: carpeta.join(&e.nombre).display().to_string(),
-                    cuando: e.cuando,
-                    bytes: e.bytes,
-                    se_va,
-                    dias_que_quedan: dias_que_quedan(se_va, ahora, desfase_ms),
-                    conservada: registro.conservadas.contains(&e.nombre),
-                    es_video: es_video(&e.nombre),
-                    nombre: e.nombre.clone(),
-                }
-            })
+            .map(|e| self.ficha_de_captura(e, &registro, dias, ahora, desfase_ms))
             .collect();
         Ok(PaginaGaleria {
             capturas,
@@ -554,15 +512,6 @@ impl Nucleo {
         self.caducadas_en(dias, crate::ahora_ms())
     }
 
-    /// **Las capturas que se van en las proximas 24 h** con el plazo `dias`
-    /// (0 = nunca), con la fecha en que se van: el aviso «se van en 24 h»
-    /// de Windows (`caducidad_capturas::vigilar_avisos`). Las ya caducadas
-    /// no salen (las barre [`Nucleo::capturas_caducadas`]); las conservadas
-    /// tampoco. Cada una se avisa una vez por sesion: eso lo lleva Swift.
-    pub fn capturas_por_avisar(&self, dias: i64) -> Vec<CapturaCaducada> {
-        self.por_avisar_en(dias, crate::ahora_ms())
-    }
-
     /// **Tras barrer**: olvida las conservadas y prorrogadas cuyo fichero
     /// ya no esta (el numero de `captura-NNNN` se reutiliza: una nueva con
     /// el nombre de una conservada que se fue no tiene por que quedarse
@@ -628,6 +577,188 @@ impl Nucleo {
     }
 }
 
+// ------------------------------------------------------------- buscar (B6)
+
+/// Donde se guarda el texto ya leido de una captura (el OCR de Vision):
+/// `<datos>/cache/galeria/<nombre>-<segundos>-<bytes>.txt`, el mismo nombre
+/// que la miniatura de Windows (`ruta_en_cache`): si la captura cambia,
+/// cambia el nombre y se vuelve a leer.
+fn ruta_del_texto(raiz: &Path, e: &Entrada) -> PathBuf {
+    let base = Path::new(&e.nombre)
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    raiz.join("cache")
+        .join("galeria")
+        .join(format!("{base}-{}-{}.txt", e.cuando.div_euclid(1000), e.bytes))
+}
+
+/// En minusculas y sin tildes, como `logica::plegar` de Windows.
+pub fn plegar(s: &str) -> String {
+    pixpin_timeline::buscar::normalizar(s)
+}
+
+/// Si TODAS las palabras de la consulta (ya plegada) estan en alguno de los
+/// campos (ya plegados). Vacia encaja con todo (`logica::encaja`).
+pub fn encaja(consulta_plegada: &str, campos: &[&str]) -> bool {
+    consulta_plegada
+        .split_whitespace()
+        .all(|p| campos.iter().any(|c| c.contains(p)))
+}
+
+/// Lo que se busca de la fecha de una captura, plegado: «viernes 3 de
+/// octubre de 2026 3 oct», y «hoy» o «ayer» si toca.
+fn fecha_para_buscar(cuando: i64, ahora: i64, desfase_ms: i64) -> String {
+    use pixpin_timeline::dias::{self, Dia};
+    let d = Dia::de_instante(cuando, desfase_ms);
+    let hoy = Dia::de_instante(ahora, desfase_ms);
+    let cerca = match hoy.numero() - d.numero() {
+        0 => " hoy",
+        1 => " ayer",
+        _ => "",
+    };
+    plegar(&format!(
+        "{} {} {}{cerca}",
+        dias::nombre_del_dia(d, false),
+        d.dia,
+        pixpin_timeline::estilo::mes_corto(d.mes, false)
+    ))
+}
+
+impl Nucleo {
+    /// El texto leido de una captura, plegado (de la cache de memoria, o del
+    /// disco la primera vez). Vacio si aun no se leyo.
+    fn texto_de_captura(&self, e: &Entrada) -> String {
+        let ruta = ruta_del_texto(self.ruta(), e);
+        let clave = ruta.display().to_string();
+        if let Some(t) = self.galeria_tomada().textos.get(&clave) {
+            return t.clone();
+        }
+        let t = std::fs::read_to_string(&ruta)
+            .map(|t| plegar(&t))
+            .unwrap_or_default();
+        if ruta.exists() {
+            self.galeria_tomada().textos.insert(clave, t.clone());
+        }
+        t
+    }
+
+    fn ficha_de_captura(
+        &self,
+        e: &Entrada,
+        registro: &Caducidad,
+        dias: i64,
+        ahora: i64,
+        desfase_ms: i64,
+    ) -> CapturaGaleria {
+        let se_va = reglas::se_va_el(registro, &e.nombre, e.cuando, dias);
+        CapturaGaleria {
+            ruta: self
+                .carpeta_de_capturas()
+                .join(&e.nombre)
+                .display()
+                .to_string(),
+            cuando: e.cuando,
+            bytes: e.bytes,
+            se_va,
+            dias_que_quedan: dias_que_quedan(se_va, ahora, desfase_ms),
+            conservada: registro.conservadas.contains(&e.nombre),
+            es_video: es_video(&e.nombre),
+            nombre: e.nombre.clone(),
+        }
+    }
+}
+
+#[uniffi::export]
+impl Nucleo {
+    /// **El buscador de la galeria** (`coincide` de Windows): las capturas
+    /// donde esta cada palabra de `consulta`, sin mayusculas ni tildes, en
+    /// su nombre, su fecha («viernes», «3 oct», «hoy») o el texto de dentro
+    /// ya leido ([`Nucleo::galeria_poner_texto`]). De la mas nueva a la mas
+    /// vieja, por paginas como [`Nucleo::galeria`]; `total` es cuantas
+    /// encajan.
+    pub fn galeria_buscar(
+        &self,
+        consulta: String,
+        desde: u64,
+        cuantos: u32,
+        dias: i64,
+        desfase_ms: i64,
+    ) -> Result<PaginaGaleria, ErrorNucleo> {
+        let q = plegar(consulta.trim());
+        let lista = self.lista_de_capturas();
+        let ahora = crate::ahora_ms();
+        let encajan: Vec<&Entrada> = lista
+            .iter()
+            .filter(|e| {
+                q.is_empty() || {
+                    let nombre = plegar(&e.nombre);
+                    let fecha = fecha_para_buscar(e.cuando, ahora, desfase_ms);
+                    // El texto solo se mira si el nombre y la fecha no bastan.
+                    encaja(&q, &[&nombre, &fecha]) || {
+                        let dentro = self.texto_de_captura(e);
+                        encaja(&q, &[&nombre, &fecha, &dentro])
+                    }
+                }
+            })
+            .collect();
+        let registro = leer_registro(self.ruta(), ahora);
+        let total = encajan.len();
+        let desde = (desde.min(total as u64)) as usize;
+        let hasta = (desde + cuantos.min(TOPE_DE_PAGINA_GALERIA) as usize).min(total);
+        Ok(PaginaGaleria {
+            capturas: encajan[desde..hasta]
+                .iter()
+                .map(|e| self.ficha_de_captura(e, &registro, dias, ahora, desfase_ms))
+                .collect(),
+            desde: desde as u64,
+            total: total as u64,
+        })
+    }
+
+    /// **Las capturas cuyo texto aun no se leyo** (las imagenes, no los
+    /// videos), de la mas nueva a la mas vieja, como mucho `cuantos`: Swift
+    /// las pasa por Vision en segundo plano y apunta lo leido con
+    /// [`Nucleo::galeria_poner_texto`].
+    pub fn galeria_sin_texto(&self, cuantos: u32) -> Vec<CapturaGaleria> {
+        let lista = self.lista_de_capturas();
+        let ahora = crate::ahora_ms();
+        let registro = leer_registro(self.ruta(), ahora);
+        lista
+            .iter()
+            .filter(|e| !es_video(&e.nombre) && !ruta_del_texto(self.ruta(), e).exists())
+            .take(cuantos as usize)
+            .map(|e| self.ficha_de_captura(e, &registro, 0, ahora, 0))
+            .collect()
+    }
+
+    /// Apunta el texto leido de una captura (vacio tambien vale: «no tiene
+    /// texto», y no se vuelve a leer). Una captura que ya no esta no es un
+    /// error: no se apunta nada.
+    pub fn galeria_poner_texto(&self, nombre: String, texto: String) -> Result<(), ErrorNucleo> {
+        let Ok(ruta) = self.fichero_de_captura(&nombre) else {
+            return Ok(());
+        };
+        let Ok(meta) = std::fs::metadata(&ruta) else {
+            return Ok(());
+        };
+        let e = Entrada {
+            cuando: meta.modified().map(ms_de).unwrap_or(0),
+            bytes: meta.len(),
+            nombre,
+        };
+        let destino = ruta_del_texto(self.ruta(), &e);
+        if let Some(p) = destino.parent() {
+            std::fs::create_dir_all(p)?;
+        }
+        std::fs::write(&destino, &texto)?;
+        self.galeria_tomada()
+            .textos
+            .insert(destino.display().to_string(), plegar(&texto));
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod pruebas {
     use super::*;
@@ -659,34 +790,6 @@ mod pruebas {
             cuando,
             bytes: 1,
         }
-    }
-
-    #[test]
-    fn se_avisa_de_las_que_se_van_en_un_dia() {
-        // `se_avisa_una_vez_de_las_que_se_van_en_un_dia` de Windows (lo de
-        // «una vez» lo lleva Swift).
-        let r = Caducidad {
-            desde: 0,
-            ..Default::default()
-        };
-        let ahora = 100 * DIA;
-        let lista = [
-            // Se va en 12 h: se avisa.
-            entrada("pronto.png", ahora - 7 * DIA + DIA / 2),
-            // Se va en tres dias: todavia no.
-            entrada("luego.png", ahora - 7 * DIA + 3 * DIA),
-            // Ya caducada: la barre el barrendero, no se avisa.
-            entrada("ida.png", ahora - 7 * DIA - 1),
-        ];
-        let v = por_avisar(&r, &lista, ahora, 7);
-        assert_eq!(v.len(), 1);
-        assert_eq!(v[0].0.nombre, "pronto.png");
-        assert_eq!(v[0].1, ahora + DIA / 2);
-        // Caso negativo: conservada, no se va; con el ajuste a cero, nada.
-        let mut c = r.clone();
-        c.conservadas.insert("pronto.png".into());
-        assert!(por_avisar(&c, &lista, ahora, 7).is_empty());
-        assert!(por_avisar(&r, &lista, ahora, 0).is_empty());
     }
 
     #[test]
