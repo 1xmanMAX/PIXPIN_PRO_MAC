@@ -81,7 +81,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
 | croquis3d | Ver los croquis 3D del móvil | completo | K/Chat/BurbujasQueLlegan.swift, K/Planos/VisorModelo3D.swift, N/modelos3d.rs | Hecho (B9): burbuja `CROQUIS` («aún no ha llegado» si falta su `.croquis.gz`), doble clic al visor 3D con sus fotos, su fondo, su tema y su encuadre de fábrica. Solo se ve, como en Windows. Faltan sus vistas guardadas (1–9) y exportarlo (las del visor, E2) |
 | cuenta_atras | Captura con retardo | completo | K/Captura/CuentaAtras.swift, K/Captura/AjustesCaptura.swift | — (Esc la para aunque el foco este en otra app; los segundos de `retardo_captura_s`) |
-| diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | parcial | K/Documentos/LectorDocumento.swift | Hecho F5: a pantalla completa, de hoja en hoja (flechas, espacio) y B en negro. Faltan la vista del orador, las notas y PPTX → proyecto |
+| diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | parcial | K/Documentos/Diapositivas.swift, N/diapositivas.rs | Hecho (D9): pase a pantalla completa con la pastilla, teclas de PowerPoint, clic por tercios, rueda, B/. negro, N notas abajo, T transiciones (las capas de Rust), pase solo (`advTm`), videos y audios, y la vista del orador en la otra pantalla; lo abren el botón y F5 del lector, el pin de Office y el menú de la burbuja. Faltan PPTX → proyecto y `.ppt`/`.odp` (Windows los pasa por PowerPoint); doble clic en la burbuja sigue abriendo el pin (en Windows presenta) |
 | dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | Hechas todas las herramientas de la barra (zona, láser, lupa, foco, pixelar, marco, copiar estilo, bolita, soldar vértices: N/editor_herramientas.rs, N/editor_tapado.rs). Faltan copiar y pegar elementos, agrupar y los atajos de §2.5 |
 | dispositivo_perdido | Recuperarse si se pierde la GPU | interno | — | Solo para Metal en Planos, si se quita la GPU |
 | editor | Revisar la grabación antes de guardarla | completo | K/Grabar/EditorGrabacion.swift, K/Grabar/EdicionGrabacion.swift | Hecho (D7): al parar se abre andando y en bucle; Espacio, ←→ (⇧ un segundo), velocidad ¼×–4× y formato MP4/GIF; «Guardar…», «Guardar» (↩, a `capturas/`), «Copiar» (el fichero) y «Descartar» (Esc o cerrar). Del Mac: recortar (I/O y asas), dividir (S) y quitar o devolver el tramo (⌫), zoom (Z, clic elige dónde) y ⌘Z. La velocidad y el zoom se guardan; sin cambios se mueve el MP4 sin recodificar. El GIF grabado (`GrabadorGif`) aún se guarda directo |
@@ -183,7 +183,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | visor | Word, EPUB y páginas reflujados | parcial | K/Documentos/LectorDocumento.swift (paginado) | Reflujo, letra (+/−, T, B), índice, «PDF como texto», tinta del EPUB |
 | visor/como_texto, imagenes, tablas, maqueta_movil | — | falta | — | La maqueta del móvil (para que la tinta caiga igual) |
 | visor_hoja | `.xlsx` entero como pin | parcial | K/Documentos/PinOffice.swift, K/Documentos/HojaCalculo.swift | Las pestañas y ⌘flechas están en el editor (D5); el pin de ver (Vista Rápida) no tiene enlaces ni capa de tinta |
-| visor_html | `.html` a pantalla completa | falta | — | `WKWebView` sin marco |
+| visor_html | `.html` a pantalla completa | completo | K/Documentos/VisorHtml.swift | — (D9: `WKWebView` liso del tamaño del área de trabajo con la barra de los lectores; `PixPinVisor.guardar` y la descarga del `.html` se guardan encima del mismo fichero con el filtro de Android, lo demás a Descargas; ⎋ cierra, ⌘E exporta, sigue luna/sol) |
 | vista_rapida | Espacio en el Explorador | no aplica | XC/VistaPrevia | Quick Look del Finder |
 | voz | Nota de voz → texto | completo | K/Voz/* | — |
 | voz_en_chat | Corregir la letra, Pronunciar, turnos | falta | — | Todo |
@@ -401,7 +401,7 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 | Visor de hoja | Ctrl+flechas, Ctrl+Intro, Ctrl+RePág/AvPág, Ctrl+Inicio/Fin, zoom, F11 | en el editor: ⌘flechas, ⌃⇟ / ⌃⇞ y ⌥⌘→ / ⌥⌘← (hojas), ⌘A; faltan Ctrl+Intro (enlace), zoom y F11 | parcial |
 | Plano CAD | Esc, Supr, Ctrl+P, Ctrl+E, I, A, L, F, B, M, T, 3, +/−, flechas | ⎋, ↩, ⌫, F, M, +/−, ⌘P | parcial |
 | Modelo 3D | F, B, C, I, L, A, P, T, 1–9, +/−, flechas | ⎋, flechas, F, +/− | parcial |
-| Diapositivas y presentar | → ↓ AvPág Intro Espacio / ← ↑ RePág Retroceso P, Inicio/Fin, B o «.», N, T, J L R E M, Esc | — | falta |
+| Diapositivas y presentar | → ↓ AvPág Intro Espacio / ← ↑ RePág Retroceso P, Inicio/Fin, B o «.», N, T, J L R E M, Esc | las mismas (⇟ ⇞ ↩ ⌫ ↖ ↘), ⇧Espacio atrás, ⌘W/⌘. salir | parcial (faltan J L R E M) |
 | Telepronter | Esc, Espacio, Intro, ←→, ↑↓, + / −, RePág/AvPág | — | falta |
 | Pronunciar | Espacio mantenido, R, Ctrl+G, ←→, + / −, Esc | — | falta |
 | Conversación | Intro, 1–9, 0, Tab, Esc | — | falta |
@@ -553,7 +553,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | D6 | **Asistente, parte 1**: nube con URLSession, bajar el modelo y su catálogo para Mac, que no quede `llama-server` huérfano | K/Asistente/*, N/asistente.rs (**después de A7**) |
 | D7 ✅ | **Grabación** (hecho): marco movible en dos fases con pausa, micrófono y sonido; editor para revisar (bucle, recortar, cortar, velocidad, zoom, MP4/GIF, guardar, copiar o descartar) | K/Grabar/*, nuevo K/Grabar/EditorGrabacion.swift |
 | D8 ✅ | ~~**Buscar en todo completo**~~ **hecho**: pestañas, recientes, lecciones y capturas, acciones por fila y su teclado | K/Buscar/Buscar.swift, N/buscar.rs |
-| D9 | **Presentar un PPTX y el visor HTML**: diapositivas a pantalla completa (notas, negro), `.html` en `WKWebView` | nuevo K/Documentos/{Diapositivas,VisorHtml}.swift (**dep. ventanas**) |
+| D9 ✅ | **Presentar un PPTX y el visor HTML** (hecho, 16-oct): pase a pantalla completa con pastilla, teclas, negro, notas, transiciones, pase solo, medios y vista del orador en la segunda pantalla; `.html` en `WKWebView` liso que guarda encima. Quedan PPTX → proyecto y `.ppt`/`.odp` | K/Documentos/{Diapositivas,VisorHtml}.swift, N/diapositivas.rs |
 
 ### Grupo E: después (menos uso o dependen de otros)
 
