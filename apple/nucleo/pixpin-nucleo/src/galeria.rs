@@ -282,6 +282,29 @@ pub(crate) fn caducadas<'a>(
         .collect()
 }
 
+/// Con cuanto de antelacion se avisa de que una captura se va
+/// (`caducidad_capturas::AVISAR_ANTES_MS` de Windows): un dia.
+pub const AVISAR_ANTES_MS: i64 = reglas::DIA_MS;
+
+/// **Las que se van en las proximas 24 h** (`caducidad_capturas::por_avisar`
+/// de Windows), con su fecha de irse. Las ya caducadas no: se van en este
+/// barrido. Las ya avisadas las quita quien avisa (Swift, una vez por
+/// sesion, como Windows).
+pub(crate) fn por_avisar<'a>(
+    registro: &Caducidad,
+    lista: &'a [Entrada],
+    ahora: i64,
+    dias: i64,
+) -> Vec<(&'a Entrada, i64)> {
+    lista
+        .iter()
+        .filter_map(|e| {
+            let t = reglas::se_va_el(registro, &e.nombre, e.cuando, dias)?;
+            (t > ahora && t <= ahora + AVISAR_ANTES_MS).then_some((e, t))
+        })
+        .collect()
+}
+
 /// Los nombres apuntados (conservadas y prorrogadas) cuyo fichero ya no
 /// esta en `presentes`.
 fn ausentes(registro: &Caducidad, presentes: &[Entrada]) -> Vec<String> {
@@ -357,6 +380,21 @@ impl Nucleo {
         let registro = leer_registro(self.ruta(), ahora);
         let carpeta = self.carpeta_de_capturas();
         caducadas(&registro, &lista, ahora, dias)
+            .into_iter()
+            .map(|(e, se_va)| CapturaCaducada {
+                nombre: e.nombre.clone(),
+                ruta: carpeta.join(&e.nombre).display().to_string(),
+                se_va,
+            })
+            .collect()
+    }
+
+    /// [`Nucleo::capturas_por_avisar`] a una hora dada (las pruebas).
+    pub(crate) fn por_avisar_en(&self, dias: i64, ahora: i64) -> Vec<CapturaCaducada> {
+        let lista = self.lista_de_capturas();
+        let registro = leer_registro(self.ruta(), ahora);
+        let carpeta = self.carpeta_de_capturas();
+        por_avisar(&registro, &lista, ahora, dias)
             .into_iter()
             .map(|(e, se_va)| CapturaCaducada {
                 nombre: e.nombre.clone(),
@@ -510,6 +548,15 @@ impl Nucleo {
     /// si no cambio.
     pub fn capturas_caducadas(&self, dias: i64) -> Vec<CapturaCaducada> {
         self.caducadas_en(dias, crate::ahora_ms())
+    }
+
+    /// **Las capturas que se van en las proximas 24 h** con el plazo `dias`
+    /// (0 = nunca), con la fecha en que se van: el aviso «se van en 24 h»
+    /// de Windows (`caducidad_capturas::vigilar_avisos`). Las ya caducadas
+    /// no salen (las barre [`Nucleo::capturas_caducadas`]); las conservadas
+    /// tampoco. Cada una se avisa una vez por sesion: eso lo lleva Swift.
+    pub fn capturas_por_avisar(&self, dias: i64) -> Vec<CapturaCaducada> {
+        self.por_avisar_en(dias, crate::ahora_ms())
     }
 
     /// **Tras barrer**: olvida las conservadas y prorrogadas cuyo fichero
@@ -790,6 +837,34 @@ mod pruebas {
             cuando,
             bytes: 1,
         }
+    }
+
+    #[test]
+    fn se_avisa_de_las_que_se_van_en_un_dia() {
+        // `se_avisa_una_vez_de_las_que_se_van_en_un_dia` de Windows (lo de
+        // «una vez» lo lleva Swift).
+        let r = Caducidad {
+            desde: 0,
+            ..Default::default()
+        };
+        let ahora = 100 * DIA;
+        let lista = [
+            // Se va en 12 h: se avisa.
+            entrada("pronto.png", ahora - 7 * DIA + DIA / 2),
+            // Se va en tres dias: todavia no.
+            entrada("luego.png", ahora - 7 * DIA + 3 * DIA),
+            // Ya caducada: la barre el barrendero, no se avisa.
+            entrada("ida.png", ahora - 7 * DIA - 1),
+        ];
+        let v = por_avisar(&r, &lista, ahora, 7);
+        assert_eq!(v.len(), 1);
+        assert_eq!(v[0].0.nombre, "pronto.png");
+        assert_eq!(v[0].1, ahora + DIA / 2);
+        // Caso negativo: conservada, no se va; con el ajuste a cero, nada.
+        let mut c = r.clone();
+        c.conservadas.insert("pronto.png".into());
+        assert!(por_avisar(&c, &lista, ahora, 7).is_empty());
+        assert!(por_avisar(&r, &lista, ahora, 0).is_empty());
     }
 
     #[test]
