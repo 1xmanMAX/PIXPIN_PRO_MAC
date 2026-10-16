@@ -68,7 +68,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | biblioteca_audio | Música y notas de voz de todos los chats | completo | K/Voz/BibliotecaAudio.swift | Hecho (D3): clic derecho en «Mensajes guardados» → «Biblioteca de audio»; todos los chats, música (`estadoDelTexto = letra`, leído del cuaderno) y notas, lo más nuevo arriba, color si tiene letra, apagada si el fichero no está; clic o ↩ suena, ⌥↩ en flotante, «Grabar» con el micrófono flotante |
 | biblioteca_figuras | Figuras del lienzo (`figuras.json`, viaja) | parcial | K/Lienzo/FigurasLienzo.swift, N/editor_figuras.rs | Hechos: gráfica, tabla en blanco y pegada, plano/recta/espacio, guardar, estampar y quitar (en el chat «Asistente», con su mensaje `auto-figuras`). Faltan editar una tabla ya dibujada, meter en su celda y las tablas de coordenadas |
 | buscador | Ctrl+F en los lectores, «3 de 12», F3 | completo | K/Documentos/BuscadorLector.swift | — (en el visor reflujado, con E7) |
-| buscar_todo | «Buscar en PixPin»: pestañas, recientes, acciones | parcial | K/Buscar/Buscar.swift, N/buscar.rs | Pestañas; recientes; lecciones y capturas; botones por fila; usar `pixpin-lanzador` |
+| buscar_todo | «Buscar en PixPin»: pestañas, recientes, acciones | completo | K/Buscar/*, N/buscar.rs, N/buscar/* | Hecho (D8): busca en chats, mensajes y notas, ficheros por nombre y por dentro (PDF con PDFKit; Office, EPUB, HTML, texto en Rust, `cache/textos`), tareas, lecciones, capturas (nombre, fecha, OCR) y timeline; puntos y resaltado del plugin; pestañas con cuenta (+Timeline), mejor resultado y grupos, recientes y abierto hace poco, letras t n l g c u a, vista previa, botones y menú →. Queda: pegar imagen como `[img NN]` (Ctrl+V), «a» abre el Asistente sin el texto y la lección se abre en su ventana sin ir a su ficha (Lecciones es de otro) |
 | cabecera | Barra común de Galería, Lecciones, Tareas y Timeline | no aplica | SwiftUI | — (unificar su aspecto) |
 | caducidad_capturas | Capturas que se borran solas | completo | K/Caducidad/BarrenderoCapturas.swift, N/galeria.rs | — (el aviso «se van en 24 h», con «Conservar» y «Abrir», hecho en C4) |
 | caja_dibujo | Barra de herramientas estilo Excalidraw, la misma en todas partes | parcial | K/Lienzo/* | La del lienzo ya es la de Windows (los diez grupos, figuras, dos filas si no cabe). La captura anota con ella y con el panel de estilo (B8: K/Captura/AnotadorCaptura.swift, BarrasCaptura.swift). Lector y pin siguen con barras propias |
@@ -392,7 +392,7 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 
 | Ventana (Windows) | Atajos Windows | Mac | Estado |
 |---|---|---|---|
-| Buscar en PixPin | ↑↓, RePág/AvPág, Tab (pestañas), →, Intro, Ctrl+Intro, Alt+Intro, Supr, Ctrl+C/V/Z, Esc | ↑↓ nativo | parcial |
+| Buscar en PixPin | ↑↓, RePág/AvPág, Tab (pestañas), →, Intro, Ctrl+Intro, Alt+Intro, Supr, Ctrl+C/V/Z, Esc | ↑↓, RePág/AvPág, Tab/⇧Tab y ⌘1…7, → / ←, ↩, ⌘↩, ⌥↩ (abrir con), Supr o ⌘⌫ (captura), ⌘C, ⌘V (texto), ⌘Z, Esc por capas | completo salvo pegar imagen |
 | Tareas | Ctrl+F, Ctrl+L, Ctrl+T, F2, Supr, Tab, Espacio, Intro, Ctrl+Z, Ctrl+V, Esc | ↩, ⌘R | parcial |
 | Timeline | Ctrl+1…4, Ctrl+F, Ctrl+M (en Mac, otra tecla), Ctrl+Z, Intro, Ctrl+V, ↑ corrige | ⌘1…4, ⌘F, ⌘⇧M, ⌘Z, ↩ / ⇧↩, ⌘V (imagen), ↑, Esc por capas; en el detalle ←/→ y ↑/↓ | completo |
 | Lecciones (ficha) | Esc guarda, Ctrl+Intro, Ctrl+E, Tab | ⌘S | parcial |
@@ -552,7 +552,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | D5 ✅ | **Hojas** (hecho, 16-oct): un `.xlsx`, `.ods` o `.csv` del chat se edita como libro con pestañas (todas sus hojas, también las viejas del móvil) y pasa al chat como tablas; rango, formato de lo elegido, deshacer, copiar y pegar, y los atajos de Windows (sin ⌘N, ⌘K ni ⌘S). Queda ver y editar en el mismo pin (Windows) | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/{editor,libro}.rs |
 | D6 | **Asistente, parte 1**: nube con URLSession, bajar el modelo y su catálogo para Mac, que no quede `llama-server` huérfano | K/Asistente/*, N/asistente.rs (**después de A7**) |
 | D7 | **Grabación**: marco movible en dos fases, editor para revisar (bucle, recortar, guardar o descartar) | K/Grabar/*, nuevo K/Grabar/EditorGrabacion.swift |
-| D8 | **Buscar en todo completo**: pestañas, recientes, lecciones y capturas, acciones por fila y su teclado | K/Buscar/Buscar.swift, N/buscar.rs |
+| D8 ✅ | ~~**Buscar en todo completo**~~ **hecho**: pestañas, recientes, lecciones y capturas, acciones por fila y su teclado | K/Buscar/Buscar.swift, N/buscar.rs |
 | D9 | **Presentar un PPTX y el visor HTML**: diapositivas a pantalla completa (notas, negro), `.html` en `WKWebView` | nuevo K/Documentos/{Diapositivas,VisorHtml}.swift (**dep. ventanas**) |
 
 ### Grupo E: después (menos uso o dependen de otros)
