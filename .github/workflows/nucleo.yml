@@ -9,12 +9,14 @@ on:
       - "apple/nucleo/**"
       - "apple/Cargo.toml"
       - "apple/Cargo.lock"
+      - "docs/protocolo-pedidos.md"
       - ".github/workflows/nucleo.yml"
   pull_request:
     paths:
       - "apple/nucleo/**"
       - "apple/Cargo.toml"
       - "apple/Cargo.lock"
+      - "docs/protocolo-pedidos.md"
   workflow_dispatch:
 
 concurrency:
