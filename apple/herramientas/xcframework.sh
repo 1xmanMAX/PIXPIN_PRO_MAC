@@ -87,26 +87,24 @@ mkdir -p "$PAQUETE/Sources/PixPinCore"
 cp "$ENLACES/pixpin_nucleo.swift" "$PAQUETE/Sources/PixPinCore/pixpin_nucleo.swift"
 
 echo "==> xcodebuild -create-xcframework"
-rm -rf "$XCF"
+# Se monta al lado y solo al final sustituye al de antes: si algo falla a
+# medias, el xcframework que habia sigue sirviendo.
+NUEVO="$SALIDA/PixPinCoreFFI.xcframework"
+rm -rf "$NUEVO"
 BIBLIOTECAS=(-library "$SALIDA/macos/$LIB" -headers "$CABECERAS")
 if tiene aarch64-apple-ios; then BIBLIOTECAS+=(-library "$SALIDA/ios/$LIB" -headers "$CABECERAS"); fi
 if tiene aarch64-apple-ios-sim; then BIBLIOTECAS+=(-library "$SALIDA/ios-sim/$LIB" -headers "$CABECERAS"); fi
-if xcodebuild -version >/dev/null 2>&1; then
-    xcodebuild -create-xcframework "${BIBLIOTECAS[@]}" -output "$XCF"
-elif [[ "${OBJETIVOS[*]}" == *ios* ]]; then
-    echo "Sin Xcode solo se puede montar el del Mac: PIXPIN_OBJETIVOS=\"aarch64-apple-darwin x86_64-apple-darwin\"" >&2
-    exit 1
-else
-    # Solo las herramientas de linea de comandos (sin Xcode): el
-    # xcframework del Mac se monta a mano, igual que lo dejaria xcodebuild.
-    echo "    (sin Xcode: montado a mano)"
-    ID=macos-arm64_x86_64
-    ARQS=""
+
+# Solo el del Mac, a mano y tal como lo deja xcodebuild: sirve sin Xcode
+# y cuando el Xcode recien instalado aun no carga CoreSimulator.
+montar_a_mano() {
+    local ID=macos-arm64_x86_64 ARQS="" a
     for a in $(lipo -archs "$SALIDA/macos/$LIB"); do ARQS+="<string>$a</string>"; done
-    mkdir -p "$XCF/$ID"
-    cp "$SALIDA/macos/$LIB" "$XCF/$ID/"
-    cp -R "$CABECERAS" "$XCF/$ID/Headers"
-    cat > "$XCF/Info.plist" <<PLIST
+    rm -rf "$NUEVO"
+    mkdir -p "$NUEVO/$ID"
+    cp "$SALIDA/macos/$LIB" "$NUEVO/$ID/"
+    cp -R "$CABECERAS" "$NUEVO/$ID/Headers"
+    cat > "$NUEVO/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -122,7 +120,19 @@ else
 <key>XCFrameworkFormatVersion</key><string>1.0</string>
 </dict></plist>
 PLIST
+}
+
+if xcodebuild -version >/dev/null 2>&1 && xcodebuild -create-xcframework "${BIBLIOTECAS[@]}" -output "$NUEVO"; then
+    :
+elif [[ "${OBJETIVOS[*]}" == *ios* ]]; then
+    echo "Sin un Xcode que funcione solo se puede montar el del Mac: PIXPIN_OBJETIVOS=\"aarch64-apple-darwin x86_64-apple-darwin\"" >&2
+    exit 1
+else
+    echo "    (sin xcodebuild: montado a mano)"
+    montar_a_mano
 fi
+rm -rf "$XCF"
+mv "$NUEVO" "$XCF"
 
 echo "==> Listo: $XCF"
 du -sh "$XCF"/*/ 2>/dev/null || true
