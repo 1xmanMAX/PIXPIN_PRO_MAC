@@ -51,7 +51,7 @@ public final class SelectorProyecto {
     /// Ensena el selector; al elegir, adjunta `imagen` a ese chat.
     public func elegir(para imagen: CGImage, almacen: Almacen) {
         cerrar()
-        Task {
+        Task { [self] in
             await almacen.cargarChats()
             let ultimo = UserDefaults.standard.string(forKey: ListaDeProyectos.clave)
             let fichas = ListaDeProyectos.ordenar(almacen.chats.filter { !$0.esAsistente }, id: \.id, ultimo: ultimo)

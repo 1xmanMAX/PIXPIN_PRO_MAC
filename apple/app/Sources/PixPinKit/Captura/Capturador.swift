@@ -271,7 +271,7 @@ public final class Capturador {
         case 49 where !conMando: // Espacio: en vivo o congelada
             alternarVivo()
             return true
-        case 123, 124, 125, 126 where !conMando: // flechas: mover la zona
+        case 123...126 where !conMando: // flechas: mover la zona
             guard vista.elegida, !vista.anotada else { return vista.elegida }
             let paso: CGFloat = mods.contains(.shift) ? 10 : 1
             let (dx, dy): (CGFloat, CGFloat) = switch e.keyCode {

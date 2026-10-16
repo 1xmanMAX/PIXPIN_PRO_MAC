@@ -68,7 +68,7 @@ public struct VistaSincro: View {
         .onAppear { sincro.mirarRecordadas() }
         // «¿Qué sincronizar?» antes de una vuelta con un aparato.
         .sheet(item: $sincro.pregunta) { p in VistaElegirSincro(p) }
-        .sheet(isPresented: $verCopias) {
+        .sheet(isPresented: $verCopias) { [sincro] in
             VistaCopias(nucleo: sincro.nucleo) { [weak sincro] in sincro?.alTraerCambios?() }
         }
     }

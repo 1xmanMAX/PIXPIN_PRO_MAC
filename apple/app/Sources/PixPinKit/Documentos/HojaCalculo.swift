@@ -775,7 +775,7 @@ public final class HojasDeCalculo {
         let nucleo = almacen.nucleo
         let id = mensaje.id
         let titulo = mensaje.nombre.isEmpty ? "Tabla" : mensaje.nombre
-        Task {
+        Task { [self] in
             let hecho = await Task.detached(priority: .userInitiated) { () -> Result<HojaDeCalculo, Error> in
                 Result { try nucleo.abrirHojaDeCalculo(chat: chat, mensaje: id) }
             }.value
