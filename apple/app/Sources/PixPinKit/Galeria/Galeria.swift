@@ -194,6 +194,17 @@ public struct VentanaGaleria: View {
     }
 
     public var body: some View {
+        VStack(spacing: 0) {
+            // La barra comun de Windows (`Cabecera`): titulo, cuantas hay y
+            // los botones de la galeria.
+            Cabecera("Capturas", subtitulo: subtitulo) { barra }
+            rejilla
+        }
+        .ventanaConCabecera()
+        .frame(minWidth: 560, minHeight: 420)
+    }
+
+    private var rejilla: some View {
         ScrollView {
             LazyVGrid(columns: columnas, spacing: 10) {
                 ForEach(modelo.capturas, id: \.nombre) { c in
@@ -223,43 +234,44 @@ public struct VentanaGaleria: View {
         .overlay(alignment: .bottom) { pie }
         .quickLookPreview($vistaRapida, in: modelo.capturas.map { modelo.url(de: $0) })
         .onDeleteCommand { borrar(Array(elegidas)) }
-        .toolbar { barra }
-        .navigationTitle("Galería de capturas")
-        .navigationSubtitle(subtitulo)
         .task {
             await modelo.recargar()
             modelo.vigilar()
         }
         .onDisappear { modelo.dejarDeVigilar() }
-        .frame(minWidth: 560, minHeight: 420)
     }
 
+    /// «25 · duran 7 días», como el subtitulo de Windows.
     private var subtitulo: String {
-        modelo.total == 1 ? "1 captura" : "\(modelo.total) capturas"
+        let cuantas = modelo.total == 1 ? "1 captura" : "\(modelo.total) capturas"
+        let dias = AjusteCaducidad.dias
+        return dias > 0 ? "\(cuantas) · duran \(dias) días" : cuantas
     }
 
-    @ToolbarContentBuilder
-    private var barra: some ToolbarContent {
-        ToolbarItemGroup {
-            Button {
+    /// Los botones de la galeria, en la barra de arriba. Los de lo elegido
+    /// solo salen con algo elegido; los de siempre, siempre.
+    @ViewBuilder
+    private var barra: some View {
+        if !elegidas.isEmpty {
+            BotonCabecera(icono: "eye", ayuda: "Vista rápida (⌘Y)") {
                 if let n = elegidas.first, let c = modelo.capturas.first(where: { $0.nombre == n }) {
                     vistaRapida = modelo.url(de: c)
                 }
-            } label: { Label("Vista rápida", systemImage: "eye") }
-                .disabled(elegidas.count != 1)
-                .keyboardShortcut("y")
-            Button { conservar(Array(elegidas)) } label: { Label("Conservar", systemImage: "pin") }
-                .disabled(elegidas.isEmpty)
-            Button { prorrogar(Array(elegidas)) } label: { Label("7 días más", systemImage: "clock.arrow.circlepath") }
-                .disabled(elegidas.isEmpty)
-            Button { borrar(Array(elegidas)) } label: { Label("Borrar", systemImage: "trash") }
-                .disabled(elegidas.isEmpty)
-            Button { Task { await modelo.deshacer() } } label: { Label("Deshacer", systemImage: "arrow.uturn.backward") }
-                .disabled(modelo.ultimoBorrado.isEmpty)
-                .keyboardShortcut("z")
-            Button {
-                NSWorkspace.shared.open(URL(fileURLWithPath: modelo.almacen.nucleo.carpetaCapturas(), isDirectory: true))
-            } label: { Label("Abrir la carpeta", systemImage: "folder") }
+            }
+            .disabled(elegidas.count != 1)
+            .keyboardShortcut("y")
+            BotonCabecera(icono: "pin", ayuda: "Conservar") { conservar(Array(elegidas)) }
+            BotonCabecera(icono: "clock.arrow.circlepath", ayuda: "7 días más") { prorrogar(Array(elegidas)) }
+            BotonCabecera(icono: "trash", ayuda: "Borrar") { borrar(Array(elegidas)) }
+        }
+        if !modelo.ultimoBorrado.isEmpty {
+            BotonCabecera(icono: "arrow.uturn.backward", rotulo: "Deshacer", ayuda: "Deshacer (⌘Z)") {
+                Task { await modelo.deshacer() }
+            }
+            .keyboardShortcut("z")
+        }
+        BotonCabecera(icono: "folder", rotulo: "Abrir carpeta") {
+            NSWorkspace.shared.open(URL(fileURLWithPath: modelo.almacen.nucleo.carpetaCapturas(), isDirectory: true))
         }
     }
 

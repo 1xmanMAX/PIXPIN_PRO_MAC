@@ -16,6 +16,23 @@ public struct VentanaLecciones: View {
     }
 
     public var body: some View {
+        VStack(spacing: 0) {
+            // La barra comun de Windows (`Cabecera`): buscar y escribir una
+            // nueva.
+            Cabecera("Lecciones", subtitulo: modelo.total == 1 ? "1 lección" : "\(modelo.total) lecciones",
+                     buscador: BuscadorCabecera($modelo.texto, pista: "Buscar: palabra, situación, etiqueta…")) {
+                BotonCabecera(icono: "plus", rotulo: "Nueva lección") {
+                    elegida = nil
+                    nueva = true
+                }
+                .keyboardShortcut("n")
+            }
+            dividida
+        }
+        .ventanaConCabecera()
+    }
+
+    private var dividida: some View {
         NavigationSplitView {
             VStack(spacing: 0) {
                 filtros
@@ -36,20 +53,8 @@ public struct VentanaLecciones: View {
                         ContentUnavailableView { Label(titulo, systemImage: "lightbulb") }
                     }
                 }
-                Text("\(modelo.total) lecciones")
-                    .font(.caption).foregroundStyle(.secondary)
-                    .padding(6)
             }
             .navigationSplitViewColumnWidth(min: 260, ideal: 320)
-            .searchable(text: $modelo.texto, placement: .sidebar, prompt: "Buscar lecciones")
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        elegida = nil
-                        nueva = true
-                    } label: { Label("Nueva lección", systemImage: "plus") }
-                }
-            }
         } detail: {
             if nueva {
                 FichaLeccionVista(modelo: modelo, ficha: nil) { guardada in
@@ -64,6 +69,7 @@ public struct VentanaLecciones: View {
                 ContentUnavailableView("Elige una lección o escribe una nueva", systemImage: "lightbulb")
             }
         }
+        .toolbar(removing: .sidebarToggle)
         .onChange(of: elegida) { _, v in if v != nil { nueva = false } }
         .task { await modelo.recargar() }
         .overlay(alignment: .bottom) {
@@ -209,17 +215,23 @@ struct FichaLeccionVista: View {
             }
         }
         .formStyle(.grouped)
-        .toolbar {
-            ToolbarItemGroup {
+        // Borrar y guardar, en la barra de abajo de la ficha, como en
+        // Windows (la de arriba es la comun de la ventana).
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            HStack(spacing: 10) {
+                Spacer()
                 if ficha != nil {
-                    Button(role: .destructive) { preguntarBorrar = true } label: {
-                        Label("Borrar", systemImage: "trash")
-                    }
+                    BotonCabecera(icono: "trash", rotulo: "Borrar") { preguntarBorrar = true }
                 }
-                Button(ficha == nil ? "Guardar lección" : "Guardar cambios") { guardar() }
+                BotonCabecera(icono: "checkmark", rotulo: ficha == nil ? "Guardar lección" : "Guardar cambios",
+                              ayuda: "Guardar (⌘S)", activo: true) { guardar() }
                     .keyboardShortcut("s")
                     .disabled(b.titulo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || guardando)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Paleta.v2.fondo)
+            .overlay(alignment: .top) { Paleta.v2.linea.frame(height: 1) }
         }
         .confirmationDialog("¿Borrar esta lección?", isPresented: $preguntarBorrar) {
             Button("Borrar", role: .destructive) {

@@ -13,7 +13,13 @@ import SwiftUI
 public struct VentanaProyectos: View {
     @ObservedObject var almacen: Almacen
     @State private var elegido: String?
-    @State private var nuevo = ""
+    /// El ancho de la lista (se recuerda) y el que tenia al empezar a estirarla.
+    @AppStorage("proyectos.anchoLista") private var anchoLista: Double = 320
+    @State private var anchoAlEmpezar: Double?
+    /// La ventana, para los botones de la franja.
+    @State private var ventana = RefVentana()
+    /// El proyecto que se va a borrar, mientras se pregunta.
+    @State private var aBorrar: FichaChat?
     /// Un chat que pide abrir Buscar (ver `Buscar/Buscar.swift`).
     @ObservedObject private var peticion = PeticionDeChat.compartida
     @Environment(\.openWindow) private var abrirVentana
@@ -21,40 +27,58 @@ public struct VentanaProyectos: View {
     public init(almacen: Almacen) { self.almacen = almacen }
 
     public var body: some View {
-        NavigationSplitView {
-            List(selection: $elegido) {
-                ForEach(almacen.chats, id: \.id) { chat in
-                    FilaChat(chat: chat).tag(chat.id)
+        // Como en Windows: la franja fina arriba, la lista a la izquierda
+        // (se estira por su borde) y el chat sobre su papel a la derecha.
+        VStack(spacing: 0) {
+            FranjaProyectos(ventana: ventana)
+            HStack(spacing: 0) {
+                ListaProyectos(almacen: almacen, elegido: $elegido) { chat in
+                    if !chat.esGuardados {
+                        Button("Borrar", role: .destructive) { aBorrar = chat }
+                    }
                 }
-            }
-            .navigationSplitViewColumnWidth(min: 220, ideal: 260)
-            .safeAreaInset(edge: .bottom) {
-                HStack {
-                    TextField("Proyecto nuevo", text: $nuevo)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit(crear)
-                    Button(action: crear) { Image(systemName: "plus") }
-                        .disabled(nuevo.trimmingCharacters(in: .whitespaces).isEmpty)
+                // Como `confirmar_destructivo` de Windows: el borrado viaja.
+                .confirmationDialog(aBorrar.map { "¿Borrar «\($0.nombre)»?" } ?? "",
+                                    isPresented: Binding(get: { aBorrar != nil },
+                                                         set: { if !$0 { aBorrar = nil } }),
+                                    titleVisibility: .visible, presenting: aBorrar) { chat in
+                    Button("Borrar", role: .destructive) {
+                        if elegido == chat.id { elegido = nil }
+                        Task { await almacen.borrarProyecto(chat.id) }
+                    }
+                } message: { _ in
+                    Text("Se borra también en tus otros aparatos la próxima vez que sincronices. "
+                        + "Queda una copia en la papelera de PixPin por si te arrepientes.")
                 }
-                .padding(8)
-            }
-        } detail: {
-            if let chat = elegido {
-                VistaChat(almacen: almacen, chat: chat).id(chat)
-            } else {
-                ContentUnavailableView("Elige un proyecto", systemImage: "bubble.left.and.bubble.right")
+                .frame(width: anchoLista)
+                Paleta.proyectos.separador
+                    .frame(width: 1)
+                    .overlay { asaLista }
+                ZStack {
+                    PapelChat()
+                    if let chat = elegido {
+                        VistaChat(almacen: almacen, chat: chat).id(chat)
+                    } else {
+                        Text("Elige un proyecto")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(.black.opacity(0.25), in: Capsule())
+                    }
+                }
+                .frame(minWidth: 380)
             }
         }
+        .ignoresSafeArea(.container, edges: .top)
+        .toolbar(removing: .title)
+        .toolbar(.hidden, for: .windowToolbar)
+        .background(AccesoVentana { v in
+            ventana.ventana = v
+            VentanaLisa.vestirEntera(v)
+        })
         .task { await almacen.cargarChats() }
         .onChange(of: elegido) { _, visible in almacen.aligerar(visible: visible) }
         .onDisappear { almacen.nadaAlFrente() }
-        // ⌘F: buscar en todo (chats, notas, tareas, momentos).
-        .toolbar {
-            Button { abrirVentana(id: IdVentana.buscar) } label: {
-                Label("Buscar", systemImage: "magnifyingglass")
-            }
-            .keyboardShortcut("f")
-        }
         .onReceive(peticion.$chat) { pedido in
             guard let pedido else { return }
             elegido = pedido
@@ -69,27 +93,21 @@ public struct VentanaProyectos: View {
         }
     }
 
-    private func crear() {
-        let nombre = nuevo.trimmingCharacters(in: .whitespaces)
-        guard !nombre.isEmpty else { return }
-        nuevo = ""
-        Task { await almacen.crearChat(nombre: nombre) }
-    }
-}
-
-struct FilaChat: View {
-    let chat: FichaChat
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(chat.nombre).font(.headline).lineLimit(1)
-                if chat.sinLeer > 0 {
-                    Text("\(chat.sinLeer)").font(.caption2).padding(.horizontal, 5)
-                        .background(.tint, in: Capsule()).foregroundStyle(.white)
-                }
+    /// El borde de la lista: se arrastra para estirarla (260 a 540, como
+    /// `LISTA_MINIMA` y `LISTA_MAXIMA` de Windows).
+    private var asaLista: some View {
+        Color.clear
+            .frame(width: 7)
+            .contentShape(Rectangle())
+            .onHover { dentro in
+                if dentro { NSCursor.resizeLeftRight.push() } else { NSCursor.pop() }
             }
-            Text(chat.resumen).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-        }
+            .gesture(DragGesture(coordinateSpace: .global)
+                .onChanged { g in
+                    if anchoAlEmpezar == nil { anchoAlEmpezar = anchoLista }
+                    anchoLista = min(max((anchoAlEmpezar ?? anchoLista) + g.translation.width, 260), 540)
+                }
+                .onEnded { _ in anchoAlEmpezar = nil })
     }
 }
 

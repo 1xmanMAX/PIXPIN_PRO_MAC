@@ -31,15 +31,25 @@ public enum VentanaLisa {
         for tipo in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
             ventana.standardWindowButton(tipo)?.isHidden = true
         }
-        if botones, !ventana.titlebarAccessoryViewControllers.contains(where: { $0 is AccesorioBotones }) {
+        if botones, !enteras.contains(ventana),
+           !ventana.titlebarAccessoryViewControllers.contains(where: { $0 is AccesorioBotones }) {
             ventana.addTitlebarAccessoryViewController(AccesorioBotones(ventana: ventana))
         }
     }
 
+    /// Las ventanas enteras: `vestir` ya no les pone los botones, aunque
+    /// llegue despues (SwiftUI llama a los dos sin orden fijo).
+    private static let enteras = NSHashTable<NSWindow>.weakObjects()
+
     /// Como `vestir`, para una ventana cuyo contenido llega hasta arriba (su
-    /// barra hace de titulo): sin franja, el contenido ocupa la ventana.
+    /// barra hace de titulo): sin franja, el contenido ocupa la ventana. Si
+    /// ya tenia los botones de la franja, se le quitan: los lleva su barra.
     public static func vestirEntera(_ ventana: NSWindow) {
+        enteras.add(ventana)
         ventana.styleMask.insert(.fullSizeContentView)
+        for (i, a) in ventana.titlebarAccessoryViewControllers.enumerated().reversed() where a is AccesorioBotones {
+            ventana.removeTitlebarAccessoryViewController(at: i)
+        }
         vestir(ventana, botones: false)
     }
 

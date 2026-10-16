@@ -175,6 +175,12 @@ public struct VentanaTareas: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            // La barra comun de Windows (`Cabecera`): las dos vistas y releer.
+            Cabecera("Tareas", subtitulo: modelo.listas.count == 1 ? "1 lista" : "\(modelo.listas.count) listas") {
+                SegmentosCabecera(Vista.allCases.map { ($0, $0.rawValue) }, eleccion: $vista)
+                BotonCabecera(icono: "arrow.clockwise", ayuda: "Releer (⌘R)") { Task { await modelo.cargar() } }
+                    .keyboardShortcut("r")
+            }
             HStack {
                 TextField("Apuntar en el Inbox", text: $nueva)
                     .textFieldStyle(.roundedBorder)
@@ -204,19 +210,7 @@ public struct VentanaTareas: View {
                     .padding()
             }
         }
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Picker("Ver", selection: $vista) {
-                    ForEach(Vista.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-            }
-            ToolbarItem {
-                Button { Task { await modelo.cargar() } } label: { Label("Releer", systemImage: "arrow.clockwise") }
-                    .keyboardShortcut("r")
-            }
-        }
-        .navigationTitle("Tareas")
+        .ventanaConCabecera()
         .task { await modelo.cargar() }
         .frame(minWidth: 480, minHeight: 400)
     }

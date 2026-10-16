@@ -153,6 +153,34 @@ public struct VentanaTimeline: View {
     }
 
     public var body: some View {
+        VStack(spacing: 0) {
+            // La barra comun de Windows (`Cabecera`): lo que se ve y releer.
+            Cabecera("Timeline", subtitulo: subtitulo) {
+                SegmentosCabecera(ModeloTimeline.Filtro.allCases.map { ($0, $0.rawValue) },
+                                  eleccion: $modelo.filtro)
+                BotonCabecera(icono: "arrow.clockwise", ayuda: "Releer (⌘R)") { Task { await modelo.recargar() } }
+                    .keyboardShortcut("r")
+            }
+            dividida
+        }
+        .ventanaConCabecera()
+        .onChange(of: modelo.filtro) { _, _ in Task { await modelo.recargar() } }
+        .task { await modelo.recargar() }
+    }
+
+    /// «Hoy · 4 momentos» o el dia elegido.
+    private var subtitulo: String {
+        let cuando: String
+        switch modelo.eleccion {
+        case .hoy: cuando = "Hoy"
+        case let .dia(iso):
+            cuando = modelo.dias.first(where: { $0.iso == iso }).map(ModeloTimeline.rotulo) ?? iso
+        }
+        let n = modelo.totalMomentos
+        return "\(cuando) · \(n == 1 ? "1 momento" : "\(n) momentos")"
+    }
+
+    private var dividida: some View {
         NavigationSplitView {
             List(selection: Binding<ModeloTimeline.Eleccion?>(
                 get: { modelo.eleccion },
@@ -176,26 +204,10 @@ public struct VentanaTimeline: View {
                 }
             }
             .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-            .safeAreaInset(edge: .top) {
-                Picker("Ver", selection: $modelo.filtro) {
-                    ForEach(ModeloTimeline.Filtro.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .padding(8)
-            }
         } detail: {
             LineaDeMomentos(modelo: modelo)
         }
-        .onChange(of: modelo.filtro) { _, _ in Task { await modelo.recargar() } }
-        .task { await modelo.recargar() }
-        .toolbar {
-            Button { Task { await modelo.recargar() } } label: {
-                Label("Releer", systemImage: "arrow.clockwise")
-            }
-            .keyboardShortcut("r")
-        }
-        .navigationTitle("Timeline")
+        .toolbar(removing: .sidebarToggle)
     }
 }
 
