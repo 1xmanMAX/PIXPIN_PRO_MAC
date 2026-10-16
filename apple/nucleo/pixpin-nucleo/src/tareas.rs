@@ -17,7 +17,9 @@
 //!   (`mini::anadir_el`), creandolo si no esta.
 //!
 //! El formato **no tiene fecha de vencimiento**: la unica fecha de una tarea
-//! es la de creacion. Como en Windows y en el movil, lo pendiente con fecha
+//! es la de creacion. Lo que si puede llevar es **la hora de recordarla**
+//! (`⏰ AAAA-MM-DD HH:MM`, hora local, dentro del texto: ver
+//! [`RELOJ`] y [`crate::recordatorios`]). Como en Windows y en el movil, lo pendiente con fecha
 //! va primero, la mas vieja arriba (lo que mas lleva esperando), y se
 //! ensena cuantos dias lleva.
 //!
@@ -48,9 +50,12 @@ pub struct Tarea {
     /// El texto tal cual esta guardado (con su fecha y sus imagenes): se
     /// devuelve al marcar para comprobar que sigue siendo esta.
     pub crudo: String,
-    /// Lo que se ensena: sin la fecha ni las imagenes.
+    /// Lo que se ensena: sin la fecha, las imagenes ni la hora de recordar.
     pub texto: String,
     pub hecha: bool,
+    /// La hora a la que se recuerda (`⏰`), en ms **locales** (los del reloj
+    /// de la pared, sin pasar a UTC), si la lleva.
+    pub recuerda: Option<i64>,
     /// El dia en que se creo, `AAAA-MM-DD`, si lo lleva.
     pub creada: Option<String>,
     /// Los dias que lleva desde que se creo (en el huso de quien mira).
@@ -123,7 +128,8 @@ impl Nucleo {
                 let (texto, enlaces) = mini::imagenes_de(visible);
                 Tarea {
                     indice: i as u32,
-                    texto,
+                    recuerda: hora_de_tarea(&texto),
+                    texto: sin_marca(&texto),
                     hecha: t.hecha,
                     creada: creada.map(|f| f.to_string()),
                     dias: creada.map(|f| mini::dias_desde(f, hoy)),
@@ -150,6 +156,109 @@ impl Nucleo {
             tareas,
         }
     }
+}
+
+// --------------------------------------------------- los recordatorios
+//
+// **Una tarea puede recordarse a una hora** (Windows, 8-oct-2026: «añade los
+// recordatorios a las tareas»). Android no lo tiene, asi que la hora va
+// DENTRO del texto de la tarea: `Llamar al banco ⏰ 2026-10-09 10:00`, en
+// hora local (`tareas::RELOJ` de Windows). Asi viaja al sincronizar sin
+// inventar otro campo, y en el movil se lee como texto. Al sonar, la marca
+// se quita ([`crate::recordatorios`]).
+
+/// Lo que marca la hora en el texto de una tarea.
+pub const RELOJ: char = '\u{23F0}';
+
+/// Un dia en milisegundos.
+const DIA_MS: i64 = 86_400_000;
+
+/// La marca de una hora local: `⏰ 2026-10-09 10:00`.
+pub fn marca_de_hora(local_ms: i64) -> String {
+    let f = mini::Fecha::de_dias(local_ms.div_euclid(DIA_MS));
+    let min = local_ms.rem_euclid(DIA_MS) / 60_000;
+    format!("{RELOJ} {f} {:02}:{:02}", min / 60, min % 60)
+}
+
+/// Donde empieza la marca de la hora (en bytes), donde acaba y su hora
+/// local, si el texto la lleva. Como Windows (`marca_en`), vale la ultima
+/// `⏰`; un reloj suelto o una fecha imposible no son una hora.
+fn marca_en(texto: &str) -> Option<(usize, usize, i64)> {
+    let i = texto.rfind(RELOJ)?;
+    let tras = &texto[i + RELOJ.len_utf8()..];
+    let resto = tras.trim_start();
+    let blancos = tras.len() - resto.len();
+    let num = |a: usize, b: usize| resto.get(a..b).and_then(|s| s.parse::<i64>().ok());
+    let (y, mo, d, h, mi) = (num(0, 4)?, num(5, 7)?, num(8, 10)?, num(11, 13)?, num(14, 16)?);
+    let sep = resto.as_bytes();
+    if sep.get(4) != Some(&b'-') || sep.get(7) != Some(&b'-') || sep.get(13) != Some(&b':') {
+        return None;
+    }
+    if !(1..=12).contains(&mo) || !(1..=31).contains(&d) || h > 23 || mi > 59 {
+        return None;
+    }
+    let dias = mini::Fecha {
+        anio: y as i32,
+        mes: mo as u8,
+        dia: d as u8,
+    }
+    .dias();
+    let fin = i + RELOJ.len_utf8() + blancos + 16;
+    Some((i, fin, (dias * 1440 + h * 60 + mi) * 60_000))
+}
+
+/// La hora local a la que se recuerda una tarea, si tiene.
+pub fn hora_de_tarea(texto: &str) -> Option<i64> {
+    marca_en(texto).map(|(_, _, t)| t)
+}
+
+/// El texto sin la marca de la hora (con el blanco de delante, que se puso
+/// al marcarla). Lo que va detras (imagenes, la fecha de creacion) se
+/// queda: la marca se quita, no se corta el texto.
+pub fn sin_marca(texto: &str) -> String {
+    match marca_en(texto) {
+        Some((i, fin, _)) => {
+            let antes = texto[..i].trim_end();
+            let despues = texto[fin..].trim_start();
+            match (antes.is_empty(), despues.is_empty()) {
+                (_, true) => antes.to_string(),
+                (true, _) => despues.to_string(),
+                _ => format!("{antes} {despues}"),
+            }
+        }
+        None => texto.to_string(),
+    }
+}
+
+/// El texto crudo de una tarea con la hora `local_ms` (cambiando la que
+/// tuviera; `None` la quita). La marca va donde la pone Windows: detras de
+/// lo que se lee y **delante** de las imagenes y de la fecha de creacion,
+/// para que [`mini::partir`] siga encontrandola al final.
+pub fn crudo_con_hora(crudo: &str, local_ms: Option<i64>) -> String {
+    let (visible, creada) = mini::partir(crudo);
+    let (texto, enlaces) = mini::imagenes_de(&sin_marca(visible));
+    let texto = match local_ms {
+        Some(t) if texto.is_empty() => marca_de_hora(t),
+        Some(t) => format!("{texto} {}", marca_de_hora(t)),
+        None => texto,
+    };
+    let visible = mini::con_imagenes(&texto, &enlaces);
+    match creada {
+        Some(f) => mini::con_fecha(&visible, f),
+        None => visible,
+    }
+}
+
+/// El id de agenda del recordatorio de una tarea: su lista y su hora (el de
+/// Windows, `tareas::id_de_recordatorio`).
+pub fn id_de_recordatorio(mensaje: &str, local_ms: i64) -> String {
+    format!("tarea:{mensaje}:{local_ms}")
+}
+
+/// La lista y la hora local de un id de [`id_de_recordatorio`].
+pub fn de_id_de_recordatorio(id: &str) -> Option<(&str, i64)> {
+    let (m, t) = id.strip_prefix("tarea:")?.rsplit_once(':')?;
+    Some((m, t.parse().ok()?))
 }
 
 /// Las listas de tareas de un cuaderno (lineas que no se entienden o que
@@ -338,5 +447,69 @@ mod pruebas {
         assert!(!puede_ser_lista(
             r#"{"id":"1","clase":"NOTA","texto":"tareas"}"#
         ));
+    }
+
+    /// Las 10:30 del 9-oct-2026, en hora local.
+    fn diez_y_media() -> i64 {
+        let dias = mini::Fecha {
+            anio: 2026,
+            mes: 10,
+            dia: 9,
+        }
+        .dias();
+        (dias * 1440 + 10 * 60 + 30) * 60_000
+    }
+
+    #[test]
+    fn la_hora_de_una_tarea_va_y_vuelve_por_su_texto() {
+        // `la_hora_de_una_tarea_va_y_vuelve_por_su_texto` de Windows.
+        let t = diez_y_media();
+        assert_eq!(marca_de_hora(t), "⏰ 2026-10-09 10:30");
+        let con = crudo_con_hora("Llamar al banco", Some(t));
+        assert_eq!(con, "Llamar al banco ⏰ 2026-10-09 10:30");
+        assert_eq!(hora_de_tarea(&con), Some(t));
+        assert_eq!(sin_marca(&con), "Llamar al banco");
+        // Cambiarla no la repite.
+        let otra = crudo_con_hora(&con, Some(t + 60_000));
+        assert_eq!(otra.matches(RELOJ).count(), 1);
+        assert_eq!(hora_de_tarea(&otra), Some(t + 60_000));
+        // Casos negativos: un reloj suelto o una fecha imposible no son hora.
+        assert_eq!(hora_de_tarea("despertar ⏰ pronto"), None);
+        assert_eq!(hora_de_tarea("x ⏰ 2026-13-01 10:00"), None);
+        assert_eq!(hora_de_tarea("x ⏰ 2026-10-01 24:00"), None);
+        assert_eq!(sin_marca("x ⏰ pronto"), "x ⏰ pronto");
+    }
+
+    #[test]
+    fn la_marca_va_delante_de_las_imagenes_y_de_la_fecha_de_creacion() {
+        // Asi la escribe Windows (`con_hora` + `corregir`): `partir` tiene que
+        // seguir encontrando la fecha al final y las imagenes no se pierden.
+        let t = diez_y_media();
+        let crudo = "yeso ![img 01](pixpin:files/a.png) ➕ 2026-10-01";
+        let con = crudo_con_hora(crudo, Some(t));
+        assert_eq!(
+            con,
+            "yeso ⏰ 2026-10-09 10:30 ![img 01](pixpin:files/a.png) ➕ 2026-10-01"
+        );
+        let (visible, creada) = mini::partir(&con);
+        assert_eq!(creada.map(|f| f.to_string()).as_deref(), Some("2026-10-01"));
+        let (texto, enlaces) = mini::imagenes_de(visible);
+        assert_eq!(enlaces, ["pixpin:files/a.png"]);
+        assert_eq!(hora_de_tarea(&texto), Some(t));
+        assert_eq!(sin_marca(&texto), "yeso");
+        // Quitarla deja la tarea como estaba.
+        assert_eq!(crudo_con_hora(&con, None), crudo);
+        // Lo que la marca deja detras se queda (no se corta el texto).
+        assert_eq!(sin_marca("a ⏰ 2026-10-09 10:30 b"), "a b");
+    }
+
+    #[test]
+    fn el_id_de_agenda_de_una_tarea_va_y_vuelve() {
+        let id = id_de_recordatorio("L1", 123);
+        assert_eq!(id, "tarea:L1:123");
+        assert_eq!(de_id_de_recordatorio(&id), Some(("L1", 123)));
+        // Caso negativo: un id de mensaje no es de tarea.
+        assert_eq!(de_id_de_recordatorio("m7"), None);
+        assert_eq!(de_id_de_recordatorio("tarea:L1:mañana"), None);
     }
 }

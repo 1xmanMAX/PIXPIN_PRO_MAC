@@ -7,6 +7,11 @@
 // creacion (`➕ AAAA-MM-DD`). Por eso lo pendiente se agrupa por lo que
 // lleva esperando (hoy, esta semana, este mes, mas, sin fecha), la mas vieja
 // arriba como en Windows; lo hecho va aparte y plegado.
+//
+// Lo que si puede llevar una tarea es **la hora de recordarla** (`⏰`, A4):
+// se ve en su fila y se pone o se quita con su menu («Recordarmelo» de
+// Windows). Va dentro de su texto, asi que viaja; la hace sonar el vigia
+// (`Recordatorios`).
 
 import AppKit
 import Foundation
@@ -135,6 +140,32 @@ public final class ModeloTareas: ObservableObject {
         if let aviso { error = aviso }
     }
 
+    /// **Pone o quita la hora de recordar** una tarea (`nil` la quita).
+    /// Como al marcar, si la lista cambio fuera no se toca y se relee.
+    public func recordar(_ t: TareaConLista, en cuando: Date?) async {
+        let nucleo = self.nucleo
+        let (chat, mensaje, indice, crudo) = (t.lista.chat, t.lista.mensaje, t.tarea.indice, t.tarea.crudo)
+        let local = cuando.map(milisegundosLocales)
+        var aviso: String?
+        do {
+            let hecho = try await Task.detached(priority: .userInitiated) {
+                try nucleo.ponerHoraTarea(chat: chat, lista: mensaje, indice: indice, crudo: crudo,
+                                          cuandoLocalMs: local)
+            }.value
+            if hecho {
+                // Al vigia (que relee al oirlo) y a los otros aparatos.
+                NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: chat)
+            } else {
+                aviso = "La lista cambió: se ha vuelto a leer"
+            }
+        } catch {
+            aviso = "\(error)"
+        }
+        await cargar()
+        if let aviso { error = aviso }
+    }
+
     /// Apunta una tarea en el Inbox de «Mensajes guardados».
     public func apuntar(_ texto: String) async {
         let limpio = texto.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -220,7 +251,9 @@ public struct VentanaTareas: View {
         ForEach(modelo.pendientesPorGrupo) { g in
             Section(g.grupo.titulo) {
                 ForEach(g.tareas) { t in
-                    FilaTarea(t: t, conLista: true) { hecha in Task { await modelo.marcar(t, hecha: hecha) } }
+                    FilaTarea(t: t, conLista: true, alRecordar: recordar(t)) { hecha in
+                        Task { await modelo.marcar(t, hecha: hecha) }
+                    }
                 }
             }
         }
@@ -242,7 +275,9 @@ public struct VentanaTareas: View {
             Section {
                 ForEach(l.tareas, id: \.indice) { t in
                     let x = TareaConLista(lista: l, tarea: t)
-                    FilaTarea(t: x, conLista: false) { hecha in Task { await modelo.marcar(x, hecha: hecha) } }
+                    FilaTarea(t: x, conLista: false, alRecordar: recordar(x)) { hecha in
+                        Task { await modelo.marcar(x, hecha: hecha) }
+                    }
                 }
             } header: {
                 HStack {
@@ -255,6 +290,10 @@ public struct VentanaTareas: View {
         }
     }
 
+    private func recordar(_ t: TareaConLista) -> (Date?) -> Void {
+        { cuando in Task { await modelo.recordar(t, en: cuando) } }
+    }
+
     private func apuntar() {
         let texto = nueva
         nueva = ""
@@ -262,12 +301,18 @@ public struct VentanaTareas: View {
     }
 }
 
-/// Una tarea: su casilla, el texto (tachado si esta hecha), cuantos dias
-/// lleva y, si se pide, su lista y su chat.
+/// Una tarea: su casilla, el texto (tachado si esta hecha), su hora de
+/// recordar, cuantos dias lleva y, si se pide, su lista y su chat. Su menu
+/// pone o quita la hora.
 struct FilaTarea: View {
     let t: TareaConLista
     let conLista: Bool
+    /// Poner la hora de recordarla (`nil` la quita).
+    var alRecordar: (Date?) -> Void = { _ in }
     let alMarcar: (Bool) -> Void
+
+    /// La hora de recordarla, si la lleva.
+    private var recuerda: Date? { t.tarea.recuerda.map(fechaDeLocales) }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -285,6 +330,12 @@ struct FilaTarea: View {
                 }
             }
             Spacer()
+            if let r = recuerda, !t.tarea.hecha {
+                Label(AtajosDeHora.legible(r, ahora: Date()), systemImage: "alarm")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(r < Date() ? Color.secondary : Color.accentColor)
+                    .help("Te lo recuerdo a esta hora")
+            }
             if !t.tarea.imagenes.isEmpty {
                 Image(systemName: "photo").foregroundStyle(.secondary)
                     .help("\(t.tarea.imagenes.count) imágenes")
@@ -294,6 +345,18 @@ struct FilaTarea: View {
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(d > 7 ? Color.orange : Color.secondary)
                     .help("Creada el \(t.tarea.creada ?? "")")
+            }
+        }
+        .contextMenu {
+            if !t.tarea.hecha {
+                Menu("Recordármelo") {
+                    ForEach(AtajosDeHora.atajos(ahora: Date()), id: \.titulo) { a in
+                        Button(a.titulo) { alRecordar(a.cuando) }
+                    }
+                }
+            }
+            if t.tarea.recuerda != nil {
+                Button("Quitar el recordatorio") { alRecordar(nil) }
             }
         }
     }

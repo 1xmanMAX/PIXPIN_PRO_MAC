@@ -160,12 +160,10 @@ public final class AvisosMini {
 
     private func notificar(id: String, miniapp: String, texto: String, cuando: Date) {
         guard let centro = Self.centro else { return }
-        if !permisoPedido {
-            permisoPedido = true
-            centro.delegate = delegado
-            centro.requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        }
+        // El permiso y el delegado son los de toda la app (`CentroAvisos`).
+        CentroAvisos.compartido.preparar()
         let contenido = UNMutableNotificationContent()
+        contenido.categoryIdentifier = CategoriaAviso.mini.rawValue
         contenido.title = texto
         contenido.body = miniapp == "alarma" ? "Alarma" : "Tiempo cumplido"
         contenido.sound = .default

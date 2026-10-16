@@ -160,7 +160,9 @@ pub fn mini_tareas_leer(documento: String, desfase_ms: i64) -> Vec<Tarea> {
             let (texto, _) = mini::imagenes_de(visible);
             Tarea {
                 indice: i as u32,
-                texto,
+                // La hora de recordarla (`⏰`) aparte, como en `Nucleo::tareas`.
+                recuerda: crate::tareas::hora_de_tarea(&texto),
+                texto: crate::tareas::sin_marca(&texto),
                 hecha: t.hecha,
                 creada: creada.map(|f| f.to_string()),
                 dias: creada.map(|f| mini::dias_desde(f, hoy)),

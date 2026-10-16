@@ -4352,6 +4352,15 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func capturasCaducadas(dias: Int64)  -> [CapturaCaducada]
     
     /**
+     * **Las capturas que se van en las proximas 24 h** con el plazo `dias`
+     * (0 = nunca), con la fecha en que se van: el aviso «se van en 24 h»
+     * de Windows (`caducidad_capturas::vigilar_avisos`). Las ya caducadas
+     * no salen (las barre [`Nucleo::capturas_caducadas`]); las conservadas
+     * tampoco. Cada una se avisa una vez por sesion: eso lo lleva Swift.
+     */
+    func capturasPorAvisar(dias: Int64)  -> [CapturaCaducada]
+    
+    /**
      * La carpeta de las capturas (`<datos>/capturas`), donde Swift guarda
      * las nuevas y vigila con FSEvents.
      */
@@ -4520,6 +4529,57 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * `.userInitiated`.
      */
     func abrirPlano(ruta: String) throws  -> Plano
+    
+    /**
+     * **Le quita la hora** al recordatorio `id` del chat `chat` (al sonar,
+     * o «Quitar el recordatorio»): `recuerdaEn` fuera del mensaje, o la
+     * marca `⏰` fuera del texto de la tarea. `false` si ya no estaba.
+     */
+    func olvidarRecordatorio(chat: String, id: String) throws  -> Bool
+    
+    /**
+     * **Pone, cambia o quita la hora de una tarea** (`cuando_local_ms`, la
+     * hora del reloj de la pared; `None` la quita): la marca `⏰` en su
+     * texto, como «Recordarmelo» de la ventana de Tareas de Windows y el
+     * «+10 min» de su notificacion. Con `crudo` (el que se ve en pantalla,
+     * [`crate::Tarea::crudo`]) se comprueba antes que la tarea numero
+     * `indice` sigue siendo esa; sin el (la notificacion, que ya le quito
+     * la hora al sonar), basta el numero, como el pedido de Windows.
+     * `false` si la lista o la tarea ya no estan: hay que releer.
+     */
+    func ponerHoraTarea(chat: String, lista: String, indice: UInt32, crudo: String?, cuandoLocalMs: Int64?) throws  -> Bool
+    
+    /**
+     * **La posicion de un mensaje en su chat** (0 el mas antiguo, la de
+     * [`Nucleo::mensajes`]), para «Abrir» un recordatorio en su sitio.
+     * `None` si ya no esta.
+     */
+    func posicionDeMensaje(chat: String, mensaje: String) throws  -> UInt64?
+    
+    /**
+     * **Todo lo que hay puesto para recordar**, en todos los chats: los
+     * mensajes con `recuerdaEn` y las tareas pendientes con `⏰`, del mas
+     * proximo al mas lejano (tambien lo que ya paso: suena al arrancar,
+     * como en Windows, «llegar tarde es mejor que no llegar»).
+     * `desfase_local_ms` es el huso de este Mac (las horas de las tareas
+     * son locales). Un cuaderno que no se puede leer no deja sin los demas.
+     */
+    func recordatorios(desfaseLocalMs: Int64) throws  -> [RecordatorioMac]
+    
+    /**
+     * **«Hecha»** de la notificacion de una tarea: la tacha por su numero
+     * (el pedido `marcar_tarea` de Windows), sin comprobar su texto, que
+     * cambio al quitarle la hora. `false` si ya no esta o ya estaba hecha.
+     */
+    func tacharTareaRecordada(chat: String, lista: String, indice: UInt32) throws  -> Bool
+    
+    /**
+     * **Pone (o cambia) la hora de un mensaje** a `cuando_utc_ms`: lo de
+     * «+10 min» y «Volver a llamar en» (`volver_a_poner` de Windows). Se
+     * escribe en el cuaderno, que es lo que viaja y sobrevive a cerrar la
+     * app. `false` si el mensaje ya no esta.
+     */
+    func volverARecordar(chat: String, mensaje: String, cuandoUtcMs: Int64) throws  -> Bool
     
     /**
      * **El anuncio de Bonjour de este aparato**, o `None` si no esta en
@@ -5808,6 +5868,23 @@ open func capturasCaducadas(dias: Int64) -> [CapturaCaducada]  {
 }
     
     /**
+     * **Las capturas que se van en las proximas 24 h** con el plazo `dias`
+     * (0 = nunca), con la fecha en que se van: el aviso «se van en 24 h»
+     * de Windows (`caducidad_capturas::vigilar_avisos`). Las ya caducadas
+     * no salen (las barre [`Nucleo::capturas_caducadas`]); las conservadas
+     * tampoco. Cada una se avisa una vez por sesion: eso lo lleva Swift.
+     */
+open func capturasPorAvisar(dias: Int64) -> [CapturaCaducada]  {
+    return try!  FfiConverterSequenceTypeCapturaCaducada.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_capturas_por_avisar(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(dias),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * La carpeta de las capturas (`<datos>/capturas`), donde Swift guarda
      * las nuevas y vigila con FSEvents.
      */
@@ -6176,6 +6253,115 @@ open func abrirPlano(ruta: String)throws  -> Plano  {
     uniffi_pixpin_nucleo_fn_method_nucleo_abrir_plano(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(ruta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Le quita la hora** al recordatorio `id` del chat `chat` (al sonar,
+     * o «Quitar el recordatorio»): `recuerdaEn` fuera del mensaje, o la
+     * marca `⏰` fuera del texto de la tarea. `false` si ya no estaba.
+     */
+open func olvidarRecordatorio(chat: String, id: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_olvidar_recordatorio(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pone, cambia o quita la hora de una tarea** (`cuando_local_ms`, la
+     * hora del reloj de la pared; `None` la quita): la marca `⏰` en su
+     * texto, como «Recordarmelo» de la ventana de Tareas de Windows y el
+     * «+10 min» de su notificacion. Con `crudo` (el que se ve en pantalla,
+     * [`crate::Tarea::crudo`]) se comprueba antes que la tarea numero
+     * `indice` sigue siendo esa; sin el (la notificacion, que ya le quito
+     * la hora al sonar), basta el numero, como el pedido de Windows.
+     * `false` si la lista o la tarea ya no estan: hay que releer.
+     */
+open func ponerHoraTarea(chat: String, lista: String, indice: UInt32, crudo: String?, cuandoLocalMs: Int64?)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_hora_tarea(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterUInt32.lower(indice),
+        FfiConverterOptionString.lower(crudo),
+        FfiConverterOptionInt64.lower(cuandoLocalMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La posicion de un mensaje en su chat** (0 el mas antiguo, la de
+     * [`Nucleo::mensajes`]), para «Abrir» un recordatorio en su sitio.
+     * `None` si ya no esta.
+     */
+open func posicionDeMensaje(chat: String, mensaje: String)throws  -> UInt64?  {
+    return try  FfiConverterOptionUInt64.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_posicion_de_mensaje(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Todo lo que hay puesto para recordar**, en todos los chats: los
+     * mensajes con `recuerdaEn` y las tareas pendientes con `⏰`, del mas
+     * proximo al mas lejano (tambien lo que ya paso: suena al arrancar,
+     * como en Windows, «llegar tarde es mejor que no llegar»).
+     * `desfase_local_ms` es el huso de este Mac (las horas de las tareas
+     * son locales). Un cuaderno que no se puede leer no deja sin los demas.
+     */
+open func recordatorios(desfaseLocalMs: Int64)throws  -> [RecordatorioMac]  {
+    return try  FfiConverterSequenceTypeRecordatorioMac.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_recordatorios(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseLocalMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Hecha»** de la notificacion de una tarea: la tacha por su numero
+     * (el pedido `marcar_tarea` de Windows), sin comprobar su texto, que
+     * cambio al quitarle la hora. `false` si ya no esta o ya estaba hecha.
+     */
+open func tacharTareaRecordada(chat: String, lista: String, indice: UInt32)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_tachar_tarea_recordada(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterUInt32.lower(indice),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pone (o cambia) la hora de un mensaje** a `cuando_utc_ms`: lo de
+     * «+10 min» y «Volver a llamar en» (`volver_a_poner` de Windows). Se
+     * escribe en el cuaderno, que es lo que viaja y sobrevive a cerrar la
+     * app. `false` si el mensaje ya no esta.
+     */
+open func volverARecordar(chat: String, mensaje: String, cuandoUtcMs: Int64)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_volver_a_recordar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),
+        FfiConverterInt64.lower(cuandoUtcMs),uniffiCallStatus
     )
 })
 }
@@ -15390,6 +15576,109 @@ public func FfiConverterTypeRecuperados_lower(_ value: Recuperados) -> RustBuffe
 
 
 /**
+ * Un recordatorio puesto, de un mensaje o de una tarea.
+ */
+public struct RecordatorioMac: Equatable, Hashable {
+    /**
+     * El chat (la carpeta del proyecto).
+     */
+    public var chat: String
+    public var nombreChat: String
+    /**
+     * El id de agenda: el del mensaje, o `tarea:<lista>:<hora local>`.
+     */
+    public var id: String
+    /**
+     * Cuando suena, en ms **UTC** desde 1970.
+     */
+    public var cuandoUtcMs: Int64
+    /**
+     * Lo que se ensena al sonar (`Mensaje::resumen`, o `☑ <tarea>`).
+     */
+    public var texto: String
+    /**
+     * Si es de una tarea, cual.
+     */
+    public var tarea: TareaRecordada?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El chat (la carpeta del proyecto).
+         */chat: String, nombreChat: String, 
+        /**
+         * El id de agenda: el del mensaje, o `tarea:<lista>:<hora local>`.
+         */id: String, 
+        /**
+         * Cuando suena, en ms **UTC** desde 1970.
+         */cuandoUtcMs: Int64, 
+        /**
+         * Lo que se ensena al sonar (`Mensaje::resumen`, o `☑ <tarea>`).
+         */texto: String, 
+        /**
+         * Si es de una tarea, cual.
+         */tarea: TareaRecordada?) {
+        self.chat = chat
+        self.nombreChat = nombreChat
+        self.id = id
+        self.cuandoUtcMs = cuandoUtcMs
+        self.texto = texto
+        self.tarea = tarea
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RecordatorioMac: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecordatorioMac: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecordatorioMac {
+        return
+            try RecordatorioMac(
+                chat: FfiConverterString.read(from: &buf), 
+                nombreChat: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                cuandoUtcMs: FfiConverterInt64.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf), 
+                tarea: FfiConverterOptionTypeTareaRecordada.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RecordatorioMac, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterString.write(value.nombreChat, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterInt64.write(value.cuandoUtcMs, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterOptionTypeTareaRecordada.write(value.tarea, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecordatorioMac_lift(_ buf: RustBuffer) throws -> RecordatorioMac {
+    return try FfiConverterTypeRecordatorioMac.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecordatorioMac_lower(_ value: RecordatorioMac) -> RustBuffer {
+    return FfiConverterTypeRecordatorioMac.lower(value)
+}
+
+
+/**
  * Lo que contesto el motor local en un turno.
  */
 public struct RespuestaIa: Equatable, Hashable {
@@ -16305,10 +16594,15 @@ public struct Tarea: Equatable, Hashable {
      */
     public var crudo: String
     /**
-     * Lo que se ensena: sin la fecha ni las imagenes.
+     * Lo que se ensena: sin la fecha, las imagenes ni la hora de recordar.
      */
     public var texto: String
     public var hecha: Bool
+    /**
+     * La hora a la que se recuerda (`⏰`), en ms **locales** (los del reloj
+     * de la pared, sin pasar a UTC), si la lleva.
+     */
+    public var recuerda: Int64?
     /**
      * El dia en que se creo, `AAAA-MM-DD`, si lo lleva.
      */
@@ -16334,8 +16628,12 @@ public struct Tarea: Equatable, Hashable {
          * devuelve al marcar para comprobar que sigue siendo esta.
          */crudo: String, 
         /**
-         * Lo que se ensena: sin la fecha ni las imagenes.
+         * Lo que se ensena: sin la fecha, las imagenes ni la hora de recordar.
          */texto: String, hecha: Bool, 
+        /**
+         * La hora a la que se recuerda (`⏰`), en ms **locales** (los del reloj
+         * de la pared, sin pasar a UTC), si la lleva.
+         */recuerda: Int64?, 
         /**
          * El dia en que se creo, `AAAA-MM-DD`, si lo lleva.
          */creada: String?, 
@@ -16350,6 +16648,7 @@ public struct Tarea: Equatable, Hashable {
         self.crudo = crudo
         self.texto = texto
         self.hecha = hecha
+        self.recuerda = recuerda
         self.creada = creada
         self.dias = dias
         self.imagenes = imagenes
@@ -16375,6 +16674,7 @@ public struct FfiConverterTypeTarea: FfiConverterRustBuffer {
                 crudo: FfiConverterString.read(from: &buf), 
                 texto: FfiConverterString.read(from: &buf), 
                 hecha: FfiConverterBool.read(from: &buf), 
+                recuerda: FfiConverterOptionInt64.read(from: &buf), 
                 creada: FfiConverterOptionString.read(from: &buf), 
                 dias: FfiConverterOptionUInt32.read(from: &buf), 
                 imagenes: FfiConverterSequenceString.read(from: &buf)
@@ -16386,6 +16686,7 @@ public struct FfiConverterTypeTarea: FfiConverterRustBuffer {
         FfiConverterString.write(value.crudo, into: &buf)
         FfiConverterString.write(value.texto, into: &buf)
         FfiConverterBool.write(value.hecha, into: &buf)
+        FfiConverterOptionInt64.write(value.recuerda, into: &buf)
         FfiConverterOptionString.write(value.creada, into: &buf)
         FfiConverterOptionUInt32.write(value.dias, into: &buf)
         FfiConverterSequenceString.write(value.imagenes, into: &buf)
@@ -16405,6 +16706,76 @@ public func FfiConverterTypeTarea_lift(_ buf: RustBuffer) throws -> Tarea {
 #endif
 public func FfiConverterTypeTarea_lower(_ value: Tarea) -> RustBuffer {
     return FfiConverterTypeTarea.lower(value)
+}
+
+
+/**
+ * La tarea de un recordatorio: su lista y su numero, para «Hecha» y
+ * «+10 min» de la notificacion (`tareas::tarea_de_recordatorio`).
+ */
+public struct TareaRecordada: Equatable, Hashable {
+    /**
+     * El id del mensaje de la lista.
+     */
+    public var lista: String
+    /**
+     * Su numero en el documento (desde 0).
+     */
+    public var indice: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El id del mensaje de la lista.
+         */lista: String, 
+        /**
+         * Su numero en el documento (desde 0).
+         */indice: UInt32) {
+        self.lista = lista
+        self.indice = indice
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TareaRecordada: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTareaRecordada: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TareaRecordada {
+        return
+            try TareaRecordada(
+                lista: FfiConverterString.read(from: &buf), 
+                indice: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TareaRecordada, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.lista, into: &buf)
+        FfiConverterUInt32.write(value.indice, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTareaRecordada_lift(_ buf: RustBuffer) throws -> TareaRecordada {
+    return try FfiConverterTypeTareaRecordada.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTareaRecordada_lower(_ value: TareaRecordada) -> RustBuffer {
+    return FfiConverterTypeTareaRecordada.lower(value)
 }
 
 
@@ -20942,6 +21313,30 @@ fileprivate struct FfiConverterOptionUInt32: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeTareaRecordada: FfiConverterRustBuffer {
+    typealias SwiftType = TareaRecordada?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTareaRecordada.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTareaRecordada.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
     typealias SwiftType = UInt64?
 
@@ -20960,6 +21355,31 @@ fileprivate struct FfiConverterOptionUInt64: FfiConverterRustBuffer {
         case 1: return try FfiConverterUInt64.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRecordatorioMac: FfiConverterRustBuffer {
+    typealias SwiftType = [RecordatorioMac]
+
+    public static func write(_ value: [RecordatorioMac], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRecordatorioMac.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RecordatorioMac] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RecordatorioMac]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRecordatorioMac.read(from: &buf))
+        }
+        return seq
     }
 }
 
@@ -24691,6 +25111,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_capturas_caducadas() != 10220) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_capturas_por_avisar() != 64349) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_carpeta_capturas() != 3131) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -24758,6 +25181,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_plano() != 5693) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_olvidar_recordatorio() != 60871) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_hora_tarea() != 49014) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_posicion_de_mensaje() != 4802) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recordatorios() != 65115) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_tachar_tarea_recordada() != 57890) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_volver_a_recordar() != 58502) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_anuncio() != 714) {

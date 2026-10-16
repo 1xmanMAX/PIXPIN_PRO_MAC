@@ -160,6 +160,8 @@ final class EstadoApp: ObservableObject {
                 // Un temporizador o una alarma puestos en otro aparato
                 // tambien suenan aqui.
                 AvisosMini.compartido.reprogramar()
+                // Y un recordatorio puesto en el movil (A4).
+                Recordatorios.compartido.releer()
             }
             sincro.arrancar()
         }
@@ -179,6 +181,10 @@ final class EstadoApp: ObservableObject {
         // Los temporizadores y alarmas de las mini-apps avisan a su hora,
         // con su pin abierto o no (`AvisosMini`).
         if let nucleo = almacen?.nucleo { AvisosMini.compartido.vigilar(nucleo: nucleo) }
+        // Los recordatorios de los mensajes y las tareas (A4), con las
+        // notificaciones comunes (C4).
+        CentroAvisos.compartido.preparar()
+        if let nucleo = almacen?.nucleo { Recordatorios.compartido.vigilar(nucleo: nucleo) }
         capturador.alSacarTexto = { imagen in
             Task {
                 guard let texto = try? await sacarTexto(de: imagen), !texto.isEmpty else {

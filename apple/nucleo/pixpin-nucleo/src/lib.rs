@@ -82,6 +82,7 @@ pub mod notas;
 pub mod office;
 pub mod planos;
 pub mod recepcion;
+pub mod recordatorios;
 pub mod red;
 pub mod sincro;
 pub mod sincro_auto;
@@ -128,6 +129,7 @@ pub use planos::{
     AnotadoPlano, BuferesGrupo, CajaPlano, CapaPlano, CotaPlano, EncajePlano, Enganche, GrupoPlano,
     NoDibujado, Plano, PuntoPlano, ResumenPlano, TipoEnganche,
 };
+pub use recordatorios::{RecordatorioMac, TareaRecordada};
 pub use sincro::{AnuncioBonjour, Atendido, Escucha, ParTxt, ResumenSincro};
 pub use tareas::{ListaTareas, Tarea};
 pub use timeline::{DiaTimeline, MomentoTimeline, PaginaDias, PaginaMomentos};

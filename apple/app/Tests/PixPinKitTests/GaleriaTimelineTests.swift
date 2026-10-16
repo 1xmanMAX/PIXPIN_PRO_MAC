@@ -162,7 +162,7 @@ final class GaleriaTimelineTests: XCTestCase {
 
         // Con un texto que ya no es el de esa tarea, no se toca nada.
         let vieja = TareaConLista(lista: inbox, tarea: Tarea(indice: 1, crudo: "otra cosa", texto: "otra cosa",
-                                                              hecha: false, creada: nil, dias: nil, imagenes: []))
+                                                              hecha: false, recuerda: nil, creada: nil, dias: nil, imagenes: []))
         await modelo.marcar(vieja, hecha: true)
         XCTAssertNotNil(modelo.error)
         XCTAssertEqual(modelo.hechas.count, 1)
@@ -170,7 +170,7 @@ final class GaleriaTimelineTests: XCTestCase {
 
     func testLosGruposDeTareasPorLoQueLlevan() {
         func t(_ dias: UInt32?) -> Tarea {
-            Tarea(indice: 0, crudo: "", texto: "", hecha: false, creada: nil, dias: dias, imagenes: [])
+            Tarea(indice: 0, crudo: "", texto: "", hecha: false, recuerda: nil, creada: nil, dias: dias, imagenes: [])
         }
         XCTAssertEqual(GrupoDeTareas.de(t(nil)), .sinFecha)
         XCTAssertEqual(GrupoDeTareas.de(t(0)), .hoy)
