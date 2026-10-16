@@ -155,18 +155,21 @@ construir_spm() {
     else
         # Sin Xcode (solo las Command Line Tools) no hay XCBuild, que es quien
         # compila varias arquitecturas a la vez: una pasada por arquitectura y
-        # se juntan con lipo.
-        echo "==> swift build (release, arm64 y x86_64 por separado, sin Xcode)"
-        local a dir universal="$APP_SRC/.build/universal"
+        # se juntan con lipo. Cada pasada en su propia carpeta: con Xcode 27
+        # (swift-build) las dos dejaban el binario en el mismo sitio.
+        echo "==> swift build (release, arm64 y x86_64 por separado)"
+        local a f universal="$APP_SRC/.build/universal"
         rm -rf "$universal"; mkdir -p "$universal"
         for a in arm64 x86_64; do
-            swift build -c release --triple "$a-apple-macosx15.0" --product PixPin
+            local hecho="$APP_SRC/.build/por-arq/$a"
+            swift build -c release --scratch-path "$hecho" --triple "$a-apple-macosx15.0" --product PixPin
+            mkdir -p "$universal/$a"
+            for f in PixPin libPixPinCore.dylib; do
+                cp "$(swift build -c release --scratch-path "$hecho" --triple "$a-apple-macosx15.0" --show-bin-path)/$f" "$universal/$a/"
+            done
         done
         for f in PixPin libPixPinCore.dylib; do
-            lipo -create \
-                "$(swift build -c release --triple arm64-apple-macosx15.0 --show-bin-path)/$f" \
-                "$(swift build -c release --triple x86_64-apple-macosx15.0 --show-bin-path)/$f" \
-                -output "$universal/$f"
+            lipo -create "$universal/arm64/$f" "$universal/x86_64/$f" -output "$universal/$f"
         done
         bin="$universal/PixPin"
     fi
