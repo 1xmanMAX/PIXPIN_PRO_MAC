@@ -1,11 +1,15 @@
 // Lo que se guarda de los Ajustes, cada cosa en su sitio:
 //
 // - En `pixpinmax.toml` (el MISMO fichero de Windows, por el nucleo de Rust
-//   `Nucleo.ajustes`/`guardarAjustes`), solo lo que vale en los dos
-//   sistemas: los dias que aguanta una captura y la sincronizacion sola.
+//   `Nucleo.ajustes`/`guardarAjustes`), lo que vale en los dos sistemas:
+//   `valores` (idioma, captura, GIF, caducidad, sincronizar, voz y
+//   asistente) y `pdf` (`[pdf]`, por `ajustesPdf`).
 // - En este Mac: el tema (UserDefaults), los atajos (`GestorAtajos`) y
 //   «Abrir al iniciar sesion» (`SMAppService.mainApp`, que es la verdad: si
 //   el usuario lo quita en Ajustes del Sistema, aqui se ve quitado).
+//
+// Como en Windows, cada cambio se puede deshacer (⌘Z, hasta 100 pasos) y
+// cada ajuste sabe si esta como de fabrica (el punto azul) y volver a el.
 //
 // Leer y escribir el TOML va fuera del hilo principal (§4bis.3).
 
@@ -57,9 +61,12 @@ public enum Tema: String, CaseIterable, Identifiable, Sendable {
 
 @MainActor
 public final class ModeloAjustes: ObservableObject {
-    /// Dias que aguanta una captura antes de irse sola (0 = nunca).
-    @Published public private(set) var diasCaducidad: Int = 7
-    @Published public private(set) var sincroAutomatica = true
+    /// Lo de `pixpinmax.toml` (los de fabrica hasta `cargar`).
+    @Published public private(set) var valores: AjustesMac
+    /// Los de fabrica de Windows (`Ajustes::default`).
+    public let fabrica: AjustesMac
+    /// `[pdf]` de `pixpinmax.toml` (`nil` hasta `cargar`).
+    @Published public private(set) var pdf: AjustesPdf?
     @Published public private(set) var abrirAlIniciar = false
     /// «Abrir al iniciar sesion» espera el visto bueno en Ajustes del Sistema.
     @Published public private(set) var esperaAprobacion = false
@@ -71,18 +78,32 @@ public final class ModeloAjustes: ObservableObject {
     }
     @Published public private(set) var error: String?
     @Published public private(set) var cargado = false
+    /// Lo que «Deshacer» devuelve, el mas reciente al final.
+    @Published public private(set) var historial: [Paso] = []
+
+    /// Un paso de «Deshacer»: como estaba antes de un cambio.
+    public enum Paso: Equatable {
+        case toml(AjustesMac)
+        case pdf(AjustesPdf)
+    }
+
+    /// Cuantos pasos guarda «Deshacer» (los de Windows).
+    public static let pasosDeHistorial = 100
+
+    /// Los de fabrica de `[pdf]` (`Pdf::default` de Windows).
+    public static let pdfDeFabrica = AjustesPdf(aligerarAlEntrar: true, nivel: .equilibrado)
 
     public let nucleo: Nucleo
     /// La sincronizacion de la app, para encender o apagar la automatica.
     public weak var sincro: Sincronizador?
     private let defaults: UserDefaults
-    /// Lo leido del TOML (para no pisar `presencia`, que aqui no se toca).
-    private var leidos: AjustesMac?
 
     public init(nucleo: Nucleo, sincro: Sincronizador? = nil, defaults: UserDefaults = .standard) {
         self.nucleo = nucleo
         self.sincro = sincro
         self.defaults = defaults
+        fabrica = nucleo.ajustesDeFabrica()
+        valores = fabrica
         tema = Tema.guardado(defaults)
         leerAbrirAlIniciar()
     }
@@ -93,17 +114,23 @@ public final class ModeloAjustes: ObservableObject {
     /// `pixpinmax.toml`.
     public var ficheroAjustes: String { nucleo.rutaAjustes() }
 
+    /// La carpeta de las capturas (`<datos>/capturas`).
+    public var carpetaCapturas: URL { URL(fileURLWithPath: nucleo.carpetaCapturas(), isDirectory: true) }
+
+    // Lo de antes, que siguen usando otros sitios y las pruebas.
+    public var diasCaducidad: Int { Int(valores.diasCaducidad) }
+    public var sincroAutomatica: Bool { valores.sincroAutomatica }
+
     /// Lee el TOML y pasa la sincronizacion sola al `Sincronizador`.
     public func cargar() async {
         let nucleo = self.nucleo
-        let r = await Task.detached(priority: .utility) { () -> Result<AjustesMac, Error> in
-            do { return .success(try nucleo.ajustes()) } catch { return .failure(error) }
+        let r = await Task.detached(priority: .utility) { () -> Result<(AjustesMac, AjustesPdf), Error> in
+            do { return .success((try nucleo.ajustes(), try nucleo.ajustesPdf())) } catch { return .failure(error) }
         }.value
         switch r {
-        case let .success(a):
-            leidos = a
-            diasCaducidad = Int(a.diasCaducidad)
-            sincroAutomatica = a.sincroAutomatica
+        case let .success((a, p)):
+            valores = a
+            pdf = p
             sincro?.automatica = a.sincroAutomatica
             error = nil
         case let .failure(e):
@@ -113,18 +140,91 @@ public final class ModeloAjustes: ObservableObject {
         cargado = true
     }
 
+    /// **Cambia lo del TOML** y lo guarda (en la cola de guardados). Lo de
+    /// antes queda para «Deshacer».
+    public func cambiar(_ cambio: (inout AjustesMac) -> Void) {
+        var nuevo = valores
+        cambio(&nuevo)
+        guard nuevo != valores else { return }
+        apuntar(.toml(valores))
+        poner(nuevo)
+    }
+
+    /// Cambia `[pdf]` y lo guarda.
+    public func cambiarPdf(_ cambio: (inout AjustesPdf) -> Void) {
+        let antes = pdf ?? ModeloAjustes.pdfDeFabrica
+        var nuevo = antes
+        cambio(&nuevo)
+        guard nuevo != antes else { return }
+        apuntar(.pdf(antes))
+        ponerPdf(nuevo)
+    }
+
+    /// Deshace el ultimo cambio (⌘Z).
+    public func deshacer() {
+        guard let paso = historial.popLast() else { return }
+        switch paso {
+        case let .toml(a): poner(a)
+        case let .pdf(p): ponerPdf(p)
+        }
+    }
+
+    public var sePuedeDeshacer: Bool { !historial.isEmpty }
+
+    private func apuntar(_ paso: Paso) {
+        historial.append(paso)
+        if historial.count > ModeloAjustes.pasosDeHistorial {
+            historial.removeFirst(historial.count - ModeloAjustes.pasosDeHistorial)
+        }
+    }
+
+    private func poner(_ nuevo: AjustesMac) {
+        let antes = valores
+        valores = nuevo
+        sincro?.automatica = nuevo.sincroAutomatica
+        if nuevo.idioma != antes.idioma {
+            ModeloAjustes.aplicar(idioma: nuevo.idioma, en: defaults)
+        }
+        let guardado = programarGuardado()
+        // La presencia la abre o la cierra el `Sincronizador` al releer el
+        // TOML: despues de escribirlo.
+        if nuevo.sincroPresencia != antes.sincroPresencia, let sincro {
+            Task { [weak sincro] in
+                await guardado.value
+                await sincro?.refrescar()
+            }
+        }
+    }
+
+    private func ponerPdf(_ nuevo: AjustesPdf) {
+        pdf = nuevo
+        let previo = ultimoGuardado
+        let nucleo = self.nucleo
+        ultimoGuardado = Task { [weak self] in
+            await previo?.value
+            let fallo = await Task.detached(priority: .utility) { () -> String? in
+                do { try nucleo.guardarAjustesPdf(nuevos: nuevo); return nil } catch { return ModeloAjustes.texto(de: error) }
+            }.value
+            self?.error = fallo.map { "No se pudo guardar: \($0)" }
+        }
+    }
+
+    /// El idioma de la app (`AppleLanguages` de este programa): vale desde el
+    /// proximo arranque, como en Windows. «sistema» lo deja en el del Mac.
+    nonisolated static func aplicar(idioma: String, en defaults: UserDefaults) {
+        switch idioma {
+        case "es", "en": defaults.set([idioma], forKey: "AppleLanguages")
+        default: defaults.removeObject(forKey: "AppleLanguages")
+        }
+    }
+
     public func fijar(diasCaducidad dias: Int) {
-        let d = max(0, min(400, dias))
-        guard d != diasCaducidad else { return }
-        diasCaducidad = d
-        programarGuardado()
+        let d = UInt32(max(0, min(400, dias)))
+        cambiar { $0.diasCaducidad = d }
     }
 
     public func fijar(sincroAutomatica s: Bool) {
-        guard s != sincroAutomatica else { return }
-        sincroAutomatica = s
-        sincro?.automatica = s
-        programarGuardado()
+        cambiar { $0.sincroAutomatica = s }
     }
 
     /// El ultimo guardado en marcha: los guardados van **uno detras de
@@ -151,9 +251,7 @@ public final class ModeloAjustes: ObservableObject {
     }
 
     private func guardarAhora() async {
-        let nuevos = AjustesMac(diasCaducidad: UInt32(max(0, diasCaducidad)),
-                                sincroAutomatica: sincroAutomatica,
-                                sincroPresencia: leidos?.sincroPresencia ?? true)
+        let nuevos = valores
         let nucleo = self.nucleo
         let fallo = await Task.detached(priority: .utility) { () -> String? in
             do {
@@ -166,9 +264,28 @@ public final class ModeloAjustes: ObservableObject {
         if let fallo {
             error = "No se pudo guardar: \(fallo)"
         } else {
-            leidos = nuevos
             error = nil
         }
+    }
+
+    /// Abre `pixpinmax.toml` en el editor de texto (lo crea si aun no esta,
+    /// con lo de ahora).
+    public func abrirFicheroAjustes() async {
+        let url = URL(fileURLWithPath: ficheroAjustes)
+        if !FileManager.default.fileExists(atPath: url.path) { await guardar() }
+        let ws = NSWorkspace.shared
+        if ws.urlForApplication(toOpen: url) != nil {
+            ws.open(url)
+        } else if let editor = ws.urlForApplication(withBundleIdentifier: "com.apple.TextEdit") {
+            ws.open([url], withApplicationAt: editor, configuration: NSWorkspace.OpenConfiguration(), completionHandler: nil)
+        } else {
+            ws.activateFileViewerSelecting([url])
+        }
+    }
+
+    public func mostrarCarpetaCapturas() {
+        try? FileManager.default.createDirectory(at: carpetaCapturas, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(carpetaCapturas)
     }
 
     // MARK: Abrir al iniciar sesion

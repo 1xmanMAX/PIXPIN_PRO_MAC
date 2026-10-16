@@ -80,7 +80,9 @@ final class BarrenderoCapturasTests: XCTestCase {
     func testElPlazoSaleDePixpinmaxToml() throws {
         let (nucleo, raiz, _) = try preparar("barrer-toml")
         defer { try? FileManager.default.removeItem(at: raiz) }
-        try nucleo.guardarAjustes(nuevos: AjustesMac(diasCaducidad: 3, sincroAutomatica: true, sincroPresencia: true))
+        var tres = nucleo.ajustesDeFabrica()
+        tres.diasCaducidad = 3
+        try nucleo.guardarAjustes(nuevos: tres)
         XCTAssertEqual(BarrenderoCapturas(nucleo: nucleo).dias(), 3)
     }
 

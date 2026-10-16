@@ -3928,6 +3928,12 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func ajustes() throws  -> AjustesMac
     
     /**
+     * Los de fabrica, los de Windows (para el punto azul de «cambiado» y
+     * «Restablecer» de la pantalla de Ajustes).
+     */
+    func ajustesDeFabrica()  -> AjustesMac
+    
+    /**
      * Guarda los ajustes del Mac en `pixpinmax.toml` sin tocar lo demas.
      */
     func guardarAjustes(nuevos: AjustesMac) throws 
@@ -5061,6 +5067,19 @@ open func ajustes()throws  -> AjustesMac  {
     return try  FfiConverterTypeAjustesMac_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_nucleo_ajustes(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Los de fabrica, los de Windows (para el punto azul de «cambiado» y
+     * «Restablecer» de la pantalla de Ajustes).
+     */
+open func ajustesDeFabrica() -> AjustesMac  {
+    return try!  FfiConverterTypeAjustesMac_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ajustes_de_fabrica(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
@@ -8665,6 +8684,75 @@ public struct AjustesMac: Equatable, Hashable {
      * Dejarse encontrar en la red local (escuchar y anunciarse).
      */
     public var sincroPresencia: Bool
+    /**
+     * «Lo mio manda» de fabrica: al sincronizar, lo de este equipo se
+     * impone (`[sincro] lo_mio_manda`).
+     */
+    public var sincroLoMioManda: Bool
+    /**
+     * `sistema`, `es` o `en` (`idioma`).
+     */
+    public var idioma: String
+    /**
+     * Segundos de la captura con retardo (`retardo_captura_s`, 0 a 30).
+     */
+    public var retardoCapturaS: UInt32
+    /**
+     * `hex`, `rgb` o `hsl` (`formato_color`, el del cuentagotas).
+     */
+    public var formatoColor: String
+    /**
+     * Tope de alto de la captura con scroll (`limite_scroll_px`).
+     */
+    public var limiteScrollPx: UInt32
+    /**
+     * Fotogramas por segundo del GIF (`[gif] por_segundo`, 5 a 30).
+     */
+    public var gifPorSegundo: UInt32
+    /**
+     * Segundos de cortesia antes del primer fotograma (`[gif] retardo_s`).
+     */
+    public var gifRetardoS: UInt32
+    /**
+     * Segundo idioma de las notas de voz: vacio, `en`, `es` o `pt`.
+     */
+    public var vozSegundoIdioma: String
+    /**
+     * `cada_uno` o `todo_en_uno` (`[voz] modo_de_idiomas`).
+     */
+    public var vozModoDeIdiomas: String
+    /**
+     * Quien contesta: vacio (local), `claude` o `deepseek`.
+     */
+    public var asistenteMotor: String
+    /**
+     * El modelo local: vacio (el 2B) o `qwen3.5-0.8b`.
+     */
+    public var asistenteModelo: String
+    /**
+     * Pensar antes de contestar: `None` automatico, o siempre/nunca.
+     */
+    public var asistentePensar: Bool?
+    /**
+     * Si la nube falla, seguir con el modelo local.
+     */
+    public var asistenteRespaldoLocal: Bool
+    /**
+     * Gemma 4 E2B para mirar fotos.
+     */
+    public var asistenteMejorVista: Bool
+    /**
+     * Los documentos propios a la nube: vacio (preguntar), `si` o `no`.
+     */
+    public var asistenteDocumentosALaNube: String
+    /**
+     * Lo dicho al microfono se deja en la caja para repasarlo.
+     */
+    public var asistenteRevisarLoDicho: Bool
+    /**
+     * Leer en voz alta cada respuesta al acabar.
+     */
+    public var asistenteLeerRespuestas: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -8677,10 +8765,79 @@ public struct AjustesMac: Equatable, Hashable {
          */sincroAutomatica: Bool, 
         /**
          * Dejarse encontrar en la red local (escuchar y anunciarse).
-         */sincroPresencia: Bool) {
+         */sincroPresencia: Bool, 
+        /**
+         * «Lo mio manda» de fabrica: al sincronizar, lo de este equipo se
+         * impone (`[sincro] lo_mio_manda`).
+         */sincroLoMioManda: Bool, 
+        /**
+         * `sistema`, `es` o `en` (`idioma`).
+         */idioma: String, 
+        /**
+         * Segundos de la captura con retardo (`retardo_captura_s`, 0 a 30).
+         */retardoCapturaS: UInt32, 
+        /**
+         * `hex`, `rgb` o `hsl` (`formato_color`, el del cuentagotas).
+         */formatoColor: String, 
+        /**
+         * Tope de alto de la captura con scroll (`limite_scroll_px`).
+         */limiteScrollPx: UInt32, 
+        /**
+         * Fotogramas por segundo del GIF (`[gif] por_segundo`, 5 a 30).
+         */gifPorSegundo: UInt32, 
+        /**
+         * Segundos de cortesia antes del primer fotograma (`[gif] retardo_s`).
+         */gifRetardoS: UInt32, 
+        /**
+         * Segundo idioma de las notas de voz: vacio, `en`, `es` o `pt`.
+         */vozSegundoIdioma: String, 
+        /**
+         * `cada_uno` o `todo_en_uno` (`[voz] modo_de_idiomas`).
+         */vozModoDeIdiomas: String, 
+        /**
+         * Quien contesta: vacio (local), `claude` o `deepseek`.
+         */asistenteMotor: String, 
+        /**
+         * El modelo local: vacio (el 2B) o `qwen3.5-0.8b`.
+         */asistenteModelo: String, 
+        /**
+         * Pensar antes de contestar: `None` automatico, o siempre/nunca.
+         */asistentePensar: Bool?, 
+        /**
+         * Si la nube falla, seguir con el modelo local.
+         */asistenteRespaldoLocal: Bool, 
+        /**
+         * Gemma 4 E2B para mirar fotos.
+         */asistenteMejorVista: Bool, 
+        /**
+         * Los documentos propios a la nube: vacio (preguntar), `si` o `no`.
+         */asistenteDocumentosALaNube: String, 
+        /**
+         * Lo dicho al microfono se deja en la caja para repasarlo.
+         */asistenteRevisarLoDicho: Bool, 
+        /**
+         * Leer en voz alta cada respuesta al acabar.
+         */asistenteLeerRespuestas: Bool) {
         self.diasCaducidad = diasCaducidad
         self.sincroAutomatica = sincroAutomatica
         self.sincroPresencia = sincroPresencia
+        self.sincroLoMioManda = sincroLoMioManda
+        self.idioma = idioma
+        self.retardoCapturaS = retardoCapturaS
+        self.formatoColor = formatoColor
+        self.limiteScrollPx = limiteScrollPx
+        self.gifPorSegundo = gifPorSegundo
+        self.gifRetardoS = gifRetardoS
+        self.vozSegundoIdioma = vozSegundoIdioma
+        self.vozModoDeIdiomas = vozModoDeIdiomas
+        self.asistenteMotor = asistenteMotor
+        self.asistenteModelo = asistenteModelo
+        self.asistentePensar = asistentePensar
+        self.asistenteRespaldoLocal = asistenteRespaldoLocal
+        self.asistenteMejorVista = asistenteMejorVista
+        self.asistenteDocumentosALaNube = asistenteDocumentosALaNube
+        self.asistenteRevisarLoDicho = asistenteRevisarLoDicho
+        self.asistenteLeerRespuestas = asistenteLeerRespuestas
     }
 
     
@@ -8701,7 +8858,24 @@ public struct FfiConverterTypeAjustesMac: FfiConverterRustBuffer {
             try AjustesMac(
                 diasCaducidad: FfiConverterUInt32.read(from: &buf), 
                 sincroAutomatica: FfiConverterBool.read(from: &buf), 
-                sincroPresencia: FfiConverterBool.read(from: &buf)
+                sincroPresencia: FfiConverterBool.read(from: &buf), 
+                sincroLoMioManda: FfiConverterBool.read(from: &buf), 
+                idioma: FfiConverterString.read(from: &buf), 
+                retardoCapturaS: FfiConverterUInt32.read(from: &buf), 
+                formatoColor: FfiConverterString.read(from: &buf), 
+                limiteScrollPx: FfiConverterUInt32.read(from: &buf), 
+                gifPorSegundo: FfiConverterUInt32.read(from: &buf), 
+                gifRetardoS: FfiConverterUInt32.read(from: &buf), 
+                vozSegundoIdioma: FfiConverterString.read(from: &buf), 
+                vozModoDeIdiomas: FfiConverterString.read(from: &buf), 
+                asistenteMotor: FfiConverterString.read(from: &buf), 
+                asistenteModelo: FfiConverterString.read(from: &buf), 
+                asistentePensar: FfiConverterOptionBool.read(from: &buf), 
+                asistenteRespaldoLocal: FfiConverterBool.read(from: &buf), 
+                asistenteMejorVista: FfiConverterBool.read(from: &buf), 
+                asistenteDocumentosALaNube: FfiConverterString.read(from: &buf), 
+                asistenteRevisarLoDicho: FfiConverterBool.read(from: &buf), 
+                asistenteLeerRespuestas: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -8709,6 +8883,23 @@ public struct FfiConverterTypeAjustesMac: FfiConverterRustBuffer {
         FfiConverterUInt32.write(value.diasCaducidad, into: &buf)
         FfiConverterBool.write(value.sincroAutomatica, into: &buf)
         FfiConverterBool.write(value.sincroPresencia, into: &buf)
+        FfiConverterBool.write(value.sincroLoMioManda, into: &buf)
+        FfiConverterString.write(value.idioma, into: &buf)
+        FfiConverterUInt32.write(value.retardoCapturaS, into: &buf)
+        FfiConverterString.write(value.formatoColor, into: &buf)
+        FfiConverterUInt32.write(value.limiteScrollPx, into: &buf)
+        FfiConverterUInt32.write(value.gifPorSegundo, into: &buf)
+        FfiConverterUInt32.write(value.gifRetardoS, into: &buf)
+        FfiConverterString.write(value.vozSegundoIdioma, into: &buf)
+        FfiConverterString.write(value.vozModoDeIdiomas, into: &buf)
+        FfiConverterString.write(value.asistenteMotor, into: &buf)
+        FfiConverterString.write(value.asistenteModelo, into: &buf)
+        FfiConverterOptionBool.write(value.asistentePensar, into: &buf)
+        FfiConverterBool.write(value.asistenteRespaldoLocal, into: &buf)
+        FfiConverterBool.write(value.asistenteMejorVista, into: &buf)
+        FfiConverterString.write(value.asistenteDocumentosALaNube, into: &buf)
+        FfiConverterBool.write(value.asistenteRevisarLoDicho, into: &buf)
+        FfiConverterBool.write(value.asistenteLeerRespuestas, into: &buf)
     }
 }
 
@@ -26626,6 +26817,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ajustes() != 19676) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ajustes_de_fabrica() != 55380) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_ajustes() != 21013) {

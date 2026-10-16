@@ -15,7 +15,10 @@ final class AjustesTests: XCTestCase {
         let nucleo = try Nucleo.abrir(raiz: dir.path, nombreDelAparato: "Mac de prueba")
         let a = try nucleo.ajustes()
         XCTAssertEqual(a.diasCaducidad, 7)
-        try nucleo.guardarAjustes(nuevos: AjustesMac(diasCaducidad: 21, sincroAutomatica: false, sincroPresencia: true))
+        var nuevos = a
+        nuevos.diasCaducidad = 21
+        nuevos.sincroAutomatica = false
+        try nucleo.guardarAjustes(nuevos: nuevos)
         let b = try nucleo.ajustes()
         XCTAssertEqual(b.diasCaducidad, 21)
         XCTAssertFalse(b.sincroAutomatica)
@@ -30,7 +33,7 @@ final class AjustesTests: XCTestCase {
         let toml = dir.appendingPathComponent("pixpinmax.toml")
         try "esto = = roto".write(to: toml, atomically: true, encoding: .utf8)
         let nucleo = try Nucleo.abrir(raiz: dir.path, nombreDelAparato: "Mac de prueba")
-        XCTAssertThrowsError(try nucleo.guardarAjustes(nuevos: AjustesMac(diasCaducidad: 1, sincroAutomatica: true, sincroPresencia: true)))
+        XCTAssertThrowsError(try nucleo.guardarAjustes(nuevos: nucleo.ajustesDeFabrica()))
         XCTAssertEqual(try String(contentsOf: toml, encoding: .utf8), "esto = = roto")
     }
 

@@ -166,11 +166,11 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | sincronizar/automatica | Sincronizar solo | completo | K/Sincro/Sincronizador.swift, N/sincro_auto.rs | — |
 | sincronizar/compartidos_ui | Chats compartidos con personas | completo | K/Sincro/Compartidos.swift | — |
 | sincronizar/copias_ui | Ver y restaurar copias; proyectos borrados | completo | K/Sincro/VistaCopias.swift, N/copias.rs | — |
-| sincronizar/elegir | «¿Qué sincronizar?», lápidas, «Lo mío manda» | completo | K/Sincro/ElegirSincro.swift, N/sincro.rs | «Lo mío manda» por defecto (el TOML) aún no sale en Ajustes (C3) |
+| sincronizar/elegir | «¿Qué sincronizar?», lápidas, «Lo mío manda» | completo | K/Sincro/ElegirSincro.swift, N/sincro.rs | «Lo mío manda» por defecto, en Ajustes → Sincronizar (C3) |
 | sincronizar/en_fondo | Sincronizar sin ventana | completo | Intent `SincronizarAhora` | — |
 | sincronizar/enviar_wifi, recibir_wifi | Enviar y recibir con código | completo | K/Sincro/EnvioPorCodigo.swift, N/envio.rs, N/recepcion.rs, N/lienzo_suelto.rs | Sin cámara: el QR del otro se pega como texto (como Windows) |
 | sincronizar/galeria | La galería viaja | completo | N/galeria_sincro.rs | — |
-| sincronizar/presencia | Localizable mientras está abierta | completo | K/Sincro/Anunciador.swift, Sincronizador.swift | El interruptor en Ajustes es C3 |
+| sincronizar/presencia | Localizable mientras está abierta | completo | K/Sincro/Anunciador.swift, Sincronizador.swift | Interruptor «Dejarse encontrar» en Ajustes → Sincronizar (C3): abre o cierra la puerta al momento |
 | tareas (ventana) | Tareas de todos los chats | parcial | K/Tareas/Tareas.swift, N/tareas.rs | Buscar, «Mover a…», borrar y deshacer, F2, pegar imágenes (el `⏰`, hecho en A4: se ve y se pone desde el menú de la fila) |
 | tareas/rejilla, tarjetas, emoticonos | Vista de tarjetas y etiquetas | falta | — | Todo |
 | teleprompter | Telepronter | falta | — | Todo |
@@ -214,18 +214,18 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Sección | Estado Mac | Qué falta (Mac: K/Ajustes/*) |
 |---|---|---|
-| Interfaz (buscador, restablecer, ⌘Z) | falta | Todo |
-| General | parcial | Idioma |
-| Captura | parcial | Retardo, formato del color, ajustes de scroll y GIF, carpeta, programas ignorados |
-| Pinear | falta | Todo |
+| Interfaz (buscador, restablecer, ⌘Z) | completo | C3: columna con buscador (⌘F, sin tildes, en todas las secciones) y secciones, tarjetas oscuras planas, punto azul + volver a fábrica por fila, «Restablecer <sección>», «Deshacer» (⌘Z, 100 pasos). K/Ajustes/VistaAjustes.swift, FilasAjustes.swift. Se guarda al momento (no hay «Listo») |
+| General | completo | Abrir al iniciar sesión (`SMAppService`, de este Mac), idioma (`idioma` del TOML + `AppleLanguages`; la app aún solo está en español), PDF (`[pdf]`) |
+| Captura | parcial | Retardo, formato del color, alto máx. con scroll, GIF (fps y cortesía), carpeta (Abrir), días hasta borrar, pila y gestos; programas ignorados y regiones están en Atajos. Falta: que `CapturaConScroll` y `GrabadorGif` lean `limite_scroll_px` y `[gif]` (hoy topes fijos; agente de captura: `nucleo.ajustes()`), y esquina/tiempo de la pila |
+| Pinear | falta | Palabras mágicas (depende de las mini apps del pin) |
 | Lienzo (imán, suavizado) | falta | Depende del lienzo |
-| Voz | falta | Segundo idioma, modo |
-| Asistente (modelo, pensar, claves) | falta | Pantalla de claves; el Llavero ya está |
-| Atajos | completo | K/Ajustes/SeccionAtajos.swift (pestaña «Atajos»); UserDefaults, no el TOML (no viaja) |
-| Sincro | parcial | Los interruptores de presencia y «Lo mío manda» (el Mac ya los respeta) |
-| Apps (abrir con, predeterminada) | falta | Todo |
-| Apariencia (Cosmos) | parcial | Cosmos |
-| Avanzado | falta | Todo; casi nada aplica en Mac |
+| Voz | parcial | Segundo idioma y modo se guardan en `[voz]`; el dictado del Mac (`SFSpeechRecognizer`) usa uno solo |
+| Asistente (modelo, pensar, claves) | parcial | Motor, modelo, pensar, respaldo, mejor vista, documentos a la nube, voz del asistente y claves (Llavero: pegar, ver enmascarada, borrar). Falta «probar» la clave y que el asistente del Mac use `[asistente]` (D6); automatizaciones |
+| Atajos | completo | K/Ajustes/SeccionAtajos.swift (sección «Atajos»); UserDefaults, no el TOML (no viaja) |
+| Sincro | completo | Dejarse encontrar, sincronizar sola y «Lo mío manda» (`[sincro]`) |
+| Apps (abrir con, predeterminada) | no aplica | En macOS lo dan el Info.plist y «Abrir con» del Finder (C2) |
+| Apariencia (Cosmos) | parcial | Aspecto (claro/oscuro/sistema, de este Mac). Falta Cosmos |
+| Avanzado | completo | Abrir `pixpinmax.toml` y la carpeta de datos; rendimiento y filtro del lápiz de Windows no aplican |
 
 ### 1.5 Editor del lienzo (`ventana_editor/`)
 
@@ -444,7 +444,7 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | `sincro/direcciones.txt` | sí | sí | completo | N/aparatos.rs; lo visto en Bonjour se apunta y se prueba antes que el anuncio |
 | `sincro/elegidos/<id>` | sí | sí | completo | crate |
 | `copias/` | sí | el crate las hace | completo | K/Sincro/VistaCopias.swift, N/copias.rs |
-| Ajustes `[sincro]` presencia, automatica, lo_mio_manda | sí | automatica y presencia | parcial | Se respetan los tres; «Lo mío manda» se elige en «¿Qué sincronizar?», pero el valor por defecto no sale en Ajustes (C3) |
+| Ajustes `[sincro]` presencia, automatica, lo_mio_manda | sí | sí | completo | Los tres en Ajustes → Sincronizar (C3) |
 | Vuelta automática: al aparecer, 30 s de calma, periodo de 10 min | sí | — | completo | N/sincro_auto.rs (`RelojSincro`), Sincronizador.swift |
 | Tareas al instante (`solo_estos`, 600 ms) | sí | — | completo | `Nucleo::sincronizar_tareas`; avisa K/Tareas/Tareas.swift (`pixpinTareasCambiadas`) |
 | «Con todos» en 2 rondas | 2 rondas con 3 o más aparatos | — | completo | `rondas_con_todos`, Sincronizador.swift `conTodos` |
@@ -538,7 +538,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 |---|---|---|
 | C1 | ✅ **Atajos globales configurables**: el catálogo de `pixpin-store/comandos.rs` entero, regiones, silenciar atajos, programas ignorados; sección «Atajos» con ⌫ para quitar uno. Hecho (faltan clic a través y restaurar el último pin: los ata el agente de pines con `GestorAtajos.poner`) | K/Captura/AtajoGlobal.swift, K/Ajustes/AtajoDeCaptura.swift, nuevo K/Ajustes/SeccionAtajos.swift, APP |
 | C2 | **Integración con macOS**: esquema `pixpinmax://` con los verbos de `docs/integraciones.md` y la firma, más App Intents (tarea, lienzo, grabar, abrir proyecto, al móvil), menú del Dock, imágenes en `CFBundleDocumentTypes`, Servicios del Finder | nuevo K/Pedidos/{Enlaces,Verbos}.swift, XC/App/Intenciones.swift, XC/project.yml, app/Recursos/Info.plist (**APP: después de C1**) |
-| C3 | **Ajustes que faltan**: idioma, Captura (retardo, color, carpeta, GIF y scroll), Voz, pantalla de claves del asistente, Sincro (presencia, «Lo mío manda»), buscador y restablecer | K/Ajustes/VistaAjustes.swift, K/Ajustes/ModeloAjustes.swift, N/ajustes.rs |
+| C3 ✅ | **Ajustes que faltan**: idioma, Captura (retardo, color, carpeta, GIF y scroll), Voz, pantalla de claves del asistente, Sincro (presencia, «Lo mío manda»), buscador y restablecer. Hecho (16-oct): ventana como la de Windows; faltan Pinear, Lienzo, Cosmos y que scroll/GIF lean su ajuste (§1.4) | K/Ajustes/VistaAjustes.swift, K/Ajustes/ModeloAjustes.swift, nuevo K/Ajustes/FilasAjustes.swift, N/ajustes.rs |
 | C4 ✅ | **Notificaciones comunes**: categorías y acciones (`UNNotificationAction`), aviso «se van en 24 h» de la caducidad; que AvisosMini las use | nuevo K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift, K/Caducidad/BarrenderoCapturas.swift (**coordinar con A4**: A4 usa CentroAvisos si ya existe) |
 
 ### Grupo D: documentos, compartir y voz
