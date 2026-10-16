@@ -4697,6 +4697,13 @@ public func FfiConverterTypeManosAutomatizacion_lower(_ value: ManosAutomatizaci
 public protocol Modelo3dAppleProtocol: AnyObject, Sendable {
     
     /**
+     * **La camara de la vista guardada `indice`** (desde 0) en una ventana
+     * de `ancho` x `alto` pixeles con `escala` pixeles por punto, como la
+     * mira el movil (`croquis::orbita_de` de Windows). `None` si no hay.
+     */
+    func camaraDeVista(indice: UInt32, ancho: UInt32, alto: UInt32, escala: Double)  -> Camara3d?
+    
+    /**
      * Las categorias, por su nombre en espanol.
      */
     func categorias()  -> [Categoria3d]
@@ -4740,6 +4747,12 @@ public protocol Modelo3dAppleProtocol: AnyObject, Sendable {
      * Los indices de lo que se ve con `filtro`.
      */
     func visibles(filtro: Filtro3d)  -> Indices3d
+    
+    /**
+     * **Los nombres de las vistas guardadas** del croquis (1 a 9, en su
+     * orden). Vacio en un modelo de un fichero.
+     */
+    func vistasGuardadas()  -> [String]
     
 }
 /**
@@ -4812,6 +4825,24 @@ public static func abrir(ruta: String)throws  -> Modelo3dApple  {
 }
     
 
+    
+    /**
+     * **La camara de la vista guardada `indice`** (desde 0) en una ventana
+     * de `ancho` x `alto` pixeles con `escala` pixeles por punto, como la
+     * mira el movil (`croquis::orbita_de` de Windows). `None` si no hay.
+     */
+open func camaraDeVista(indice: UInt32, ancho: UInt32, alto: UInt32, escala: Double) -> Camara3d?  {
+    return try!  FfiConverterOptionTypeCamara3d.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_modelo3dapple_camara_de_vista(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(indice),
+        FfiConverterUInt32.lower(ancho),
+        FfiConverterUInt32.lower(alto),
+        FfiConverterDouble.lower(escala),uniffiCallStatus
+    )
+})
+}
     
     /**
      * Las categorias, por su nombre en espanol.
@@ -4923,6 +4954,19 @@ open func visibles(filtro: Filtro3d) -> Indices3d  {
     uniffi_pixpin_nucleo_fn_method_modelo3dapple_visibles(
             self.uniffiCloneHandle(),
         FfiConverterTypeFiltro3d_lower(filtro),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los nombres de las vistas guardadas** del croquis (1 a 9, en su
+     * orden). Vacio en un modelo de un fichero.
+     */
+open func vistasGuardadas() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_modelo3dapple_vistas_guardadas(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -5855,6 +5899,12 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func abrirCroquis(chat: String, referencia: String) throws  -> Modelo3dApple
     
     /**
+     * **Abre un modelo 3D con la cache** de esta carpeta de datos: la
+     * segunda vez el mismo fichero se abre casi al momento. Bloquea.
+     */
+    func abrirModelo(ruta: String) throws  -> Modelo3dApple
+    
+    /**
      * **El fichero del croquis 3D `referencia` de un chat**, si ya llego a
      * este Mac (`croquis3d::fichero` de Windows).
      */
@@ -5882,6 +5932,24 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * `.userInitiated`.
      */
     func abrirPlano(ruta: String) throws  -> Plano
+    
+    /**
+     * **Añade letras para los planos** (SHX, TTF, OTF, TTC; lo demas no se
+     * copia). Mandan sobre las del sistema y las de PixPin; el plano se
+     * vuelve a leer con ellas al abrirlo otra vez. Dice cuantas copio.
+     */
+    func anadirLetrasDePlanos(rutas: [String])  -> UInt32
+    
+    /**
+     * Cuantas letras puso el usuario para los planos (`fuentes-shx`, el
+     * boton «Aa» de Windows y Android).
+     */
+    func letrasDePlanos()  -> UInt32
+    
+    /**
+     * Quita todas las letras del usuario. Dice cuantas quito.
+     */
+    func quitarLetrasDePlanos()  -> UInt32
     
     /**
      * **Le quita la hora** al recordatorio `id` del chat `chat` (al sonar,
@@ -8164,6 +8232,20 @@ open func abrirCroquis(chat: String, referencia: String)throws  -> Modelo3dApple
 }
     
     /**
+     * **Abre un modelo 3D con la cache** de esta carpeta de datos: la
+     * segunda vez el mismo fichero se abre casi al momento. Bloquea.
+     */
+open func abrirModelo(ruta: String)throws  -> Modelo3dApple  {
+    return try  FfiConverterTypeModelo3dApple_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_abrir_modelo(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ruta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **El fichero del croquis 3D `referencia` de un chat**, si ya llego a
      * este Mac (`croquis3d::fichero` de Windows).
      */
@@ -8224,6 +8306,46 @@ open func abrirPlano(ruta: String)throws  -> Plano  {
     uniffi_pixpin_nucleo_fn_method_nucleo_abrir_plano(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(ruta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Añade letras para los planos** (SHX, TTF, OTF, TTC; lo demas no se
+     * copia). Mandan sobre las del sistema y las de PixPin; el plano se
+     * vuelve a leer con ellas al abrirlo otra vez. Dice cuantas copio.
+     */
+open func anadirLetrasDePlanos(rutas: [String]) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_anadir_letras_de_planos(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(rutas),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Cuantas letras puso el usuario para los planos (`fuentes-shx`, el
+     * boton «Aa» de Windows y Android).
+     */
+open func letrasDePlanos() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_letras_de_planos(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Quita todas las letras del usuario. Dice cuantas quito.
+     */
+open func quitarLetrasDePlanos() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_quitar_letras_de_planos(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -9270,6 +9392,13 @@ public protocol PlanoProtocol: AnyObject, Sendable {
     func guardarAnotado(anotado: AnotadoPlano) throws  -> Bool
     
     /**
+     * **Las letras que el plano pide y no estan** (sus textos salen con
+     * otras parecidas y pueden no caber en sus recuadros): para decirlo en
+     * el visor y que el usuario las añada.
+     */
+    func letrasQueFaltan()  -> [String]
+    
+    /**
      * Enciende o apaga una capa. Dice si cambio algo.
      */
     func ponerCapa(nombre: String, encendida: Bool)  -> Bool
@@ -9301,6 +9430,54 @@ public protocol PlanoProtocol: AnyObject, Sendable {
      * rehacen al volver a medir.
      */
     func vaciarCaches() 
+    
+    /**
+     * **La capa del plano para dibujar en ella** con el editor del lienzo
+     * (sus herramientas, deshacer, guardar solo). Las cotas y los marcos
+     * tambien estan (son figuras de la capa): borrarlos o moverlos aqui
+     * cambia los del visor, como en Windows. Al terminar, Swift vuelve a
+     * leer [`Plano::anotado`].
+     */
+    func anotar() throws  -> EditorLienzo
+    
+    /**
+     * **Escribe la `.hoja` de la capa con `encaje`** (el que se leyo al
+     * empezar a anotar), si ya hay capa. Solo hace falta en un plano que no
+     * es de ningun chat; en los demas no cambia nada (ya la escribio el
+     * editor). Dice si la escribio o ya estaba.
+     */
+    func ponerHoja(encaje: EncajePlano) throws  -> Bool
+    
+    /**
+     * Si el plano es un DWG (se ofrece «DXF» al exportar).
+     */
+    func esDwg()  -> Bool
+    
+    /**
+     * **Escribe el plano en DXF** en `salida` (solo de un DWG; un DXF ya lo
+     * es: se exporta el original).
+     */
+    func exportarDxf(salida: String) throws 
+    
+    /**
+     * **La pagina web del plano** (`html` de Windows), con las cotas y los
+     * marcos de `anotado` (los del visor ahora) y las capas como se ven
+     * ahora. `claro`: con que fondo abre. Bloquea si el plano por capas ya
+     * no esta en la cache (lo vuelve a leer).
+     */
+    func paginaWeb(anotado: AnotadoPlano, claro: Bool) throws  -> String
+    
+    /**
+     * El fichero del plano.
+     */
+    func ruta()  -> String
+    
+    /**
+     * **Busca en los textos del plano** (sin mirar mayusculas, tildes ni
+     * puntos), los mas grandes antes, como mucho `max`. La primera vez lee
+     * el plano (bloquea: Swift lo llama desde una `Task`).
+     */
+    func buscarTextos(consulta: String, max: UInt32) throws  -> [TextoHallado]
     
 }
 /**
@@ -9474,6 +9651,20 @@ open func guardarAnotado(anotado: AnotadoPlano)throws  -> Bool  {
 }
     
     /**
+     * **Las letras que el plano pide y no estan** (sus textos salen con
+     * otras parecidas y pueden no caber en sus recuadros): para decirlo en
+     * el visor y que el usuario las añada.
+     */
+open func letrasQueFaltan() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_letras_que_faltan(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Enciende o apaga una capa. Dice si cambio algo.
      */
 open func ponerCapa(nombre: String, encendida: Bool) -> Bool  {
@@ -9547,6 +9738,108 @@ open func vaciarCaches()  {try! rustCall() {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * **La capa del plano para dibujar en ella** con el editor del lienzo
+     * (sus herramientas, deshacer, guardar solo). Las cotas y los marcos
+     * tambien estan (son figuras de la capa): borrarlos o moverlos aqui
+     * cambia los del visor, como en Windows. Al terminar, Swift vuelve a
+     * leer [`Plano::anotado`].
+     */
+open func anotar()throws  -> EditorLienzo  {
+    return try  FfiConverterTypeEditorLienzo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_anotar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Escribe la `.hoja` de la capa con `encaje`** (el que se leyo al
+     * empezar a anotar), si ya hay capa. Solo hace falta en un plano que no
+     * es de ningun chat; en los demas no cambia nada (ya la escribio el
+     * editor). Dice si la escribio o ya estaba.
+     */
+open func ponerHoja(encaje: EncajePlano)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_poner_hoja(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeEncajePlano_lower(encaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si el plano es un DWG (se ofrece «DXF» al exportar).
+     */
+open func esDwg() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_es_dwg(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Escribe el plano en DXF** en `salida` (solo de un DWG; un DXF ya lo
+     * es: se exporta el original).
+     */
+open func exportarDxf(salida: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_exportar_dxf(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(salida),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **La pagina web del plano** (`html` de Windows), con las cotas y los
+     * marcos de `anotado` (los del visor ahora) y las capas como se ven
+     * ahora. `claro`: con que fondo abre. Bloquea si el plano por capas ya
+     * no esta en la cache (lo vuelve a leer).
+     */
+open func paginaWeb(anotado: AnotadoPlano, claro: Bool)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_pagina_web(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeAnotadoPlano_lower(anotado),
+        FfiConverterBool.lower(claro),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El fichero del plano.
+     */
+open func ruta() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_ruta(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Busca en los textos del plano** (sin mirar mayusculas, tildes ni
+     * puntos), los mas grandes antes, como mucho `max`. La primera vez lee
+     * el plano (bloquea: Swift lo llama desde una `Task`).
+     */
+open func buscarTextos(consulta: String, max: UInt32)throws  -> [TextoHallado]  {
+    return try  FfiConverterSequenceTypeTextoHallado.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_plano_buscar_textos(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(consulta),
+        FfiConverterUInt32.lower(max),uniffiCallStatus
+    )
+})
 }
     
 
@@ -23231,6 +23524,107 @@ public func FfiConverterTypeTextoElegido_lower(_ value: TextoElegido) -> RustBuf
 
 
 /**
+ * Un texto del plano que coincide con lo buscado.
+ */
+public struct TextoHallado: Equatable, Hashable {
+    /**
+     * El texto entero que lo contiene.
+     */
+    public var texto: String
+    /**
+     * Su punto de insercion, en el dibujo.
+     */
+    public var x: Double
+    public var y: Double
+    /**
+     * El alto de su letra, en unidades del dibujo.
+     */
+    public var alto: Double
+    /**
+     * Donde mirar para verlo (`vista_de`): el centro y el ancho que se ve.
+     */
+    public var centroX: Double
+    public var centroY: Double
+    public var ancho: Double
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El texto entero que lo contiene.
+         */texto: String, 
+        /**
+         * Su punto de insercion, en el dibujo.
+         */x: Double, y: Double, 
+        /**
+         * El alto de su letra, en unidades del dibujo.
+         */alto: Double, 
+        /**
+         * Donde mirar para verlo (`vista_de`): el centro y el ancho que se ve.
+         */centroX: Double, centroY: Double, ancho: Double) {
+        self.texto = texto
+        self.x = x
+        self.y = y
+        self.alto = alto
+        self.centroX = centroX
+        self.centroY = centroY
+        self.ancho = ancho
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextoHallado: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextoHallado: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextoHallado {
+        return
+            try TextoHallado(
+                texto: FfiConverterString.read(from: &buf), 
+                x: FfiConverterDouble.read(from: &buf), 
+                y: FfiConverterDouble.read(from: &buf), 
+                alto: FfiConverterDouble.read(from: &buf), 
+                centroX: FfiConverterDouble.read(from: &buf), 
+                centroY: FfiConverterDouble.read(from: &buf), 
+                ancho: FfiConverterDouble.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextoHallado, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterDouble.write(value.x, into: &buf)
+        FfiConverterDouble.write(value.y, into: &buf)
+        FfiConverterDouble.write(value.alto, into: &buf)
+        FfiConverterDouble.write(value.centroX, into: &buf)
+        FfiConverterDouble.write(value.centroY, into: &buf)
+        FfiConverterDouble.write(value.ancho, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextoHallado_lift(_ buf: RustBuffer) throws -> TextoHallado {
+    return try FfiConverterTypeTextoHallado.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextoHallado_lower(_ value: TextoHallado) -> RustBuffer {
+    return FfiConverterTypeTextoHallado.lower(value)
+}
+
+
+/**
  * Las constantes de la automatica, para Swift.
  */
 public struct TiemposAuto: Equatable, Hashable {
@@ -29260,6 +29654,30 @@ fileprivate struct FfiConverterOptionTypeCajaLienzo: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeCamara3d: FfiConverterRustBuffer {
+    typealias SwiftType = Camara3d?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCamara3d.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCamara3d.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeChatCompartidoMac: FfiConverterRustBuffer {
     typealias SwiftType = ChatCompartidoMac?
 
@@ -31927,6 +32345,31 @@ fileprivate struct FfiConverterSequenceTypeTarea: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeTextoHallado: FfiConverterRustBuffer {
+    typealias SwiftType = [TextoHallado]
+
+    public static func write(_ value: [TextoHallado], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTextoHallado.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TextoHallado] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TextoHallado]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTextoHallado.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTramoFormula: FfiConverterRustBuffer {
     typealias SwiftType = [TramoFormula]
 
@@ -34323,6 +34766,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_croquis() != 22888) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_modelo() != 833) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_croquis_del_chat() != 45128) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34333,6 +34779,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_plano() != 5693) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_anadir_letras_de_planos() != 27636) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_letras_de_planos() != 50349) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_quitar_letras_de_planos() != 41315) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_olvidar_recordatorio() != 60871) {
@@ -34800,6 +35255,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_llaveroapp_borrar() != 39892) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_camara_de_vista() != 30250) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_categorias() != 20369) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34825,6 +35283,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_visibles() != 51453) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_vistas_guardadas() != 45673) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_sesionnota_adjuntar_ficheros() != 21738) {
@@ -34896,6 +35357,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_plano_guardar_anotado() != 41810) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_letras_que_faltan() != 55617) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_plano_poner_capa() != 3829) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34912,6 +35376,27 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_plano_vaciar_caches() != 62725) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_anotar() != 35068) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_poner_hoja() != 49821) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_es_dwg() != 18345) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_exportar_dxf() != 51020) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_pagina_web() != 22482) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_ruta() != 31526) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_plano_buscar_textos() != 10978) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_escucha_atender() != 13245) {

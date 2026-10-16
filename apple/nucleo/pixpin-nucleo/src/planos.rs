@@ -71,6 +71,17 @@ use pixpin_sincro::anotado::MarcoDeLaHoja;
 
 use crate::{ErrorNucleo, Nucleo};
 
+/// Anotar con el motor del lienzo.
+mod anotar;
+/// El plano ya leido, en la cache (`.pxcad`).
+mod cache;
+/// Exportar: la pagina web y el DXF.
+mod exportar;
+/// Buscar en los textos del plano.
+mod textos;
+
+pub use textos::TextoHallado;
+
 // ------------------------------------------------------------- los tipos
 
 /// Una caja en coordenadas del dibujo.
@@ -350,6 +361,9 @@ struct Regla {
 struct RutasCapa {
     tinta: PathBuf,
     hoja: PathBuf,
+    /// La base del adjunto si el plano es de un chat (su editor escribe la
+    /// `.hoja` tras la capa); `None` en la cache.
+    base: Option<pixpin_proyecto::anotado::Base>,
 }
 
 /// **Un plano DWG o DXF abierto**, listo para Metal. Se lee una vez
@@ -370,7 +384,12 @@ pub struct Plano {
     unidad_antigua: f64,
     unidades: u32,
     sin_dibujar: Vec<(String, u32)>,
+    /// Las letras que el plano pide y no estan (`fuentes-shx`).
+    faltan: Vec<String>,
     rutas: RutasCapa,
+    /// El fichero del plano y la carpeta de datos (la cache, las letras).
+    ruta: PathBuf,
+    raiz: PathBuf,
 }
 
 fn unir(a: Option<[f64; 4]>, b: [f64; 4]) -> Option<[f64; 4]> {
@@ -474,8 +493,20 @@ impl Plano {
             unidad_letra: pixpin_cad::anotado::unidad_de_la_capa(&medida),
             unidad_antigua: pixpin_cad::anotado::unidad_antigua(&medida),
             unidades,
-            sin_dibujar: sin_dibujar.into_iter().collect(),
+            faltan: pixpin_cad::letras::las_que_faltan(
+                &sin_dibujar
+                    .iter()
+                    .map(|(t, n)| (t.clone(), *n))
+                    .collect::<Vec<_>>(),
+            ),
+            // Las letras que faltan no son cosas sin dibujar: van aparte.
+            sin_dibujar: sin_dibujar
+                .into_iter()
+                .filter(|(t, _)| !t.starts_with(pixpin_cad::letras::FUENTE_QUE_FALTA))
+                .collect(),
             rutas: rutas_de_la_capa(raiz, ruta),
+            ruta: ruta.to_path_buf(),
+            raiz: raiz.to_path_buf(),
         }
     }
 
@@ -735,6 +766,13 @@ impl Plano {
         pixpin_cad::enganche::medida(distancia, self.unidades)
     }
 
+    /// **Las letras que el plano pide y no estan** (sus textos salen con
+    /// otras parecidas y pueden no caber en sus recuadros): para decirlo en
+    /// el visor y que el usuario las añada.
+    pub fn letras_que_faltan(&self) -> Vec<String> {
+        self.faltan.clone()
+    }
+
     /// **Las cotas y los marcos guardados en la capa** (los de Windows y
     /// Android), en el dibujo. Sin capa, nada.
     pub fn anotado(&self) -> AnotadoPlano {
@@ -842,9 +880,28 @@ impl Nucleo {
                 que: ruta.display().to_string(),
             });
         }
-        let leido = pixpin_cad::convertir::convertir_fichero_por_capas(&ruta)
+        let leido = cache::leer_por_capas(self.ruta(), &ruta)
             .map_err(|e| ErrorNucleo::Argumento { detalle: e })?;
         Ok(Arc::new(Plano::de_grupos(leido.grupos, self.ruta(), &ruta)))
+    }
+
+    /// Cuantas letras puso el usuario para los planos (`fuentes-shx`, el
+    /// boton «Aa» de Windows y Android).
+    pub fn letras_de_planos(&self) -> u32 {
+        pixpin_cad::letras::letras_en(&pixpin_cad::letras::carpeta_en(self.ruta())).len() as u32
+    }
+
+    /// **Añade letras para los planos** (SHX, TTF, OTF, TTC; lo demas no se
+    /// copia). Mandan sobre las del sistema y las de PixPin; el plano se
+    /// vuelve a leer con ellas al abrirlo otra vez. Dice cuantas copio.
+    pub fn anadir_letras_de_planos(&self, rutas: Vec<String>) -> u32 {
+        let rutas: Vec<PathBuf> = rutas.into_iter().map(PathBuf::from).collect();
+        pixpin_cad::letras::anadir(&pixpin_cad::letras::carpeta_en(self.ruta()), &rutas) as u32
+    }
+
+    /// Quita todas las letras del usuario. Dice cuantas quito.
+    pub fn quitar_letras_de_planos(&self) -> u32 {
+        pixpin_cad::letras::quitar_todas(&pixpin_cad::letras::carpeta_en(self.ruta())) as u32
     }
 }
 
@@ -862,7 +919,7 @@ pub fn texto_de_medida(distancia: f64, unidades: u32) -> String {
 
 /// La clave de un plano en la cache (`plano_cad::clave` de Windows): FNV-1a
 /// de su ruta, su tamano y su fecha.
-fn clave(ruta: &Path) -> Option<String> {
+pub(crate) fn clave(ruta: &Path) -> Option<String> {
     let m = std::fs::metadata(ruta).ok()?;
     let fecha = m
         .modified()
@@ -889,13 +946,15 @@ fn rutas_de_la_capa(raiz: &Path, plano: &Path) -> RutasCapa {
         return RutasCapa {
             tinta: b.tinta(),
             hoja: b.marco(),
+            base: Some(b),
         };
     }
     let clave = clave(plano).unwrap_or_else(|| "plano".into());
-    let carpeta = raiz.join("cache").join("cad");
+    let carpeta = cache::carpeta(raiz);
     RutasCapa {
         tinta: carpeta.join(format!("{clave}.anot.excalidraw")),
         hoja: carpeta.join(format!("{clave}.anot.hoja")),
+        base: None,
     }
 }
 
@@ -1125,7 +1184,7 @@ pub(crate) mod pruebas {
         d
     }
 
-    fn abrir(nombre: &str) -> (PathBuf, Arc<Plano>) {
+    pub(crate) fn abrir(nombre: &str) -> (PathBuf, Arc<Plano>) {
         let d = carpeta(nombre);
         let ruta = d.join("planta.dxf");
         std::fs::write(&ruta, DXF).unwrap();
@@ -1420,6 +1479,144 @@ pub(crate) mod pruebas {
         };
         assert!(p.guardar_anotado(a).is_err());
         assert_eq!(std::fs::read_to_string(&tinta).unwrap(), "{esto no es json");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    // ---- la cache (las de `plano_cad` de Windows)
+
+    #[test]
+    fn se_abren_los_dwg_y_los_dxf() {
+        use crate::modelos3d::{ClaseDeModelo, clase_de_modelo};
+        assert_eq!(clase_de_modelo("Planta.DWG".into()), ClaseDeModelo::Plano);
+        assert_eq!(clase_de_modelo("corte.dxf".into()), ClaseDeModelo::Plano);
+        // Caso negativo: lo demas no.
+        assert_ne!(clase_de_modelo("plano.pdf".into()), ClaseDeModelo::Plano);
+        assert_ne!(clase_de_modelo("dwg".into()), ClaseDeModelo::Plano);
+    }
+
+    #[test]
+    fn con_letras_nuevas_el_plano_se_vuelve_a_leer() {
+        // Sin letras del usuario, el nombre no lleva huella.
+        assert_eq!(cache::nombre_en_cache("abc", ""), "abc-l1.pxcad");
+        let d = carpeta("huella");
+        let vacia = pixpin_cad::letras::huella(&d.join("fuentes-shx"));
+        assert_eq!(cache::nombre_en_cache("abc", &vacia), "abc-l1.pxcad");
+        std::fs::create_dir_all(d.join("fuentes-shx")).unwrap();
+        std::fs::write(d.join("fuentes-shx").join("romans.shx"), b"x").unwrap();
+        let con =
+            cache::nombre_en_cache("abc", &pixpin_cad::letras::huella(&d.join("fuentes-shx")));
+        assert_ne!(con, "abc-l1.pxcad");
+        assert!(con.starts_with("abc-l1-") && con.ends_with(".pxcad"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn la_clave_cambia_si_cambia_el_fichero() {
+        let d = carpeta("clave");
+        let f = d.join("a.dxf");
+        std::fs::write(&f, "0\nEOF\n").unwrap();
+        let k1 = clave(&f).unwrap();
+        std::fs::write(&f, "0\nSECTION\n0\nEOF\n").unwrap();
+        assert_ne!(clave(&f).unwrap(), k1);
+        assert_eq!(clave(&d.join("no-esta.dwg")), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn la_segunda_vez_el_plano_sale_de_la_cache_y_una_cache_rota_se_rehace() {
+        let (d, p) = abrir("cache");
+        let raiz = d.join("datos");
+        let c = cache::carpeta(&raiz);
+        let guardados = || -> Vec<PathBuf> {
+            std::fs::read_dir(&c)
+                .unwrap()
+                .flatten()
+                .map(|e| e.path())
+                .filter(|r| r.extension().is_some_and(|x| x == "pxcad"))
+                .collect()
+        };
+        let g = guardados();
+        assert_eq!(g.len(), 1, "{g:?}");
+        // Lo guardado es el plano por capas: el mismo plano otra vez.
+        let otra = cache::leer_por_capas(&raiz, &d.join("planta.dxf")).unwrap();
+        assert_eq!(otra.grupos.len() as u32, p.resumen().grupos);
+        // Roto: se vuelve a leer y se escribe bien.
+        std::fs::write(&g[0], b"PXCAPAS1roto").unwrap();
+        let n = Nucleo::abrir(raiz.display().to_string(), "Mac de prueba".into()).unwrap();
+        let q = n
+            .abrir_plano(d.join("planta.dxf").display().to_string())
+            .unwrap();
+        assert_eq!(q.resumen().grupos, p.resumen().grupos);
+        assert!(pixpin_cad::web::de_bytes(&std::fs::read(&g[0]).unwrap()).is_some());
+        // Ninguna letra pedida falta en el plano de prueba.
+        assert!(q.letras_que_faltan().is_empty());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn la_cache_guarda_los_mas_recientes_y_no_toca_lo_anotado() {
+        let d = carpeta("podar");
+        for i in 0..(cache::EN_CACHE + 3) {
+            std::fs::write(d.join(format!("{i:02}-l1.pxcad")), b"x").unwrap();
+        }
+        std::fs::write(d.join("k.anot.excalidraw"), b"{}").unwrap();
+        std::fs::write(d.join("k-textos.json"), b"[]").unwrap();
+        cache::podar(&d);
+        let quedan = std::fs::read_dir(&d).unwrap().count();
+        assert_eq!(quedan, cache::EN_CACHE + 2);
+        assert!(d.join("k.anot.excalidraw").is_file() && d.join("k-textos.json").is_file());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn las_letras_de_los_planos_se_anaden_y_se_quitan() {
+        let d = carpeta("letras");
+        let n = Nucleo::abrir(
+            d.join("datos").display().to_string(),
+            "Mac de prueba".into(),
+        )
+        .unwrap();
+        assert_eq!(n.letras_de_planos(), 0);
+        std::fs::write(d.join("romans.shx"), b"x").unwrap();
+        std::fs::write(d.join("nota.txt"), b"x").unwrap();
+        // Lo que no es una letra no se copia.
+        let rutas = ["romans.shx", "nota.txt"]
+            .map(|f| d.join(f).display().to_string())
+            .to_vec();
+        assert_eq!(n.anadir_letras_de_planos(rutas), 1);
+        assert_eq!(n.letras_de_planos(), 1);
+        assert_eq!(n.quitar_letras_de_planos(), 1);
+        assert_eq!(n.letras_de_planos(), 0);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn los_textos_del_plano_se_buscan_y_quedan_en_la_cache() {
+        let d = carpeta("textos");
+        // Un DXF con un texto.
+        let ruta = d.join("calle.dxf");
+        std::fs::write(
+            &ruta,
+            "0\nSECTION\n2\nENTITIES\n0\nTEXT\n8\n0\n10\n5\n20\n7\n30\n0\n40\n2.5\n1\nJR. ANTISUYO\n0\nLINE\n8\n0\n10\n0\n20\n0\n30\n0\n11\n50\n21\n0\n31\n0\n0\nENDSEC\n0\nEOF\n",
+        )
+        .unwrap();
+        let n = Nucleo::abrir(
+            d.join("datos").display().to_string(),
+            "Mac de prueba".into(),
+        )
+        .unwrap();
+        let p = n.abrir_plano(ruta.display().to_string()).unwrap();
+        let h = p.buscar_textos("jr antisuyo".into(), 5).unwrap();
+        assert_eq!(h.len(), 1, "{h:?}");
+        assert!((h[0].x - 5.0).abs() < 1e-6 && (h[0].alto - 2.5).abs() < 1e-6);
+        let k = clave(&ruta).unwrap();
+        assert!(
+            cache::carpeta(&d.join("datos"))
+                .join(format!("{k}-textos.json"))
+                .is_file()
+        );
+        // Caso negativo.
+        assert!(p.buscar_textos("Collasuyo".into(), 5).unwrap().is_empty());
         let _ = std::fs::remove_dir_all(&d);
     }
 }

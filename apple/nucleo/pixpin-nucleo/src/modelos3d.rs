@@ -202,6 +202,9 @@ pub struct Modelo3dApple {
     /// Lo que pide un croquis del movil (su fondo, su tema, que encuadrar y
     /// desde donde mira). `None` en un modelo de un fichero.
     croquis: Option<ExtrasCroquis>,
+    /// Las vistas guardadas del croquis (las congeladas en el movil): con
+    /// las teclas 1 a 9 (`Extras::vistas` de Windows). Vacio en un modelo.
+    vistas: Vec<pixpin_cad::croquis::Vista3D>,
 }
 
 /// Lo que se abre como modelo 3D o como plano (para el chat y el Finder).
@@ -254,7 +257,11 @@ impl Modelo3dApple {
 
     /// Para las pruebas y para quien ya tiene el modelo leido.
     pub fn de_modelo(m: Modelo3d) -> Arc<Modelo3dApple> {
-        Arc::new(Modelo3dApple { m, croquis: None })
+        Arc::new(Modelo3dApple {
+            m,
+            croquis: None,
+            vistas: Vec::new(),
+        })
     }
 }
 
@@ -266,35 +273,43 @@ impl Modelo3dApple {
     /// recurren hondo), que termina al terminar de leer.
     #[uniffi::constructor]
     pub fn abrir(ruta: String) -> Result<Arc<Modelo3dApple>, ErrorNucleo> {
-        let ruta = Path::new(&ruta);
-        if !ruta.is_file() {
-            return Err(ErrorNucleo::NoExiste {
-                que: ruta.display().to_string(),
-            });
-        }
-        let ext = ruta
-            .extension()
-            .map(|e| e.to_string_lossy().to_ascii_lowercase())
-            .unwrap_or_default();
-        // Un `.landxml`: `convertir_fichero` solo mira la extension `xml`.
-        let m = if ext == "landxml" {
-            let t = std::fs::read(ruta)?;
-            pixpin_bim::civil::de_landxml(&String::from_utf8_lossy(&t))
-        } else {
-            pixpin_bim::convertir_fichero(ruta)
-        }
-        .map_err(|e| ErrorNucleo::Argumento { detalle: e })?;
-        if m.vacio() {
-            return Err(ErrorNucleo::Argumento {
-                detalle: format!("{}: no hay nada que dibujar", ruta.display()),
-            });
-        }
-        Ok(Arc::new(Modelo3dApple { m, croquis: None }))
+        Ok(Modelo3dApple::de_modelo(leer_modelo(Path::new(&ruta))?))
     }
 
     /// Lo que pide un croquis (ver [`ExtrasCroquis`]); `None` si no lo es.
     pub fn extras_croquis(&self) -> Option<ExtrasCroquis> {
         self.croquis
+    }
+
+    /// **Los nombres de las vistas guardadas** del croquis (1 a 9, en su
+    /// orden). Vacio en un modelo de un fichero.
+    pub fn vistas_guardadas(&self) -> Vec<String> {
+        self.vistas.iter().map(|v| v.nombre.clone()).collect()
+    }
+
+    /// **La camara de la vista guardada `indice`** (desde 0) en una ventana
+    /// de `ancho` x `alto` pixeles con `escala` pixeles por punto, como la
+    /// mira el movil (`croquis::orbita_de` de Windows). `None` si no hay.
+    pub fn camara_de_vista(
+        &self,
+        indice: u32,
+        ancho: u32,
+        alto: u32,
+        escala: f64,
+    ) -> Option<Camara3d> {
+        let v = self.vistas.get(indice as usize)?;
+        let e = if escala.is_finite() && escala > 0.0 {
+            escala
+        } else {
+            1.0
+        };
+        Some(camara(pixpin_cad::croquis::orbita_de(
+            v,
+            self.m.origen,
+            ancho,
+            alto,
+            e,
+        )))
     }
 
     pub fn resumen(&self) -> ResumenModelo3d {
@@ -599,6 +614,94 @@ pub fn camara_cerca_de(camara: Camara3d, destino: Camara3d) -> bool {
     orbita(camara).cerca_de(&orbita(destino))
 }
 
+/// **Lee un modelo 3D** (IFC, Revit, LandXML, puntos, DWG/DXF en 3D).
+fn leer_modelo(ruta: &Path) -> Result<Modelo3d, ErrorNucleo> {
+    if !ruta.is_file() {
+        return Err(ErrorNucleo::NoExiste {
+            que: ruta.display().to_string(),
+        });
+    }
+    let ext = ruta
+        .extension()
+        .map(|e| e.to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    // Un `.landxml`: `convertir_fichero` solo mira la extension `xml`.
+    let m = if ext == "landxml" {
+        let t = std::fs::read(ruta)?;
+        pixpin_bim::civil::de_landxml(&String::from_utf8_lossy(&t))
+    } else {
+        pixpin_bim::convertir_fichero(ruta)
+    }
+    .map_err(|e| ErrorNucleo::Argumento { detalle: e })?;
+    if m.vacio() {
+        return Err(ErrorNucleo::Argumento {
+            detalle: format!("{}: no hay nada que dibujar", ruta.display()),
+        });
+    }
+    Ok(m)
+}
+
+// ------------------------------------------------------------- la cache
+
+/// Cuantos modelos leidos se guardan (los mas recientes), como Windows.
+const EN_CACHE: usize = 16;
+
+/// **El modelo de `ruta`, de la cache o leyendolo** (`modelo_bim::cargar`
+/// de Windows): `<raiz>/cache/bim/<clave>.px3d`, con la clave de los planos
+/// (si el fichero cambia, cambia). Solo vive en este Mac.
+pub(crate) fn modelo_con_cache(raiz: &Path, ruta: &Path) -> Result<Modelo3d, ErrorNucleo> {
+    let carpeta = raiz.join("cache").join("bim");
+    let destino = crate::planos::clave(ruta).map(|k| carpeta.join(format!("{k}.px3d")));
+    if let Some(d) = &destino
+        && let Ok(b) = std::fs::read(d)
+        && let Some(m) = Modelo3d::de_bytes(&b)
+    {
+        // Tocarlo: es de los recientes.
+        if let Ok(f) = std::fs::File::options().append(true).open(d) {
+            let _ = f.set_modified(std::time::SystemTime::now());
+        }
+        return Ok(m);
+    }
+    let m = leer_modelo(ruta)?;
+    if let Some(d) = destino
+        && std::fs::create_dir_all(&carpeta).is_ok()
+    {
+        let tmp = d.with_extension("tmp");
+        if std::fs::write(&tmp, m.a_bytes()).is_ok() && std::fs::rename(&tmp, &d).is_ok() {
+            podar(&carpeta);
+        }
+    }
+    Ok(m)
+}
+
+/// Deja los `EN_CACHE` modelos mas recientes.
+fn podar(carpeta: &Path) {
+    let Ok(d) = std::fs::read_dir(carpeta) else {
+        return;
+    };
+    let mut v: Vec<(std::time::SystemTime, std::path::PathBuf)> = d
+        .flatten()
+        .filter(|e| e.path().extension().is_some_and(|x| x == "px3d"))
+        .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
+        .collect();
+    v.sort_by_key(|x| std::cmp::Reverse(x.0));
+    for (_, p) in v.into_iter().skip(EN_CACHE) {
+        let _ = std::fs::remove_file(p);
+    }
+}
+
+#[uniffi::export]
+impl Nucleo {
+    /// **Abre un modelo 3D con la cache** de esta carpeta de datos: la
+    /// segunda vez el mismo fichero se abre casi al momento. Bloquea.
+    pub fn abrir_modelo(&self, ruta: String) -> Result<Arc<Modelo3dApple>, ErrorNucleo> {
+        Ok(Modelo3dApple::de_modelo(modelo_con_cache(
+            self.ruta(),
+            Path::new(&ruta),
+        )?))
+    }
+}
+
 // ------------------------------------------------------------- croquis
 
 /// La clase de un mensaje con un croquis 3D del movil (`Clase.CROQUIS`).
@@ -675,6 +778,7 @@ pub fn modelo_de_croquis(raiz: &Path, chat: &str, bytes: &[u8]) -> Result<Modelo
     Ok(Modelo3dApple {
         m,
         croquis: Some(extras),
+        vistas: c.vistas,
     })
 }
 
@@ -946,6 +1050,69 @@ mod pruebas {
         assert!(camara_mover(c, 10.0, 0.0, 600).objetivo != c.objetivo);
         assert!(camara_cerca_de(camara_hacia(c, z, 1.0), z));
         assert!(!camara_cerca_de(c, z));
+    }
+
+    #[test]
+    fn las_vistas_guardadas_del_croquis_dan_su_camara() {
+        let d = std::env::temp_dir().join(format!("pixpin-nucleo-vistas-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        let json = br##"{"colorDelFondo":"#202830","trazos":[{"id":"t","puntos":[{"x":1,"y":2,"z":3},{"x":5,"y":2,"z":3}],"color":"#ffffff","grosor":4}],
+                 "vistas":[{"id":"v","nombre":"Frente","camara":{"giro":0.0,"inclinacion":0.0}},{"id":"w","nombre":"Arriba","camara":{"giro":1.0,"inclinacion":1.2}}]}"##;
+        let m = modelo_de_croquis(&d, "chat", json).unwrap();
+        assert_eq!(
+            m.vistas_guardadas(),
+            vec!["Frente".to_string(), "Arriba".to_string()]
+        );
+        let a = m.camara_de_vista(0, 800, 600, 2.0).unwrap();
+        let b = m.camara_de_vista(1, 800, 600, 2.0).unwrap();
+        assert!(a.dist > 0.0 && b.dist > 0.0);
+        // Cada vista mira desde su sitio (el giro del movil es el rumbo).
+        assert!((a.rumbo - b.rumbo).abs() > 0.5 && b.altura > a.altura);
+        // Casos negativos: una vista que no hay, y un modelo sin vistas.
+        assert!(m.camara_de_vista(2, 800, 600, 2.0).is_none());
+        assert!(
+            puntos().vistas_guardadas().is_empty()
+                && puntos().camara_de_vista(0, 800, 600, 2.0).is_none()
+        );
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn el_modelo_leido_queda_en_la_cache_y_uno_roto_se_rehace() {
+        let d = std::env::temp_dir().join(format!("pixpin-nucleo-cache3d-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let csv = d.join("puntos.csv");
+        std::fs::write(
+            &csv,
+            "1,100,200,10,A\n2,100,210,11,B\n3,110,200,12,C\n4,110,210,10,D\n5,105,205,15,E\n",
+        )
+        .unwrap();
+        let n = Nucleo::abrir(d.join("datos").display().to_string(), "Mac".into()).unwrap();
+        let a = n.abrir_modelo(csv.display().to_string()).unwrap();
+        let cache = d.join("datos").join("cache").join("bim");
+        let guardado = std::fs::read_dir(&cache)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .next()
+            .unwrap();
+        assert_eq!(guardado.extension().unwrap(), "px3d");
+        // La segunda vez, de la cache: el mismo modelo.
+        let b = n.abrir_modelo(csv.display().to_string()).unwrap();
+        assert_eq!(a.resumen(), b.resumen());
+        // Roto: se vuelve a leer.
+        std::fs::write(&guardado, b"roto").unwrap();
+        assert_eq!(
+            n.abrir_modelo(csv.display().to_string()).unwrap().resumen(),
+            a.resumen()
+        );
+        // Caso negativo: uno que no existe.
+        assert!(matches!(
+            n.abrir_modelo(d.join("no.ifc").display().to_string()),
+            Err(ErrorNucleo::NoExiste { .. })
+        ));
+        let _ = std::fs::remove_dir_all(&d);
     }
 
     #[test]
