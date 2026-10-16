@@ -136,10 +136,16 @@ public final class Capturador {
         self.intencion = intencion
     }
 
-    /// El anotador de pantalla: la captura con la pantalla del raton ya
-    /// elegida y el lapiz cogido (Option + doble clic central).
+    /// **El anotador de pantalla** (E3, `AnotadorPantalla`): el lienzo
+    /// encima de todas las pantallas, en vivo. Abierto, alterna el clic a
+    /// traves (Option + doble clic central, como en Windows).
     public func anotarPantalla() {
-        abrirCaptura(paraGrabar: false, paraAnotar: true)
+        AnotadorPantalla.compartido.abrirOAlternar()
+    }
+
+    /// El anotador de pantalla sobre la foto congelada de todas las pantallas.
+    public func anotarPantallaCongelada() {
+        AnotadorPantalla.compartido.abrir(.congelada)
     }
 
     private func abrirCaptura(paraGrabar: Bool, paraAnotar: Bool) {

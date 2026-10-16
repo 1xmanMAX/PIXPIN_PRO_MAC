@@ -41,10 +41,9 @@ public enum ComandosApp {
         atajos.poner(.pinearPortapapeles) {
             if !pines.pinearDesdePortapapeles() { NSSound.beep() }
         }
-        // En el Mac la anotacion de pantalla es siempre sobre la foto
-        // congelada; las dos entradas de Windows hacen lo mismo.
+        // El anotador de pantalla (E3): vivo, o sobre la foto congelada.
         atajos.poner(.anotar) { capturador.anotarPantalla() }
-        atajos.poner(.anotarCongelada) { capturador.anotarPantalla() }
+        atajos.poner(.anotarCongelada) { capturador.anotarPantallaCongelada() }
         atajos.poner(.pinearSeleccion) {
             let ficheros = SeleccionFinder.ficheros()
             var alguno = false

@@ -58,7 +58,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | al_frente | Qué chat o lienzo está delante para recibir «Enviar a» | parcial | K/Sincro/EnviarA.swift, N/envio.rs | El lienzo nunca se apunta como frente (`FrenteMac::Lienzo`) |
 | aligerar | Comprimir los PDF que entran (pdfsqueeze) | completo | K/Documentos/AligerarPdf.swift, N/aligerar.rs | — |
 | anotado_del_adjunto | Tinta, marcas y espacios `anot-<uid>…` de los lectores | parcial | N/documentos.rs, K/Documentos/LectorDocumento.swift | Word y EPUB reflujados (`.maqueta`) |
-| anotador_al_chat | Lo anotado en la pantalla va al chat con su lienzo editable | falta | K/Captura/Capturador.swift (lo quema en la imagen) | Foto con `.excalidraw` en «Mensajes guardados» |
+| anotador_al_chat | Lo anotado en la pantalla va al chat con su lienzo editable | completo | K/Captura/AnotadorPantalla.swift, N/anotador_al_chat.rs | Hecho (E3): al salir con tinta nueva (o con «Guardar» de la pastilla) la foto de debajo entra en «Mensajes guardados» como IMAGEN con su lienzo `foto-<id>` (foto bloqueada, tinta editable); lo dibujado después pone al día EL MISMO lienzo; solo las pantallas donde se dibujó, a su tamaño. Falta: las imágenes pegadas no entran en la foto (`componer` de Windows) |
 | asistente (chat, motor, nube, descarga, turno) | IA local o en la nube | parcial | K/Asistente/*, N/asistente.rs, N/asistente/{turno,transporte,local}.rs, N/llavero.rs | Hecho (D6): el motor de `[asistente]` (Claude Haiku 5.5 o DeepSeek V4.1 Flash por URLSession con respaldo local; el modelo bajado; Apple Intelligence; el `llama-server` del usuario), el turno de Windows (`agente::turno_con`: pensar en automático, plan, hoja de trabajo, reinicio al 70 %, camino rápido, todas las herramientas que el Mac sabe hacer), bajar el motor de llama.cpp para macOS (b11580, Metal) y los GGUF con su huella, un `llama-server` por proceso que se cierra a los 5 min, al salir y el huérfano de una PixPin que murió (`llama-server.pid`). La ventana: conversaciones guardadas (`<datos>/asistente/`, no viajan), adjuntos (clip, arrastrar, pegar), lo pensado plegable, abrir lo dibujado en el lienzo. Falta que la conversación viva en el chat «Asistente» y viaje (E1) |
 | asistente (recetas, pensado, permiso) | Recetas, lo pensado, permisos Sí/No | parcial | K/Asistente/{ModeloAsistente,ManosDelAsistente,VistaAsistente}.swift, N/asistente/turno.rs | Hecho (D6): lo pensado (plegable, «Pensó N s») y la hoja de trabajo por conversación; lo que borra o sale del Mac pregunta en la burbuja con «Sí»/«No» (parar o 10 min es un no). Faltan las recetas (E1) |
 | asistente (ojos, hoja_a_lienzo, anotar_inteligente, al_lienzo, documentos) | El asistente mira el lienzo, pasa una hoja al lienzo, anota documentos | parcial | N/asistente/documentos.rs, K/Asistente/ManosDelAsistente.swift | Hecho (D6): `buscar_en_mis_cosas` (chats, PDF, Office y notas; con la nube pregunta la primera vez y queda en `documentos_a_la_nube`; las citas abren el documento), leer un PDF o una foto adjunta (PDFKit, Vision) y calcar una imagen. Faltan «ojos», hoja→lienzo, anotar documentos, editar el lienzo abierto, figuras guardadas y las acciones sobre documentos y del chat (E1) |
@@ -73,7 +73,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | caducidad_capturas | Capturas que se borran solas | completo | K/Caducidad/BarrenderoCapturas.swift, N/galeria.rs | — (el aviso «se van en 24 h», con «Conservar» y «Abrir», hecho en C4) |
 | caja_dibujo | Barra de herramientas estilo Excalidraw, la misma en todas partes | parcial | K/Lienzo/* | La del lienzo ya es la de Windows (los diez grupos, figuras, dos filas si no cabe). La captura anota con ella y con el panel de estilo (B8: K/Captura/AnotadorCaptura.swift, BarrasCaptura.swift). Lector y pin siguen con barras propias |
 | caja_texto | Caja de texto propia | no aplica | NSTextField | — |
-| capa | Anotar sobre la pantalla (viva o congelada, varios monitores) | parcial | K/Captura/Capturador.swift, GestosAlt.swift | Modo vivo, varios monitores, herramientas del lienzo, entrada en el menú |
+| capa | Anotar sobre la pantalla (viva o congelada, varios monitores) | completo | K/Captura/AnotadorPantalla.swift, GestosAlt.swift | Hecho (E3): el lienzo entero sobre todas las pantallas (un panel por pantalla, un solo editor), viva con papel transparente o congelada sobre la foto; barra y panel de estilo del lienzo; pastilla (clic a través, limpiar con ⌘Z, copiar, guardar, salir); Espacio y ⌘ mantenido (el Ctrl de Windows) dejan pasar el clic; ⌥ + doble clic central abre y alterna; dos entradas en el menú. Falta la lupa viva (Q mira la pantalla en vivo) |
 | captura2 | Captura v2: modos, medidas, lupa, «Al chat», anotar | completo | K/Captura/* | Falta verla en verde en la CI |
 | centro_bandeja | Panel rico de la bandeja: estado de sincro, buscador, favoritos, últimas capturas | parcial | APP (MenuBarExtra en forma de menú) | El panel entero |
 | cielo | Fondo cósmico | falta | — | Es un adorno |
@@ -236,7 +236,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Base, deshacer, cota y cajetín | completo |
 | modo_ventana (F11) | completo (⌃⌘F, se recuerda en `estado.toml`; nunca tocado abre en ventana) |
 | Exportar, imprimir y compartir; tapado; figuras y gráficas; lupas | completo (figuras: parcial, ver `biblioteca_figuras`) |
-| Hojita; marcas; presentar; referencia; anotador de pantalla; zona al chat | falta |
+| Hojita; marcas; presentar; referencia; zona al chat | falta |
+| Anotador de pantalla | completo (E3, K/Captura/AnotadorPantalla.swift) |
 | congelar, medir | interno |
 
 ### 1.6 Fuera de `apps/pixpin`
@@ -273,12 +274,13 @@ Choques con macOS que hay que esquivar:
 | Ctrl+Alt+X | Capturar zona | ⌃⌥X (se puede cambiar) | completo |
 | Ctrl+2 | Mostrar u ocultar los pines | ⌃2 | completo |
 | — | Grabar pantalla | ⌃⌥R | solo Mac |
-| 25 comandos sin tecla de fábrica, que el usuario puede atar | Capturar y copiar, scroll, anotar, GIF, última región, cuentagotas, pinear, en vivo, portapapeles, selección, retardo, silenciar, clic a través, restaurar o cerrar pines, OCR, ventana encima, chat, ajustes, recibir, sincronizar, buscar, salir | sin tecla de fábrica; se atan en Ajustes → Atajos (mejor ⌃⌥+tecla) | completo salvo clic a través y restaurar el último pin (esperan a los pines). Cuentagotas = `NSColorSampler`; ventana encima = pin en vivo de la ventana (macOS no deja subir ventanas ajenas); anotar = sobre la foto congelada |
+| 25 comandos sin tecla de fábrica, que el usuario puede atar | Capturar y copiar, scroll, anotar, GIF, última región, cuentagotas, pinear, en vivo, portapapeles, selección, retardo, silenciar, clic a través, restaurar o cerrar pines, OCR, ventana encima, chat, ajustes, recibir, sincronizar, buscar, salir | sin tecla de fábrica; se atan en Ajustes → Atajos (mejor ⌃⌥+tecla) | completo salvo clic a través y restaurar el último pin (esperan a los pines). Cuentagotas = `NSColorSampler`; ventana encima = pin en vivo de la ventana (macOS no deja subir ventanas ajenas); anotar = el anotador de pantalla (vivo o congelado, E3) |
 | Atajo por región (Ctrl+Alt+1…) | Capturar una región fija | ⌃⌥1… (Ajustes → Atajos → Regiones, «Guardar la última zona») | completo |
 | Silenciar atajos · programas ignorados | Soltarlos todos · no actuar delante de una app | menú de la barra y Ajustes · lista de apps en Ajustes | completo (los gestos con ⌥ aún no miran la lista) |
 | Choques | Dos comandos con el mismo atajo | Se rechazan; también los de macOS (⇧⌘3/4/5/6, ⌘+tecla, ⌥⌘H/M/D, ⌃⌘Q/F) y se avisa de ⌃1…9, ⌃F1…F8 y ⌃⌘D | completo |
 | Alt + arrastrar (izquierdo, derecho, central) | Copiar, pinear, pin en vivo | ⌥ + arrastrar | completo (apagado de fábrica; pide Accesibilidad) |
-| Alt + doble clic central | Anotar la pantalla | ⌥ + doble clic central | parcial (abre la captura) |
+| Alt + doble clic central | Anotar la pantalla; abierto, alterna el clic a través | ⌥ + doble clic central | completo (E3) |
+| Anotador: Esc, Espacio, Ctrl mantenido, Ctrl+Z / Ctrl+Y | Salir (guarda solo), clic a través, clic a través mientras dure, deshacer / rehacer | ⎋, Espacio, ⌘ mantenido (⌃+clic sería el derecho), ⌘Z / ⇧⌘Z / ⌘Y | completo (E3) |
 | Menú: — | Proyectos, Buscar | ⌥⌘P, ⌥⌘F (solo con el menú) | solo Mac |
 
 ### 2.2 Captura (overlay)
@@ -351,7 +353,7 @@ Lo que falta en el lienzo:
 - ⌥S (imán) y V (plumas).
 - Espacio + arrastrar.
 - Marcas: hay que elegir otra tecla que no sea ⌘M, y ⌘1…9 para ir a ellas.
-- ⇧⌘N (hojita), F5 (presentar), ⌥R (solo mirar), y las del anotador de pantalla.
+- ⇧⌘N (hojita), F5 (presentar), ⌥R (solo mirar). (Las del anotador de pantalla, hechas en E3: §1.6.)
 
 Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 3, ⇧⌘E (exportar), ⇧⌘C (copiar como PNG), ⌘P, ⇧⌘S y ⌃⌘F (pantalla completa, que se recuerda).
 
@@ -562,7 +564,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 |---|---|---|
 | E1 | Asistente, parte 2: en el chat (y que viaje), recetas, «ojos», hoja→lienzo, anotar documentos, editar el lienzo abierto, figuras guardadas, acciones sobre documentos y del chat (**después de A7 y D6; dep. lienzo**) | K/Asistente/*, K/Vistas.swift |
 | E2 | Planos: anotar a mano (**dep. lienzo**), exportar, buscar textos, caché `.pxcad`, vistas 3D guardadas | K/Planos/*, N/planos.rs, N/modelos3d.rs (**no a la vez que B9** en modelos3d.rs) |
-| E3 | Anotar la pantalla (vivo, varios monitores) y anotador al chat (**dep. lienzo**) | K/Captura/Capturador.swift (**después de B8**), nuevo K/Captura/AnotadorPantalla.swift |
+| E3 ✅ | **Anotar la pantalla** (hecho, 16-oct): viva y congelada sobre todas las pantallas con las herramientas del lienzo, pastilla, clic a través (Espacio, ⌘ mantenido, ⌥ + doble clic central), limpiar con deshacer, copiar, y al salir a «Mensajes guardados» con su lienzo editable (puesto al día si se guardó antes). Quedan la lupa viva y meter las imágenes pegadas en la foto | K/Captura/Capturador.swift, nuevo K/Captura/AnotadorPantalla.swift, nuevo N/anotador_al_chat.rs, K/Lienzo/EditorLienzoView.swift (`origenFijo`, `papelTransparente`) |
 | E4 | Centro de la barra de menús (panel rico) y grupos de ventanas (**dep. ventanas**) | APP, nuevo K/Bandeja/* |
 | E5 | Telepronter, Pronunciar, conversación por turnos y llamada secreta (**después de A4**) | nuevo K/VozVentanas/* |
 | E6 ✅ | **Automatizaciones** (hecho, 16-oct): el fichero `auto-automatizaciones` de Windows (viaja), los cuatro disparadores, los pasos con variables, sin bucles y con su tope, el pedido `automatizacion`, y una ventana con la lista de Windows, un editor y el historial. Queda la cola de encargos del asistente | N/automatizaciones.rs, K/Automatizaciones/*, K/Pedidos/HacerPedidos.swift, APP |

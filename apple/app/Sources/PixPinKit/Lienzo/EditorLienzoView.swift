@@ -229,6 +229,16 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     public var camaraFija = false {
         didSet { if camaraFija { encajar() } }
     }
+    /// Con la camara quieta, el punto del mundo en la esquina (el anotador
+    /// de pantalla: cada pantalla mira su trozo del escritorio).
+    public var origenFijo = CGPoint.zero {
+        didSet { if camaraFija { encajar() } }
+    }
+    /// **Papel transparente** (el anotador de pantalla vivo): no se pinta
+    /// el papel y se ve lo que hay debajo de la ventana.
+    public var papelTransparente = false {
+        didSet { needsDisplay = true }
+    }
     /// Quien hospeda el lienzo ve antes cada tecla (salvo mientras se
     /// escribe un texto) y se queda las que use (`true`).
     public var teclaPrevia: ((NSEvent) -> Bool)?
@@ -289,7 +299,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     override public var isFlipped: Bool { true }
     override public var acceptsFirstResponder: Bool { true }
-    override public var isOpaque: Bool { true }
+    override public var isOpaque: Bool { !papelTransparente }
     override public func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override public func viewDidMoveToWindow() {
@@ -315,7 +325,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     /// Lo dibujado entero en la vista (o el origen al 100 % si esta vacio).
     public func encajar() {
         if camaraFija {
-            origen = .zero
+            origen = origenFijo
             zoom = 1
             needsDisplay = true
             return
@@ -360,8 +370,12 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         }
         versionVista = version
         let fondo = leido?.fondo.cg ?? CGColor(gray: 1, alpha: 1)
-        ctx.setFillColor(fondo)
-        ctx.fill(dirtyRect)
+        if papelTransparente {
+            ctx.clear(dirtyRect)
+        } else {
+            ctx.setFillColor(fondo)
+            ctx.fill(dirtyRect)
+        }
         guard let leido else { return }
         ctx.saveGState()
         ctx.scaleBy(x: zoom, y: zoom)

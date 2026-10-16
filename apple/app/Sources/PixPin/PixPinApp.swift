@@ -230,6 +230,9 @@ final class EstadoApp: ObservableObject {
         gestos.alCopiar = { pila.copiar($0, escala: $1) }
         gestos.alPinear = { GestorPines.compartido.pinear(imagen: $0, marco: $1) }
         gestos.alAnotarPantalla = { capturador.anotarPantalla() }
+        // El anotador de pantalla guarda en «Mensajes guardados» y copia a la pila.
+        AnotadorPantalla.compartido.almacen = almacen
+        AnotadorPantalla.compartido.alCopiar = { pila.copiar($0, escala: $1) }
         gestos.alPinEnVivo = pinEnVivo
         gestos.arrancarSiToca()
         // Grabar la pantalla: elegir la zona con la misma captura (Intro o
@@ -337,6 +340,8 @@ struct MenuPrincipal: View {
             .atajo(.copiarTexto, atajos)
         Button("Anotar la pantalla") { atajos.ejecutar(.anotar) }
             .atajo(.anotar, atajos)
+        Button("Anotar la pantalla congelada") { atajos.ejecutar(.anotarCongelada) }
+            .atajo(.anotarCongelada, atajos)
         Button("Cuentagotas") { atajos.ejecutar(.cuentagotas) }
             .atajo(.cuentagotas, atajos)
         Button("Grabar un GIF") { atajos.ejecutar(.grabarGif) }
