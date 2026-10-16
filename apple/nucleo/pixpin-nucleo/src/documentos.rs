@@ -43,6 +43,11 @@ use crate::editor::{EditorLienzo, HojaDoc};
 use crate::unidades::{Unidades, hoja_propia};
 use crate::{ErrorNucleo, Nucleo};
 
+// Cambiar el nombre, juntar la tinta con el disco y la pagina que sube
+// sola (tanda B7).
+mod lector;
+pub use lector::DocumentoRenombrado;
+
 /// Un marcador de un PDF: `x` es la fraccion del ancho de la hoja y `y` la
 /// pagina (desde 0) mas la fraccion de su alto (`marcas::en_la_pagina`).
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
