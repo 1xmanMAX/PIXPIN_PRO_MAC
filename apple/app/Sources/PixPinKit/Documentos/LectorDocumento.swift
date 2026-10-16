@@ -27,7 +27,8 @@
 // (`TonoLector`), D la pagina que sube sola (`AvanceLector`), G los
 // ajustes, F2 cambiar el nombre, ⌘P imprimir, ⇧⌘S compartir, F5 presentar,
 // + / − y ⌘0 el aumento, y ⎋ en cascada. La tinta que cambia en el disco
-// con el lector abierto se relee o se junta (`AlDiaLector`).
+// con el lector abierto se relee o se junta (`AlDiaLector`). L escucha el
+// documento en voz alta (D2, `VozDelLector`).
 
 import AppKit
 import Combine
@@ -100,6 +101,7 @@ public final class ModeloLector: ObservableObject {
 struct BarraLector: View {
     @ObservedObject var modelo: ModeloLector
     @ObservedObject var avance: AvanceLector
+    @ObservedObject var voz = LeerEnVoz.compartida
 
     var body: some View {
         HStack(spacing: 8) {
@@ -178,6 +180,10 @@ struct BarraLector: View {
                 BotonFlotante(simbolo: "play.fill", ayuda: "Presentar (F5)", encendido: modelo.presentando) {
                     modelo.controlador?.presentar()
                 }
+            }
+            BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Escuchar (L)",
+                          encendido: modelo.controlador?.voz.activa == true && voz.vivo) {
+                modelo.controlador?.voz.escuchar()
             }
             BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
                 modelo.controlador?.alternarAvance()
@@ -286,6 +292,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     let modelo = ModeloLector()
     let buscador = BuscadorLector()
     let avance = AvanceLector()
+    /// Escuchar en voz alta (L): los trozos y lo que suena (D2).
+    private(set) lazy var voz = VozDelLector(lector: self)
     let ventana: VentanaLectorNS
     let vistaPDF = PDFView()
     private let capa = CapaTintaNS()
@@ -372,6 +380,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         }.fixedSize())
         let abajo = NSHostingView(rootView: VStack(spacing: 8) {
             TiraMarcas(modelo: modelo) { [weak self] e in self?.ponerMarca(emoji: e) }
+            BarraEscuchar(voz: LeerEnVoz.compartida) { [weak self] in self?.url.path ?? "" }
             BarraAvance(avance: avance,
                         cambiar: { [weak self] s in self?.cambiarVelocidad(s) },
                         cerrar: { [weak self] in self?.alternarAvance() })
@@ -512,6 +521,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         if i > 0, i < doc.pageCount, let p = doc.page(at: i) {
             vistaPDF.go(to: p)
         }
+        // Se estaba escuchando con el lector cerrado: se engancha a la voz.
+        voz.alAbrir()
     }
 
     private func abrirOffice(_ lectura: LecturaDocumento) {
@@ -551,6 +562,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
                 n += 1
             }
             self?.modelo.maquetando = false
+            self?.voz.alAbrir()
             if let self, doc.pageCount > 0 {
                 let total = UInt32(doc.pageCount)
                 let hojas = await Task.detached(priority: .utility) {
@@ -591,7 +603,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     /// El alto de una hoja en unidades de la tinta (tal como se ve, girada).
-    private func alto(_ pagina: PDFPage) -> Float {
+    func alto(_ pagina: PDFPage) -> Float {
         let b = pagina.bounds(for: vistaPDF.displayBox)
         let girada = pagina.rotation % 180 != 0
         return GeometriaHoja.altoDeHoja(ancho: girada ? b.height : b.width, alto: girada ? b.width : b.height)
@@ -833,10 +845,9 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     /// Lo recordado (aumento, por donde iba, espacios y marcadores), fuera
     /// del hilo principal. `altos`: los de todas las hojas, por si cambian
     /// los espacios (ver `guardar_lectura_de_documento`).
-    private func guardarLectura() {
-        guard let doc = vistaPDF.document, doc.pageCount > 0 else { return }
-        let ajuste = vistaPDF.scaleFactorForSizeToFit
-        let zoom = vistaPDF.autoScales || ajuste <= 0 ? 1 : Float(vistaPDF.scaleFactor / ajuste)
+    /// Por donde se va: la hoja de arriba de lo que se ve y en que fraccion
+    /// de ella (`2.25`, un cuarto de la tercera).
+    func sitioDeLaVista() -> Double {
         var pagina = Double(modelo.pagina)
         if let p = vistaPDF.currentPage {
             let g = geometria(p)
@@ -844,7 +855,28 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             let f = (arriba - g.rect.minY) / max(g.rect.height, 1)
             pagina = Double(indice(p)) + Double(min(max(f, 0), 0.999))
         }
-        let altos = (0..<doc.pageCount).compactMap { doc.page(at: $0).map(alto) }
+        return pagina
+    }
+
+    /// El alto de cada hoja en unidades de la tinta (lo pide el marco).
+    func altos() -> [Float] {
+        guard let doc = vistaPDF.document else { return [] }
+        return (0..<doc.pageCount).compactMap { doc.page(at: $0).map(alto) }
+    }
+
+    /// Los marcadores nuevos (el verde de la voz), pintados y guardados.
+    func ponerMarcas(_ m: [MarcaDocumento]) {
+        modelo.marcas = m
+        capa.needsDisplay = true
+        guardarLectura()
+    }
+
+    private func guardarLectura() {
+        guard let doc = vistaPDF.document, doc.pageCount > 0 else { return }
+        let ajuste = vistaPDF.scaleFactorForSizeToFit
+        let zoom = vistaPDF.autoScales || ajuste <= 0 ? 1 : Float(vistaPDF.scaleFactor / ajuste)
+        let pagina = sitioDeLaVista()
+        let altos = self.altos()
         let lectura = LecturaDocumento(zoom: zoom, pagina: pagina, espacios: modelo.espacios,
                                        marcas: modelo.marcas, donde: modelo.donde)
         let ruta = url.path, nucleo = self.nucleo
@@ -1032,6 +1064,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         case "d": alternarAvance(); return true
         case "g": mostrarAjustes(evento: nil); return true
         case "n": alternarNegativo(); return true
+        case "l": voz.escuchar(); return true
         default: return false
         }
     }
@@ -1050,6 +1083,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             vistaPDF.clearSelection()
         } else if modelo.poniendoMarca {
             modelo.poniendoMarca = false
+        } else if voz.activa {
+            voz.dejar()
         } else if avance.activo {
             alternarAvance()
         } else if modelo.anotando {
@@ -1231,6 +1266,13 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         if modelo.esPresentacion {
             fila("Presentar (F5)", marcada: modelo.presentando) { [weak self] in self?.presentar() }
         }
+        fila("Escuchar (L)", marcada: voz.activa && LeerEnVoz.compartida.leyendo) { [weak self] in self?.voz.escuchar() }
+        let leida = LeerEnVoz.compartida
+        let idioma = voz.activa ? leida.idioma : VozAlta.idiomaDeLaApp
+        let puesta = VozAlta.voz(para: idioma, preferida: VozAlta.preferida(lengua: idioma))?.identifier
+        let voces = NSMenuItem(title: "Voz para leer", action: nil, keyEquivalent: "")
+        voces.submenu = menuDeVoces(idioma: idioma, puesta: puesta) { v in leida.ponerVoz(v) }
+        menu.addItem(voces)
         fila("Desplazar sola (D)", marcada: avance.activo) { [weak self] in self?.alternarAvance() }
         fila("Negativo (N)", marcada: modelo.negativo) { [weak self] in self?.alternarNegativo() }
         fila("Modo oscuro", marcada: modelo.oscuro) { [weak self] in self?.alternarOscuro() }
@@ -1247,7 +1289,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             fila("Quitar los marcadores") { [weak self] in self?.quitarMarcas() }
         }
         menu.addItem(.separator())
-        let ayuda = NSMenuItem(title: "A anotar · M marcador · ⌘1…9 ir a él · N negativo · D desplazar sola · ⌘F buscar · ⎋ salir",
+        let ayuda = NSMenuItem(title: "A anotar · M marcador · ⌘1…9 ir a él · N negativo · L escuchar · D desplazar sola · ⌘F buscar · ⎋ salir",
                                action: nil, keyEquivalent: "")
         ayuda.isEnabled = false
         menu.addItem(ayuda)
@@ -1347,7 +1389,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     /// Un aviso arriba que se va solo a los 2,5 s.
-    private func avisar(_ texto: String) {
+    func avisar(_ texto: String) {
         modelo.nota = texto
         tareaNota?.cancel()
         let t = DispatchWorkItem { [weak self] in MainActor.assumeIsolated { self?.modelo.nota = nil } }
@@ -1459,6 +1501,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
 
     public func windowWillClose(_ notification: Notification) {
         barra?.terminar()
+        // La voz sigue sonando con el lector cerrado: solo se suelta.
+        voz.alCerrar()
         tareaOffice?.cancel()
         guardadoPendiente?.cancel()
         guardarLectura()

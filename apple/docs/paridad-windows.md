@@ -40,7 +40,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 7. ~~**Compartir y exportar común**~~ Hecho (D1): la hoja de Windows (HTML, PDF, PNG, JPG, SVG, original, editable, `.pixpin`, texto) para mensajes, lo elegido, proyectos y pines, la ventanita «Salida» y «Abrir con…».
    - Quedan el PDF anotado y la web de un documento que se lee, Word, enlace y wifi.
 8. ~~**Lectores sin búsqueda.**~~ Hecho (B7): buscar (⌘F, ⌘G / ⇧⌘G, F3), ⌘1…9 y el riel de marcadores, M con su cifra, N negativo, luna/sol oscuro, D avance solo, G ajustes, F2 renombrar, ⌘P, ⇧⌘S, F5 presentar y la tinta al día con el disco (`al_dia`).
-   - Falta escuchar en voz alta (`leer_en_voz`, D2).
+   - ~~Falta escuchar en voz alta.~~ Hecho (D2): L, resaltar el trozo y la palabra, el 🟢 que se mueve, velocidad, voces del Mac y las teclas multimedia.
 9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. Faltan el esquema `pixpinmax://`, los pedidos y el menú del Dock.
 10. ~~**El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**.~~ Hecho (A7, 16-oct): `pixpin-ia`, `pixpin-pdf` (letras), `pixpin-store` y `pixpin-motor2d` ya son los de Windows. Lo que falta es la parte de Swift del asistente (D6, E1).
 
@@ -97,11 +97,11 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | instancia_de_prueba | Instancia aislada para desarrollar | no aplica | — | — |
 | lecciones | Ficha, etiquetas, repaso, dictado, fotos y audios, exportar | parcial | K/Lecciones/*, N/lecciones.rs | Dictado, adjuntos (foto o voz; las del móvil no se ven), exportar |
 | lector | Lo común a los lectores: papel, riel de marcadores | completo | K/Documentos/LectorDocumento.swift, AvanceLector.swift, TonoLector.swift | — (riel a la derecha con ⌘1…9, tira de M con su cifra, negativo) |
-| lector_pdf | Lector PDF, Word y PPTX | parcial | K/Documentos/LectorDocumento.swift, BuscadorLector.swift, AvanceLector.swift, AlDiaLector.swift, N/documentos/lector.rs | Hechos (B7) buscar, D, N, G, imprimir, compartir, F5, ⌘1…9, F2 y `al_dia` (releer y juntar al guardar). Faltan escuchar (D2), «Ver como texto», exportar el PDF anotado (D1) y quitar lo anotado |
+| lector_pdf | Lector PDF, Word y PPTX | parcial | K/Documentos/LectorDocumento.swift, BuscadorLector.swift, AvanceLector.swift, AlDiaLector.swift, N/documentos/lector.rs | Hechos (B7) buscar, D, N, G, imprimir, compartir, F5, ⌘1…9, F2 y `al_dia` (releer y juntar al guardar); escuchar (D2, K/Documentos/VozDelLector.swift). Faltan «Ver como texto», exportar el PDF anotado (D1) y quitar lo anotado |
 | lector_pdf_proyecto | Dónde va la tinta de un PDF | completo | N/documentos.rs | — |
 | lector_pin | Los lectores como pin | completo | K/Documentos/LectorDocumento.swift | La barra flotante de los pines |
 | lector_tinta | Capa de tinta sin desfase | parcial | N/documentos.rs | Word y EPUB reflujados |
-| leer_en_voz | Escuchar un documento resaltando por dónde va, con teclas multimedia | falta | — | `AVSpeechSynthesizer` y `MPRemoteCommandCenter` |
+| leer_en_voz | Escuchar un documento resaltando por dónde va, con teclas multimedia | completo | K/Voz/LeerEnVoz.swift, VozAlta.swift, MandosSistema.swift, K/Documentos/VozDelLector.swift, VozDeLaNota.swift | Hecho (D2): una voz para la app (`AVSpeechSynthesizer`) que sigue con el lector cerrado y se engancha al volver a abrirlo; trozos de frases por hoja (`voz_alta::cortes`), idioma adivinado, ambar en el trozo y en la palabra, la vista lo sigue, el 🟢 se mueve (y se quita al acabar) aunque el lector esté cerrado; ⏮ ⏯ ⏭, velocidad 0,75–2×, ✕; «Voz para leer» en G (se recuerda por lengua); «Está sonando» y teclas multimedia (`MPRemoteCommandCenter`); barra flotante sin lector. Notas: clic derecho «Escuchar desde aquí» en el editor anterior. En vez de las voces de Microsoft, las del Mac (mejoradas/premium). Falta: el editor web de notas (gancho `VozDeLaNota.escuchar`) y el pedido «leer en voz» (C2) |
 | letras_que_viajan | Las letras SHX viajan entre aparatos | parcial | nucleo/pixpin-cad (las lee) | No crea `auto-letra-*` |
 | lista_del_icono | Jump List | falta | — | En Mac, el menú del Dock (`applicationDockMenu`) |
 | llamada | «Llamada secreta» (VOZ con `recuerdaEn`) | falta | — | Depende de los recordatorios |
@@ -366,7 +366,7 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 | Ctrl+Z / Ctrl+Y | Deshacer y rehacer la tinta | ⌘Z / ⇧⌘Z | completo |
 | Ctrl+S | Guardar | se guarda solo | no aplica |
 | M · Ctrl+1…9 | Marcador (con su cifra) · ir a él | M · ⌘1…9 | completo |
-| G D N L I | Ajustes, avance solo, negativo, escuchar, índice | igual | parcial (G D N hechas; L con D2; I es del visor, E7) |
+| G D N L I | Ajustes, avance solo, negativo, escuchar, índice | igual | parcial (G D N L hechas; I es del visor, E7) |
 | + / −, T, B (visor) | Letra | igual | falta |
 | F11 | Pantalla completa | ⌃⌘F / F11 | completo |
 | Esc en cascada | — | ⎋ (cajas, presentar, lo elegido, marcador, avance, anotar, pantalla completa, cerrar) | completo |
@@ -546,7 +546,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | # | Tanda | Ficheros |
 |---|---|---|
 | D1 | ✅ **Compartir y exportar común** (hecho): la hoja (HTML, PDF, PNG, JPG, SVG, original, editable, `.pixpin`, texto) con la hoja del Mac en «Más…», la ventanita «Salida» y «Abrir con…»; enganchada al chat (mensaje, lo elegido, Exportar/Imprimir de un lienzo), a los proyectos, al pin y al exportar del lienzo. Queda engancharla en los lectores (`Documentos/*`), el PDF anotado y la web de un documento, Word, enlace y wifi | K/Compartir/{Compartible,PreparadoCompartir,PrepararCompartir,HojaCompartir,Salida,AbrirCon}.swift, N/compartir.rs |
-| D2 | **Leer en voz**: `AVSpeechSynthesizer`, resaltar por dónde va, `MPRemoteCommandCenter`, L en el lector | nuevo K/Voz/LeerEnVoz.swift, K/Documentos/LectorDocumento.swift (solo la tecla L, **después de B7**) |
+| D2 | ✅ **Leer en voz** (hecho): `AVSpeechSynthesizer`, resaltar el trozo y la palabra, el 🟢, `MPRemoteCommandCenter`, L en el lector, notas (clic derecho) | K/Voz/{LeerEnVoz,VozAlta,MandosSistema}.swift, K/Documentos/{VozDelLector,VozDeLaNota}.swift, K/Documentos/LectorDocumento.swift |
 | D3 | **Audio**: reproductor global (velocidad, ±saltos, barra de lo que suena), biblioteca de audio, micrófono flotante con hora | K/Voz/ReproductorVoz.swift, K/Voz/VistasVoz.swift, nuevo K/Voz/BibliotecaAudio.swift |
 | D4 | **Notas Markdown**: atajos de formato, fotos en la nota, comentarios (`.comentarios.json`, viajan) | K/Documentos/EditorNota.swift, N/notas.rs |
 | D5 | **Hojas**: editar un `.xlsx` como libro con pestañas, todas las hojas del móvil, los atajos de Windows (sin ⌘N, ⌘K ni ⌘S) | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/libro.rs |
