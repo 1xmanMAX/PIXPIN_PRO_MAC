@@ -3,6 +3,7 @@
 // nucleo de verdad (`iaResponder`). Las del turno con el motor guionado
 // estan en Rust (`asistente/en_la_conversacion/pruebas.rs`).
 
+import AppKit
 import Foundation
 import PixPinCore
 import XCTest
@@ -113,7 +114,7 @@ final class AsistenteEnElChatE1Tests: XCTestCase {
     func testPararCortaElTurno() async throws {
         let (a, chat) = try await almacen("parar")
         AsistenteEnElChat.turnoDePrueba = { nucleo, chat, inicio, _, _, corte in
-            let hasta = Date().addingTimeInterval(10)
+            let hasta = Date().addingTimeInterval(60)
             while !corte.cortado(), Date() < hasta { Thread.sleep(forTimeInterval: 0.01) }
             let r = try nucleo.iaResponder(chat: chat, nota: inicio.respuesta.id,
                                            texto: corte.cortado() ? "⏹ (parado)" : "no paro", lienzo: nil)
@@ -122,6 +123,15 @@ final class AsistenteEnElChatE1Tests: XCTestCase {
         let mE = await a.escribir(nota: "cuenta hasta mil", en: chat)
         let m = try XCTUnwrap(mE)
         let turnos = AsistenteEnElChat.compartido.alEnviar([m], chat: chat, almacen: a)
+        // Sin carreras: se espera a que la respuesta haya nacido (el turno
+        // de prueba no acaba hasta que se pare).
+        var nacida = false
+        for _ in 0 ..< 500 where !nacida {
+            nacida = try a.nucleo.ultimosMensajes(chat: chat, cuantos: 10).mensajes.contains(where: \.esDelAsistente)
+            if !nacida { try await Task.sleep(nanoseconds: 10_000_000) }
+        }
+        XCTAssertTrue(nacida, "la respuesta nace al enviar")
+        XCTAssertTrue(AsistenteEnElChat.compartido.ocupado(chat))
         // Mientras contesta, otra pregunta no lanza otro turno.
         let otraE = await a.escribir(nota: "y otra", en: chat)
         let otra = try XCTUnwrap(otraE)
@@ -129,7 +139,10 @@ final class AsistenteEnElChatE1Tests: XCTestCase {
         XCTAssertNotNil(AsistenteEnElChat.compartido.aviso)
         AsistenteEnElChat.compartido.parar(chat)
         for t in turnos { await t.value }
-        XCTAssertEqual(a.mensajes[chat]?.first(where: \.esDelAsistente)?.texto, "⏹ (parado)")
+        XCTAssertFalse(AsistenteEnElChat.compartido.ocupado(chat))
+        // Lo que quedo en el cuaderno (no lo cargado, que se relee aparte).
+        let respuesta = try a.nucleo.ultimosMensajes(chat: chat, cuantos: 10).mensajes.first(where: \.esDelAsistente)
+        XCTAssertEqual(respuesta?.texto, "⏹ (parado)")
         AsistenteEnElChat.compartido.quitarAviso()
     }
 
@@ -143,5 +156,31 @@ final class AsistenteEnElChatE1Tests: XCTestCase {
         let chat = try nucleo.chatAsistente().id
         _ = try nucleo.crearLienzo(chat: chat, nombre: "Plano casa")
         XCTAssertEqual(nucleo.iaOpcionesMencion(chat: chat, escrito: "pla").map(\.mencion), ["@lienzo:Plano_casa"])
+    }
+
+    func testLosOjosPintanLaVistaConElPintorDelLienzoYSusEtiquetas() throws {
+        let doc = ##"{"type":"excalidraw","version":2,"elements":[{"id":"a","type":"rectangle","x":0,"y":0,"width":100,"height":80,"strokeColor":"#e03131","backgroundColor":"#e03131","fillStyle":"solid","version":1,"isDeleted":false}],"appState":{},"files":{}}"##
+        let plano = try Lienzo.deJson(texto: doc).plano()
+        let v = VistaParaPintar(plano: plano, imagenes: [], x0: -30, y0: -30, x1: 130, y1: 110, ancho: 320, alto: 280,
+                                escala: 2, rayas: [RayaVista(x0: 0, y0: 10, x1: 320, y1: 10)],
+                                rotulos: [RotuloVista(texto: "#7", x: 250, y: 240, etiqueta: true)])
+        let png = try XCTUnwrap(OjosDelAsistente.pintar(v))
+        let img = try XCTUnwrap(NSBitmapImageRep(data: png))
+        XCTAssertEqual(img.pixelsWide, 320)
+        XCTAssertEqual(img.pixelsHigh, 280)
+        // El rectangulo rojo, en su sitio: (50, 40) del mundo -> (160, 140).
+        let rojo = try XCTUnwrap(img.colorAt(x: 160, y: 140)?.usingColorSpace(.sRGB))
+        XCTAssertGreaterThan(rojo.redComponent, 0.7)
+        XCTAssertLessThan(rojo.greenComponent, 0.4)
+        // La etiqueta, sobre amarillo; y el papel, blanco.
+        let amarillo = try XCTUnwrap(img.colorAt(x: 249, y: 240)?.usingColorSpace(.sRGB))
+        XCTAssertGreaterThan(amarillo.redComponent, 0.9)
+        XCTAssertGreaterThan(amarillo.greenComponent, 0.75)
+        XCTAssertLessThan(amarillo.blueComponent, 0.5)
+        let papel = try XCTUnwrap(img.colorAt(x: 300, y: 60)?.usingColorSpace(.sRGB))
+        XCTAssertGreaterThan(papel.blueComponent, 0.95)
+        // Una vista vacia no se pinta (caso negativo).
+        XCTAssertNil(OjosDelAsistente.pintar(VistaParaPintar(plano: plano, imagenes: [], x0: 0, y0: 0, x1: 1, y1: 1,
+                                                             ancho: 0, alto: 0, escala: 1, rayas: [], rotulos: [])))
     }
 }

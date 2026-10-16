@@ -18,6 +18,8 @@
 //   respuesta se escribe al acabar (`iaResponder`).
 // - Lo que penso, la peticion mejorada y si se renovo el contexto, encima
 //   del texto (`SeccionPensado`), en vivo o del registro de la nota.
+// - Las recetas: los pedidos que se repiten, como botones encima de la caja
+//   del chat «Asistente» («Guardar como receta» en el menu del mensaje).
 
 import AppKit
 import Foundation
@@ -62,6 +64,8 @@ public final class AsistenteEnElChat: ObservableObject {
     @Published public private(set) var contestando: [String: CorteIa] = [:]
     /// Un aviso para la barra del chat (sin motor, ocupado...).
     @Published public private(set) var aviso: (chat: String, texto: String)?
+    /// Sube cuando cambian las recetas (la fila se relee).
+    @Published public private(set) var recetasCambiadas = 0
 
     /// Lo pensado de las respuestas guardadas (`nil` dentro: no hay).
     private var pensados: [String: PensadoIa?] = [:]
@@ -91,6 +95,47 @@ public final class AsistenteEnElChat: ObservableObject {
     }
 
     public func quitarAviso() { aviso = nil }
+
+    // MARK: Recetas
+
+    /// **Las recetas** (los pedidos que se repiten, como botones encima de
+    /// la caja del chat «Asistente»): una automatizacion `a_mano` con
+    /// `boton: true` que viaja con el chat (`asistente/recetas.rs`).
+    func cambiarRecetas(_ nucleo: Nucleo, en chat: String, _ hacer: @escaping @Sendable (Nucleo) throws -> Void) {
+        Task {
+            let r = await Task.detached(priority: .userInitiated) { Result { try hacer(nucleo) } }.value
+            if case let .failure(e) = r { avisar(ModeloAjustes.texto(de: e), en: chat) }
+            recetasCambiadas += 1
+        }
+    }
+
+    /// «Guardar como receta» desde un mensaje.
+    func guardarReceta(desde m: MensajeChat, chat: String, almacen: Almacen) {
+        let nucleo = almacen.nucleo
+        Task {
+            let r = await Task.detached(priority: .userInitiated) {
+                Result { try nucleo.iaRecetaDesde(chat: chat, mensaje: m.id) }
+            }.value
+            switch r {
+            case let .success(receta?):
+                avisar("Guardada como receta: \(receta.icono) \(receta.nombre). Está encima de la caja del chat «Asistente».",
+                       en: chat)
+            case .success(nil):
+                avisar("Ese mensaje no pide nada que guardar.", en: chat)
+            case let .failure(e):
+                avisar(ModeloAjustes.texto(de: e), en: chat)
+            }
+            recetasCambiadas += 1
+        }
+    }
+
+    /// Si el menu de `m` lleva «Guardar como receta»: una nota en una
+    /// conversacion con el asistente.
+    static func sePuedeGuardarReceta(_ m: MensajeChat, chat: String, almacen: Almacen) -> Bool {
+        guard m.clase == "NOTA" else { return false }
+        if m.esDelAsistente || almacen.chats.first(where: { $0.id == chat })?.esAsistente == true { return true }
+        return (almacen.mensajes[chat] ?? []).contains(where: \.esDelAsistente)
+    }
 
     private func avisar(_ texto: String, en chat: String) {
         aviso = (chat, texto)
@@ -394,7 +439,12 @@ struct BarraDelAsistente: View {
     let almacen: Almacen
     @ObservedObject private var ia = AsistenteEnElChat.compartido
     @State private var opciones: [OpcionMencionIa] = []
+    @State private var recetas: [RecetaIa] = []
+    /// La receta que se cambia (su hoja).
+    @State private var cambiando: RecetaIa?
     @Environment(\.escalaChat) private var f
+
+    private var esSuChat: Bool { almacen.chats.first { $0.id == chat }?.esAsistente ?? false }
 
     /// Lo escrito tras el `@` que se esta escribiendo al final, si lo hay.
     private var escrito: String? { iaConsultaDeMencion(antes: borrador) }
@@ -419,6 +469,22 @@ struct BarraDelAsistente: View {
                         .keyboardShortcut(".", modifiers: .command)
                 }
             }
+            if esSuChat, !recetas.isEmpty, escrito == nil {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6 * f) {
+                        ForEach(Array(recetas.enumerated()), id: \.element.id) { i, r in
+                            Button { pedir(r) } label: {
+                                Text(r.icono.isEmpty ? r.nombre : r.icono + " " + r.nombre).lineLimit(1)
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .help(r.pedido)
+                            .disabled(ia.ocupado(chat))
+                            .contextMenu { menu(r, i) }
+                        }
+                    }
+                }
+            }
             if escrito != nil, !opciones.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6 * f) {
@@ -432,6 +498,23 @@ struct BarraDelAsistente: View {
             }
         }
         .padding(.horizontal, 14 * f)
+        .task(id: "\(chat)·\(ia.recetasCambiadas)·\(esSuChat)") {
+            guard esSuChat else {
+                recetas = []
+                return
+            }
+            let nucleo = almacen.nucleo
+            recetas = await Task.detached(priority: .utility) { nucleo.iaRecetas() }.value
+        }
+        .sheet(item: $cambiando) { r in
+            HojaReceta(receta: r) { nueva in
+                cambiando = nil
+                guard let nueva else { return }
+                ia.cambiarRecetas(almacen.nucleo, en: chat) {
+                    try $0.iaRecetaCambiar(id: nueva.id, nombre: nueva.nombre, icono: nueva.icono, pedido: nueva.pedido)
+                }
+            }
+        }
         .task(id: escrito) {
             guard let escrito else {
                 opciones = []
@@ -445,11 +528,95 @@ struct BarraDelAsistente: View {
         }
     }
 
+    /// Un clic en una receta: su pedido, como si se hubiera escrito.
+    private func pedir(_ r: RecetaIa) {
+        let almacen = self.almacen
+        let chat = self.chat
+        Task {
+            if let m = await almacen.escribir(nota: r.pedido, en: chat) {
+                AsistenteEnElChat.compartido.alEnviar([m], chat: chat, almacen: almacen)
+            }
+        }
+    }
+
+    /// El clic derecho en una receta: cambiarla, su icono, moverla o borrarla.
+    @ViewBuilder
+    private func menu(_ r: RecetaIa, _ i: Int) -> some View {
+        let nucleo = almacen.nucleo
+        Button("Cambiar el nombre o el pedido…") { cambiando = r }
+        Menu("Icono") {
+            ForEach(iaIconosDeReceta(), id: \.self) { icono in
+                Button(icono) {
+                    ia.cambiarRecetas(nucleo, en: chat) {
+                        try $0.iaRecetaCambiar(id: r.id, nombre: r.nombre, icono: icono, pedido: r.pedido)
+                    }
+                }
+            }
+        }
+        Divider()
+        Button("Mover a la izquierda") { ia.cambiarRecetas(nucleo, en: chat) { try $0.iaRecetaMover(id: r.id, paso: -1) } }
+            .disabled(i == 0)
+        Button("Mover a la derecha") { ia.cambiarRecetas(nucleo, en: chat) { try $0.iaRecetaMover(id: r.id, paso: 1) } }
+            .disabled(i == recetas.count - 1)
+        Divider()
+        Button("Borrar la receta", role: .destructive) {
+            ia.cambiarRecetas(nucleo, en: chat) { try $0.iaRecetaBorrar(id: r.id) }
+        }
+    }
+
     /// Escribe la opcion elegida en lugar de lo escrito desde el `@`.
     private func poner(_ o: OpcionMencionIa) {
         guard let escrito, let arroba = borrador.lastIndex(of: "@") else { return }
         _ = escrito
         borrador = String(borrador[..<arroba]) + o.mencion + " "
         opciones = []
+    }
+}
+
+extension RecetaIa: Identifiable {}
+
+/// **Cambiar una receta**: su nombre, su icono y lo que pide.
+struct HojaReceta: View {
+    let receta: RecetaIa
+    let acabar: (RecetaIa?) -> Void
+    @State private var nombre = ""
+    @State private var icono = ""
+    @State private var pedido = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Receta").font(.headline)
+            HStack {
+                Picker("", selection: $icono) {
+                    ForEach(iaIconosDeReceta(), id: \.self) { Text($0).tag($0) }
+                    if !iaIconosDeReceta().contains(icono) { Text(icono).tag(icono) }
+                }
+                .labelsHidden()
+                .frame(width: 70)
+                TextField("Nombre", text: $nombre)
+            }
+            Text("Lo que pide").font(.caption).foregroundStyle(.secondary)
+            TextEditor(text: $pedido)
+                .font(.body)
+                .frame(minHeight: 90)
+                .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.quaternary))
+            HStack {
+                Spacer()
+                Button("Cancelar") { acabar(nil) }.keyboardShortcut(.cancelAction)
+                Button("Guardar") {
+                    acabar(RecetaIa(id: receta.id, nombre: nombre, icono: icono, pedido: pedido))
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(nombre.trimmingCharacters(in: .whitespaces).isEmpty
+                    || pedido.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(16)
+        .frame(width: 380)
+        .onAppear {
+            nombre = receta.nombre
+            icono = receta.icono
+            pedido = receta.pedido
+        }
     }
 }

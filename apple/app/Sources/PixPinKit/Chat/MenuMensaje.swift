@@ -57,18 +57,22 @@ enum Escritura: Identifiable, Equatable {
     case describir(MensajeChat)
     case renombrar(MensajeChat)
     case hora(MensajeChat)
+    /// Quien llama en la llamada secreta de una nota de voz (E5), con el
+    /// nombre que se ve ahora.
+    case quienLlama(MensajeChat, actual: String)
 
     var id: String {
         switch self {
         case let .describir(m): "d" + m.id
         case let .renombrar(m): "r" + m.id
         case let .hora(m): "h" + m.id
+        case let .quienLlama(m, _): "q" + m.id
         }
     }
 
     var mensaje: MensajeChat {
         switch self {
-        case let .describir(m), let .renombrar(m), let .hora(m): m
+        case let .describir(m), let .renombrar(m), let .hora(m), let .quienLlama(m, _): m
         }
     }
 }
@@ -226,6 +230,9 @@ final class ChatAbierto: ObservableObject {
         Task {
             guard await almacen.cambiar(mensaje: m.id, en: chat, .recordar(cuando: ms)) != nil else { return }
             RecordatoriosDeMensajes.programar(chat: chat, id: m.id, texto: texto, cuando: cuando)
+            // Una nota de voz con hora es una llamada secreta: queda
+            // apuntado quien llama (E5).
+            QuienLlama.alPonerLaHora(m, nucleo: almacen.nucleo)
             avisar("Te aviso a las \(HorasDeRecordar.legible(cuando, ahora: Date()))")
         }
     }
@@ -255,6 +262,8 @@ final class ChatAbierto: ObservableObject {
             if let cuando = HorasDeRecordar.horaEscrita(texto, ahora: Date()) {
                 recordar(m, en: cuando)
             }
+        case let .quienLlama(m, _):
+            QuienLlama.poner(texto, en: m, nucleo: almacen.nucleo)
         }
     }
 
@@ -412,6 +421,11 @@ private struct MenuDeMensaje<Propias: View>: View {
         // ── Lo diario ──
         Button { c.responder(m) } label: { Label("Responder", systemImage: "arrowshape.turn.up.left") }
             .keyboardShortcut("r", modifiers: [])
+        if AsistenteEnElChat.sePuedeGuardarReceta(m, chat: c.chat, almacen: c.almacen) {
+            Button { AsistenteEnElChat.compartido.guardarReceta(desde: m, chat: c.chat, almacen: c.almacen) } label: {
+                Label("Guardar como receta", systemImage: "star")
+            }
+        }
         if ChatAbierto.sePuedeCopiar(m) {
             Button { c.copiar([m.id]) } label: { Label("Copiar", systemImage: "doc.on.doc") }
                 .keyboardShortcut("c", modifiers: .command)
@@ -442,6 +456,15 @@ private struct MenuDeMensaje<Propias: View>: View {
             Button { c.olvidar(m) } label: { Label("Quitar el recordatorio", systemImage: "alarm") }
         } else {
             Menu {
+                // Una nota de voz con hora es una llamada secreta: primero,
+                // quien llama (`ventana_chat/quien_llama.rs`).
+                if m.clase == "VOZ" {
+                    let actual = QuienLlama.actual(m, nucleo: c.almacen.nucleo)
+                    Button { c.escritura = .quienLlama(m, actual: actual) } label: {
+                        Label("Quién llama: \(Llamada.titulo(actual))", systemImage: "person")
+                    }
+                    Divider()
+                }
                 ForEach(HorasDeRecordar.atajos(ahora: Date()), id: \.titulo) { h in
                     Button { c.recordar(m, en: h.cuando) } label: { Label(h.titulo, systemImage: "alarm") }
                 }
@@ -682,6 +705,7 @@ struct HojaEscritura: View {
             m.texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Añadir descripción" : "Editar descripción"
         case .renombrar: "Cambiar el nombre"
         case .hora: "Avisar a las"
+        case .quienLlama: "Quién llama"
         }
     }
 
@@ -690,6 +714,7 @@ struct HojaEscritura: View {
         case .describir: "Descripción:"
         case .renombrar: "Nombre:"
         case .hora: "Hora:"
+        case .quienLlama: "Quién llama:"
         }
     }
 
@@ -702,6 +727,7 @@ struct HojaEscritura: View {
             }
             return "Eso no es una hora: escríbela como 18:30"
         case .renombrar: return "Intro guarda · Esc deja el de antes"
+        case .quienLlama: return "Intro guarda · en blanco vuelve el nombre de la nota"
         case .describir: return "Intro guarda · Esc lo deja como estaba"
         }
     }
@@ -710,7 +736,7 @@ struct HojaEscritura: View {
         switch escritura {
         case .hora: HorasDeRecordar.horaEscrita(texto, ahora: Date()) != nil
         case .renombrar: !texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        case .describir: true
+        case .describir, .quienLlama: true
         }
     }
 
@@ -742,6 +768,7 @@ struct HojaEscritura: View {
             case let .describir(m): texto = m.texto.trimmingCharacters(in: .whitespacesAndNewlines)
             case let .renombrar(m): texto = ChatAbierto.nombreParaEscribir(m)
             case .hora: texto = ""
+            case let .quienLlama(_, actual): texto = actual
             }
             enfocado = true
         }
