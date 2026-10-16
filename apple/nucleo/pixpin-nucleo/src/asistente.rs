@@ -43,7 +43,10 @@ use serde_json::Value;
 
 use crate::ErrorNucleo;
 
+pub mod al_lienzo;
+pub mod chat;
 pub mod documentos;
+pub mod en_la_conversacion;
 pub mod local;
 pub mod transporte;
 pub mod turno;

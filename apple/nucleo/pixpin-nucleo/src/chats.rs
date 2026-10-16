@@ -466,6 +466,21 @@ impl Nucleo {
         texto: String,
         responde_a: Option<String>,
     ) -> Result<MensajeChat, ErrorNucleo> {
+        self.escribir_nota_con(chat, texto, responde_a, |_| {})
+            .map(MensajeChat::from)
+    }
+}
+
+impl Nucleo {
+    /// Lo de [`Nucleo::escribir_nota`], con un `retoque` del mensaje antes de
+    /// escribir su linea (las respuestas del asistente: `aparato = "IA"`).
+    pub(crate) fn escribir_nota_con(
+        &self,
+        chat: String,
+        texto: String,
+        responde_a: Option<String>,
+        retoque: impl FnOnce(&mut Mensaje),
+    ) -> Result<Mensaje, ErrorNucleo> {
         validar_chat(&chat)?;
         let raiz = self.ruta();
         let mut indice = Indice::leer_si_esta(raiz)?;
@@ -490,6 +505,7 @@ impl Nucleo {
             },
         );
         m.responde_a = responde_a;
+        retoque(&mut m);
         cuaderno::anadir(&carpeta, &m)?;
         cache.quitar(&fichero);
         drop(cache);
@@ -498,9 +514,12 @@ impl Nucleo {
             f.resumen = m.resumen();
         }
         indice.guardar(raiz)?;
-        Ok(MensajeChat::from(m))
+        Ok(m)
     }
+}
 
+#[uniffi::export]
+impl Nucleo {
     /// **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
     /// Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
     /// **la marca de cada uno** para sincronizar (sin ella, la vuelta

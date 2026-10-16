@@ -14,10 +14,12 @@
 //!   la hoja de trabajo de la conversacion y el reinicio del contexto al
 //!   70 % (`buscar_historial` para lo viejo).
 //! - **Las herramientas**: la nube recibe el catalogo entero (sin lo que el
-//!   Mac aun no hace: editar el lienzo, figuras guardadas, hoja→lienzo,
-//!   anotar documentos, las acciones de documentos y las del chat; eso es
-//!   E1); el local, las pocas que vienen a cuento (`seleccion`). El camino
-//!   rapido (`pixpin_ia::rapido`) hace las ordenes simples sin modelo.
+//!   Mac aun no hace: hoja→lienzo, anotar documentos, las acciones de
+//!   documentos y las del chat); el local, las pocas que vienen a cuento
+//!   (`seleccion`). Editar el lienzo y las figuras guardadas solo en una
+//!   conversacion ([`super::en_la_conversacion`], E1), que tiene lienzo. El
+//!   camino rapido (`pixpin_ia::rapido`) hace las ordenes simples sin
+//!   modelo.
 //! - **Lo que hace cada herramienta** ([`EjecutorDelMac`]): dibujar y
 //!   calcar juntan los elementos del lienzo; las acciones de la app
 //!   (tareas, notas, ventanas...) son pedidos del protocolo
@@ -205,19 +207,22 @@ pub trait AppIa: Send + Sync {
     fn leer_texto(&self, ruta: String, paginas: Vec<RangoPaginas>) -> Result<String, ErrorNucleo>;
 }
 
-/// Lo que el Mac aun no hace (E1: el lienzo abierto, las figuras, las
-/// acciones sobre documentos y las del chat): no se le ofrece al modelo.
-fn el_mac_lo_hace(nombre: &str) -> bool {
+/// Lo que el Mac aun no hace (hoja→lienzo, anotar documentos, las acciones
+/// sobre documentos y las del chat): no se le ofrece al modelo. Editar el
+/// lienzo y las figuras guardadas, solo `en_chat` (fuera de una conversacion
+/// no hay lienzo que editar).
+fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
     use pixpin_ia::acciones;
-    !(nombre == pixpin_ia::figuras::NOMBRE
-        || nombre == pixpin_ia::hoja::NOMBRE
+    if nombre == pixpin_ia::figuras::NOMBRE || pixpin_ia::edicion::herramientas().iter().any(|h| h.nombre == nombre) {
+        return en_chat;
+    }
+    !(nombre == pixpin_ia::hoja::NOMBRE
         || nombre == pixpin_ia::anotacion::NOMBRE
         || acciones::es_en_el_chat(nombre)
-        || pixpin_ia::acciones_documentos::es_de_documentos(nombre)
-        || pixpin_ia::edicion::herramientas().iter().any(|h| h.nombre == nombre))
+        || pixpin_ia::acciones_documentos::es_de_documentos(nombre))
 }
 
-fn es_imagen(ruta: &str) -> bool {
+pub(crate) fn es_imagen(ruta: &str) -> bool {
     Path::new(ruta)
         .extension()
         .and_then(|e| e.to_str())
@@ -236,8 +241,14 @@ fn es_para_calcar(pedido: &str, con_imagen: bool) -> bool {
         && !pixpin_ia::seleccion::pide_pegar_o_recortar(&palabras)
 }
 
-/// **Las herramientas de este turno.**
+/// **Las herramientas de este turno** (fuera de una conversacion).
+#[cfg(test)]
 pub(crate) fn herramientas_del_turno(pedido: &str, con_imagen: bool, adjuntos: bool, nube: bool) -> Vec<Herramienta> {
+    herramientas_del_turno_en(pedido, con_imagen, adjuntos, nube, false)
+}
+
+/// Las de este turno; `en_chat`: en una conversacion, con su lienzo.
+pub(crate) fn herramientas_del_turno_en(pedido: &str, con_imagen: bool, adjuntos: bool, nube: bool, en_chat: bool) -> Vec<Herramienta> {
     let mut h = if nube && !es_para_calcar(pedido, con_imagen) {
         pixpin_ia::herramientas::catalogo()
     } else {
@@ -250,7 +261,7 @@ pub(crate) fn herramientas_del_turno(pedido: &str, con_imagen: bool, adjuntos: b
                 .filter(|x| x.nombre == pixpin_ia::herramientas::OCR),
         );
     }
-    h.retain(|x| el_mac_lo_hace(&x.nombre));
+    h.retain(|x| el_mac_lo_hace(&x.nombre, en_chat));
     h
 }
 
@@ -294,7 +305,7 @@ pub fn ia_turno(
 }
 
 /// El motor de este turno, su nombre y si es de la nube.
-fn motor_del_turno(a: &AjustesIa, pedido: &str, con_foto: bool) -> Result<(Arc<dyn Motor>, String, bool), ErrorNucleo> {
+pub(crate) fn motor_del_turno(a: &AjustesIa, pedido: &str, con_foto: bool) -> Result<(Arc<dyn Motor>, String, bool), ErrorNucleo> {
     let raiz = PathBuf::from(&a.carpeta_modelos);
     // El local de este turno (Gemma si toca mirar una foto y esta bajado).
     let local_para = |pedido: &str| -> Option<(Arc<dyn Motor>, String)> {
@@ -342,7 +353,7 @@ pub(crate) struct Entorno {
 
 /// Lo que se va juntando de los eventos (Windows, `turno::Recogido`).
 #[derive(Default)]
-struct Recogido {
+pub(crate) struct Recogido {
     pensamiento: String,
     segundos: Option<f32>,
     plan: Option<Plan>,
@@ -351,7 +362,8 @@ struct Recogido {
     reinicio: bool,
 }
 
-/// **El turno con cualquier motor** (las pruebas usan uno guionado).
+/// **El turno con cualquier motor** (las pruebas usan uno guionado): lo
+/// que pasa se cuenta a `oyente` (el texto, en tandas).
 pub(crate) fn turno_con(
     motor: &dyn Motor,
     entorno: &Entorno,
@@ -360,7 +372,83 @@ pub(crate) fn turno_con(
     oyente: &dyn OyenteIa,
     corte: &CorteIa,
 ) -> Result<RespuestaIa, ErrorNucleo> {
+    let mut tanda = Tanda::nueva(entorno.cada);
+    let extra = Extra {
+        cortado: corte.cortado(),
+        ..Default::default()
+    };
+    let r = turno_nucleo(motor, entorno, peticion, ejecutor, extra, &mut |e| {
+        match e {
+            Evento::Texto(t) => {
+                if let Some(t) = tanda.meter(t) {
+                    oyente.texto(t);
+                }
+            }
+            Evento::Pensando(t) => oyente.pensando(t.clone()),
+            Evento::Llamando(n) => {
+                if let Some(t) = tanda.soltar() {
+                    oyente.texto(t);
+                }
+                oyente.llamando(n.clone());
+            }
+            Evento::Resultado { nombre, ok, texto } => {
+                if let Some(t) = tanda.soltar() {
+                    oyente.texto(t);
+                }
+                oyente.herramienta(HerramientaUsada {
+                    nombre: nombre.clone(),
+                    ok: *ok,
+                    resumen: texto.clone(),
+                });
+            }
+            _ => {}
+        }
+        if corte.cortado() { Seguir::Parar } else { Seguir::Si }
+    });
+    if let Some(t) = tanda.soltar() {
+        oyente.texto(t);
+    }
+    r.map(|(respuesta, _)| respuesta)
+}
+
+/// Lo que el turno en una conversacion anade a la peticion.
+#[derive(Default)]
+pub(crate) struct Extra {
+    /// Donde busca `buscar_historial` (las notas del chat y lo pensado); sin
+    /// ellas, los mensajes del historial.
+    pub fuentes: Option<Vec<Fuente>>,
+    /// Ya se paro antes de empezar: ni se llama al motor.
+    pub cortado: bool,
+}
+
+/// Lo que sale del turno ademas de la respuesta.
+pub(crate) struct Detalle {
+    /// Si el contexto se reinicio: desde que mensaje del historial (su
+    /// posicion entre los que no estan en blanco) sigue la conversacion.
+    pub primero: Option<usize>,
+    /// Lo que se guarda con la respuesta (`<nota>.asistente.json`).
+    pub registro: pixpin_ia::hoja_trabajo::Registro,
+    /// Como acabo el turno (`EnVivo::acabar`).
+    pub fin: Result<pixpin_ia::agente::Final, String>,
+}
+
+/// **El turno**: prepara el historial (desde el ultimo reinicio, los
+/// ultimos, recortados), piensa si toca, usa las herramientas y reescribe
+/// la hoja. Cada evento va a `al_evento`, que puede parar.
+pub(crate) fn turno_nucleo(
+    motor: &dyn Motor,
+    entorno: &Entorno,
+    peticion: PeticionIa,
+    ejecutor: &mut EjecutorDelMac,
+    extra: Extra,
+    al_evento: &mut dyn FnMut(&Evento) -> Seguir,
+) -> Result<(RespuestaIa, Detalle), ErrorNucleo> {
     let pedido = peticion.pedido.trim().to_string();
+    let en_chat = ejecutor.chat.is_some();
+    let mut hoja = serde_json::from_str::<Value>(&peticion.hoja)
+        .ok()
+        .and_then(|v| HojaDeTrabajo::de_json(&v).ok())
+        .unwrap_or_default();
     let vacia = |hoja: String| RespuestaIa {
         texto: String::new(),
         herramientas: Vec::new(),
@@ -371,32 +459,46 @@ pub(crate) fn turno_con(
         hoja,
         citas: Vec::new(),
     };
-    if corte.cortado() {
-        return Ok(vacia(peticion.hoja));
+    if extra.cortado {
+        let r = vacia(peticion.hoja.clone());
+        let registro = pixpin_ia::hoja_trabajo::Registro {
+            pensamiento: String::new(),
+            segundos: None,
+            plan: None,
+            hoja,
+            reinicio: false,
+        };
+        let fin = Ok(pixpin_ia::agente::Final {
+            texto: String::new(),
+            herramientas_hechas: 0,
+            reintentos: 0,
+            cortado: true,
+        });
+        return Ok((r, Detalle { primero: None, registro, fin }));
     }
-    let mut hoja = serde_json::from_str::<Value>(&peticion.hoja)
-        .ok()
-        .and_then(|v| HojaDeTrabajo::de_json(&v).ok())
-        .unwrap_or_default();
     let con_imagen = peticion.foto.is_some() || peticion.adjuntos.iter().any(|a| es_imagen(&a.ruta));
-    let herramientas = herramientas_del_turno(&pedido, con_imagen, !peticion.adjuntos.is_empty(), entorno.nube);
+    let herramientas = herramientas_del_turno_en(&pedido, con_imagen, !peticion.adjuntos.is_empty(), entorno.nube, en_chat);
 
-    // La conversacion: desde el ultimo reinicio, los ultimos, recortados.
+    // La conversacion: los ultimos, recortados (el historial ya viene desde
+    // el ultimo reinicio).
     let anteriores: Vec<(bool, String)> = peticion
         .historial
         .iter()
         .filter(|m| !m.texto.trim().is_empty())
         .map(|m| (m.del_usuario, m.texto.chars().take(LARGO).collect::<String>()))
         .collect();
-    let anteriores = &anteriores[anteriores.len().saturating_sub(ULTIMOS)..];
-    let fuentes: Vec<Fuente> = anteriores
-        .iter()
-        .enumerate()
-        .map(|(i, (u, t))| Fuente {
-            etiqueta: format!("#{} {}", i + 1, if *u { "usuario" } else { "asistente" }),
-            texto: t.clone(),
-        })
-        .collect();
+    let desde = anteriores.len().saturating_sub(ULTIMOS);
+    let anteriores = &anteriores[desde..];
+    let fuentes: Vec<Fuente> = extra.fuentes.unwrap_or_else(|| {
+        anteriores
+            .iter()
+            .enumerate()
+            .map(|(i, (u, t))| Fuente {
+                etiqueta: format!("#{} {}", i + 1, if *u { "usuario" } else { "asistente" }),
+                texto: t.clone(),
+            })
+            .collect()
+    });
     let nuevo = match &peticion.foto {
         Some(f) => Mensaje::usuario_con_imagen(pedido.clone(), f.bytes.clone(), &f.mime),
         None => Mensaje::usuario(pedido.clone()),
@@ -405,15 +507,24 @@ pub(crate) fn turno_con(
     let mut con_buscar = herramientas.clone();
     con_buscar.push(contexto::herramienta_buscar());
     let preparado = contexto::preparar(sistema, anteriores, nuevo, &con_buscar, entorno.ventana, contexto::RESERVA_RESPUESTA);
+    let primero = preparado.reiniciado.then_some(desde + preparado.primero);
     if preparado.reiniciado {
         hoja.reinicios += 1;
     }
     let mut historial = preparado.historial;
+    // El lienzo destino, resumido (tipos, #id, cajas, colores, textos) al
+    // final del pedido: solo si el pedido es de dibujar o editar y hay
+    // lienzo (`pixpin_ia::edicion`).
+    if pixpin_ia::edicion::viene_a_cuento(&pedido)
+        && let Some(r) = ejecutor.resumen_del_lienzo()
+    {
+        pixpin_ia::edicion::anadir_resumen(&mut historial, &r);
+    }
 
     let buscar = |c: &str| contexto::buscar(&fuentes, c, 3);
     let todas: Vec<Herramienta> = pixpin_ia::herramientas::catalogo()
         .into_iter()
-        .filter(|h| el_mac_lo_hace(&h.nombre) && (entorno.nube || !pixpin_ia::acciones::es_solo_nube(&h.nombre)))
+        .filter(|h| el_mac_lo_hace(&h.nombre, en_chat) && (entorno.nube || !pixpin_ia::acciones::es_solo_nube(&h.nombre)))
         .collect();
     let ahora = Momento::de_ms_locales(crate::ahora_ms() + peticion.desfase_ms);
     let opciones = Opciones {
@@ -428,55 +539,62 @@ pub(crate) fn turno_con(
         revisar: 0,
     };
 
-    let mut tanda = Tanda::nueva(entorno.cada);
     let mut recogido = Recogido::default();
     let resultado = agente::turno_con(motor, &mut historial, &herramientas, ejecutor, &opciones, &mut |e| {
         match &e {
-            Evento::Texto(t) => {
-                if let Some(t) = tanda.meter(t) {
-                    oyente.texto(t);
-                }
-            }
-            Evento::Pensando(t) => {
-                recogido.pensamiento.push_str(t);
-                oyente.pensando(t.clone());
-            }
+            Evento::Pensando(t) => recogido.pensamiento.push_str(t),
             Evento::PensoListo { segundos } => *recogido.segundos.get_or_insert(0.0) += segundos,
             Evento::Peticion(p) => recogido.plan = Some(p.clone()),
             Evento::Reinicio { .. } => recogido.reinicio = true,
-            Evento::Llamando(n) => {
-                if let Some(t) = tanda.soltar() {
-                    oyente.texto(t);
-                }
-                oyente.llamando(n.clone());
-            }
             Evento::Resultado { nombre, ok, texto } => {
-                if let Some(t) = tanda.soltar() {
-                    oyente.texto(t);
-                }
-                let usada = HerramientaUsada {
-                    nombre: nombre.clone(),
-                    ok: *ok,
-                    resumen: texto.clone(),
-                };
                 if *ok {
                     recogido.herramientas.push(nombre.clone());
                 }
-                recogido.usadas.push(usada.clone());
-                oyente.herramienta(usada);
+                recogido.usadas.push(HerramientaUsada {
+                    nombre: nombre.clone(),
+                    ok: *ok,
+                    resumen: texto.clone(),
+                });
             }
             _ => {}
         }
-        if corte.cortado() { Seguir::Parar } else { Seguir::Si }
+        al_evento(&e)
     });
-    if let Some(t) = tanda.soltar() {
-        oyente.texto(t);
-    }
-    let fin = resultado.map_err(|e| ErrorNucleo::Asistente {
-        detalle: agente::para_el_usuario(&e),
-    })?;
+    let fin = match resultado {
+        Ok(f) => f,
+        Err(e) => {
+            let detalle = agente::para_el_usuario(&e);
+            // Lo que falta, apuntado en la hoja (Windows: «un turno que
+            // falla deja lo que falta en la hoja»).
+            let plan = recogido.plan.clone().unwrap_or_else(|| Plan::por_omision(&pedido));
+            hoja.reescribir(
+                &plan,
+                &ResumenDelTurno {
+                    herramientas: recogido.herramientas.clone(),
+                    respuesta: String::new(),
+                    incompleto: true,
+                    pensamiento: recogido.pensamiento.clone(),
+                },
+            );
+            if en_chat {
+                // En una conversacion el fallo tambien se guarda con su nota.
+                let registro = pixpin_ia::hoja_trabajo::Registro {
+                    pensamiento: recogido.pensamiento.clone(),
+                    segundos: recogido.segundos,
+                    plan: recogido.plan.clone(),
+                    hoja,
+                    reinicio: preparado.reiniciado || recogido.reinicio,
+                };
+                let mut r = vacia(registro.hoja.a_json().to_string());
+                r.herramientas = recogido.usadas;
+                r.lienzo = ejecutor.lienzo();
+                return Ok((r, Detalle { primero, registro, fin: Err(detalle) }));
+            }
+            return Err(ErrorNucleo::Asistente { detalle });
+        }
+    };
     // La hoja reescrita con lo que entendio y lo que paso.
-    let plan = recogido.plan.unwrap_or_else(|| Plan::por_omision(&pedido));
+    let plan = recogido.plan.clone().unwrap_or_else(|| Plan::por_omision(&pedido));
     let incompleto = fin.cortado || fin.texto.starts_with("No he sabido") || fin.texto.starts_with("Hecho en parte");
     hoja.reescribir(
         &plan,
@@ -498,16 +616,24 @@ pub(crate) fn turno_con(
             pedido: c.pedido().to_string(),
         })
         .collect();
-    Ok(RespuestaIa {
+    let respuesta = RespuestaIa {
         citas,
-        texto: fin.texto,
+        texto: fin.texto.clone(),
         herramientas: recogido.usadas,
         lienzo,
         segundos_pensando: recogido.segundos.filter(|_| !recogido.pensamiento.trim().is_empty()),
-        pensamiento: recogido.pensamiento,
+        pensamiento: recogido.pensamiento.clone(),
         motor: entorno.nombre.clone(),
         hoja: hoja.a_json().to_string(),
-    })
+    };
+    let registro = pixpin_ia::hoja_trabajo::Registro {
+        pensamiento: recogido.pensamiento,
+        segundos: recogido.segundos,
+        plan: recogido.plan,
+        hoja,
+        reinicio: preparado.reiniciado || recogido.reinicio,
+    };
+    Ok((respuesta, Detalle { primero, registro, fin: Ok(fin) }))
 }
 
 // ---------------------------------------------------------------------------
@@ -525,6 +651,55 @@ pub(crate) struct EjecutorDelMac {
     nube: bool,
     /// Lo citado de los documentos en el turno.
     pub(crate) citas: pixpin_ia::documentos::Citas,
+    /// En una conversacion: su lienzo (lo dibujado va alli, no a un
+    /// `.excalidraw` suelto) y lo que hay que dejar en el chat.
+    pub(crate) chat: Option<EnChat>,
+}
+
+/// **El turno en una conversacion**: adonde va lo dibujado y lo que el
+/// turno sabe del lienzo (`EjecutorDelChat` de Windows).
+pub(crate) struct EnChat {
+    pub nucleo: Arc<Nucleo>,
+    pub chat: String,
+    /// El lienzo nombrado con `@lienzo:` (su referencia).
+    pub destino: Option<String>,
+    /// Desde donde mide el modelo, lo elegido y lo ultimo que toco.
+    pub ctx: pixpin_ia::edicion::Contexto,
+    /// Si ya se pregunto al lienzo por su resumen (y con el, el marco).
+    pub con_marco: bool,
+    /// El lienzo del chat donde dibujo (su referencia): la respuesta lo
+    /// apunta para su «Abrir lienzo».
+    pub lienzo: Option<String>,
+    /// Lo ultimo dibujado (el documento), para «guarda esto como figura».
+    pub ultimo_dibujo: Option<String>,
+    /// El texto entero de lo leido (OCR), para dejarlo en el chat.
+    pub leidos: Vec<(AdjuntoIa, String)>,
+}
+
+impl EnChat {
+    /// Lo dibujado o editado pasa a ser «lo ultimo»; y el lienzo, el de la
+    /// respuesta.
+    fn apuntar(&mut self, ids: &[u64], referencia: Option<String>) {
+        if !ids.is_empty() {
+            self.ctx.ultimos = ids.to_vec();
+        }
+        if referencia.is_some() {
+            self.lienzo = referencia;
+        }
+    }
+
+    pub(crate) fn nuevo(nucleo: Arc<Nucleo>, chat: String, destino: Option<String>) -> EnChat {
+        EnChat {
+            nucleo,
+            chat,
+            destino,
+            ctx: Default::default(),
+            con_marco: false,
+            lienzo: None,
+            ultimo_dibujo: None,
+            leidos: Vec::new(),
+        }
+    }
 }
 
 impl EjecutorDelMac {
@@ -538,7 +713,109 @@ impl EjecutorDelMac {
             nucleo: None,
             nube: false,
             citas: Default::default(),
+            chat: None,
         }
+    }
+
+    /// En una conversacion (con su lienzo).
+    pub(crate) fn en_el_chat(mut self, chat: EnChat) -> EjecutorDelMac {
+        self.chat = Some(chat);
+        self
+    }
+
+    /// **El resumen del lienzo destino** para el modelo, al empezar el turno
+    /// (`pixpin_ia::edicion::resumen`); se queda con el marco y lo elegido.
+    /// `None` fuera de una conversacion o si el lienzo esta vacio.
+    pub(crate) fn resumen_del_lienzo(&mut self) -> Option<String> {
+        let c = self.chat.as_mut()?;
+        let (r, _) = super::al_lienzo::en_el_chat(&c.nucleo, &c.chat, c.destino.as_deref(), &super::al_lienzo::Trabajo::Resumir, None).ok()?;
+        if let Some(ctx) = r.ctx {
+            c.ctx = ctx;
+            c.con_marco = true;
+        }
+        (!r.texto.starts_with("Lienzo destino: vacio")).then_some(r.texto)
+    }
+
+    /// Lo dibujado, al lienzo de la conversacion.
+    fn al_lienzo_del_chat(&mut self, elementos: Vec<Value>) -> Result<String, String> {
+        if elementos.is_empty() {
+            return Err("no salio ninguna figura".into());
+        }
+        let documento = pixpin_ia::lienzo::documento(elementos);
+        // Que lo lea el lienzo de verdad antes de tocar nada.
+        pixpin_motor2d::excalidraw::leer(&documento).map_err(|_| "el lienzo no pudo leer las figuras".to_string())?;
+        let c = self.chat.as_mut().ok_or("aqui no hay lienzo")?;
+        c.ultimo_dibujo = Some(documento.clone());
+        let marco = c.con_marco.then_some(c.ctx.marco);
+        let (r, referencia) = super::al_lienzo::en_el_chat(&c.nucleo, &c.chat, c.destino.as_deref(), &super::al_lienzo::Trabajo::Dibujar(documento), marco)?;
+        c.apuntar(&r.ids, referencia);
+        Ok(r.texto)
+    }
+
+    /// **Editar lo que ya hay** (`pixpin_ia::edicion`).
+    fn editar(&mut self, e: &pixpin_ia::edicion::Edicion) -> Result<String, String> {
+        if self.chat.as_ref().is_some_and(|c| !c.con_marco) {
+            // Sin resumen al empezar: se pregunta ahora, para medir desde
+            // el mismo sitio.
+            let _ = self.resumen_del_lienzo();
+        }
+        let c = self.chat.as_mut().ok_or("aqui no hay lienzo que editar")?;
+        let trabajo = super::al_lienzo::Trabajo::Editar {
+            edicion: Box::new(e.clone()),
+            ctx: c.ctx.clone(),
+        };
+        let (r, referencia) = super::al_lienzo::en_el_chat(&c.nucleo, &c.chat, c.destino.as_deref(), &trabajo, None)?;
+        c.apuntar(&r.ids, referencia);
+        Ok(r.texto)
+    }
+
+    /// **La biblioteca de figuras**, la misma del panel del lienzo.
+    fn figuras(&mut self, p: &pixpin_ia::figuras::PedidoFiguras) -> Result<String, String> {
+        use pixpin_ia::figuras::{PedidoFiguras, buscar, lista};
+        use pixpin_motor2d::biblioteca;
+        let nucleo = self.chat.as_ref().map(|c| c.nucleo.clone()).ok_or("aqui no hay lienzo")?;
+        let todas = nucleo.biblioteca_cargar().map_err(|e| format!("no se pudo leer la biblioteca de figuras: {e}"))?;
+        match p {
+            PedidoFiguras::Lista => Ok(lista(&todas)),
+            PedidoFiguras::Poner { nombre } => {
+                let f = buscar(&todas, nombre).ok_or_else(|| format!("no hay ninguna figura guardada como «{nombre}» ({})", lista(&todas)))?;
+                self.semilla += 1;
+                let els = pixpin_ia::lienzo::elementos_de_figura(f, (0.0, 0.0), self.semilla);
+                let r = self.al_lienzo_del_chat(els)?;
+                Ok(format!("{r}: la figura «{}»", f.nombre))
+            }
+            PedidoFiguras::Guardar { nombre } => {
+                let (piezas, de_donde) = self.lo_que_guardar()?;
+                let figura = biblioteca::FiguraGuardada {
+                    id: biblioteca::id_nuevo(),
+                    nombre: nombre.clone(),
+                    elementos: biblioteca::normalizar(&piezas),
+                };
+                if !nucleo.biblioteca_anadir(figura).unwrap_or(false) {
+                    return Err("no se pudo escribir la biblioteca de figuras".into());
+                }
+                Ok(format!(
+                    "guardada la figura «{nombre}» ({} piezas, {de_donde}); esta en el menu de figuras del lienzo",
+                    piezas.len()
+                ))
+            }
+        }
+    }
+
+    /// Lo elegido en el lienzo abierto; si no hay nada elegido, lo ultimo
+    /// que dibujo el asistente en este turno.
+    fn lo_que_guardar(&self) -> Result<(Vec<pixpin_motor2d::Elemento>, &'static str), String> {
+        let c = self.chat.as_ref().ok_or("aqui no hay lienzo")?;
+        if let Ok((r, _)) = super::al_lienzo::en_el_chat(&c.nucleo, &c.chat, c.destino.as_deref(), &super::al_lienzo::Trabajo::Elegido, None)
+            && !r.elegido.is_empty()
+        {
+            return Ok((r.elegido, "lo elegido en el lienzo"));
+        }
+        let ultimo = c
+            .ultimo_dibujo
+            .as_deref()
+            .ok_or("no hay nada elegido en el lienzo ni nada dibujado antes: elige lo que quieres guardar")?;
+        Ok((super::al_lienzo::elementos_de(ultimo)?, "lo ultimo que dibuje"))
     }
 
     pub(crate) fn en_la_nube(mut self, nube: bool) -> EjecutorDelMac {
@@ -638,10 +915,14 @@ impl EjecutorDelMac {
         if els.is_empty() {
             return Err("la imagen no tiene formas que calcar (esta en blanco o casi)".into());
         }
+        if self.chat.is_some() {
+            return self.al_lienzo_del_chat(els);
+        }
         Ok(self.poner(els))
     }
 
-    fn leer(&self, p: &pixpin_ia::herramientas::PeticionOcr) -> Result<String, String> {
+    /// El adjunto pedido y su texto entero.
+    fn leer_entero(&self, p: &pixpin_ia::herramientas::PeticionOcr) -> Result<(AdjuntoIa, String), String> {
         let a = self.elegir(p.archivo.as_deref(), false)?;
         let app = self.app.as_ref().ok_or("aqui no se pueden leer adjuntos")?;
         let paginas = p.paginas.iter().map(|&(desde, hasta)| RangoPaginas { desde, hasta }).collect();
@@ -649,7 +930,18 @@ impl EjecutorDelMac {
         if texto.trim().is_empty() {
             return Err(format!("{} no tiene texto que se pueda leer", a.nombre));
         }
-        Ok(recortar(&texto, LEIDO_PARA_EL_MODELO))
+        Ok((a.clone(), texto))
+    }
+
+    /// Lo leido, recortado para el modelo; en una conversacion el texto
+    /// entero queda ademas en el chat (nota y `.txt`).
+    fn leer(&mut self, p: &pixpin_ia::herramientas::PeticionOcr) -> Result<String, String> {
+        let (a, texto) = self.leer_entero(p)?;
+        let para_el_modelo = recortar(&texto, LEIDO_PARA_EL_MODELO);
+        if let Some(c) = self.chat.as_mut() {
+            c.leidos.push((a, texto));
+        }
+        Ok(para_el_modelo)
     }
 
     fn accion(&self, a: &AccionApp) -> Result<String, String> {
@@ -688,16 +980,27 @@ impl Ejecutor for EjecutorDelMac {
         match llamada {
             l if l.dibuja() => {
                 self.semilla += 1;
+                if self.chat.is_some() {
+                    let nuevos = pixpin_ia::lienzo::elementos(l, (0.0, 0.0), self.semilla);
+                    return self.al_lienzo_del_chat(nuevos);
+                }
                 let nuevos = pixpin_ia::lienzo::elementos(l, self.origen(), self.semilla);
                 Ok(self.poner(nuevos))
             }
             Llamada::Calcar(p) => self.calcar(p),
             Llamada::Ocr(p) => self.leer(p),
+            Llamada::Editar(e) if self.chat.is_some() => self.editar(e),
+            Llamada::Figuras(p) if self.chat.is_some() => self.figuras(p),
             Llamada::Ayuda(pregunta) => Ok(pixpin_ia::conocimiento::responder(pregunta)),
             Llamada::Buscar(p) => self.buscar(p),
-            Llamada::App(a) if el_mac_lo_hace(a.herramienta) => self.accion(a),
+            Llamada::App(a) if el_mac_lo_hace(a.herramienta, self.chat.is_some()) => self.accion(a),
             otra => Err(format!("{} aun no se puede hacer en PixPin para Mac", otra.nombre())),
         }
+    }
+
+    /// Lo que dibuja antes que lo que edita (`edicion::en_orden`).
+    fn ejecutar_varias(&mut self, llamadas: &[Llamada]) -> Vec<Result<String, String>> {
+        pixpin_ia::edicion::en_orden(llamadas, |l| self.ejecutar(l))
     }
 }
 

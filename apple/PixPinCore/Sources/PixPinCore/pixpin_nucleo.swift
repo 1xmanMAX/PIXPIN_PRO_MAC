@@ -1605,6 +1605,11 @@ public func FfiConverterTypeDocumentoOffice_lower(_ value: DocumentoOffice) -> U
 public protocol EditorLienzoProtocol: AnyObject, Sendable {
     
     /**
+     * Su ventana paso al frente: lo que dibuje el asistente viene aqui.
+     */
+    func alFrente() 
+    
+    /**
      * **Si lo de encima se mueve solo** (la estela del laser, que se apaga
      * sola): mientras diga que si, Swift repinta a cada fotograma aunque la
      * version no cambie.
@@ -1641,6 +1646,11 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
      * Sube con cada cambio del DOCUMENTO (para guardar solo, con calma).
      */
     func cambios()  -> UInt64
+    
+    /**
+     * Su ventana se cerro: el asistente ya no dibuja aqui.
+     */
+    func cerrado() 
     
     /**
      * Cuantos elementos hay elegidos (para la barra y las pruebas).
@@ -1993,6 +2003,17 @@ open func animando() -> Bool  {
 }
     
     /**
+     * Su ventana paso al frente: lo que dibuje el asistente viene aqui.
+     */
+open func alFrente()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_al_frente(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * Borra lo elegido, en un paso. `false` si no habia nada elegido.
      */
 open func borrarSeleccion() -> Bool  {
@@ -2071,6 +2092,17 @@ open func cuantosElegidos() -> UInt64  {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * Su ventana se cerro: el asistente ya no dibuja aqui.
+     */
+open func cerrado()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_cerrado(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -5148,6 +5180,41 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func sondearDireccion(host: String, puerto: UInt16)  -> Bool
     
     /**
+     * **El chat «Asistente»**, creandolo si no esta (como «Mensajes
+     * guardados»: fijo, detras de el en la lista).
+     */
+    func chatAsistente() throws  -> FichaChat
+    
+    /**
+     * **Despues de escribir un mensaje** (`mensaje`, una nota o una foto):
+     * si es para el asistente (el chat «Asistente», o `@asistente` en otro)
+     * nace su respuesta, con «💭 Pensando…», y se devuelve para lanzar el
+     * turno ([`ia_turno_en_chat`]). `None` si no era para el.
+     */
+    func iaAlEnviar(chat: String, mensaje: String) throws  -> InicioIa?
+    
+    /**
+     * **La lista de `@`** para lo escrito tras el `@`: el asistente (fuera
+     * de su chat) y los lienzos y hojas de la conversacion, del mas nuevo
+     * al mas viejo.
+     */
+    func iaOpcionesMencion(chat: String, escrito: String)  -> [OpcionMencionIa]
+    
+    /**
+     * **Lo que se pinta encima de una respuesta guardada**: lo que penso,
+     * la peticion mejorada y si se renovo el contexto. `None` si no es del
+     * asistente o no hay nada que ensenar.
+     */
+    func iaPensado(chat: String, nota: String)  -> PensadoIa?
+    
+    /**
+     * **Escribe la respuesta acabada** que no salio de [`ia_turno_en_chat`]
+     * (Apple Intelligence, o un aviso): el texto y, si dibujo, `lienzo` (un
+     * `.excalidraw`) al lienzo del chat, apuntado para su «Abrir lienzo».
+     */
+    func iaResponder(chat: String, nota: String, texto: String, lienzo: String?) throws  -> MensajeChat
+    
+    /**
      * Enciende o apaga una. Su nombre, o `None` si no esta.
      */
     func automatizacionActivar(id: String, activa: Bool) throws  -> String?
@@ -6569,6 +6636,86 @@ open func sondearDireccion(host: String, puerto: UInt16) -> Bool  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(host),
         FfiConverterUInt16.lower(puerto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El chat «Asistente»**, creandolo si no esta (como «Mensajes
+     * guardados»: fijo, detras de el en la lista).
+     */
+open func chatAsistente()throws  -> FichaChat  {
+    return try  FfiConverterTypeFichaChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_chat_asistente(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Despues de escribir un mensaje** (`mensaje`, una nota o una foto):
+     * si es para el asistente (el chat «Asistente», o `@asistente` en otro)
+     * nace su respuesta, con «💭 Pensando…», y se devuelve para lanzar el
+     * turno ([`ia_turno_en_chat`]). `None` si no era para el.
+     */
+open func iaAlEnviar(chat: String, mensaje: String)throws  -> InicioIa?  {
+    return try  FfiConverterOptionTypeInicioIa.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_al_enviar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La lista de `@`** para lo escrito tras el `@`: el asistente (fuera
+     * de su chat) y los lienzos y hojas de la conversacion, del mas nuevo
+     * al mas viejo.
+     */
+open func iaOpcionesMencion(chat: String, escrito: String) -> [OpcionMencionIa]  {
+    return try!  FfiConverterSequenceTypeOpcionMencionIa.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_opciones_mencion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(escrito),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo que se pinta encima de una respuesta guardada**: lo que penso,
+     * la peticion mejorada y si se renovo el contexto. `None` si no es del
+     * asistente o no hay nada que ensenar.
+     */
+open func iaPensado(chat: String, nota: String) -> PensadoIa?  {
+    return try!  FfiConverterOptionTypePensadoIa.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_pensado(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(nota),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Escribe la respuesta acabada** que no salio de [`ia_turno_en_chat`]
+     * (Apple Intelligence, o un aviso): el texto y, si dibujo, `lienzo` (un
+     * `.excalidraw`) al lienzo del chat, apuntado para su «Abrir lienzo».
+     */
+open func iaResponder(chat: String, nota: String, texto: String, lienzo: String?)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_responder(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(nota),
+        FfiConverterString.lower(texto),
+        FfiConverterOptionString.lower(lienzo),uniffiCallStatus
     )
 })
 }
@@ -8990,6 +9137,214 @@ public func FfiConverterTypeNucleo_lift(_ handle: UInt64) throws -> Nucleo {
 #endif
 public func FfiConverterTypeNucleo_lower(_ value: Nucleo) -> UInt64 {
     return FfiConverterTypeNucleo.lower(value)
+}
+
+
+
+
+
+
+/**
+ * **Quien ve la burbuja en vivo**: lo implementa Swift. Se le llama desde
+ * el hilo del turno, como mucho cada ~60 ms y siempre que cambia algo que
+ * no es texto (una herramienta, una pregunta, el final).
+ */
+public protocol OyenteChatIa: AnyObject, Sendable {
+    
+    func vivo(v: VivoIa) 
+    
+}
+/**
+ * **Quien ve la burbuja en vivo**: lo implementa Swift. Se le llama desde
+ * el hilo del turno, como mucho cada ~60 ms y siempre que cambia algo que
+ * no es texto (una herramienta, una pregunta, el final).
+ */
+open class OyenteChatIaImpl: OyenteChatIa, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_oyentechatia(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_oyentechatia(handle, $0) }
+    }
+
+    
+
+    
+open func vivo(v: VivoIa)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_oyentechatia_vivo(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeVivoIa_lower(v),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceOyenteChatIa {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceOyenteChatIa = UniffiVTableCallbackInterfaceOyenteChatIa(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeOyenteChatIa.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface OyenteChatIa: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeOyenteChatIa.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface OyenteChatIa: handle missing in uniffiClone")
+            }
+        },
+        vivo: { (
+            uniffiHandle: UInt64,
+            v: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeOyenteChatIa.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.vivo(
+                     v: try FfiConverterTypeVivoIa_lift(v)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceOyenteChatIa> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceOyenteChatIa>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitOyenteChatIa() {
+    uniffi_pixpin_nucleo_fn_init_callback_vtable_oyentechatia(UniffiCallbackInterfaceOyenteChatIa.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOyenteChatIa: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<OyenteChatIa>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = OyenteChatIa
+
+    public static func lift(_ handle: UInt64) throws -> OyenteChatIa {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return OyenteChatIaImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: OyenteChatIa) -> UInt64 {
+         if let rustImpl = value as? OyenteChatIaImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OyenteChatIa {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: OyenteChatIa, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOyenteChatIa_lift(_ handle: UInt64) throws -> OyenteChatIa {
+    return try FfiConverterTypeOyenteChatIa.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOyenteChatIa_lower(_ value: OyenteChatIa) -> UInt64 {
+    return FfiConverterTypeOyenteChatIa.lower(value)
 }
 
 
@@ -16594,6 +16949,77 @@ public func FfiConverterTypeFiltroLecciones_lower(_ value: FiltroLecciones) -> R
 
 
 /**
+ * **Como acaba el turno en el chat.**
+ */
+public struct FinChatIa: Equatable, Hashable {
+    /**
+     * La respuesta como quedo en el cuaderno.
+     */
+    public var respuesta: MensajeChat
+    /**
+     * El lienzo que se pidio abrir al terminar («…y ábrelo»), su
+     * referencia.
+     */
+    public var abrirLienzo: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La respuesta como quedo en el cuaderno.
+         */respuesta: MensajeChat, 
+        /**
+         * El lienzo que se pidio abrir al terminar («…y ábrelo»), su
+         * referencia.
+         */abrirLienzo: String?) {
+        self.respuesta = respuesta
+        self.abrirLienzo = abrirLienzo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FinChatIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFinChatIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FinChatIa {
+        return
+            try FinChatIa(
+                respuesta: FfiConverterTypeMensajeChat.read(from: &buf), 
+                abrirLienzo: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FinChatIa, into buf: inout [UInt8]) {
+        FfiConverterTypeMensajeChat.write(value.respuesta, into: &buf)
+        FfiConverterOptionString.write(value.abrirLienzo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFinChatIa_lift(_ buf: RustBuffer) throws -> FinChatIa {
+    return try FfiConverterTypeFinChatIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFinChatIa_lower(_ value: FinChatIa) -> RustBuffer {
+    return FfiConverterTypeFinChatIa.lower(value)
+}
+
+
+/**
  * El lienzo propio de una foto del chat (`foto_anotada.rs`).
  */
 public struct FotoAnotada: Equatable, Hashable {
@@ -18011,6 +18437,69 @@ public func FfiConverterTypeInformeAutomatizacion_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeInformeAutomatizacion_lower(_ value: InformeAutomatizacion) -> RustBuffer {
     return FfiConverterTypeInformeAutomatizacion.lower(value)
+}
+
+
+/**
+ * **Lo que nace al enviar**: la respuesta (aun sin texto) y la pregunta.
+ */
+public struct InicioIa: Equatable, Hashable {
+    public var respuesta: MensajeChat
+    /**
+     * El id del mensaje que se le pregunta.
+     */
+    public var preguntaId: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(respuesta: MensajeChat, 
+        /**
+         * El id del mensaje que se le pregunta.
+         */preguntaId: String) {
+        self.respuesta = respuesta
+        self.preguntaId = preguntaId
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension InicioIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInicioIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InicioIa {
+        return
+            try InicioIa(
+                respuesta: FfiConverterTypeMensajeChat.read(from: &buf), 
+                preguntaId: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InicioIa, into buf: inout [UInt8]) {
+        FfiConverterTypeMensajeChat.write(value.respuesta, into: &buf)
+        FfiConverterString.write(value.preguntaId, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInicioIa_lift(_ buf: RustBuffer) throws -> InicioIa {
+    return try FfiConverterTypeInicioIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInicioIa_lower(_ value: InicioIa) -> RustBuffer {
+    return FfiConverterTypeInicioIa.lower(value)
 }
 
 
@@ -19837,6 +20326,75 @@ public func FfiConverterTypeOfertaRecibida_lower(_ value: OfertaRecibida) -> Rus
 
 
 /**
+ * Una opcion de la lista de `@` mientras se escribe.
+ */
+public struct OpcionMencionIa: Equatable, Hashable {
+    /**
+     * Lo que se ve en la lista («🎨 Plano casa»).
+     */
+    public var rotulo: String
+    /**
+     * Lo que se escribe al elegirla (`@lienzo:Plano_casa`), sin espacio.
+     */
+    public var mencion: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Lo que se ve en la lista («🎨 Plano casa»).
+         */rotulo: String, 
+        /**
+         * Lo que se escribe al elegirla (`@lienzo:Plano_casa`), sin espacio.
+         */mencion: String) {
+        self.rotulo = rotulo
+        self.mencion = mencion
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OpcionMencionIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOpcionMencionIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OpcionMencionIa {
+        return
+            try OpcionMencionIa(
+                rotulo: FfiConverterString.read(from: &buf), 
+                mencion: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OpcionMencionIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.rotulo, into: &buf)
+        FfiConverterString.write(value.mencion, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionMencionIa_lift(_ buf: RustBuffer) throws -> OpcionMencionIa {
+    return try FfiConverterTypeOpcionMencionIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionMencionIa_lower(_ value: OpcionMencionIa) -> RustBuffer {
+    return FfiConverterTypeOpcionMencionIa.lower(value)
+}
+
+
+/**
  * Que se busca.
  */
 public struct OpcionesBusqueda: Equatable, Hashable {
@@ -20905,6 +21463,110 @@ public func FfiConverterTypePendientesDeTexto_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypePendientesDeTexto_lower(_ value: PendientesDeTexto) -> RustBuffer {
     return FfiConverterTypePendientesDeTexto.lower(value)
+}
+
+
+/**
+ * **Lo que se pinta encima de una respuesta** (`pensado::Seccion` de
+ * Windows): lo que penso, la peticion mejorada y si se renovo el contexto.
+ */
+public struct PensadoIa: Equatable, Hashable {
+    public var pensamiento: String
+    /**
+     * Cuanto penso; `None` mientras piensa (o si no penso).
+     */
+    public var segundos: Float?
+    /**
+     * Pensando ahora mismo (la seccion va abierta y crece).
+     */
+    public var pensando: Bool
+    /**
+     * La peticion mejorada («📝 Entiendo: …»), vacia si no hay.
+     */
+    public var entiendo: String
+    /**
+     * Lo que hara, en una frase.
+     */
+    public var hare: String
+    /**
+     * Este turno empezo con el contexto renovado.
+     */
+    public var reinicio: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(pensamiento: String, 
+        /**
+         * Cuanto penso; `None` mientras piensa (o si no penso).
+         */segundos: Float?, 
+        /**
+         * Pensando ahora mismo (la seccion va abierta y crece).
+         */pensando: Bool, 
+        /**
+         * La peticion mejorada («📝 Entiendo: …»), vacia si no hay.
+         */entiendo: String, 
+        /**
+         * Lo que hara, en una frase.
+         */hare: String, 
+        /**
+         * Este turno empezo con el contexto renovado.
+         */reinicio: Bool) {
+        self.pensamiento = pensamiento
+        self.segundos = segundos
+        self.pensando = pensando
+        self.entiendo = entiendo
+        self.hare = hare
+        self.reinicio = reinicio
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PensadoIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePensadoIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PensadoIa {
+        return
+            try PensadoIa(
+                pensamiento: FfiConverterString.read(from: &buf), 
+                segundos: FfiConverterOptionFloat.read(from: &buf), 
+                pensando: FfiConverterBool.read(from: &buf), 
+                entiendo: FfiConverterString.read(from: &buf), 
+                hare: FfiConverterString.read(from: &buf), 
+                reinicio: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PensadoIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.pensamiento, into: &buf)
+        FfiConverterOptionFloat.write(value.segundos, into: &buf)
+        FfiConverterBool.write(value.pensando, into: &buf)
+        FfiConverterString.write(value.entiendo, into: &buf)
+        FfiConverterString.write(value.hare, into: &buf)
+        FfiConverterBool.write(value.reinicio, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePensadoIa_lift(_ buf: RustBuffer) throws -> PensadoIa {
+    return try FfiConverterTypePensadoIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePensadoIa_lower(_ value: PensadoIa) -> RustBuffer {
+    return FfiConverterTypePensadoIa.lower(value)
 }
 
 
@@ -23992,6 +24654,93 @@ public func FfiConverterTypeVistoEnRed_lift(_ buf: RustBuffer) throws -> VistoEn
 #endif
 public func FfiConverterTypeVistoEnRed_lower(_ value: VistoEnRed) -> RustBuffer {
     return FfiConverterTypeVistoEnRed.lower(value)
+}
+
+
+/**
+ * **La burbuja en vivo**, como se ve ahora.
+ */
+public struct VivoIa: Equatable, Hashable {
+    /**
+     * El id de la nota de la respuesta.
+     */
+    public var nota: String
+    /**
+     * El texto tal como se ve (con «✏️ dibujando…» o el cursor).
+     */
+    public var texto: String
+    public var pensado: PensadoIa
+    /**
+     * La pregunta de «¿seguro?» que espera el «Sí» o el «No».
+     */
+    public var pregunta: String?
+    public var acabado: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El id de la nota de la respuesta.
+         */nota: String, 
+        /**
+         * El texto tal como se ve (con «✏️ dibujando…» o el cursor).
+         */texto: String, pensado: PensadoIa, 
+        /**
+         * La pregunta de «¿seguro?» que espera el «Sí» o el «No».
+         */pregunta: String?, acabado: Bool) {
+        self.nota = nota
+        self.texto = texto
+        self.pensado = pensado
+        self.pregunta = pregunta
+        self.acabado = acabado
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VivoIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVivoIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VivoIa {
+        return
+            try VivoIa(
+                nota: FfiConverterString.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf), 
+                pensado: FfiConverterTypePensadoIa.read(from: &buf), 
+                pregunta: FfiConverterOptionString.read(from: &buf), 
+                acabado: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VivoIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nota, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterTypePensadoIa.write(value.pensado, into: &buf)
+        FfiConverterOptionString.write(value.pregunta, into: &buf)
+        FfiConverterBool.write(value.acabado, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVivoIa_lift(_ buf: RustBuffer) throws -> VivoIa {
+    return try FfiConverterTypeVivoIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVivoIa_lower(_ value: VivoIa) -> RustBuffer {
+    return FfiConverterTypeVivoIa.lower(value)
 }
 
 
@@ -30086,6 +30835,30 @@ fileprivate struct FfiConverterOptionTypeInfoElemento3d: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeInicioIa: FfiConverterRustBuffer {
+    typealias SwiftType = InicioIa?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeInicioIa.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeInicioIa.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeLeccionDeMensaje: FfiConverterRustBuffer {
     typealias SwiftType = LeccionDeMensaje?
 
@@ -30150,6 +30923,30 @@ fileprivate struct FfiConverterOptionTypePaginaOffice: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypePaginaOffice.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypePensadoIa: FfiConverterRustBuffer {
+    typealias SwiftType = PensadoIa?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePensadoIa.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePensadoIa.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -32020,6 +32817,31 @@ fileprivate struct FfiConverterSequenceTypeNoDibujado: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeOpcionMencionIa: FfiConverterRustBuffer {
+    typealias SwiftType = [OpcionMencionIa]
+
+    public static func write(_ value: [OpcionMencionIa], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOpcionMencionIa.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [OpcionMencionIa] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [OpcionMencionIa]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOpcionMencionIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeParTxt: FfiConverterRustBuffer {
     typealias SwiftType = [ParTxt]
 
@@ -32733,6 +33555,55 @@ public func iaDocumentosAlDia(nucleo: Nucleo, app: AppIa) -> UInt32  {
     uniffi_pixpin_nucleo_fn_func_ia_documentos_al_dia(
         FfiConverterTypeNucleo_lower(nucleo),
         FfiConverterTypeAppIa_lower(app),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Si se esta escribiendo una mencion**: lo escrito tras el `@` hasta la
+ * rayita (`antes`: el texto de la caja hasta la rayita). Solo si el `@`
+ * empieza palabra y no hay un espacio entre el y la rayita.
+ */
+public func iaConsultaDeMencion(antes: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_consulta_de_mencion(
+        FfiConverterString.lower(antes),uniffiCallStatus
+    )
+})
+}
+/**
+ * Si un texto que se va a enviar lleva a `@asistente` (para precargar el
+ * modelo o avisar mientras se escribe).
+ */
+public func iaMencionaAlAsistente(texto: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_menciona_al_asistente(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El turno del asistente en un chat**, en el hilo de quien lo llama (Swift
+ * lo lanza en uno de GCD). Lee la conversacion, elige el motor de los
+ * ajustes, contesta en la nota de `inicio` (en vivo a `oyente`, al disco
+ * cada [`GUARDAR_CADA`]) y al acabar guarda lo pensado, apunta el lienzo y
+ * las fuentes, y deja en el chat el texto entero de lo leido. `corte` lo
+ * para; `app` hace las acciones (y pregunta «¿seguro?»). `desfase_ms`: el
+ * huso de quien pregunta («mañana a las 10»).
+ */
+public func iaTurnoEnChat(ajustes: AjustesIa, nucleo: Nucleo, chat: String, inicio: InicioIa, desfaseMs: Int64, app: AppIa, oyente: OyenteChatIa, corte: CorteIa)throws  -> FinChatIa  {
+    return try  FfiConverterTypeFinChatIa_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_turno_en_chat(
+        FfiConverterTypeAjustesIa_lower(ajustes),
+        FfiConverterTypeNucleo_lower(nucleo),
+        FfiConverterString.lower(chat),
+        FfiConverterTypeInicioIa_lower(inicio),
+        FfiConverterInt64.lower(desfaseMs),
+        FfiConverterTypeAppIa_lower(app),
+        FfiConverterTypeOyenteChatIa_lower(oyente),
+        FfiConverterTypeCorteIa_lower(corte),uniffiCallStatus
     )
 })
 }
@@ -34076,6 +34947,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_ia_documentos_al_dia() != 14088) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_consulta_de_mencion() != 15807) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_menciona_al_asistente() != 64056) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_turno_en_chat() != 40925) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_carpeta_motor() != 7044) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34443,6 +35323,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sondear_direccion() != 15525) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_asistente() != 27124) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_al_enviar() != 1421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_opciones_mencion() != 10230) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_pensado() != 20722) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_responder() != 19377) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizacion_activar() != 27883) {
@@ -34910,6 +35805,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_oyenteia_llamando() != 22498) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_oyentechatia_vivo() != 42047) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_receptorhttp_datos() != 47642) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34967,6 +35865,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_invitacion_texto_del_qr() != 18028) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_al_frente() != 31791) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_animando() != 33995) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -34983,6 +35884,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_cambios() != 48507) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_cerrado() != 63419) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_cuantos_elegidos() != 33730) {
@@ -35493,6 +36397,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitAppIa()
     uniffiCallbackInitLlaveroApp()
     uniffiCallbackInitManosAutomatizacion()
+    uniffiCallbackInitOyenteChatIa()
     uniffiCallbackInitOyenteIa()
     uniffiCallbackInitTransporteApp()
     uniffiCallbackInitAvanceAligerar()

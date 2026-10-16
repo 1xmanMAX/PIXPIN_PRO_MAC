@@ -235,6 +235,9 @@ pub(crate) struct Estado {
     /// `(ancho, alto)` en el mundo desde (0, 0) y su PNG para el SVG (ver
     /// `editor_exportar`).
     pub(crate) papel: Option<((f32, f32), Option<Vec<u8>>)>,
+    /// Lo que se ve ahora `(x0, y0, x1, y1)` en el mundo (el ultimo
+    /// fotograma): lo que dibuja el asistente cae en su centro.
+    pub(crate) vista: Option<(f32, f32, f32, f32)>,
 }
 
 /// Lo que se toca al guardar (un cerrojo aparte: guardar no frena el
@@ -297,7 +300,118 @@ impl Drop for EditorLienzo {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Los lienzos abiertos (para el asistente)
+
+/// **Los lienzos abiertos en una ventana**: lo que dibuja o edita el
+/// asistente va al abierto y no al fichero (si no, al guardar la ventana
+/// pisaria lo del asistente). Como `al_lienzo::EditorAbierto` de Windows,
+/// pero aqui la escena es de Rust y el turno la toca directamente, con su
+/// cerrojo. Se apuntan al abrirlos ([`Nucleo::editar_lienzo`]) y se quitan
+/// al cerrarse la ventana ([`EditorLienzo::cerrado`]) o al soltarse.
+struct Abierto {
+    editor: std::sync::Weak<EditorLienzo>,
+    /// La ultima vez que su ventana paso al frente (el mas reciente gana).
+    al_frente: u64,
+}
+
+static ABIERTOS: Mutex<Vec<Abierto>> = Mutex::new(Vec::new());
+static AL_FRENTE: AtomicU64 = AtomicU64::new(1);
+
+fn abiertos() -> MutexGuard<'static, Vec<Abierto>> {
+    let mut g = ABIERTOS.lock().unwrap_or_else(|e| e.into_inner());
+    g.retain(|a| a.editor.strong_count() > 0);
+    g
+}
+
+/// Apunta un lienzo recien abierto (ya al frente).
+pub(crate) fn apuntar_abierto(editor: &Arc<EditorLienzo>) {
+    abiertos().push(Abierto {
+        editor: Arc::downgrade(editor),
+        al_frente: AL_FRENTE.fetch_add(1, Ordering::SeqCst),
+    });
+}
+
+/// El editor abierto de este fichero, si lo hay.
+pub(crate) fn abierto_de(ruta: &Path) -> Option<Arc<EditorLienzo>> {
+    abiertos().iter().filter_map(|a| a.editor.upgrade()).find(|e| e.ruta == ruta)
+}
+
+/// **El lienzo abierto de un chat que estuvo al frente el ultimo** (no la
+/// tinta de un documento), de la carpeta de datos `raiz`. `None` si no hay
+/// ninguno.
+pub(crate) fn abierto_al_frente(raiz: &Path) -> Option<Arc<EditorLienzo>> {
+    abiertos()
+        .iter()
+        .filter_map(|a| Some((a.al_frente, a.editor.upgrade()?)))
+        .filter(|(_, e)| e.hoja.is_none() && e.carpeta.starts_with(raiz))
+        .max_by_key(|(n, _)| *n)
+        .map(|(_, e)| e)
+}
+
 impl EditorLienzo {
+    /// Los ids de lo elegido ahora.
+    pub(crate) fn elegidos(&self) -> Vec<u64> {
+        self.tomar().gesto.seleccion.ids().to_vec()
+    }
+
+    /// El fichero del lienzo.
+    pub(crate) fn fichero(&self) -> &Path {
+        &self.ruta
+    }
+
+    /// La carpeta del chat del lienzo.
+    pub(crate) fn carpeta(&self) -> &Path {
+        &self.carpeta
+    }
+
+    /// **Lo que hace el asistente en la escena abierta**: con el cerrojo,
+    /// y si cerro algun paso de deshacer, cuenta como cambio (se guarda y
+    /// se repinta) igual que lo hecho con el raton.
+    pub(crate) fn con_la_escena<R>(&self, f: impl FnOnce(&mut Escena, Option<(f32, f32, f32, f32)>) -> R) -> R {
+        let (r, cambio) = {
+            let mut st = self.tomar();
+            let antes = (st.escena.pasos_cerrados(), st.escena.cuantos_visibles());
+            let vista = st.vista;
+            let r = f(&mut st.escena, vista);
+            let cambio = (st.escena.pasos_cerrados(), st.escena.cuantos_visibles()) != antes;
+            (r, cambio)
+        };
+        if cambio {
+            self.subir_cambios();
+            self.subir_version();
+        }
+        r
+    }
+}
+
+#[uniffi::export]
+impl EditorLienzo {
+    /// Su ventana paso al frente: lo que dibuje el asistente viene aqui.
+    pub fn al_frente(&self) {
+        let n = AL_FRENTE.fetch_add(1, Ordering::SeqCst);
+        for a in abiertos().iter_mut() {
+            if a.editor.upgrade().is_some_and(|e| std::ptr::eq(&*e, self)) {
+                a.al_frente = n;
+            }
+        }
+    }
+
+    /// Su ventana se cerro: el asistente ya no dibuja aqui.
+    pub fn cerrado(&self) {
+        abiertos().retain(|a| !a.editor.upgrade().is_some_and(|e| std::ptr::eq(&*e, self)));
+    }
+}
+
+impl EditorLienzo {
+    /// Abre un lienzo del disco sin ventana (el turno del asistente sobre
+    /// un lienzo cerrado): se toca su escena y se guarda por el camino de
+    /// siempre ([`EditorLienzo::guardar`]).
+    pub(crate) fn sin_ventana(ruta: PathBuf, carpeta: PathBuf, imagenes: Vec<ImagenDelLienzo>) -> Result<EditorLienzo, ErrorNucleo> {
+        let texto = std::fs::read_to_string(&ruta)?;
+        EditorLienzo::nuevo(ruta, carpeta, &texto, Some(imagenes))
+    }
+
     fn nuevo(
         ruta: PathBuf,
         carpeta: PathBuf,
@@ -336,6 +450,7 @@ impl EditorLienzo {
                 temporal: None,
                 mano: ManoHerramientas::default(),
                 papel: None,
+                vista: None,
             }),
             disco: Mutex::new(Disco {
                 ultimo: excalidraw::escribir(&abierto),
@@ -1041,6 +1156,7 @@ impl EditorLienzo {
         let ventana = camara.ventana(ancho_px.max(1.0), alto_px.max(1.0));
         let mut guarda = self.tomar();
         let st = &mut *guarda;
+        st.vista = Some(ventana);
         let mut ordenes: Vec<Orden> = Vec::new();
         for e in st
             .escena
@@ -1433,12 +1549,14 @@ impl Nucleo {
             })
             .collect();
         let carpeta = pixpin_proyecto::almacen::carpeta(self.ruta(), &chat);
-        Ok(Arc::new(EditorLienzo::nuevo(
+        let editor = Arc::new(EditorLienzo::nuevo(
             ruta,
             carpeta,
             &texto,
             Some(imagenes),
-        )?))
+        )?);
+        apuntar_abierto(&editor);
+        Ok(editor)
     }
 
     /// **Un lienzo nuevo en un chat**: el `.excalidraw` vacio en
@@ -1450,6 +1568,20 @@ impl Nucleo {
         chat: String,
         nombre: Option<String>,
     ) -> Result<crate::MensajeChat, ErrorNucleo> {
+        self.crear_lienzo_con(chat, nombre, |_| {})
+            .map(crate::MensajeChat::from)
+    }
+}
+
+impl Nucleo {
+    /// Lo de [`Nucleo::crear_lienzo`], con un `retoque` del mensaje antes de
+    /// escribirlo (el lienzo propio del asistente: `aparato = "IA"`).
+    pub(crate) fn crear_lienzo_con(
+        &self,
+        chat: String,
+        nombre: Option<String>,
+        retoque: impl FnOnce(&mut pixpin_proyecto::cuaderno::Mensaje),
+    ) -> Result<pixpin_proyecto::cuaderno::Mensaje, ErrorNucleo> {
         use pixpin_proyecto::{almacen, cuaderno};
         crate::chats::validar_chat(&chat)?;
         let raiz = self.ruta();
@@ -1489,6 +1621,7 @@ impl Nucleo {
         if let Some(n) = nombre.as_deref().map(str::trim).filter(|n| !n.is_empty()) {
             m.nombre = n.chars().take(80).collect();
         }
+        retoque(&mut m);
         if let Err(e) = cuaderno::anadir(&carpeta, &m) {
             let _ = std::fs::remove_file(&ruta);
             return Err(e.into());
@@ -1500,7 +1633,7 @@ impl Nucleo {
             f.resumen = m.resumen();
         }
         indice.guardar(raiz)?;
-        Ok(crate::MensajeChat::from(m))
+        Ok(m)
     }
 }
 

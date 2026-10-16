@@ -304,6 +304,21 @@ fn senalar(carpeta: &Path, proyecto: &str, aparato: &str, ahora: i64) -> std::io
 }
 
 impl Nucleo {
+    /// Las figuras de la biblioteca (el asistente: `figuras_guardadas`).
+    pub(crate) fn biblioteca_cargar(&self) -> Result<Vec<FiguraGuardada>, ErrorNucleo> {
+        let (ruta, ..) = self.biblioteca()?;
+        Ok(biblioteca::cargar(&ruta))
+    }
+
+    /// Guarda `nueva` arriba de la lista (la del mismo nombre se sustituye).
+    pub(crate) fn biblioteca_anadir(&self, nueva: FiguraGuardada) -> Result<bool, ErrorNucleo> {
+        let (ruta, ..) = self.biblioteca()?;
+        let mut lista = biblioteca::cargar(&ruta);
+        lista.retain(|f| !f.nombre.eq_ignore_ascii_case(&nueva.nombre));
+        lista.insert(0, nueva);
+        self.guardar_biblioteca(&lista)
+    }
+
     fn biblioteca(&self) -> Result<(PathBuf, String, PathBuf, String), ErrorNucleo> {
         let aparato = self.identidad()?.yo.codigo();
         let (ruta, proyecto, carpeta) = ruta_en(self.ruta(), &aparato, crate::ahora_ms())?;
