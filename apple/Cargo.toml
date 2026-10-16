@@ -28,6 +28,12 @@ panic = "abort"
 strip = true
 opt-level = 3
 
+# Las macros y los build.rs no se adelgazan: el `strip` de Xcode 27 deja sus
+# .dylib con el LINKEDIT mal alineado, macOS 26 se niega a cargarlas y rustc
+# dice "can't find crate". Solo corren al compilar; no van en la app.
+[profile.release.build-override]
+strip = false
+
 # El de `PixPinCore.xcframework` (herramientas/xcframework.sh): el release
 # de arriba, pero con los panicos que se desenrollan. UniFFI envuelve cada
 # llamada de Swift en `catch_unwind`, asi que un panico de Rust llega a la
