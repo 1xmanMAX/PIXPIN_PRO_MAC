@@ -134,6 +134,11 @@ impl Lienzo {
     fn plano_de(&self, ordenes: &[Orden]) -> LienzoPlano {
         empaquetar(ordenes, self.escena.fondo, self.escena.caja())
     }
+
+    /// La escena leida (para compartir sus hojas, `compartir.rs`).
+    pub(crate) fn escena(&self) -> &Escena {
+        &self.escena
+    }
 }
 
 #[uniffi::export]

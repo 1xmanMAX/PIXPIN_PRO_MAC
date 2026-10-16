@@ -113,7 +113,7 @@ pub fn hojas(
 }
 
 /// El tipo de una imagen por sus primeros bytes (lo que admite un `data:`).
-fn mime_de(bytes: &[u8]) -> Option<&'static str> {
+pub(crate) fn mime_de(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(b"\x89PNG") {
         Some("image/png")
     } else if bytes.starts_with(&[0xff, 0xd8, 0xff]) {

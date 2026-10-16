@@ -55,6 +55,7 @@ pub mod aparatos;
 pub mod asistente;
 pub mod buscar;
 pub mod chats;
+pub mod compartir;
 pub mod compartidos;
 pub mod copias;
 pub mod documentos;

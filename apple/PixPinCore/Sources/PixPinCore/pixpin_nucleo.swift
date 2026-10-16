@@ -4142,6 +4142,26 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func sincronizarConPersona(host: String, puerto: UInt16, id: String?, chats: [String]) throws  -> ResumenPersona
     
     /**
+     * **El dibujo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
+     * el «Editable» de la hoja y lo que viaja dentro de la pagina web.
+     */
+    func excalidrawDeDibujo(chat: String, dibujo: String) throws  -> String
+    
+    /**
+     * **Las hojas de un dibujo del chat** (la `referencia` de un `DIBUJO`)
+     * para la hoja de compartir: el lienzo entero primero y cada marco
+     * detras. Vacio si no hay nada dibujado. Bloqueante (lee las fotos).
+     */
+    func hojasDeDibujo(chat: String, dibujo: String) throws  -> [HojaDeDibujo]
+    
+    /**
+     * **Un proyecto entero como `.pixpin`** (`Entero::Proyectos` de
+     * Windows): todo lo de su carpeta, para abrirlo en otro PixPin o en el
+     * movil. Bloqueante: puede pesar mucho.
+     */
+    func paqueteDeProyecto(chat: String) throws  -> Data
+    
+    /**
      * **Las copias de seguridad de todos los chats**, la mas nueva primero
      * (`Copias.todas`). Se guardan las 30 ultimas de cada uno.
      */
@@ -5433,6 +5453,52 @@ open func sincronizarConPersona(host: String, puerto: UInt16, id: String?, chats
         FfiConverterUInt16.lower(puerto),
         FfiConverterOptionString.lower(id),
         FfiConverterSequenceString.lower(chats),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El dibujo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
+     * el «Editable» de la hoja y lo que viaja dentro de la pagina web.
+     */
+open func excalidrawDeDibujo(chat: String, dibujo: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_excalidraw_de_dibujo(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(dibujo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las hojas de un dibujo del chat** (la `referencia` de un `DIBUJO`)
+     * para la hoja de compartir: el lienzo entero primero y cada marco
+     * detras. Vacio si no hay nada dibujado. Bloqueante (lee las fotos).
+     */
+open func hojasDeDibujo(chat: String, dibujo: String)throws  -> [HojaDeDibujo]  {
+    return try  FfiConverterSequenceTypeHojaDeDibujo.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_hojas_de_dibujo(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(dibujo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Un proyecto entero como `.pixpin`** (`Entero::Proyectos` de
+     * Windows): todo lo de su carpeta, para abrirlo en otro PixPin o en el
+     * movil. Bloqueante: puede pesar mucho.
+     */
+open func paqueteDeProyecto(chat: String)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_paquete_de_proyecto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),uniffiCallStatus
     )
 })
 }
@@ -12502,6 +12568,118 @@ public func FfiConverterTypeHerramientaUsada_lower(_ value: HerramientaUsada) ->
 
 
 /**
+ * **Una hoja de un dibujo para compartir**: la pagina de la hoja (el lienzo
+ * entero o un marco), sus ordenes para pintarla y su SVG.
+ */
+public struct HojaDeDibujo: Equatable, Hashable {
+    /**
+     * El nombre del marco; vacio en el lienzo entero.
+     */
+    public var nombre: String
+    /**
+     * Si es un marco (va sangrado debajo del lienzo entero).
+     */
+    public var esMarco: Bool
+    public var x0: Float
+    public var y0: Float
+    public var x1: Float
+    public var y1: Float
+    public var plano: LienzoPlano
+    /**
+     * La hoja como documento SVG del motor, con el papel del lienzo de
+     * fondo y las fotos dentro.
+     */
+    public var svg: String
+    /**
+     * El papel, `#rrggbb` (lo que la pagina web pone detras).
+     */
+    public var fondo: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El nombre del marco; vacio en el lienzo entero.
+         */nombre: String, 
+        /**
+         * Si es un marco (va sangrado debajo del lienzo entero).
+         */esMarco: Bool, x0: Float, y0: Float, x1: Float, y1: Float, plano: LienzoPlano, 
+        /**
+         * La hoja como documento SVG del motor, con el papel del lienzo de
+         * fondo y las fotos dentro.
+         */svg: String, 
+        /**
+         * El papel, `#rrggbb` (lo que la pagina web pone detras).
+         */fondo: String) {
+        self.nombre = nombre
+        self.esMarco = esMarco
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.plano = plano
+        self.svg = svg
+        self.fondo = fondo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HojaDeDibujo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHojaDeDibujo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HojaDeDibujo {
+        return
+            try HojaDeDibujo(
+                nombre: FfiConverterString.read(from: &buf), 
+                esMarco: FfiConverterBool.read(from: &buf), 
+                x0: FfiConverterFloat.read(from: &buf), 
+                y0: FfiConverterFloat.read(from: &buf), 
+                x1: FfiConverterFloat.read(from: &buf), 
+                y1: FfiConverterFloat.read(from: &buf), 
+                plano: FfiConverterTypeLienzoPlano.read(from: &buf), 
+                svg: FfiConverterString.read(from: &buf), 
+                fondo: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HojaDeDibujo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterBool.write(value.esMarco, into: &buf)
+        FfiConverterFloat.write(value.x0, into: &buf)
+        FfiConverterFloat.write(value.y0, into: &buf)
+        FfiConverterFloat.write(value.x1, into: &buf)
+        FfiConverterFloat.write(value.y1, into: &buf)
+        FfiConverterTypeLienzoPlano.write(value.plano, into: &buf)
+        FfiConverterString.write(value.svg, into: &buf)
+        FfiConverterString.write(value.fondo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojaDeDibujo_lift(_ buf: RustBuffer) throws -> HojaDeDibujo {
+    return try FfiConverterTypeHojaDeDibujo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojaDeDibujo_lower(_ value: HojaDeDibujo) -> RustBuffer {
+    return FfiConverterTypeHojaDeDibujo.lower(value)
+}
+
+
+/**
  * Una hoja que sale: su nombre (el del marco, o vacio), su caja en el
  * mundo y lo que se pinta en ella (en el mundo; Swift recorta a la caja).
  */
@@ -12572,6 +12750,74 @@ public func FfiConverterTypeHojaExportada_lift(_ buf: RustBuffer) throws -> Hoja
 #endif
 public func FfiConverterTypeHojaExportada_lower(_ value: HojaExportada) -> RustBuffer {
     return FfiConverterTypeHojaExportada.lower(value)
+}
+
+
+/**
+ * Una hoja de la pagina web, ya en SVG: la hace Swift (una foto, una
+ * pagina de texto, una pagina de PDF) o sale de [`HojaDeDibujo::svg`].
+ */
+public struct HojaParaWeb: Equatable, Hashable {
+    public var nombre: String
+    public var svg: String
+    /**
+     * `#rrggbb`.
+     */
+    public var fondo: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, svg: String, 
+        /**
+         * `#rrggbb`.
+         */fondo: String) {
+        self.nombre = nombre
+        self.svg = svg
+        self.fondo = fondo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HojaParaWeb: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHojaParaWeb: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HojaParaWeb {
+        return
+            try HojaParaWeb(
+                nombre: FfiConverterString.read(from: &buf), 
+                svg: FfiConverterString.read(from: &buf), 
+                fondo: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HojaParaWeb, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.svg, into: &buf)
+        FfiConverterString.write(value.fondo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojaParaWeb_lift(_ buf: RustBuffer) throws -> HojaParaWeb {
+    return try FfiConverterTypeHojaParaWeb.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojaParaWeb_lower(_ value: HojaParaWeb) -> RustBuffer {
+    return FfiConverterTypeHojaParaWeb.lower(value)
 }
 
 
@@ -23183,6 +23429,31 @@ fileprivate struct FfiConverterSequenceTypeHerramientaUsada: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHojaDeDibujo: FfiConverterRustBuffer {
+    typealias SwiftType = [HojaDeDibujo]
+
+    public static func write(_ value: [HojaDeDibujo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHojaDeDibujo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HojaDeDibujo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HojaDeDibujo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHojaDeDibujo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHojaExportada: FfiConverterRustBuffer {
     typealias SwiftType = [HojaExportada]
 
@@ -23200,6 +23471,31 @@ fileprivate struct FfiConverterSequenceTypeHojaExportada: FfiConverterRustBuffer
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHojaExportada.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHojaParaWeb: FfiConverterRustBuffer {
+    typealias SwiftType = [HojaParaWeb]
+
+    public static func write(_ value: [HojaParaWeb], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHojaParaWeb.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HojaParaWeb] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HojaParaWeb]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHojaParaWeb.read(from: &buf))
         }
         return seq
     }
@@ -23977,6 +24273,35 @@ public func tipoDeServicioChat() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_tipo_de_servicio_chat(uniffiCallStatus
+    )
+})
+}
+/**
+ * El nombre de fichero de un titulo, el mismo que Windows
+ * (`compartir::nombre_de_fichero`): sin los signos que un disco no admite.
+ */
+public func nombreDeFicheroCompartido(titulo: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nombre_de_fichero_compartido(
+        FfiConverterString.lower(titulo),uniffiCallStatus
+    )
+})
+}
+/**
+ * **La pagina web de un solo archivo** con estas hojas: la del movil y la
+ * de Windows (`exportar_html::paginas`), con todos sus mandos (lapiz,
+ * medir, presentar, imprimir y guardar lo anotado). `excalidraw` viaja
+ * dentro para volver a editar el dibujo (solo cuando lo compartido es UN
+ * lienzo). `None` sin hojas.
+ */
+public func paginaWebCompartida(titulo: String, hojas: [HojaParaWeb], excalidraw: String?) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_pagina_web_compartida(
+        FfiConverterString.lower(titulo),
+        FfiConverterSequenceTypeHojaParaWeb.lower(hojas),
+        FfiConverterOptionString.lower(excalidraw),uniffiCallStatus
     )
 })
 }
@@ -25005,6 +25330,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_chat() != 60202) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_nombre_de_fichero_compartido() != 33299) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_pagina_web_compartida() != 39707) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ancho_de_hoja() != 58153) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -25354,6 +25685,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sincronizar_con_persona() != 815) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_excalidraw_de_dibujo() != 10282) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_hojas_de_dibujo() != 32055) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_paquete_de_proyecto() != 49140) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_copias_de_seguridad() != 4577) {
