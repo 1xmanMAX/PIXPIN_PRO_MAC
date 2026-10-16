@@ -18,8 +18,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 28 |
-| parcial | 57 |
+| completo | 30 |
+| parcial | 55 |
 | falta | 71 |
 | no aplica | 6 |
 | interno | 7 |
@@ -72,7 +72,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | buscar_todo | «Buscar en PixPin»: pestañas, recientes, acciones | parcial | K/Buscar/Buscar.swift, N/buscar.rs | Pestañas; recientes; lecciones y capturas; botones por fila; usar `pixpin-lanzador` |
 | cabecera | Barra común de Galería, Lecciones, Tareas y Timeline | no aplica | SwiftUI | — (unificar su aspecto) |
 | caducidad_capturas | Capturas que se borran solas | completo | K/Caducidad/BarrenderoCapturas.swift, N/galeria.rs | — (el aviso «se van en 24 h», con «Conservar» y «Abrir», hecho en C4) |
-| caja_dibujo | Barra de herramientas estilo Excalidraw, la misma en todas partes | parcial | K/Lienzo/* | La del lienzo ya es la de Windows (los diez grupos, figuras, dos filas si no cabe). Lector, pin y captura siguen con barras propias |
+| caja_dibujo | Barra de herramientas estilo Excalidraw, la misma en todas partes | parcial | K/Lienzo/* | La del lienzo ya es la de Windows (los diez grupos, figuras, dos filas si no cabe). La captura anota con ella y con el panel de estilo (B8: K/Captura/AnotadorCaptura.swift, BarrasCaptura.swift). Lector y pin siguen con barras propias |
 | caja_texto | Caja de texto propia | no aplica | NSTextField | — |
 | capa | Anotar sobre la pantalla (viva o congelada, varios monitores) | parcial | K/Captura/Capturador.swift, GestosAlt.swift | Modo vivo, varios monitores, herramientas del lienzo, entrada en el menú |
 | captura2 | Captura v2: modos, medidas, lupa, «Al chat», anotar | completo | K/Captura/* | Falta verla en verde en la CI |
@@ -81,7 +81,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | parcial | K/Lienzo/SacarLienzo.swift, N/editor_exportar.rs | Solo el lienzo: exportar PNG, SVG y PDF (todo, lo elegido o cada marco), copiar como PNG, imprimir con «qué imprimir» y compartir con la hoja del Mac. Falta la hoja común (D1), la página web y lo demás |
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
 | croquis3d | Ver los croquis 3D del móvil | falta | K/Planos/VisorModelo3D.swift | Abrir `.croquis.gz` en N/modelos3d.rs |
-| cuenta_atras | Captura con retardo | parcial | K/Captura/CapturaDirecta.swift (`CuentaAtras`, 3 s) | Esc para cancelar; los segundos de `retardo_captura_s` |
+| cuenta_atras | Captura con retardo | completo | K/Captura/CuentaAtras.swift, K/Captura/AjustesCaptura.swift | — (Esc la para aunque el foco este en otra app; los segundos de `retardo_captura_s`) |
 | diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | falta | K/Documentos/LectorDocumento.swift (solo verlo) | Todo |
 | dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | Hechas todas las herramientas de la barra (zona, láser, lupa, foco, pixelar, marco, copiar estilo, bolita, soldar vértices: N/editor_herramientas.rs, N/editor_tapado.rs). Faltan copiar y pegar elementos, agrupar y los atajos de §2.5 |
 | dispositivo_perdido | Recuperarse si se pierde la GPU | interno | — | Solo para Metal en Planos, si se quita la GPU |
@@ -90,7 +90,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | foto_anotada | Ver el lienzo que el móvil dibujó sobre una foto | falta | K/Chat/Adjuntos.swift | Leer `lienzos/foto-<id>.excalidraw` y pintarlo encima |
 | fusionar_paginas | Varias páginas de un PDF → un lienzo | falta | — | Todo |
 | galeria_capturas | Galería con buscador (también OCR), grupos por día, teclado, detalle | parcial | K/Galeria/*, N/galeria.rs | Buscador, grupos por día, teclado, «Guardar como», panel de detalle |
-| gif | GIF en dos fases: marco y luego barra | parcial | K/Captura/GrabadorGif.swift | Marco movible, ajustes, ↩ para empezar y parar |
+| gif | GIF en dos fases: marco y luego barra | parcial | K/Captura/GrabadorGif.swift | Hecho (B8): marco azul con el ritmo (−/+, `[gif]`), ↩ empieza y para, Esc global, retardo con cuenta atrás. Falta mover y estirar el marco antes de grabar, y pausar |
 | grabador | Grabación en dos fases | parcial | K/Grabar/* | Marco ajustable antes de grabar |
 | grupos_ventanas | Guardar y reabrir grupos de ventanas | falta | — | Todo |
 | hoja_pin | Excel como pin, ver y editar en el mismo sitio; libro de varias hojas | parcial | K/Documentos/HojaCalculo.swift, N/hojas*.rs | Editar un `.xlsx` como libro; todas las hojas del móvil |
@@ -128,7 +128,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | completo | K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift | Sin permiso del sistema, lo urgente sale en una ventanita de la app con los mismos botones |
 | orden | Línea de órdenes y `pixpinmax://` | falta | — | `CFBundleURLTypes` y los verbos |
 | oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Ajustes/ModeloAjustes.swift | Botón en los pines-lector |
-| overlay | Overlay de captura | parcial | K/Captura/* | ⌘A, flechas, Espacio, ⇧ HEX/RGB, ⇧⌘S, Supr; comandos sin barra |
+| overlay | Overlay de captura | completo | K/Captura/* | — (B8: ⌘A, flechas, Espacio en vivo, ⇧ HEX/RGB, ⇧⌘S, ⌫, cuentagotas; la barra de acciones de Windows) |
 | panel_dibujo | Panel de estilo del lienzo | parcial | K/Lienzo/BarraEstiloLienzo.swift | **Lo lleva el agente del lienzo** |
 | pdf_del_proyecto | Rehacer un PDF roto desde `pdfLimpio` | falta | — | Todo |
 | pdf_en_chat | El PDF como un mensaje con vista; unir páginas | parcial | K/Chat/Adjuntos.swift, K/Documentos/AccionesDocumento.swift | Unir PDF, «como imágenes», devolver |
@@ -288,22 +288,22 @@ Choques con macOS que hay que esquivar:
 |---|---|---|---|
 | Z V P S G L T | Modos | igual | completo |
 | R | Repetir la última zona | R | completo |
-| C | Copiar el color | C | parcial (solo HEX) |
-| Mayús sola | HEX ↔ RGB | ⇧ | falta |
-| Ctrl+A | Pantalla entera | ⌘A | falta |
+| C | Copiar el color (y cerrar) | C | completo (HEX, RGB o HSL de `formato_color`) |
+| Mayús sola | HEX ↔ RGB | ⇧ | completo |
+| Ctrl+A | Pantalla entera | ⌘A | completo |
 | Intro / Ctrl+C | Copiar | ↩ / ⌘C | completo |
 | Ctrl+P · Ctrl+M · Ctrl+T · Ctrl+S | Pinear, al chat, OCR, guardar | ⌘P · ⌘M (choca, se lo queda el overlay) · ⌘T · ⌘S | completo |
-| Ctrl+Mayús+S | Guardar como | ⇧⌘S | falta |
+| Ctrl+Mayús+S | Guardar como | ⇧⌘S | completo |
 | — | Grabar la zona | ⌘G | solo Mac |
 | Esc | Descartar | ⎋ | completo |
 | Ctrl+Z / Ctrl+Y | Deshacer / rehacer la anotación | ⌘Z / ⇧⌘Z | completo |
-| 1–5 | Herramientas de anotar | 1–5 | completo |
-| Supr | Borrar la anotación elegida | ⌫ | falta |
-| Flechas (Mayús ×10) · Espacio | Mover la selección | igual | falta |
-| Texto: ← → Inicio Fin Supr | Editar el texto | — | parcial |
+| 1–5 | Herramientas de anotar | 1–5 (y las letras del lienzo mientras se anota) | completo |
+| Supr | Borrar la anotación elegida | ⌫ | completo |
+| Flechas (Mayús ×10) · Espacio | Mover la selección · en vivo | igual | completo |
+| Texto: ← → Inicio Fin Supr | Editar el texto | igual (el texto del lienzo) | completo |
 | Medidas: Tab · Selector de proyecto: ↑↓, Tab al comentario | — | ⇥ · 1–6, ↩ | parcial |
-| Cuentagotas: Intro/C · Cuenta atrás: Esc | — | — | falta |
-| GIF: Intro empieza y para, Esc global | — | ⎋ solo con el foco | parcial |
+| Cuentagotas: Intro/C · Cuenta atrás: Esc | — | clic, ↩ o C · ⎋ | completo |
+| GIF: Intro empieza y para, Esc global | — | ↩ · ⎋ (global) | completo |
 
 ### 2.3 Pines
 
@@ -529,7 +529,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | B5 | **Timeline editable**: apuntar texto, foto y voz; pestañas ⌘1…4; ↑ corrige el último; buscar | K/Timeline/Timeline.swift, N/timeline.rs |
 | B6 | **Galería completa**: buscador (también OCR con Vision), grupos por día, teclado, «Guardar como», panel de detalle | K/Galeria/Galeria.swift, K/Galeria/Comun.swift, N/galeria.rs |
 | B7 | **Lectores, parte 1**: buscar (⌘F, ⌘G / ⇧⌘G), ⌘1…9 para ir al marcador, N negativo, D avance solo, ⌘P imprimir, F2 renombrar, `al_dia` (recargar la tinta) | K/Documentos/LectorDocumento.swift, nuevo K/Documentos/BuscadorLector.swift, N/documentos.rs |
-| B8 | **Captura que falta**: ⌘A, flechas y Espacio, ⇧ HEX/RGB, ⇧⌘S, ⌫ de la anotación, captura con retardo (cuenta atrás), cuentagotas suelto, ↩ y Esc del GIF | K/Captura/Capturador.swift, K/Captura/VistaCaptura.swift, K/Captura/AnotacionCaptura.swift, K/Captura/GrabadorGif.swift, nuevo K/Captura/CuentaAtras.swift |
+| B8 ✅ | **Captura que falta** (hecho; queda mover el marco del GIF): ⌘A, flechas y Espacio, ⇧ HEX/RGB, ⇧⌘S, ⌫ de la anotación, captura con retardo (cuenta atrás), cuentagotas suelto, ↩ y Esc del GIF | K/Captura/Capturador.swift, K/Captura/VistaCaptura.swift, K/Captura/AnotacionCaptura.swift, K/Captura/GrabadorGif.swift, nuevo K/Captura/CuentaAtras.swift |
 | B9 | **Datos que llegan y no se ven**: foto anotada del móvil en la burbuja, croquis 3D, fotos de las lecciones, punto de proyecto, PAGINA y PROYECTO con su burbuja | K/Chat/Adjuntos.swift, N/modelos3d.rs, K/Lecciones/VistaLecciones.swift (usa `PintorLienzo.swift` sin cambiarlo) |
 
 ### Grupo C: atajos, integración y ajustes
