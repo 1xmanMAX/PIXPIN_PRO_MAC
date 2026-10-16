@@ -64,6 +64,14 @@ public final class ModeloAsistente: ObservableObject {
         public var resumen: String
     }
 
+    /// Lo citado de los documentos del usuario (abre el documento).
+    public struct Cita: Codable, Equatable, Sendable {
+        public var numero: Int
+        public var titulo: String
+        /// El pedido `abrir` del protocolo (JSON).
+        public var pedido: String
+    }
+
     /// Un fichero adjunto a la conversacion.
     public struct Adjunto: Codable, Hashable, Identifiable, Sendable {
         public var id = UUID()
@@ -93,6 +101,8 @@ public final class ModeloAsistente: ObservableObject {
         public var motor = ""
         /// Lo que adjunto el usuario con este mensaje.
         public var adjuntos: [Adjunto] = []
+        /// Lo citado de sus documentos (`buscar_en_mis_cosas`).
+        public var citas: [Cita] = []
         /// «dibujando…» mientras el modelo pide una herramienta (no se guarda).
         public var llamando: String?
 
@@ -106,7 +116,22 @@ public final class ModeloAsistente: ObservableObject {
         }
 
         enum CodingKeys: String, CodingKey {
-            case id, delUsuario, texto, herramientas, lienzo, esAviso, pensamiento, segundosPensando, motor, adjuntos
+            case id, delUsuario, texto, herramientas, lienzo, esAviso, pensamiento, segundosPensando, motor, adjuntos, citas
+        }
+
+        public init(from d: Decoder) throws {
+            let c = try d.container(keyedBy: CodingKeys.self)
+            id = try c.decode(UUID.self, forKey: .id)
+            delUsuario = try c.decode(Bool.self, forKey: .delUsuario)
+            texto = try c.decode(String.self, forKey: .texto)
+            herramientas = try c.decodeIfPresent([Hecha].self, forKey: .herramientas) ?? []
+            lienzo = try c.decodeIfPresent(String.self, forKey: .lienzo)
+            esAviso = try c.decodeIfPresent(Bool.self, forKey: .esAviso) ?? false
+            pensamiento = try c.decodeIfPresent(String.self, forKey: .pensamiento) ?? ""
+            segundosPensando = try c.decodeIfPresent(Double.self, forKey: .segundosPensando)
+            motor = try c.decodeIfPresent(String.self, forKey: .motor) ?? ""
+            adjuntos = try c.decodeIfPresent([Adjunto].self, forKey: .adjuntos) ?? []
+            citas = try c.decodeIfPresent([Cita].self, forKey: .citas) ?? []
         }
     }
 
@@ -415,6 +440,7 @@ public final class ModeloAsistente: ObservableObject {
                 b.pensamiento = r.pensamiento
                 b.segundosPensando = r.segundosPensando.map(Double.init)
                 b.motor = r.motor
+                b.citas = r.citas.map { Cita(numero: Int($0.numero), titulo: $0.titulo, pedido: $0.pedido) }
                 b.llamando = nil
             }
         case let .failure(e):
@@ -470,6 +496,30 @@ public final class ModeloAsistente: ObservableObject {
     /// Compatibilidad: un turno con el `llama-server` del usuario.
     func preguntarEnVivo(puerto: UInt16, historial: [MensajeIa], pedido: String) async {
         await turno(pedido, historial: historial, foto: nil, motor: .llamaLocal(puerto))
+    }
+
+    // MARK: Documentos
+
+    /// Abre lo citado (el lector en su pagina, o el chat en su mensaje).
+    public func abrir(_ c: Cita) {
+        if let error = ManosDelAsistente.aLaApp(c.pedido) {
+            burbujas.append(Burbuja(delUsuario: false, texto: error, esAviso: true))
+        }
+    }
+
+    private static var indexando = false
+
+    /// Pone al dia el indice de los documentos en segundo plano (al abrir la
+    /// ventana), para que la primera busqueda no espere. Solo si hay quien
+    /// conteste: quien no usa el asistente no paga nada.
+    public func prepararDocumentos() {
+        guard let nucleo = almacen?.nucleo, !ModeloAsistente.indexando, motor != nil, motor != .ninguno else { return }
+        ModeloAsistente.indexando = true
+        let manos = ManosDelAsistente(nucleo: nucleo, corte: CorteIa.nuevo()) { _, responder in responder(false) }
+        DispatchQueue.global(qos: .background).async {
+            _ = iaDocumentosAlDia(nucleo: nucleo, app: manos)
+            DispatchQueue.main.async { MainActor.assumeIsolated { ModeloAsistente.indexando = false } }
+        }
     }
 
     // MARK: Voz

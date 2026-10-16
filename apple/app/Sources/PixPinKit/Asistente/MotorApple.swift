@@ -35,7 +35,7 @@ enum MotorApple {
                            herramientas: recolector.usadas(),
                            lienzo: recolector.lienzo(),
                            pensamiento: "", segundosPensando: nil,
-                           motor: "Apple Intelligence", hoja: "")
+                           motor: "Apple Intelligence", hoja: "", citas: [])
     }
 
     /// Las herramientas que vienen a cuento, ya como `Tool` de Apple. Una

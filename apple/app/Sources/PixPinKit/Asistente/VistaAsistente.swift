@@ -41,7 +41,10 @@ public struct VentanaAsistente: View {
             }
         }
         .frame(minWidth: 460, minHeight: 460)
-        .task { await modelo.comprobarMotor() }
+        .task {
+            await modelo.comprobarMotor()
+            modelo.prepararDocumentos()
+        }
         .onChange(of: descarga.estado) { _, e in
             if e == .lista { Task { await modelo.comprobarMotor() } }
         }
@@ -118,7 +121,8 @@ public struct VentanaAsistente: View {
                                 Task { if await modelo.guardarDibujo(b, abrir: abrir) { guardado = b.id } }
                             },
                             alLeer: { modelo.leerEnVoz(b) },
-                            alResponder: { modelo.responder($0) })
+                            alResponder: { modelo.responder($0) },
+                            alCitar: { modelo.abrir($0) })
                             .id(b.id)
                     }
                     if modelo.ocupado {
@@ -362,6 +366,7 @@ struct BurbujaAsistente: View {
     let alGuardar: (_ abrir: Bool) -> Void
     var alLeer: () -> Void = {}
     var alResponder: (Bool) -> Void = { _ in }
+    var alCitar: (ModeloAsistente.Cita) -> Void = { _ in }
 
     var body: some View {
         HStack {
@@ -387,6 +392,14 @@ struct BurbujaAsistente: View {
                         .font(.caption)
                         .lineLimit(3)
                         .foregroundStyle(h.ok ? Color.secondary : Color.orange)
+                }
+                ForEach(burbuja.citas, id: \.numero) { c in
+                    Button { alCitar(c) } label: {
+                        Label("[\(c.numero)] \(c.titulo)", systemImage: "doc.text.magnifyingglass")
+                            .font(.caption).lineLimit(1)
+                    }
+                    .buttonStyle(.link)
+                    .help("Abrir donde lo dice")
                 }
                 if let pregunta {
                     VStack(alignment: .leading, spacing: 6) {

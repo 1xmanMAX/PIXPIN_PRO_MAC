@@ -263,6 +263,11 @@ final class HistorialYModelosTests: XCTestCase {
         XCTAssertEqual(leida.hoja, c.hoja)
         h.borrar(c.id)
         XCTAssertTrue(h.todas().isEmpty)
+        // Una burbuja guardada sin los campos nuevos se sigue leyendo.
+        let vieja = #"{"id":"\#(UUID().uuidString)","delUsuario":false,"texto":"hola"}"#
+        let b2 = try JSONDecoder().decode(ModeloAsistente.Burbuja.self, from: Data(vieja.utf8))
+        XCTAssertEqual(b2.texto, "hola")
+        XCTAssertTrue(b2.citas.isEmpty && b2.herramientas.isEmpty)
     }
 
     func testElCatalogoLocalEsElDeWindowsConElMotorDelMac() throws {
