@@ -190,6 +190,19 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         RePág/AvPág en PDF y ←→↑↓ en vídeo. Pines planos, sin borde ni cristal.
   - [x] Adjuntos en el chat: miniaturas con ImageIO y caché con tope, Quick Look, soltar y ⌘V.
   - [x] Sincronizar por la Wi‑Fi (Bonjour) con Windows y Android.
+  - [x] Aparatos como Windows (`Sincro/VistaAparatos.swift`, `nucleo/.../aparatos.rs`): cambiar
+        el nombre de este Mac, salir del grupo, todos los del grupo con «Disponible» o «No
+        encontrado» y «sincronizado hace X», y `sincro/direcciones.txt` (el fichero del móvil):
+        lo visto en Bonjour se apunta y, antes de llamar, se prueba la dirección de siempre y,
+        si no contesta, la del anuncio.
+  - [x] Copias de seguridad (`Sincro/VistaCopias.swift`, `nucleo/.../copias.rs`): las copias de
+        antes de cada vuelta y de cada envío recibido, volver a una (se puede deshacer) y
+        «Proyectos borrados» para recuperarlos enteros.
+  - [x] Envío por código completo (`Sincro/EnvioPorCodigo.swift`, `nucleo/.../envio.rs`,
+        `recepcion.rs`, `lienzo_suelto.rs`): archivos, proyectos enteros y lienzos (un lienzo
+        sale como lienzo y cae en su proyecto al otro lado); antes de aceptar se ve lo que llega
+        y, de lo que ya se tiene, «Actualizar el que tengo» o «Crear como nuevo»; un archivo que
+        vuelve se pone al día en su burbuja.
   - [x] Notas de voz (`app/Sources/PixPinKit/Voz/`, en verde en la CI):
         microfono con `AVAudioEngine` → `.m4a` AAC-LC **mono** (el formato de Windows y
         Android; 32 kbps como el movil, 44,1/48 kHz como la tarjeta), `voz_<ms>.m4a` con

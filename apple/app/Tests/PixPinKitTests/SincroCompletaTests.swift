@@ -39,7 +39,10 @@ final class TextosDeEnvioTests: XCTestCase {
             RecibidoEnvio(nombre: "p", donde: "proyecto", chat: "1"),
             RecibidoEnvio(nombre: "a", donde: "guardados", chat: "2"),
         ]
-        XCTAssertEqual(textoDeRecibido(cosas), "Recibido: 1 proyecto en la lista y 1 archivo en Mensajes guardados.")
+        XCTAssertEqual(textoDeRecibido(cosas, de: "PC"),
+                       "Recibido de PC\np: en la lista de proyectos\na: en «Mensajes guardados»")
+        XCTAssertEqual(textoDeRecibido([RecibidoEnvio(nombre: "Tesis", donde: "proyecto_al_dia", chat: "1")]),
+                       "Recibido\n«Tesis» puesto al día")
         XCTAssertEqual(textoDeRecibido([]), "No llegó nada.")
     }
 

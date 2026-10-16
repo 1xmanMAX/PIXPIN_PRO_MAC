@@ -91,7 +91,7 @@ public struct MenuEnviarA: View {
             }
             ForEach(sincro.filas) { fila in
                 Button(etiqueta(fila)) { elegirYEnviar(a: fila.id) }
-                    .disabled(fila.direccion == nil && fila.estado == .noContesta)
+                    .disabled(fila.direccion == nil && (fila.estado == .noContesta || fila.estado == .noEncontrado))
             }
         }
     }

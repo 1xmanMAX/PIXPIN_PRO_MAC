@@ -18,6 +18,15 @@
 //   al nucleo en una `Task.detached` con prioridad `.utility` (§4bis.3).
 // - **Sin ruido**: lo automatico solo avisa de un fallo al tercero seguido.
 //
+// - **Donde esta cada uno** (A3, `al_dia.rs` de Windows): lo que da la
+//   sonda de un aparato visto en Bonjour se apunta en
+//   `sincro/direcciones.txt` (el fichero del movil); los miembros del grupo
+//   que no se anuncian se prueban en su direccion recordada al refrescar y
+//   al abrir la ventana; y antes de una vuelta a mano se mira primero la
+//   direccion de siempre y, si no contesta, el anuncio (`dondeEstaAparato`).
+//   La lista sale con **todos los miembros**, tambien los que no estan, con
+//   «sincronizado hace X».
+//
 // Nada sondea (§4bis.6): Bonjour avisa de quien aparece, quien escribe avisa
 // con `pixpinCambioLocal` (y `pixpinTareasCambiadas`), el cambio de modo de
 // bajo consumo llega por notificacion y entre medias se duerme de una vez lo
@@ -46,6 +55,9 @@ public final class Sincronizador: ObservableObject {
         case mirando
         case contesta
         case noContesta
+        /// Del grupo, pero ni se anuncia ni contesta en su direccion
+        /// recordada: apagado o fuera de esta Wi-Fi.
+        case noEncontrado
         case sincronizando
         case hecho(String)
         case fallo(String)
@@ -57,6 +69,8 @@ public final class Sincronizador: ObservableObject {
         public var letra: String
         public var direccion: Direccion?
         public var estado: Estado
+        /// La ultima vez que se sincronizo con el (ms UTC), 0 si nunca.
+        public var ultimaVez: Int64 = 0
     }
 
     /// Que chats entran en una vuelta (`Alcance` de Windows).
@@ -126,6 +140,14 @@ public final class Sincronizador: ObservableObject {
     /// Una vuelta automatica (o de tareas) en marcha.
     private var corriendo = false
     private var ultimaVuelta: [String: Date] = [:]
+    /// Los miembros del grupo segun la identidad (menos este), con su
+    /// direccion recordada y la ultima vez (`miembros_del_grupo`).
+    private var miembros: [MiembroGrupo] = []
+    /// Los que se encontraron en su direccion recordada y no por Bonjour:
+    /// esos no se pierden porque Bonjour no los anuncie.
+    private var porRecordada: Set<String> = []
+    /// Los que se estan probando en su direccion recordada ahora mismo.
+    private var probando: Set<String> = []
     private var observadores: [NSObjectProtocol] = []
     private let reloj: () -> Date
 
@@ -229,6 +251,27 @@ public final class Sincronizador: ObservableObject {
         }
     }
 
+    /// **Renombra este aparato** (`Disco.renombrar`): se anuncia ya con el
+    /// nombre nuevo, y los demas lo ven en la siguiente vuelta.
+    public func renombrar(_ nombre: String) async {
+        await trabajar("Cambiando el nombre…") { nucleo in
+            _ = try nucleo.renombrarAparato(nombre: nombre)
+        }
+        await refrescar()
+    }
+
+    /// **Sale del grupo** (`Disco.salirDelGrupo`): deja de sincronizarse
+    /// con los demas. No se borra nada.
+    public func salirDelGrupo() async {
+        await trabajar("Saliendo del grupo…") { nucleo in
+            _ = try nucleo.salirDelGrupo()
+        }
+        porRecordada = []
+        miembros = []
+        filas = []
+        await refrescar()
+    }
+
     // MARK: - Sincronizar
 
     /// «Sincronizar» con un aparato (`id`), **preguntando que** («¿Qué
@@ -247,17 +290,18 @@ public final class Sincronizador: ObservableObject {
     /// Una vuelta preguntando con un aparato.
     private func conUno(_ fila: Fila) async {
         guard !ocupado else { return }
-        // La direccion puede haber cambiado desde que se vio: se sondea otra
-        // vez si no la hay.
-        var direccion = fila.direccion
-        if direccion == nil, let v = vecinos.todos.first(where: { $0.id == fila.id }) {
-            direccion = await Vecinos.sondear(v.punto)
-        }
-        guard let direccion else {
-            poner(fila.id, .noContesta, direccion: nil)
+        // La direccion puede haber cambiado desde que se vio (la IP del movil
+        // cambia al reconectarse): la de siempre si contesta, si no la del
+        // anuncio.
+        ocupado = true
+        fase = "Buscando a \(fila.nombre)…"
+        guard let direccion = await llegar(fila) else {
+            ocupado = false
+            fase = nil
+            poner(fila.id, .noEncontrado, direccion: nil)
+            error = "\(fila.nombre): no se encuentra. Que tenga PixPin abierto y esté en esta Wi-Fi."
             return
         }
-        ocupado = true
         fase = "Conectando con \(fila.nombre)…"
         let fin = await vuelta(con: direccion, id: fila.id, alcance: .preguntar)
         ocupado = false
@@ -273,6 +317,31 @@ public final class Sincronizador: ObservableObject {
             error = "\(fila.nombre): \(texto)"
         }
         latido()
+    }
+
+    /// **«Conectar con una dirección»** (`QueCampo::Direccion` de Windows):
+    /// una vuelta preguntando con el aparato que escucha en `direccion`,
+    /// escrita a mano (la que ensena el otro en «La de este aparato»). Si
+    /// sale bien, la direccion queda apuntada para la proxima vez.
+    public func sincronizarCon(direccion: Direccion) async {
+        guard !ocupado else { return }
+        ocupado = true
+        error = nil
+        fase = "Conectando con \(direccion.host)…"
+        let fin = await vuelta(con: direccion, id: nil, alcance: .preguntar)
+        ocupado = false
+        fase = nil
+        switch fin {
+        case let .hecha(r):
+            if !r.cancelada { ultimoResultado = "Al día con \(r.otroNombre)\n" + textoDe(r) }
+            if r.trajo { alTraerCambios?() }
+        case .ocupado:
+            error = "\(direccion.host): está sincronizando con otro aparato. Prueba otra vez en un momento."
+        case let .fallo(texto):
+            error = "\(direccion.host): \(texto)"
+        }
+        // Puede ser un miembro nuevo para esta lista.
+        await refrescar()
     }
 
     /// **Todos de una vez** (`lanzar_con_todos` de Windows): uno detras de
@@ -384,6 +453,10 @@ public final class Sincronizador: ObservableObject {
             pregunta = nil
             ultimaVuelta[r.otroId] = reloj()
             poner(r.otroId, r.cancelada ? .contesta : .hecho(r.texto), direccion: direccion)
+            if !r.cancelada, let i = filas.firstIndex(where: { $0.id == r.otroId }) {
+                filas[i].ultimaVez = ahoraMs()
+            }
+            apuntar(r.otroId, direccion)
             return .hecha(r)
         } catch {
             pregunta = nil
@@ -404,11 +477,7 @@ public final class Sincronizador: ObservableObject {
     /// conversacion general), fuera del hilo principal.
     public func enviar(_ urls: [URL], a id: String) async {
         guard !urls.isEmpty, let fila = filas.first(where: { $0.id == id }) else { return }
-        var direccion = fila.direccion
-        if direccion == nil, let v = vecinos.todos.first(where: { $0.id == id }) {
-            direccion = await Vecinos.sondear(v.punto)
-        }
-        guard let direccion else {
+        guard let direccion = await llegar(fila) else {
             envios[id] = .fallo("\(fila.nombre) no contesta.")
             return
         }
@@ -433,10 +502,12 @@ public final class Sincronizador: ObservableObject {
     public func refrescar() async {
         let nucleo = self.nucleo
         do {
-            let (info, anuncio, deja, ajustes) = try await Task.detached(priority: .utility) {
-                try (nucleo.aparato(), nucleo.anuncio(), nucleo.anuncioDePresencia(), try? nucleo.ajustes())
+            let (info, anuncio, deja, ajustes, grupo) = try await Task.detached(priority: .utility) {
+                try (nucleo.aparato(), nucleo.anuncio(), nucleo.anuncioDePresencia(), try? nucleo.ajustes(),
+                     (try? nucleo.miembrosDelGrupo()) ?? [])
             }.value
             aparato = info
+            miembros = grupo
             codigoLegible = info.grupo.map { PixPinCore.codigoLegible(codigo: $0) }
             etiqueta = anuncio?.etiqueta
             presencia = ajustes?.sincroPresencia ?? true
@@ -451,7 +522,9 @@ public final class Sincronizador: ObservableObject {
                 // puede sincronizar igual (como Windows).
                 if etiqueta != nil { vecinos.empezar() } else { vecinos.parar(); filas = [] }
             }
+            if etiqueta == nil { porRecordada = [] }
             vecinosCambiaron()
+            mirarRecordadas()
         } catch {
             self.error = textoDeError(error)
         }
@@ -508,31 +581,47 @@ public final class Sincronizador: ObservableObject {
         }
     }
 
-    /// La lista de Bonjour cambio: rehace las filas de mi grupo y sondea a
-    /// los nuevos (la sonda da su direccion y le dice al reloj que contesta).
+    /// La lista de Bonjour cambio (o los miembros): rehace las filas de mi
+    /// grupo y sondea a los nuevos (la sonda da su direccion, que se apunta
+    /// en `direcciones.txt`, y le dice al reloj que contesta). Los miembros
+    /// que no se anuncian salen tambien, como «No encontrado», salvo que
+    /// contestaran en su direccion recordada.
     private func vecinosCambiaron() {
         guard let etiqueta, let yo = aparato?.id else {
             filas = []
             return
         }
         let antes = Dictionary(filas.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        let vez = Dictionary(miembros.map { ($0.id, $0.ultimaVez) }, uniquingKeysWith: { a, _ in a })
         var nuevas: [Fila] = []
         var aSondear: [Vecino] = []
         for v in vecinos.delGrupo(etiqueta: etiqueta, yo: yo) {
             if let f = antes[v.id] {
                 nuevas.append(Fila(id: v.id, nombre: v.nombre, letra: v.datos.letra,
-                                   direccion: f.direccion, estado: f.estado))
+                                   direccion: f.direccion,
+                                   estado: f.estado == .noEncontrado ? .mirando : f.estado,
+                                   ultimaVez: max(f.ultimaVez, vez[v.id] ?? 0)))
+                if f.direccion == nil, f.estado == .noEncontrado { aSondear.append(v) }
             } else {
                 nuevas.append(Fila(id: v.id, nombre: v.nombre, letra: v.datos.letra,
-                                   direccion: nil, estado: .mirando))
+                                   direccion: nil, estado: .mirando, ultimaVez: vez[v.id] ?? 0))
                 aSondear.append(v)
             }
         }
-        filas = nuevas
+        for m in miembros where !nuevas.contains(where: { $0.id == m.id }) {
+            let f = antes[m.id]
+            let sigue = porRecordada.contains(m.id)
+            nuevas.append(Fila(id: m.id, nombre: f?.nombre ?? m.nombre, letra: m.letra ?? "",
+                               direccion: sigue ? f?.direccion : nil,
+                               estado: sigue ? (f?.estado ?? .contesta) : Self.sinRed(f?.estado),
+                               ultimaVez: max(f?.ultimaVez ?? 0, m.ultimaVez)))
+        }
+        filas = ordenadas(nuevas)
         for v in aSondear {
             Task {
                 let d = await Vecinos.sondear(v.punto)
                 poner(v.id, d == nil ? .noContesta : .contesta, direccion: d)
+                if let d { apuntar(v.id, d) }
                 // Un anuncio de Bonjour que va y viene (la Wi-Fi que se
                 // duerme) no es «aparecer» si se sincronizo con el hace poco:
                 // el reloj solo ve aparecer a quien pasa de no a si.
@@ -542,6 +631,108 @@ public final class Sincronizador: ObservableObject {
                 relojAuto.responde(id: v.id, si: d != nil)
                 latido()
             }
+        }
+    }
+
+    /// El estado de un miembro que no se anuncia: lo que estaba haciendo se
+    /// conserva (una vuelta en marcha, su resultado); lo demas es que no
+    /// esta.
+    private static func sinRed(_ antes: Estado?) -> Estado {
+        switch antes {
+        case .sincronizando?, .hecho?, .fallo?: return antes!
+        default: return .noEncontrado
+        }
+    }
+
+    /// Los disponibles primero y luego por nombre, como en el movil.
+    private func ordenadas(_ v: [Fila]) -> [Fila] {
+        v.sorted {
+            let (a, b) = ($0.direccion != nil, $1.direccion != nil)
+            if a != b { return a }
+            return $0.nombre.localizedStandardCompare($1.nombre) == .orderedAscending
+        }
+    }
+
+    /// **Prueba en su direccion recordada** a los miembros que Bonjour no
+    /// ensena (`sondear` de Windows, pero una vez y no cada 4 s): al
+    /// refrescar y al abrir la ventana de Sincronizar. Quien contesta queda
+    /// disponible y cuenta para el reloj como «aparecio».
+    public func mirarRecordadas() {
+        guard etiqueta != nil else { return }
+        let nucleo = self.nucleo
+        for m in miembros {
+            guard let d = m.direccion, !probando.contains(m.id),
+                  filas.first(where: { $0.id == m.id })?.direccion == nil else { continue }
+            probando.insert(m.id)
+            Task {
+                let si = await Task.detached(priority: .utility) {
+                    nucleo.sondearDireccion(host: d.host, puerto: d.puerto)
+                }.value
+                probando.remove(m.id)
+                guard si, filas.first(where: { $0.id == m.id })?.direccion == nil else { return }
+                porRecordada.insert(m.id)
+                poner(m.id, .contesta, direccion: Direccion(host: d.host, puerto: d.puerto))
+                filas = ordenadas(filas)
+                if tocaPorAparecer(ultimaVuelta: ultimaVuelta[m.id], ahora: reloj()) {
+                    relojAuto.responde(id: m.id, si: false)
+                }
+                relojAuto.responde(id: m.id, si: true)
+                latido()
+            }
+        }
+    }
+
+    /// **Donde llamar ahora a `fila`** (`llegar` de Windows): la direccion
+    /// de siempre si contesta a la sonda; si no, la que de su anuncio de
+    /// Bonjour (que se apunta). `nil` si ni contesta ni se anuncia.
+    func llegar(_ fila: Fila) async -> Direccion? {
+        let nucleo = self.nucleo
+        let recordada = miembros.first(where: { $0.id == fila.id })?.direccion
+            .map { Direccion(host: $0.host, puerto: $0.puerto) }
+        let base = fila.direccion ?? recordada
+        if let base {
+            let si = await Task.detached(priority: .utility) {
+                nucleo.sondearDireccion(host: base.host, puerto: base.puerto)
+            }.value
+            if si { return base }
+        }
+        // Solo se resuelven los candidatos: el mismo id, o el mismo nombre si
+        // su anuncio viene sin id.
+        var vistos: [VistoEnRed] = []
+        if let etiqueta, let yo = aparato?.id {
+            for v in vecinos.delGrupo(etiqueta: etiqueta, yo: yo)
+                where v.datos.id == fila.id || (v.datos.id.isEmpty && v.nombre == fila.nombre) {
+                if let d = await Vecinos.sondear(v.punto) {
+                    vistos.append(VistoEnRed(id: v.datos.id, nombre: v.nombre, host: d.host, puerto: d.puerto))
+                }
+            }
+        }
+        guard let base else {
+            guard let v = vistos.first else { return nil }
+            let d = Direccion(host: v.host, puerto: v.puerto)
+            apuntar(fila.id, d)
+            return d
+        }
+        switch dondeEstaAparato(id: fila.id, nombre: fila.nombre, host: base.host, puerto: base.puerto,
+                                contesta: false, vistos: vistos) {
+        case .laDeSiempre:
+            return base
+        case let .nueva(host, puerto):
+            NSLog("PixPin: %@ cambió de dirección", fila.nombre)
+            let d = Direccion(host: host, puerto: puerto)
+            apuntar(fila.id, d)
+            return d
+        case .noEsta:
+            return nil
+        }
+    }
+
+    /// Apunta en `sincro/direcciones.txt` donde contesto `id` (fuera del
+    /// hilo principal; lo mismo otra vez no reescribe nada).
+    private func apuntar(_ id: String, _ d: Direccion) {
+        let nucleo = self.nucleo
+        Task.detached(priority: .utility) {
+            _ = try? nucleo.apuntarDireccion(id: id, host: d.host, puerto: d.puerto)
         }
     }
 

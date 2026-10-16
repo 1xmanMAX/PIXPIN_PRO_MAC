@@ -18,9 +18,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 23 |
-| parcial | 61 |
-| falta | 72 |
+| completo | 28 |
+| parcial | 57 |
+| falta | 71 |
 | no aplica | 6 |
 | interno | 7 |
 
@@ -30,7 +30,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 2. ~~**Recordatorios.**~~ Hecho (A4): `recuerdaEn` en los mensajes y `⏰` en las tareas suenan con el vigía (al arrancar, tras sincronizar y al cambiar algo aquí), con «Hecha», «+10 min» y «Abrir» (C4).
    - Queda la llamada secreta (E5).
 3. ~~**Sincronización automática incompleta.**~~ Hecho (A2): periodo de 10 min, tareas al instante, dos rondas, aviso al tercer fallo, `presencia=false` y `fusionados`.
-   - Queda `direcciones.txt` (A3).
+   - Hecho también `direcciones.txt` (A3).
 4. ~~**Los pines no se guardan ni se restauran** entre arranques.~~ Hecho (B1): el mismo `almacen/indice.json` que Windows, filtros, giros, negativo, modo texto, tamaños 1–3, flechas y ⌘T.
    - Quedan las marcas de texto guardadas (resaltar, subrayar) y su ⌘Z.
 5. **El menú del mensaje del chat** ya es el de Windows (B2): etiquetas, responder, copiar, pinear, describir, reenviar, compartir, recordar, hacer lección, renombrar, fijar, abrir con, guardar del buzón y ver comentarios, con sus letras. Faltan anotar encima de una foto, exportar e imprimir un lienzo, unir PDF y la letra de una voz. Tampoco hay buscar dentro del chat ni la hoja «+».
@@ -153,7 +153,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | plano_cad/textos | Buscar en los textos del plano | falta | — | Todo |
 | pronunciar | Practicar la pronunciación | falta | — | Todo |
 | punto_de_proyecto | Punto verde o rojo en la burbuja | falta | — | Todo |
-| recibir | Recibir del móvil con QR; lienzo suelto | parcial | K/Sincro/EnvioPorCodigo.swift, N/envio.rs | El lienzo suelto llega como fichero, no a su proyecto |
+| recibir | Recibir del móvil con QR; lienzo suelto | completo | K/Sincro/EnvioPorCodigo.swift, N/envio.rs, N/recepcion.rs, N/lienzo_suelto.rs | — |
 | recibir_de_windows | «Imprimir a PixPin» y Compartir | parcial | XC/Compartir | PDF Services («Guardar en PixPin» del diálogo de imprimir) |
 | recordatorios | «Recuérdame a las 10» y el vigía | completo | N/recordatorios.rs, K/Recordatorios/{Vigia,Avisos}.swift | Sin hilo en Rust: el vigía es de Swift (temporizador de pared + notificación del sistema para la app cerrada). La llamada secreta es E5 |
 | renombrar_doc | F2 para renombrar en el lector | falta | — | Todo |
@@ -161,15 +161,15 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | salida | Ventanita «Salida» para arrastrar lo exportado | falta | — | Todo |
 | salto_por_enlace | Abrir el sublienzo de una zona | falta | — | Depende de zona_al_chat (lienzo) |
 | scroll | Captura con scroll | completo | K/Captura/CapturaConScroll.swift | — |
-| sincronizar (pantalla) | Este aparato, tus aparatos, añadir | parcial | K/Sincro/VistaSincro.swift | Renombrar el aparato, salir del grupo, miembros que no están en la red («hace X») |
-| sincronizar/al_dia | Llegar aunque cambie la IP | parcial | K/Sincro/Bonjour.swift, BuscarPuerta.swift | `sincro/direcciones.txt` |
+| sincronizar (pantalla) | Este aparato, tus aparatos, añadir | completo | K/Sincro/VistaSincro.swift, K/Sincro/VistaAparatos.swift, N/aparatos.rs | — |
+| sincronizar/al_dia | Llegar aunque cambie la IP | completo | K/Sincro/Sincronizador.swift (`llegar`, `mirarRecordadas`), N/aparatos.rs | Las direcciones recordadas se prueban al refrescar y al abrir la ventana, no cada 4 s (en Mac nada sondea) |
 | sincronizar/al_movil | Foto al lienzo abierto del móvil | parcial | K/Sincro/EnviarA.swift | Recibirla en el lienzo del Mac |
 | sincronizar/automatica | Sincronizar solo | completo | K/Sincro/Sincronizador.swift, N/sincro_auto.rs | — |
 | sincronizar/compartidos_ui | Chats compartidos con personas | completo | K/Sincro/Compartidos.swift | — |
-| sincronizar/copias_ui | Ver y restaurar copias; proyectos borrados | falta | — | El crate hace las copias; no hay pantalla |
+| sincronizar/copias_ui | Ver y restaurar copias; proyectos borrados | completo | K/Sincro/VistaCopias.swift, N/copias.rs | — |
 | sincronizar/elegir | «¿Qué sincronizar?», lápidas, «Lo mío manda» | completo | K/Sincro/ElegirSincro.swift, N/sincro.rs | «Lo mío manda» por defecto (el TOML) aún no sale en Ajustes (C3) |
 | sincronizar/en_fondo | Sincronizar sin ventana | completo | Intent `SincronizarAhora` | — |
-| sincronizar/enviar_wifi, recibir_wifi | Enviar y recibir con código | parcial | K/Sincro/EnvioPorCodigo.swift | Mandar proyectos y lienzos; «actualizar o crear» |
+| sincronizar/enviar_wifi, recibir_wifi | Enviar y recibir con código | completo | K/Sincro/EnvioPorCodigo.swift, N/envio.rs, N/recepcion.rs, N/lienzo_suelto.rs | Sin cámara: el QR del otro se pega como texto (como Windows) |
 | sincronizar/galeria | La galería viaja | completo | N/galeria_sincro.rs | — |
 | sincronizar/presencia | Localizable mientras está abierta | completo | K/Sincro/Anunciador.swift, Sincronizador.swift | El interruptor en Ajustes es C3 |
 | tareas (ventana) | Tareas de todos los chats | parcial | K/Tareas/Tareas.swift, N/tareas.rs | Buscar, «Mover a…», borrar y deshacer, F2, pegar imágenes (el `⏰`, hecho en A4: se ve y se pone desde el menú de la fila) |
@@ -441,17 +441,17 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | Lápidas de proyecto (`LapidaDeChat`, `borrarchat`) | sí (preguntando) | sí | completo | N/sincro.rs `sincronizar_preguntando`, `borrar_proyecto`; sin preguntar no se borra nada, como Windows |
 | `auto-automatizaciones`, `auto-figuras` | no | no | falta | Se conservan |
 | `auto-letra-*` (letras SHX) | sí | no | parcial | nucleo/pixpin-cad |
-| `sincro/direcciones.txt` | no | no | falta | Solo Bonjour |
+| `sincro/direcciones.txt` | sí | sí | completo | N/aparatos.rs; lo visto en Bonjour se apunta y se prueba antes que el anuncio |
 | `sincro/elegidos/<id>` | sí | sí | completo | crate |
-| `copias/` | el crate las hace | — | parcial | No hay pantalla para restaurar |
+| `copias/` | sí | el crate las hace | completo | K/Sincro/VistaCopias.swift, N/copias.rs |
 | Ajustes `[sincro]` presencia, automatica, lo_mio_manda | sí | automatica y presencia | parcial | Se respetan los tres; «Lo mío manda» se elige en «¿Qué sincronizar?», pero el valor por defecto no sale en Ajustes (C3) |
 | Vuelta automática: al aparecer, 30 s de calma, periodo de 10 min | sí | — | completo | N/sincro_auto.rs (`RelojSincro`), Sincronizador.swift |
 | Tareas al instante (`solo_estos`, 600 ms) | sí | — | completo | `Nucleo::sincronizar_tareas`; avisa K/Tareas/Tareas.swift (`pixpinTareasCambiadas`) |
 | «Con todos» en 2 rondas | 2 rondas con 3 o más aparatos | — | completo | `rondas_con_todos`, Sincronizador.swift `conTodos` |
 | Qué cuenta como «trajo algo» | `trajo`: traídos, fusionados, archivos o borrados | — | completo | `ResumenSincro.trajo` |
 | `avisos_de_lo_hecho` | sí | — | completo | Van en `ResumenSincro.avisos` |
-| Renombrar el aparato, salir del grupo | no | no | falta | — |
-| Envío por código: archivo, proyecto, lienzo | solo archivo | solo archivo | parcial | N/envio.rs |
+| Renombrar el aparato, salir del grupo | sí | sí | completo | N/aparatos.rs (`Disco.renombrar`, `Disco.salirDelGrupo`) |
+| Envío por código: archivo, proyecto, lienzo | sí | sí | completo | N/envio.rs, N/recepcion.rs (actualizar o crear, lo que vuelve), N/lienzo_suelto.rs |
 | `suelto` / «Enviar a» | sí | sí | parcial | Nunca va al lienzo (`FrenteMac::Lienzo`) |
 | Chats compartidos con personas | sí | sí | completo | N/compartidos.rs |
 | Timeline | — | — | no aplica | No viaja ni en Windows |
@@ -511,10 +511,10 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 |---|---|---|
 | A1 ✅ | **«¿Qué sincronizar?» y lápidas de proyecto**: `Alcance::Preguntar`, elegir chats, aplicar o rechazar borrados, «Lo mío manda»; `fusionados` y `avisos_de_lo_hecho` en `ResumenSincro` | N/sincro.rs, K/Sincro/VistaSincro.swift, nuevo K/Sincro/ElegirSincro.swift |
 | A2 ✅ | **Sincronización automática como Windows**: periodo de 10 min, tareas al instante (`vuelta::solo_estos`), 2 rondas con 3 o más aparatos, aviso tras 3 fallos, respetar `presencia=false` | K/Sincro/Sincronizador.swift, K/Sincro/Anunciador.swift, nuevo N/sincro_auto.rs (+ `N/lib.rs`) |
-| A3 | **Aparatos**: `sincro/direcciones.txt` (recordar y probar antes que Bonjour), renombrar este aparato, salir del grupo, miembros con «hace X» | nuevo N/aparatos.rs, K/Sincro/BuscarPuerta.swift, K/Sincro/Vecinos.swift, nuevo K/Sincro/VistaAparatos.swift (se enlaza desde VistaSincro **después de A1**) |
+| A3 ✅ | **Aparatos**: `sincro/direcciones.txt` (recordar y probar antes que Bonjour), renombrar este aparato, salir del grupo, miembros con «hace X» | nuevo N/aparatos.rs, K/Sincro/BuscarPuerta.swift, K/Sincro/Vecinos.swift, nuevo K/Sincro/VistaAparatos.swift (se enlaza desde VistaSincro **después de A1**) |
 | A4 ✅ | **Recordatorios**: `recuerdaEn` en el mensaje, el vigía (reprogramar al arrancar y tras sincronizar), notificaciones con «Hecha», «+10 min» y «Abrir»; el `⏰` de las tareas en el núcleo | nuevo N/recordatorios.rs, nuevo K/Recordatorios/{Vigia,Avisos}.swift, N/tareas.rs (solo parsear `⏰`) |
-| A5 | **Copias**: listar y restaurar `copias/`, recuperar proyectos borrados | nuevo N/copias.rs, nuevo K/Sincro/VistaCopias.swift |
-| A6 | **Envío por código completo**: mandar proyectos y lienzos, poner el lienzo suelto en su proyecto, «actualizar o crear», reconocer un archivo que vuelve | N/envio.rs, K/Sincro/EnvioPorCodigo.swift |
+| A5 ✅ | **Copias**: listar y restaurar `copias/`, recuperar proyectos borrados | nuevo N/copias.rs, nuevo K/Sincro/VistaCopias.swift |
+| A6 ✅ | **Envío por código completo**: mandar proyectos y lienzos, poner el lienzo suelto en su proyecto, «actualizar o crear», reconocer un archivo que vuelve | N/envio.rs, K/Sincro/EnvioPorCodigo.swift |
 | A7 | **Poner el núcleo al día con Windows (sin el lienzo)**: copiar `pixpin-ia` (los 10 módulos que faltan, sin tocar la parte de `cfg`), `pixpin-pdf` `escribir.rs` y `letra.rs`, `pixpin-store/estado.rs`, `pixpin-lanzador`; pasar `cargo test --workspace`. Avisar a Windows del NFC y de `formulas.rs` | nucleo/pixpin-ia/**, nucleo/pixpin-pdf/src/{escribir,letra}.rs, nucleo/pixpin-store/src/estado.rs, por-adaptar/pixpin-lanzador/** |
 | A7b | ~~`pixpin-motor2d` al día~~ **hecho** (16-oct) | nucleo/pixpin-motor2d/** |
 
