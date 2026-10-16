@@ -18,9 +18,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 40 |
+| completo | 42 |
 | parcial | 54 |
-| falta | 62 |
+| falta | 60 |
 | no aplica | 6 |
 | interno | 7 |
 
@@ -41,7 +41,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
    - Quedan el PDF anotado y la web de un documento que se lee, Word, enlace y wifi.
 8. ~~**Lectores sin búsqueda.**~~ Hecho (B7): buscar (⌘F, ⌘G / ⇧⌘G, F3), ⌘1…9 y el riel de marcadores, M con su cifra, N negativo, luna/sol oscuro, D avance solo, G ajustes, F2 renombrar, ⌘P, ⇧⌘S, F5 presentar y la tinta al día con el disco (`al_dia`).
    - ~~Falta escuchar en voz alta.~~ Hecho (D2): L, resaltar el trozo y la palabra, el 🟢 que se mueve, velocidad, voces del Mac y las teclas multimedia.
-9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. Faltan el esquema `pixpinmax://`, los pedidos y el menú del Dock.
+9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. El esquema `pixpinmax://`, los pedidos y el menú del Dock, hechos en C2.
 10. ~~**El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**.~~ Hecho (A7, 16-oct): `pixpin-ia`, `pixpin-pdf` (letras), `pixpin-store` y `pixpin-motor2d` ya son los de Windows. Lo que falta es la parte de Swift del asistente (D6, E1).
 
 ---
@@ -53,8 +53,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Módulo Windows | Función | Estado Mac | Archivo(s) Mac | Qué falta |
 |---|---|---|---|---|
 | abrir_con | «Abrir con…» (elegir app) en pines, chat, buscador | completo | K/Compartir/AbrirCon.swift | D1: las apps del formato (la predeterminada primero, con su icono) y «Otra app…»; si falta el archivo lo dice con su nombre. En el chat, el pin y la Salida |
-| abrir_hoja | Abrir una hoja de proyecto por referencia, sin el chat | parcial | K/Almacen.swift | Abrir desde fuera (intents, grupos, pedidos) |
-| abrir_imagen | Doble clic en una imagen → pin rápido | parcial | K/Pines/GestorPines.swift | Las imágenes no están en `CFBundleDocumentTypes` |
+| abrir_hoja | Abrir una hoja de proyecto por referencia, sin el chat | parcial | K/Almacen.swift, K/Pedidos/HacerPedidos.swift | Desde fuera ya abre (`pixpinmax://abrir?tipo=hoja&referencia=…`, C2); faltan los grupos |
+| abrir_imagen | Doble clic en una imagen → pin rápido | completo | K/Pines/GestorPines.swift, K/Pedidos/DelegadoApp.swift | C2: imágenes, vídeos y audios en `CFBundleDocumentTypes` (`public.image`, `public.movie`, `public.audio`, «Alternate»): «Abrir con» y soltarlos en el icono del Dock dan un pin (o el reproductor flotante, un audio), como las asociaciones de Windows |
 | al_frente | Qué chat o lienzo está delante para recibir «Enviar a» | parcial | K/Sincro/EnviarA.swift, N/envio.rs | El lienzo nunca se apunta como frente (`FrenteMac::Lienzo`) |
 | aligerar | Comprimir los PDF que entran (pdfsqueeze) | completo | K/Documentos/AligerarPdf.swift, N/aligerar.rs | — |
 | anotado_del_adjunto | Tinta, marcas y espacios `anot-<uid>…` de los lectores | parcial | N/documentos.rs, K/Documentos/LectorDocumento.swift | Word y EPUB reflujados (`.maqueta`) |
@@ -101,9 +101,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | lector_pdf_proyecto | Dónde va la tinta de un PDF | completo | N/documentos.rs | — |
 | lector_pin | Los lectores como pin | completo | K/Documentos/LectorDocumento.swift | La barra flotante de los pines |
 | lector_tinta | Capa de tinta sin desfase | parcial | N/documentos.rs | Word y EPUB reflujados |
-| leer_en_voz | Escuchar un documento resaltando por dónde va, con teclas multimedia | completo | K/Voz/LeerEnVoz.swift, VozAlta.swift, MandosSistema.swift, K/Documentos/VozDelLector.swift, VozDeLaNota.swift | Hecho (D2): una voz para la app (`AVSpeechSynthesizer`) que sigue con el lector cerrado y se engancha al volver a abrirlo; trozos de frases por hoja (`voz_alta::cortes`), idioma adivinado, ambar en el trozo y en la palabra, la vista lo sigue, el 🟢 se mueve (y se quita al acabar) aunque el lector esté cerrado; ⏮ ⏯ ⏭, velocidad 0,75–2×, ✕; «Voz para leer» en G (se recuerda por lengua); «Está sonando» y teclas multimedia (`MPRemoteCommandCenter`); barra flotante sin lector. Notas: clic derecho «Escuchar desde aquí» en el editor anterior. En vez de las voces de Microsoft, las del Mac (mejoradas/premium). Falta: el editor web de notas (gancho `VozDeLaNota.escuchar`) y el pedido «leer en voz» (C2) |
+| leer_en_voz | Escuchar un documento resaltando por dónde va, con teclas multimedia | completo | K/Voz/LeerEnVoz.swift, VozAlta.swift, MandosSistema.swift, K/Documentos/VozDelLector.swift, VozDeLaNota.swift | Hecho (D2): una voz para la app (`AVSpeechSynthesizer`) que sigue con el lector cerrado y se engancha al volver a abrirlo; trozos de frases por hoja (`voz_alta::cortes`), idioma adivinado, ambar en el trozo y en la palabra, la vista lo sigue, el 🟢 se mueve (y se quita al acabar) aunque el lector esté cerrado; ⏮ ⏯ ⏭, velocidad 0,75–2×, ✕; «Voz para leer» en G (se recuerda por lengua); «Está sonando» y teclas multimedia (`MPRemoteCommandCenter`); barra flotante sin lector. Notas: clic derecho «Escuchar desde aquí» en el editor anterior. En vez de las voces de Microsoft, las del Mac (mejoradas/premium). Falta: el editor web de notas (gancho `VozDeLaNota.escuchar`). El pedido `leer_en_voz` (texto, `.txt`/`.md`, `parar`), hecho en C2 |
 | letras_que_viajan | Las letras SHX viajan entre aparatos | parcial | nucleo/pixpin-cad (las lee) | No crea `auto-letra-*` |
-| lista_del_icono | Jump List | falta | — | En Mac, el menú del Dock (`applicationDockMenu`) |
+| lista_del_icono | Jump List | completo | K/Pedidos/DelegadoApp.swift | C2: el menú del Dock (`applicationDockMenu`) con las entradas de la Jump List (Capturar, Mensajes guardados, Proyectos, Sincronizar y los 3 últimos proyectos tocados), cada una un pedido, más Tareas, Buscar, Galería y Pinear la última captura. El icono del Dock sale mientras hay una ventana de PixPin abierta (el botón de la barra de tareas) y se va con la última |
 | llamada | «Llamada secreta» (VOZ con `recuerdaEn`) | falta | — | Depende de los recordatorios |
 
 ### 1.2 Módulos m–z y `main.rs`
@@ -125,13 +125,13 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | notas_md/paginas_vivas | Páginas vivas y enlaces a hojas | falta | — | La página ya las pinta; falta pintar la hoja a PNG y la lista de hojas (`paginas_vivas.rs`); de momento salen apagadas |
 | notas_md/lector_web | Modo lector de la nota | completo | K/Documentos/EditorNotaWeb.swift, N/notas/web.rs | — (es el editor que se abre, D4) |
 | notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | completo | K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift | Sin permiso del sistema, lo urgente sale en una ventanita de la app con los mismos botones |
-| orden | Línea de órdenes y `pixpinmax://` | falta | — | `CFBundleURLTypes` y los verbos |
+| orden | Línea de órdenes y `pixpinmax://` | parcial | K/Pedidos/{Pedido,Verbos,Enlaces}.swift | C2: `CFBundleURLTypes` (`pixpinmax`) y la tabla de verbos de `orden.rs` entera (mismos nombres, alias y campos; `pixpin://atajo/…` de Android también, y `pixpinmax:pedido?json=`); la lista blanca (`seguridad`), el cuadro de confirmar con «No» por defecto, lo prohibido (rutas de red: `//…`, `/net`, `/Network`, `smb:`, `file:`, relativas) y la firma HMAC-SHA256 (`enlaces.clave` en la carpeta de datos). El Mac no reclama `pixpin://` (es también del PixPin de DepthPixel). Falta la línea de órdenes (`pixpinmax <verbo>` en Terminal): `Verbos.deArgumentos` ya la entiende, falta el ejecutable |
 | oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Documentos/TonoLector.swift, N/documentos/lector.rs | Hecho en el lector (luna/sol en su barra, `lectores_oscuros` del estado, la tinta se adapta). Faltan el pin de Office, la hoja de cálculo y los visores de planos |
 | overlay | Overlay de captura | completo | K/Captura/* | — (B8: ⌘A, flechas, Espacio en vivo, ⇧ HEX/RGB, ⇧⌘S, ⌫, cuentagotas; la barra de acciones de Windows) |
 | panel_dibujo | Panel de estilo del lienzo | parcial | K/Lienzo/BarraEstiloLienzo.swift | **Lo lleva el agente del lienzo** |
 | pdf_del_proyecto | Rehacer un PDF roto desde `pdfLimpio` | falta | — | Todo |
 | pdf_en_chat | El PDF como un mensaje con vista; unir páginas | parcial | K/Chat/Adjuntos.swift, K/Documentos/AccionesDocumento.swift | Unir PDF, «como imágenes», devolver |
-| pedidos | Pedidos de otros programas | parcial | XC/App/Intenciones.swift (4 intents) | Tarea, lienzo, grabar, abrir proyecto, al móvil… |
+| pedidos | Pedidos de otros programas | parcial | K/Pedidos/HacerPedidos.swift, XC/App/Intenciones.swift (9 intents) | C2: los hace `HacerPedidos` (abrir proyecto, mensaje, hoja, nota y fichero; chat con fotos y ficheros; nota, lienzo y lista nuevos; tareas: añadir, marcar, quitar, corregir, borrar lista; ventana; capturar con sus modos; pinear, pinear la última, conservar, copiar imagen; grabar; sincronizar y al móvil; asistente; pines; timeline; leer en voz; OCR; reproducir). Intents nuevos: Nueva tarea, Nuevo lienzo, Grabar nota de voz, Abrir proyecto, Mandar al móvil. Faltan `soltar`, `iconos`, `mover_tarea`, `borrar_captura`, `tabla_nueva`, `posponer`, `automatizacion`, `herramienta`, la ficha de lección nueva y la búsqueda de lecciones ya escrita, `abrir` con `pagina`/`buscar`, tareas con imágenes y el nombre de la grabación |
 | pegar_en_flow | Pegar en Flow Launcher | no aplica | — | — |
 | pila_capturas | Pila de capturas | completo | K/Captura/PilaCapturas.swift | — |
 | pin_office | Office como pin con la vista previa del sistema | completo | K/Documentos/PinOffice.swift | Su F11 (⌃⌘F) |
@@ -223,7 +223,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Asistente (modelo, pensar, claves) | parcial | Motor, modelo, pensar, respaldo, mejor vista, documentos a la nube, voz del asistente y claves (Llavero: pegar, ver enmascarada, borrar). Falta «probar» la clave y que el asistente del Mac use `[asistente]` (D6); automatizaciones |
 | Atajos | completo | K/Ajustes/SeccionAtajos.swift (sección «Atajos»); UserDefaults, no el TOML (no viaja) |
 | Sincro | completo | Dejarse encontrar, sincronizar sola y «Lo mío manda» (`[sincro]`) |
-| Apps (abrir con, predeterminada) | no aplica | En macOS lo dan el Info.plist y «Abrir con» del Finder (C2) |
+| Apps (abrir con, predeterminada) | no aplica | En macOS lo dan el Info.plist y «Abrir con» del Finder (C2, hecho: imágenes, vídeos y audios además de PDF, Office y planos) |
 | Apariencia (Cosmos) | parcial | Aspecto (claro/oscuro/sistema, de este Mac). Falta Cosmos |
 | Avanzado | completo | Abrir `pixpinmax.toml` y la carpeta de datos; rendimiento y filtro del lápiz de Windows no aplican |
 
@@ -247,7 +247,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | `apps/pixpin-puente` y `extensiones/navegador` | falta | Native Messaging de Chrome/Edge; en Mac también hay Safari |
 | `apps/pixpin-lanzador` (buscar) | parcial | Está en `por-adaptar/`, igual que Windows (A7); falta adaptarlo |
 | `apps/pixpin-aligerar` | completo | Igual que Windows; el Mac usa N/aligerar.rs |
-| Integraciones: CLI, PowerShell, AutoHotkey, menú del Explorador | falta | En Mac: el esquema de URL, App Intents (4 hechos), Servicios del Finder |
+| Integraciones: CLI, PowerShell, AutoHotkey, menú del Explorador | parcial | C2: el esquema `pixpinmax://` (Stream Deck, Raycast, Alfred, `open` en Terminal), 9 App Intents y los Servicios del Finder (PixPin ▸ Al chat, Pinear, Copiar texto (OCR), Enviar al móvil, Preguntar al asistente; varios ficheros en una llamada). Falta la línea de órdenes |
 | Extensión Compartir y Quick Look | completo | Solo en Mac (XC/Compartir, XC/VistaPrevia) |
 
 ---
@@ -455,7 +455,7 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | `suelto` / «Enviar a» | sí | sí | parcial | Nunca va al lienzo (`FrenteMac::Lienzo`) |
 | Chats compartidos con personas | sí | sí | completo | N/compartidos.rs |
 | Timeline | — | — | no aplica | No viaja ni en Windows |
-| Pedidos (WM_COPYDATA, `pixpinmax://`, CLI, MCP) | — | — | falta | Es local, no sincroniza; en Mac haría falta un esquema de URL |
+| Pedidos (WM_COPYDATA, `pixpinmax://`, CLI, MCP) | — | — | parcial | Es local, no sincroniza. C2: `pixpinmax://` con el mismo protocolo v1; faltan la CLI y MCP (E8) |
 
 ### 3.2 Crates de `nucleo/` frente a `crates/` (diff fichero a fichero)
 
@@ -537,7 +537,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | # | Tanda | Ficheros |
 |---|---|---|
 | C1 | ✅ **Atajos globales configurables**: el catálogo de `pixpin-store/comandos.rs` entero, regiones, silenciar atajos, programas ignorados; sección «Atajos» con ⌫ para quitar uno. Hecho (faltan clic a través y restaurar el último pin: los ata el agente de pines con `GestorAtajos.poner`) | K/Captura/AtajoGlobal.swift, K/Ajustes/AtajoDeCaptura.swift, nuevo K/Ajustes/SeccionAtajos.swift, APP |
-| C2 | **Integración con macOS**: esquema `pixpinmax://` con los verbos de `docs/integraciones.md` y la firma, más App Intents (tarea, lienzo, grabar, abrir proyecto, al móvil), menú del Dock, imágenes en `CFBundleDocumentTypes`, Servicios del Finder | nuevo K/Pedidos/{Enlaces,Verbos}.swift, XC/App/Intenciones.swift, XC/project.yml, app/Recursos/Info.plist (**APP: después de C1**) |
+| C2 ✅ | **Integración con macOS** (hecho, 16-oct; queda la CLI y los pedidos que dice `pedidos`): esquema `pixpinmax://` con los verbos de `docs/integraciones.md` y la firma, más App Intents (tarea, lienzo, grabar, abrir proyecto, al móvil), menú del Dock, imágenes en `CFBundleDocumentTypes`, Servicios del Finder | nuevo K/Pedidos/{Enlaces,Verbos}.swift, XC/App/Intenciones.swift, XC/project.yml, app/Recursos/Info.plist (**APP: después de C1**) |
 | C3 ✅ | **Ajustes que faltan**: idioma, Captura (retardo, color, carpeta, GIF y scroll), Voz, pantalla de claves del asistente, Sincro (presencia, «Lo mío manda»), buscador y restablecer. Hecho (16-oct): ventana como la de Windows; faltan Pinear, Lienzo, Cosmos y que scroll/GIF lean su ajuste (§1.4) | K/Ajustes/VistaAjustes.swift, K/Ajustes/ModeloAjustes.swift, nuevo K/Ajustes/FilasAjustes.swift, N/ajustes.rs |
 | C4 ✅ | **Notificaciones comunes**: categorías y acciones (`UNNotificationAction`), aviso «se van en 24 h» de la caducidad; que AvisosMini las use | nuevo K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift, K/Caducidad/BarrenderoCapturas.swift (**coordinar con A4**: A4 usa CentroAvisos si ya existe) |
 
