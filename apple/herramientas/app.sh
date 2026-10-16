@@ -59,6 +59,23 @@ adelgazar() {
     echo "    $(basename "$bin"): $((antes / 1048576)) MB -> $((despues / 1048576)) MB sin simbolos"
 }
 
+# Firma ad hoc = sin Team ID. Con el runtime endurecido, la validacion de
+# bibliotecas de dyld exige que el ejecutable y lo que carga
+# (`Contents/Frameworks/libPixPinCore.dylib`) tengan el mismo Team ID, y dos
+# firmas ad hoc no lo tienen: en macOS 26 la app muere al arrancar con
+# "different Team IDs". Para la firma ad hoc se anade
+# `com.apple.security.cs.disable-library-validation` a una COPIA de los
+# derechos; los `.entitlements` del repositorio no cambian, asi que una firma
+# Developer ID (plan, §7.1) conserva la validacion.
+derechos_ad_hoc() {
+    local origen="$1" copia
+    copia="$(mktemp -t pixpin-derechos).plist"
+    cp "$origen" "$copia"
+    /usr/libexec/PlistBuddy -c "Add :com.apple.security.cs.disable-library-validation bool true" "$copia" >/dev/null 2>&1 \
+        || /usr/libexec/PlistBuddy -c "Set :com.apple.security.cs.disable-library-validation true" "$copia"
+    echo "$copia"
+}
+
 # Las bibliotecas y frameworks de Contents/Frameworks, firmados antes que
 # quien los carga.
 firmar_frameworks() {
@@ -130,10 +147,29 @@ construir_spm() {
     local dist="$APP_SRC/dist"
     local app="$dist/PixPin.app"
     cd "$APP_SRC"
-    echo "==> swift build (release, universal)"
-    swift build -c release --arch arm64 --arch x86_64 --product PixPin
     local bin
-    bin="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/PixPin"
+    if [ -x "$(xcode-select -p 2>/dev/null)/../SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild" ]; then
+        echo "==> swift build (release, universal)"
+        swift build -c release --arch arm64 --arch x86_64 --product PixPin
+        bin="$(swift build -c release --arch arm64 --arch x86_64 --show-bin-path)/PixPin"
+    else
+        # Sin Xcode (solo las Command Line Tools) no hay XCBuild, que es quien
+        # compila varias arquitecturas a la vez: una pasada por arquitectura y
+        # se juntan con lipo.
+        echo "==> swift build (release, arm64 y x86_64 por separado, sin Xcode)"
+        local a dir universal="$APP_SRC/.build/universal"
+        rm -rf "$universal"; mkdir -p "$universal"
+        for a in arm64 x86_64; do
+            swift build -c release --triple "$a-apple-macosx15.0" --product PixPin
+        done
+        for f in PixPin libPixPinCore.dylib; do
+            lipo -create \
+                "$(swift build -c release --triple arm64-apple-macosx15.0 --show-bin-path)/$f" \
+                "$(swift build -c release --triple x86_64-apple-macosx15.0 --show-bin-path)/$f" \
+                -output "$universal/$f"
+        done
+        bin="$universal/PixPin"
+    fi
 
     rm -rf "$dist"
     mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -156,7 +192,7 @@ construir_spm() {
     echo "==> Firma ad hoc"
     firmar_frameworks "$app"
     codesign --force --sign - --options runtime --timestamp=none \
-        --entitlements "$APP_SRC/Recursos/PixPin.entitlements" "$app"
+        --entitlements "$(derechos_ad_hoc "$APP_SRC/Recursos/PixPin.entitlements")" "$app"
     codesign --verify --strict --deep --verbose=2 "$app"
     arranca "$app"
     comprimir "$dist"
@@ -227,11 +263,11 @@ construir_xcode() {
     echo "==> Firma ad hoc (de dentro afuera)"
     firmar_frameworks "$app"
     codesign --force --sign - --options runtime --timestamp=none \
-        --entitlements "$XC/Soporte/Compartir.entitlements" "$app/Contents/PlugIns/CompartirPixPin.appex"
+        --entitlements "$(derechos_ad_hoc "$XC/Soporte/Compartir.entitlements")" "$app/Contents/PlugIns/CompartirPixPin.appex"
     codesign --force --sign - --options runtime --timestamp=none \
-        --entitlements "$XC/Soporte/VistaPrevia.entitlements" "$app/Contents/PlugIns/VistaPreviaPixPin.appex"
+        --entitlements "$(derechos_ad_hoc "$XC/Soporte/VistaPrevia.entitlements")" "$app/Contents/PlugIns/VistaPreviaPixPin.appex"
     codesign --force --sign - --options runtime --timestamp=none \
-        --entitlements "$APP_SRC/Recursos/PixPin.entitlements" "$app"
+        --entitlements "$(derechos_ad_hoc "$APP_SRC/Recursos/PixPin.entitlements")" "$app"
     codesign --verify --strict --deep --verbose=2 "$app"
     arranca "$app"
     comprimir "$dist"
