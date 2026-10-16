@@ -19,8 +19,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Estado | Filas |
 |---|---|
 | completo | 42 |
-| parcial | 54 |
-| falta | 60 |
+| parcial | 57 |
+| falta | 57 |
 | no aplica | 6 |
 | interno | 7 |
 
@@ -42,7 +42,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 8. ~~**Lectores sin búsqueda.**~~ Hecho (B7): buscar (⌘F, ⌘G / ⇧⌘G, F3), ⌘1…9 y el riel de marcadores, M con su cifra, N negativo, luna/sol oscuro, D avance solo, G ajustes, F2 renombrar, ⌘P, ⇧⌘S, F5 presentar y la tinta al día con el disco (`al_dia`).
    - ~~Falta escuchar en voz alta.~~ Hecho (D2): L, resaltar el trozo y la palabra, el 🟢 que se mueve, velocidad, voces del Mac y las teclas multimedia.
 9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. El esquema `pixpinmax://`, los pedidos y el menú del Dock, hechos en C2.
-10. ~~**El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**.~~ Hecho (A7, 16-oct): `pixpin-ia`, `pixpin-pdf` (letras), `pixpin-store` y `pixpin-motor2d` ya son los de Windows. Lo que falta es la parte de Swift del asistente (D6, E1).
+10. ~~**El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**.~~ Hecho (A7, 16-oct): `pixpin-ia`, `pixpin-pdf` (letras), `pixpin-store` y `pixpin-motor2d` ya son los de Windows. La parte 1 del asistente en Swift, hecha (D6, 16-oct): usa `[asistente]`, la nube por URLSession, el modelo local bajado y el bucle, las herramientas y las acciones de Windows. Queda la parte 2 (E1).
 
 ---
 
@@ -59,9 +59,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | aligerar | Comprimir los PDF que entran (pdfsqueeze) | completo | K/Documentos/AligerarPdf.swift, N/aligerar.rs | — |
 | anotado_del_adjunto | Tinta, marcas y espacios `anot-<uid>…` de los lectores | parcial | N/documentos.rs, K/Documentos/LectorDocumento.swift | Word y EPUB reflujados (`.maqueta`) |
 | anotador_al_chat | Lo anotado en la pantalla va al chat con su lienzo editable | falta | K/Captura/Capturador.swift (lo quema en la imagen) | Foto con `.excalidraw` en «Mensajes guardados» |
-| asistente (chat, motor, nube, descarga, turno) | IA local o en la nube | parcial | K/Asistente/*, N/asistente.rs, N/llavero.rs | Nube por URLSession; descargar el modelo; catálogo del motor para Mac |
-| asistente (recetas, pensado, permiso) | Recetas, lo pensado, permisos Sí/No | falta | — | Todo |
-| asistente (ojos, hoja_a_lienzo, anotar_inteligente, al_lienzo, documentos) | El asistente mira el lienzo, pasa una hoja al lienzo, anota documentos | falta | — | Todo; hace falta antes el `pixpin-ia` al día (§3.2) |
+| asistente (chat, motor, nube, descarga, turno) | IA local o en la nube | parcial | K/Asistente/*, N/asistente.rs, N/asistente/{turno,transporte,local}.rs, N/llavero.rs | Hecho (D6): el motor de `[asistente]` (Claude Haiku 5.5 o DeepSeek V4.1 Flash por URLSession con respaldo local; el modelo bajado; Apple Intelligence; el `llama-server` del usuario), el turno de Windows (`agente::turno_con`: pensar en automático, plan, hoja de trabajo, reinicio al 70 %, camino rápido, todas las herramientas que el Mac sabe hacer), bajar el motor de llama.cpp para macOS (b11580, Metal) y los GGUF con su huella, un `llama-server` por proceso que se cierra a los 5 min, al salir y el huérfano de una PixPin que murió (`llama-server.pid`). La ventana: conversaciones guardadas (`<datos>/asistente/`, no viajan), adjuntos (clip, arrastrar, pegar), lo pensado plegable, abrir lo dibujado en el lienzo. Falta que la conversación viva en el chat «Asistente» y viaje (E1) |
+| asistente (recetas, pensado, permiso) | Recetas, lo pensado, permisos Sí/No | parcial | K/Asistente/{ModeloAsistente,ManosDelAsistente,VistaAsistente}.swift, N/asistente/turno.rs | Hecho (D6): lo pensado (plegable, «Pensó N s») y la hoja de trabajo por conversación; lo que borra o sale del Mac pregunta en la burbuja con «Sí»/«No» (parar o 10 min es un no). Faltan las recetas (E1) |
+| asistente (ojos, hoja_a_lienzo, anotar_inteligente, al_lienzo, documentos) | El asistente mira el lienzo, pasa una hoja al lienzo, anota documentos | parcial | N/asistente/documentos.rs, K/Asistente/ManosDelAsistente.swift | Hecho (D6): `buscar_en_mis_cosas` (chats, PDF, Office y notas; con la nube pregunta la primera vez y queda en `documentos_a_la_nube`; las citas abren el documento), leer un PDF o una foto adjunta (PDFKit, Vision) y calcar una imagen. Faltan «ojos», hoja→lienzo, anotar documentos, editar el lienzo abierto, figuras guardadas y las acciones sobre documentos y del chat (E1) |
 | asistente (en_el_chat, externa/MCP) | Asistente dentro de cualquier chat; servidor MCP | falta | K/Asistente (es una ventana aparte) | Asistente en el chat; MCP para Mac |
 | audio | Un reproductor para toda la app: barra, saltos, velocidad | completo | K/Voz/ReproductorVoz.swift, VistasVoz.swift, MandosSistema.swift | Hecho (D3): uno solo para todo, las 5 velocidades del móvil (sobreviven a parar), ±10 s, ir a un punto, la fila, «Está sonando» y teclas multimedia; la barra de lo que suena encima de la caja del chat y en la biblioteca; pausa la voz que lee. Falta la pantalla de la letra sincronizada |
 | automatizaciones (cola, encargo, motor) | Disparadores con pasos; cola de encargos | falta | — | Todo; `auto-automatizaciones` llega y no se usa |
@@ -208,7 +208,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Fondos del chat | falta | — | Todo |
 | Micrófono flotante con hora | completo | K/Voz/FlotantesVoz.swift | Hecho (D3): siempre encima, aro que late y tiempo; clic o ↩ guarda, ⎋ tira; «Convertir en llamada» con la hora (nace una hora después y en punto, «En 15 min», «En 1 hora», «Mañana 9:00», ↑↓ de 5 en 5, teclearla) que pone `recuerdaEn`; se va sola. Se abre con clic derecho en el micrófono del chat o «Grabar» de la biblioteca (el pedido «grabar» es C2; «quién llama», E5) |
 | Reproductor flotante | completo | K/Voz/FlotantesVoz.swift | Hecho (D3): «Escuchar en flotante» (burbuja y biblioteca), Espacio, ←/→, ⎋, la fila y se va al acabar (el pedido «reproducir» es C2) |
-| Chat «Asistente» del sistema; aviso y voz del asistente | falta | — | Todo |
+| Chat «Asistente» del sistema; aviso y voz del asistente | parcial | K/Asistente/{VistaAsistente,DictadoAsistente}.swift | Hecho (D6) en la ventana del asistente: el altavoz de cada respuesta, «Leer siempre las respuestas» y dictar con «Ver lo dicho antes de enviarlo». Falta el chat «Asistente» del sistema y su aviso (E1) |
 
 ### 1.4 Ajustes (`ventana_ajustes.rs`)
 
@@ -220,7 +220,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Pinear | falta | Palabras mágicas (depende de las mini apps del pin) |
 | Lienzo (imán, suavizado) | falta | Depende del lienzo |
 | Voz | parcial | Segundo idioma y modo se guardan en `[voz]`; el dictado del Mac (`SFSpeechRecognizer`) usa uno solo |
-| Asistente (modelo, pensar, claves) | parcial | Motor, modelo, pensar, respaldo, mejor vista, documentos a la nube, voz del asistente y claves (Llavero: pegar, ver enmascarada, borrar). Falta «probar» la clave y que el asistente del Mac use `[asistente]` (D6); automatizaciones |
+| Asistente (modelo, pensar, claves) | parcial | Motor, modelo, pensar, respaldo, mejor vista, documentos a la nube, voz del asistente y claves (Llavero: pegar, ver enmascarada, «Probar» —y se prueba sola al guardarla—, borrar). El asistente del Mac ya los usa todos (D6). Faltan las automatizaciones (E6) |
 | Atajos | completo | K/Ajustes/SeccionAtajos.swift (sección «Atajos»); UserDefaults, no el TOML (no viaja) |
 | Sincro | completo | Dejarse encontrar, sincronizar sola y «Lo mío manda» (`[sincro]`) |
 | Apps (abrir con, predeterminada) | no aplica | En macOS lo dan el Info.plist y «Abrir con» del Finder (C2, hecho: imágenes, vídeos y audios además de PDF, Office y planos) |
@@ -550,7 +550,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | D3 | ✅ **Audio** (hecho): reproductor global (velocidad, ±saltos, barra de lo que suena, fila, «Está sonando»), biblioteca de audio, reproductor y micrófono flotantes con la hora | K/Voz/{ReproductorVoz,VistasVoz,BibliotecaAudio,FlotantesVoz,GrabadoraVoz}.swift, K/Vistas.swift (la barra y la entrada del menú) |
 | D4 ✅ | **Notas Markdown** (hecho, 16-oct): el editor de Windows (su página en un `WKWebView`) con sus atajos, fotos, documentos y audios en la nota, «Del chat», comentarios (`.comentarios.json`, viajan), copia `.md`, Word y compartir. Quedan las páginas vivas y los enlaces a hojas, y saltar al mensaje de un incrustado | K/Documentos/EditorNotaWeb.swift, K/Documentos/EditorNota.swift, N/notas.rs, N/notas/{web,adjuntos,comentarios,vista}.rs |
 | D5 ✅ | **Hojas** (hecho, 16-oct): un `.xlsx`, `.ods` o `.csv` del chat se edita como libro con pestañas (todas sus hojas, también las viejas del móvil) y pasa al chat como tablas; rango, formato de lo elegido, deshacer, copiar y pegar, y los atajos de Windows (sin ⌘N, ⌘K ni ⌘S). Queda ver y editar en el mismo pin (Windows) | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/{editor,libro}.rs |
-| D6 | **Asistente, parte 1**: nube con URLSession, bajar el modelo y su catálogo para Mac, que no quede `llama-server` huérfano | K/Asistente/*, N/asistente.rs (**después de A7**) |
+| D6 ✅ | **Asistente, parte 1** (hecho, 16-oct): los ajustes `[asistente]`, la nube con URLSession (`TransporteApp`), «Probar» la clave, bajar el motor de llama.cpp para macOS y los GGUF, que no quede `llama-server` huérfano, el bucle del agente con pensar, plan, hoja y camino rápido, las acciones de la app (tareas aquí; lo demás por `HacerPedidos`) con «¿seguro?», `buscar_en_mis_cosas` y leer adjuntos; la ventana con conversaciones, adjuntos, lo pensado, el lienzo, la voz y el dictado. Queda E1 | K/Asistente/*, N/asistente.rs, N/asistente/{turno,transporte,local,documentos}.rs, pixpin-ia `nube/http.rs` (el transporte) |
 | D7 ✅ | **Grabación** (hecho): marco movible en dos fases con pausa, micrófono y sonido; editor para revisar (bucle, recortar, cortar, velocidad, zoom, MP4/GIF, guardar, copiar o descartar) | K/Grabar/*, nuevo K/Grabar/EditorGrabacion.swift |
 | D8 ✅ | ~~**Buscar en todo completo**~~ **hecho**: pestañas, recientes, lecciones y capturas, acciones por fila y su teclado | K/Buscar/Buscar.swift, N/buscar.rs |
 | D9 ✅ | **Presentar un PPTX y el visor HTML** (hecho, 16-oct): pase a pantalla completa con pastilla, teclas, negro, notas, transiciones, pase solo, medios y vista del orador en la segunda pantalla; `.html` en `WKWebView` liso que guarda encima. Quedan PPTX → proyecto y `.ppt`/`.odp` | K/Documentos/{Diapositivas,VisorHtml}.swift, N/diapositivas.rs |
