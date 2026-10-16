@@ -1534,11 +1534,41 @@ pedido-tarea-cambio = La lista cambió mientras se movía la tarea; no se tocó 
 pedido-tarea-quitada = «{ $tarea }» quitada de su lista.
 pedido-tarea-corregida = Tarea cambiada: «{ $tarea }».
 pedido-lista-borrada = Lista «{ $lista }» borrada de «{ $proyecto }».
+pedido-timeline-apuntado = Apuntado en el timeline: «{ $titulo }».
 pedido-sin-capturas = Todavía no hay ninguna captura.
 pedido-fuera-de-capturas = Ese fichero no está en la carpeta de capturas; no se toca.
 pedido-no-es-imagen = Ese fichero no es una imagen.
 pedido-imagen-no-se-pudo = No se pudo copiar la imagen: { $motivo }
 pedido-sin-imagen = No se encuentra la imagen { $ruta }; no se apuntó la tarea.
+pedido-nada-que-leer = No llegó ningún texto que leer en voz alta.
+pedido-ocr-copiado = Texto copiado ({ $n } caracteres): «{ $texto }»
+pedido-ocr-sin-texto = No se encontró texto en la imagen.
+pedido-ocr-no-disponible = El OCR de Windows no está instalado: añade un idioma con reconocimiento de texto en Configuración.
+pedido-ocr-fallo = No se pudo leer el texto de la imagen: { $motivo }
+
+## Linea de ordenes y enlaces pixpin:// (15-oct)
+orden-titulo = PixPin Max
+orden-confirmar-cabecera = Un enlace le pide a PixPin Max:
+orden-confirmar-pregunta = ¿Hacerlo?
+orden-motivo-ficheros = Abre o manda ficheros de tu disco.
+orden-motivo-asistente = Le pide algo al asistente, que puede hacer cosas en PixPin.
+orden-motivo-microfono = Graba con el micrófono.
+orden-motivo-otros-aparatos = Manda datos a tus otros aparatos.
+orden-motivo-automatizacion = Toca una automatización del asistente.
+orden-motivo-borra = Borra algo.
+orden-motivo-cambia = Cambia datos de PixPin.
+orden-prohibido-ruta-no-local = Un enlace no puede abrir ficheros de red ni rutas que no sean de este equipo. No se hizo nada.
+orden-prohibido-crear-automatizacion = Un enlace no puede crear automatizaciones. No se hizo nada.
+orden-no-se-pudo = PixPin Max no pudo hacerlo: { $motivo }
+orden-sin-app = PixPin Max no está abierta y no se pudo abrir: { $motivo }
+orden-sin-respuesta = PixPin Max no contestó. Si está colgada, ciérrala y vuelve a abrirla.
+orden-version = Esta PixPin Max es más antigua que el pedido: actualízala.
+orden-preguntar-titulo = Preguntar al asistente sobre { $cuantos ->
+    [one] { $nombre }
+   *[other] { $cuantos } archivos
+}
+orden-preguntar-enviar = Preguntar
+orden-preguntar-cancelar = Cancelar
 
 ## Galeria de capturas (2-oct)
 galeria-titulo = Capturas
@@ -2548,8 +2578,8 @@ ajustes2-automatizacion-otro-aparato = corre en { $aparato }
 ajustes2-automatizacion-rota = No se entiende: { $motivo }
 ajustes2-automatizacion-borrar = ¿Borro la automatización «{ $nombre }»? No se puede deshacer.
 ajustes-asistente-pensar = Pensar antes de contestar
-ajustes2-ayuda-asistente-pensar = Antes de actuar, el asistente piensa y escribe lo que entendió; lo que piensa se ve, plegable, encima de su respuesta. Con el modelo de este PC pensar tarda varios minutos más: en automático solo piensan Claude y DeepSeek.
-asistente-pensar-auto = Automático (la nube sí; este PC no)
+ajustes2-ayuda-asistente-pensar = Antes de actuar, el asistente piensa y escribe lo que entendió; lo que piensa se ve, plegable, encima de su respuesta. Pensar tarda (con el modelo de este PC, minutos): en automático solo piensa en las tareas complejas, como resolver un problema, planificar o varios pasos seguidos, o si se lo pides («piénsalo», «paso a paso»).
+asistente-pensar-auto = Automático (solo en tareas complejas)
 asistente-pensar-si = Siempre
 asistente-pensar-no = Nunca
 asistente-pensando = Pensando…
@@ -2572,3 +2602,13 @@ asistente-voz-cancelado = Cancelado: no se envió nada.
 asistente-voz-nada-que-leer = Esta respuesta no tiene texto que leer.
 asistente-voz-leer = Leer en voz alta
 asistente-voz-callar = Dejar de leer
+
+# Los botones de las notificaciones de Windows (15-oct).
+notif-hecha = Hecha
+notif-mas-10 = +10 min
+notif-abrir = Abrir
+notif-conservar = Conservar
+notif-ver-galeria = Ver la galería
+notif-captura-se-va = Esta captura se va { $cuando }
+notif-capturas-se-van = { $n } capturas se van en las próximas 24 h
+notif-capturas-titulo = Capturas que caducan
