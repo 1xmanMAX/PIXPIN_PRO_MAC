@@ -72,37 +72,53 @@ final class TXTBonjourTests: XCTestCase {
     }
 }
 
-final class CalmaTests: XCTestCase {
+final class AutomaticaTests: XCTestCase {
     /// Un reloj que solo avanza cuando la prueba quiere.
     final class Reloj {
         var ahora = Date(timeIntervalSince1970: 1_000_000)
         func avanzar(_ s: TimeInterval) { ahora = ahora.addingTimeInterval(s) }
     }
 
-    func testSinCambiosNoHayNadaPendiente() {
-        let calma = Calma()
-        XCTAssertNil(calma.falta(en: Date()))
-        XCTAssertFalse(calma.toca(en: Date()))
+    /// El reloj de la automatica (`automatica.rs` de Windows), por la API
+    /// que usa el `Sincronizador`.
+    func testElRelojEsperaTreintaSegundosQuietoYCadaDiezMinutos() {
+        let t = tiemposAuto()
+        XCTAssertEqual(t.quietoMs, 30_000)
+        XCTAssertEqual(t.periodoMs, 600_000)
+        let r = RelojSincro()
+        XCTAssertEqual(r.siguiente(ahora: 0, ocupado: false), .nada, "sin nadie que conteste, nada")
+        r.responde(id: "tel", si: true)
+        r.verCambios(cambios: 0, ahora: 0)
+        XCTAssertEqual(r.siguiente(ahora: 0, ocupado: false), .entera(motivo: .aparecio))
+        r.empezo(ahora: 0)
+        XCTAssertFalse(r.acabo(bien: true, cambios: 0, ahora: 0))
+        r.verCambios(cambios: 1, ahora: 1_000)
+        XCTAssertEqual(r.proximoMs(ahora: 1_000, corriendo: false), t.quietoMs)
+        XCTAssertEqual(r.siguiente(ahora: 1_000 + t.quietoMs, ocupado: false), .entera(motivo: .cambio))
+        XCTAssertEqual(r.siguiente(ahora: 1_000 + t.quietoMs, ocupado: true), .nada, "nunca a la par")
     }
 
-    func testTocaTreintaSegundosDespuesDelUltimoCambio() {
-        let reloj = Reloj()
-        var calma = Calma()
-        calma.cambio(en: reloj.ahora)
-        XCTAssertEqual(calma.falta(en: reloj.ahora), 30)
-        reloj.avanzar(20)
-        XCTAssertEqual(calma.falta(en: reloj.ahora), 10)
-        // Otro cambio vuelve a empezar la cuenta.
-        calma.cambio(en: reloj.ahora)
-        reloj.avanzar(29)
-        XCTAssertFalse(calma.toca(en: reloj.ahora))
-        XCTAssertEqual(calma.falta(en: reloj.ahora) ?? -1, 1, accuracy: 0.001)
-        reloj.avanzar(1)
-        XCTAssertTrue(calma.toca(en: reloj.ahora))
-        reloj.avanzar(100)
-        XCTAssertEqual(calma.falta(en: reloj.ahora), 0, "pasado el plazo, toca ya")
-        calma.hecha()
-        XCTAssertNil(calma.falta(en: reloj.ahora))
+    func testLasTareasSalenAlInstanteYAntesQueLaEntera() {
+        let t = tiemposAuto()
+        let r = RelojSincro()
+        r.responde(id: "tel", si: true)
+        r.empezo(ahora: 0)
+        _ = r.acabo(bien: true, cambios: 0, ahora: 0)
+        r.avisanTareas(ficha: "obra", ahora: 100)
+        XCTAssertEqual(r.siguiente(ahora: 100 + t.calmaTareasMs - 1, ocupado: false), .nada)
+        XCTAssertEqual(r.siguiente(ahora: 100 + t.calmaTareasMs, ocupado: false), .tareas(fichas: ["obra"]))
+        XCTAssertEqual(r.tomarTareas(), ["obra"])
+        XCTAssertEqual(rondasConTodos(aparatos: 2, soloTareas: false), 2, "tres aparatos: dos rondas")
+        XCTAssertEqual(rondasConTodos(aparatos: 1, soloTareas: false), 1)
+        XCTAssertEqual(rondasConTodos(aparatos: 3, soloTareas: true), 1)
+    }
+
+    func testElTercerFalloSeguidoAvisaUnaVez() {
+        let r = RelojSincro()
+        XCTAssertFalse(r.acabo(bien: false, cambios: 0, ahora: 0))
+        XCTAssertFalse(r.acabo(bien: false, cambios: 0, ahora: 0))
+        XCTAssertTrue(r.acabo(bien: false, cambios: 0, ahora: 0))
+        XCTAssertFalse(r.acabo(bien: false, cambios: 0, ahora: 0), "caso negativo: el cuarto ya no")
     }
 
     func testLoAutomaticoRespetaElBajoConsumo() {
@@ -111,6 +127,16 @@ final class CalmaTests: XCTestCase {
         XCTAssertFalse(sePuedeSincronizar(.quieto, automatica: true, bajoConsumo: true))
         XCTAssertFalse(sePuedeSincronizar(.aparecio, automatica: true, bajoConsumo: true))
         XCTAssertFalse(sePuedeSincronizar(.aparecio, automatica: false, bajoConsumo: false))
+        // `[sincro] presencia = false`: a mano si, solo no.
+        XCTAssertTrue(sePuedeSincronizar(.manual, automatica: true, bajoConsumo: false, presencia: false))
+        XCTAssertFalse(sePuedeSincronizar(.periodo, automatica: true, bajoConsumo: false, presencia: false))
+        XCTAssertFalse(sePuedeSincronizar(.tareas, automatica: true, bajoConsumo: false, presencia: false))
+        XCTAssertTrue(sePuedeSincronizar(.tareas, automatica: true, bajoConsumo: false, presencia: true))
+    }
+
+    func testOcupadoNoEsUnFallo() {
+        XCTAssertTrue(esOcupado("Está sincronizando con otro aparato. Prueba otra vez en un momento."))
+        XCTAssertFalse(esOcupado("PC no aceptó la conexión: ¿tiene el mismo código de grupo?"))
     }
 
     func testUnAparatoQueVaYVieneNoLanzaUnaVueltaCadaVez() {
@@ -191,5 +217,47 @@ final class SincroDeVerdadTests: XCTestCase {
         let punto = NWEndpoint.hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: puerta.puerto)!)
         let d = await Vecinos.sondear(punto)
         XCTAssertEqual(d, Direccion(host: "127.0.0.1", puerto: puerta.puerto))
+    }
+}
+
+/// «¿Qué sincronizar?» sin pantalla (`elegir.rs` de Windows).
+final class ElegirSincroTests: XCTestCase {
+    private func fila(_ id: String, aqui: Bool = true, alli: Bool = true, marcado: Bool = true,
+                      seBorraAqui: Bool = false) -> FilaElegir {
+        FilaElegir(id: id, nombre: id.capitalized, aqui: aqui, alli: alli,
+                   estadoAqui: "Más reciente", recienteAqui: true,
+                   estadoAlli: "Anterior", recienteAlli: false,
+                   marcado: marcado, seBorraAqui: seBorraAqui)
+    }
+
+    private func pregunta(_ filas: [FilaElegir], seBorranAlli: [String] = []) -> PreguntaSincro {
+        PreguntaSincro(otro: "PC", yo: "Mac", filas: filas, seBorranAlli: seBorranAlli, loMioManda: false)
+    }
+
+    func testLoBorradoEnElOtroAvisaSoloSiSeMarcaYLoMioMandaLoVuelveAMandar() {
+        var el = Eligiendo(pregunta([fila("obra", alli: false, marcado: false, seBorraAqui: true),
+                                     fila("casa")]))
+        XCTAssertEqual(el.cuantos, 1)
+        XCTAssertNil(el.avisoDeBorrados, "caso negativo: sin marcar no se borra")
+        XCTAssertEqual(el.estado(0, esMio: true).texto, "Borrado en PC · sin marcar: se queda aquí")
+        el.marcados[0] = true
+        XCTAssertEqual(el.estado(0, esMio: true).color, .rojo)
+        XCTAssertTrue(el.avisoDeBorrados?.contains("Se borrará AQUÍ, porque se borró en PC: «Obra»") ?? false)
+        el.loMioManda = true
+        XCTAssertNil(el.avisoDeBorrados, "con lo mío manda aquí no se borra")
+        XCTAssertEqual(el.estado(0, esMio: false).color, .verde)
+        XCTAssertEqual(el.boton, "Mandar 2")
+        XCTAssertEqual(el.eleccion, EleccionSincro(elegidos: ["obra", "casa"], loMioManda: true))
+    }
+
+    func testTodoNadaYLoBorradoAqui() {
+        var el = Eligiendo(pregunta([fila("obra"), fila("casa", marcado: false)], seBorranAlli: ["Viejo"]))
+        XCTAssertEqual(el.avisoDeBorrados, "Se borrará en PC, porque lo borraste aquí: «Viejo».")
+        XCTAssertEqual(el.estado(0, esMio: true).texto, "Más reciente")
+        XCTAssertEqual(el.estado(0, esMio: false).color, .gris)
+        el.nada()
+        XCTAssertNil(el.eleccion, "caso negativo: con nada marcado no se sincroniza")
+        el.todo()
+        XCTAssertEqual(el.boton, "Sincronizar 2")
     }
 }

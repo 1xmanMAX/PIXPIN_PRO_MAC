@@ -123,6 +123,8 @@ public final class ModeloTareas: ObservableObject {
             }.value
             if hecho {
                 NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                // Las tareas, al instante a los otros aparatos.
+                NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: chat)
             } else {
                 aviso = "La lista cambió: se ha vuelto a leer"
             }
@@ -140,11 +142,12 @@ public final class ModeloTareas: ObservableObject {
         let nucleo = self.nucleo
         let desfase = desfaseLocalMs()
         do {
-            _ = try await Task.detached(priority: .userInitiated) {
+            let lista = try await Task.detached(priority: .userInitiated) {
                 try nucleo.apuntarTarea(texto: limpio, desfaseMs: desfase)
             }.value
             error = nil
             NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: lista.chat)
         } catch {
             self.error = "\(error)"
         }

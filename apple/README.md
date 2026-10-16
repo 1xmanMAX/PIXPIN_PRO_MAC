@@ -100,8 +100,16 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         `_pixpin._tcp` y filtra por el TXT `g`; la sonda `PING`/`PONG` con `NWConnection` da
         host y puerto; el anuncio es `DNSServiceRegister` sobre el puerto de la `Escucha` de
         Rust (47474 o el que dé el sistema) con el TXT de `Nucleo::anuncio` (igual que
-        Windows). Sincroniza solo al aparecer un aparato del grupo y 30 s después de un
-        cambio, salvo en modo de bajo consumo.
+        Windows). Sincroniza solo como Windows (`sincro_auto.rs`, el `Reloj` de
+        `automatica.rs`): al aparecer un aparato del grupo, 30 s después de un cambio, cada
+        10 min, **las tareas al instante** (600 ms, solo esos chats) y aviso al tercer fallo
+        seguido; «con todos» en **dos rondas** con tres aparatos o más; respeta
+        `[sincro] presencia = false` y el modo de bajo consumo.
+  - [x] **«¿Qué sincronizar?» y lápidas de proyecto** (`Nucleo::sincronizar_preguntando`,
+        `Sincro/ElegirSincro.swift`): la lista de dos pestañas de Windows, lo borrado en el
+        otro sin marcar («SE BORRARÁ AQUÍ»), lo borrado aquí que se borrará allí y «Lo mío
+        manda»; borrar un proyecto (`Nucleo::borrar_proyecto`) deja su lápida y viaja.
+        `ResumenSincro` lleva `fusionados` y `trajo` (una vuelta que solo junta relee la lista).
   - [x] Sincronizar completo (`docs/sincro.md`): la **galería de capturas** en cada vuelta
         (`galeria_sincro.rs`, como `CapturasDelPc`), **«Enviar a…»** un aparato del grupo
         (`suelto`: al chat abierto, al lienzo si es foto o a Mensajes guardados; menú en la

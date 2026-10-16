@@ -35,8 +35,15 @@ public struct VistaSincro: View {
                 sinGrupo
             }
 
-            if sincro.fase != nil || sincro.ultimoResultado != nil || sincro.error != nil {
+            if sincro.fase != nil || sincro.ultimoResultado != nil || sincro.error != nil || !sincro.presencia {
                 Section("Actividad") {
+                    if !sincro.presencia {
+                        // Sin presencia, el movil no puede llamar a este Mac.
+                        Label("La presencia está apagada en los ajustes ([sincro] presencia = false): "
+                            + "desde aquí puedes sincronizar, pero el móvil no podrá encontrar este "
+                            + "equipo ni llamarlo.", systemImage: "eye.slash")
+                            .foregroundStyle(.red)
+                    }
                     if let fase = sincro.fase {
                         HStack { ProgressView().controlSize(.small); Text(fase) }
                     }
@@ -52,6 +59,8 @@ public struct VistaSincro: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 460, minHeight: 420)
+        // «¿Qué sincronizar?» antes de una vuelta con un aparato.
+        .sheet(item: $sincro.pregunta) { p in VistaElegirSincro(p) }
     }
 
     // MARK: - Con grupo
@@ -93,8 +102,10 @@ public struct VistaSincro: View {
             }
 
             Section {
-                Toggle("Sincronizar solo (al aparecer un aparato y 30 s después de un cambio)",
+                Toggle("Sincronizar solo (al aparecer un aparato, 30 s después de un cambio, "
+                    + "cada 10 min y las tareas al instante)",
                        isOn: $sincro.automatica)
+                    .disabled(!sincro.presencia)
                 if sincro.bajoConsumo {
                     Label("Modo de bajo consumo: solo a mano.", systemImage: "battery.25")
                         .foregroundStyle(.secondary)
@@ -103,6 +114,9 @@ public struct VistaSincro: View {
                     Task { await sincro.sincronizarAhora() }
                 }
                 .disabled(sincro.ocupado || !sincro.filas.contains { $0.direccion != nil })
+                .help(sincro.filas.filter { $0.direccion != nil }.count >= 2
+                    ? "Sin preguntar nada, uno detrás de otro y en dos rondas, para que todos acaben con todo."
+                    : "Sin preguntar nada, con lo elegido la última vez.")
             }
         }
     }
@@ -157,8 +171,9 @@ struct FilaVecino: View {
                 estado.font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
             Spacer()
-            Button("Sincronizar", action: sincronizar)
+            Button("Sincronizar…", action: sincronizar)
                 .disabled(ocupado || fila.direccion == nil)
+                .help("Elige qué sincronizar con \(fila.nombre)")
         }
     }
 

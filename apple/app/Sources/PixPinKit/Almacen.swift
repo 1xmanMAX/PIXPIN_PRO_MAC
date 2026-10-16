@@ -151,6 +151,27 @@ public final class Almacen: ObservableObject {
         }
     }
 
+    /// **Borra un proyecto** (a la papelera de PixPin, con su lapida), como
+    /// «Borrar» de la lista de proyectos de Windows: la proxima vez que se
+    /// sincronice se borra tambien en los otros aparatos (preguntando en
+    /// «¿Qué sincronizar?»). «Mensajes guardados» no se borra.
+    public func borrarProyecto(_ chat: String) async {
+        let nucleo = self.nucleo
+        do {
+            let quitado = try await Task.detached(priority: .userInitiated) {
+                try nucleo.borrarProyecto(ficha: chat)
+            }.value
+            if quitado {
+                mensajes[chat] = nil
+                totales[chat] = nil
+                NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            }
+            await cargarChats()
+        } catch {
+            self.error = "\(error)"
+        }
+    }
+
     /// Un lienzo nuevo en el chat (su `.excalidraw` vacio y su mensaje
     /// `DIBUJO`, como en Windows), anadido al final de lo cargado.
     @discardableResult

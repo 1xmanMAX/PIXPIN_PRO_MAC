@@ -142,63 +142,31 @@ public func textoIPv4(_ bytes: Data) -> String? {
 
 // MARK: - Cuando sincronizar solo
 
-/// **La espera de «quieto»** (`QUIETO` de Windows): tras un cambio en los
-/// chats de este aparato se espera a que pasen `espera` segundos sin mas
-/// cambios y entonces sale una vuelta con todos. No sondea: guarda el ultimo
-/// cambio y dice cuanto falta, y quien la usa duerme eso de una vez (y lo
-/// vuelve a armar si llega otro cambio).
-public struct Calma: Equatable, Sendable {
-    /// 30 s, como Windows: escribir un mensaje o dibujar son muchos cambios
-    /// seguidos y deben viajar en una vuelta.
-    public static let quieto: TimeInterval = 30
-
-    public let espera: TimeInterval
-    public private(set) var ultimoCambio: Date?
-
-    public init(espera: TimeInterval = Calma.quieto) {
-        self.espera = espera
-    }
-
-    /// Algo cambio aqui en `ahora`: la cuenta empieza otra vez.
-    public mutating func cambio(en ahora: Date) {
-        ultimoCambio = ahora
-    }
-
-    /// Cuanto falta para la vuelta (0 si ya toca), o `nil` si no hay nada
-    /// pendiente.
-    public func falta(en ahora: Date) -> TimeInterval? {
-        guard let ultimoCambio else { return nil }
-        return max(0, ultimoCambio.addingTimeInterval(espera).timeIntervalSince(ahora))
-    }
-
-    /// Si ya toca en `ahora`.
-    public func toca(en ahora: Date) -> Bool {
-        falta(en: ahora) == 0
-    }
-
-    /// Salio la vuelta: no queda nada pendiente.
-    public mutating func hecha() {
-        ultimoCambio = nil
-    }
-}
-
 /// Por que se sincroniza.
 public enum MotivoSincro: Equatable, Sendable {
     /// El boton «Sincronizar ahora».
     case manual
     /// Aparecio en la red un aparato del grupo.
     case aparecio
-    /// Los cambios de aqui llevan `Calma.quieto` quietos.
+    /// Los cambios de aqui llevan 30 s quietos (`QUIETO` de Windows; la
+    /// cuenta la lleva `RelojSincro` del nucleo).
     case quieto
+    /// Pasaron 10 min desde la ultima vuelta sola (`PERIODO` de Windows).
+    case periodo
+    /// Se tacho una tarea: sale al instante, solo ese chat.
+    case tareas
 }
 
 /// Las reglas de la sincronizacion sola (§4bis.6 del plan): lo manual
-/// siempre; lo automatico solo si esta encendido y **sin modo de bajo
-/// consumo** (`ProcessInfo.isLowPowerModeEnabled`).
-public func sePuedeSincronizar(_ motivo: MotivoSincro, automatica: Bool, bajoConsumo: Bool) -> Bool {
+/// siempre; lo automatico solo si esta encendido, **sin modo de bajo
+/// consumo** (`ProcessInfo.isLowPowerModeEnabled`) y con la presencia
+/// encendida (`[sincro] presencia`: Windows no arranca la automatica sin
+/// ella).
+public func sePuedeSincronizar(_ motivo: MotivoSincro, automatica: Bool, bajoConsumo: Bool,
+                               presencia: Bool = true) -> Bool {
     switch motivo {
     case .manual: true
-    case .aparecio, .quieto: automatica && !bajoConsumo
+    case .aparecio, .quieto, .periodo, .tareas: automatica && !bajoConsumo && presencia
     }
 }
 

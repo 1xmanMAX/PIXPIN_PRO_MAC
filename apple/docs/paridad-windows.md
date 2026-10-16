@@ -26,15 +26,10 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 **Los 10 huecos que más pesan**, de más a menos valor para el uso diario y la sincronización:
 
-1. **«¿Qué sincronizar?» y las lápidas de proyecto.** El Mac nunca propaga el borrado de un proyecto, ni lo envía ni lo aplica.
+1. ~~**«¿Qué sincronizar?» y las lápidas de proyecto.**~~ Hecho (A1).
 2. **Recordatorios.** Faltan `recuerdaEn` en los mensajes, `⏰` en las tareas, el vigía con sus notificaciones y la llamada secreta. Llegan y se conservan, pero nadie avisa.
-3. **Sincronización automática incompleta.**
-   - Falta el periodo de 10 min.
-   - Faltan las «tareas al instante» (`solo_estos`).
-   - Con 3 o más aparatos hace falta una segunda ronda.
-   - No se guarda `direcciones.txt`.
-   - `presencia=false` no se respeta.
-   - Una vuelta que solo fusiona no refresca la lista.
+3. ~~**Sincronización automática incompleta.**~~ Hecho (A2): periodo de 10 min, tareas al instante, dos rondas, aviso al tercer fallo, `presencia=false` y `fusionados`.
+   - Queda `direcciones.txt` (A3).
 4. **Los pines no se guardan ni se restauran** entre arranques. Faltan también sus filtros, giros y modo texto, y moverlos con las flechas.
 5. **El menú del mensaje del chat** solo tiene Borrar, Abrir y poco más. Faltan responder, copiar, pinear, reenviar, fijar, renombrar, recordar, hacer lección, exportar e imprimir. Tampoco hay buscar dentro del chat ni la hoja «+».
 6. **Tareas y Timeline casi de solo lectura.**
@@ -167,14 +162,14 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | sincronizar (pantalla) | Este aparato, tus aparatos, añadir | parcial | K/Sincro/VistaSincro.swift | Renombrar el aparato, salir del grupo, miembros que no están en la red («hace X») |
 | sincronizar/al_dia | Llegar aunque cambie la IP | parcial | K/Sincro/Bonjour.swift, BuscarPuerta.swift | `sincro/direcciones.txt` |
 | sincronizar/al_movil | Foto al lienzo abierto del móvil | parcial | K/Sincro/EnviarA.swift | Recibirla en el lienzo del Mac |
-| sincronizar/automatica | Sincronizar solo | parcial | K/Sincro/Sincronizador.swift | Periodo de 10 min, tareas al instante, 2 rondas, aviso tras 3 fallos |
+| sincronizar/automatica | Sincronizar solo | completo | K/Sincro/Sincronizador.swift, N/sincro_auto.rs | — |
 | sincronizar/compartidos_ui | Chats compartidos con personas | completo | K/Sincro/Compartidos.swift | — |
 | sincronizar/copias_ui | Ver y restaurar copias; proyectos borrados | falta | — | El crate hace las copias; no hay pantalla |
-| sincronizar/elegir | «¿Qué sincronizar?», lápidas, «Lo mío manda» | falta | — | Todo |
+| sincronizar/elegir | «¿Qué sincronizar?», lápidas, «Lo mío manda» | completo | K/Sincro/ElegirSincro.swift, N/sincro.rs | «Lo mío manda» por defecto (el TOML) aún no sale en Ajustes (C3) |
 | sincronizar/en_fondo | Sincronizar sin ventana | completo | Intent `SincronizarAhora` | — |
 | sincronizar/enviar_wifi, recibir_wifi | Enviar y recibir con código | parcial | K/Sincro/EnvioPorCodigo.swift | Mandar proyectos y lienzos; «actualizar o crear» |
 | sincronizar/galeria | La galería viaja | completo | N/galeria_sincro.rs | — |
-| sincronizar/presencia | Localizable mientras está abierta | parcial | K/Sincro/Anunciador.swift | `presencia=false` no se respeta |
+| sincronizar/presencia | Localizable mientras está abierta | completo | K/Sincro/Anunciador.swift, Sincronizador.swift | El interruptor en Ajustes es C3 |
 | tareas (ventana) | Tareas de todos los chats | parcial | K/Tareas/Tareas.swift, N/tareas.rs | Buscar, «Mover a…», borrar y deshacer, F2, pegar imágenes, `⏰` |
 | tareas/rejilla, tarjetas, emoticonos | Vista de tarjetas y etiquetas | falta | — | Todo |
 | teleprompter | Telepronter | falta | — | Todo |
@@ -226,7 +221,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Voz | falta | Segundo idioma, modo |
 | Asistente (modelo, pensar, claves) | falta | Pantalla de claves; el Llavero ya está |
 | Atajos | completo | K/Ajustes/SeccionAtajos.swift (pestaña «Atajos»); UserDefaults, no el TOML (no viaja) |
-| Sincro | parcial | Presencia, «Lo mío manda» |
+| Sincro | parcial | Los interruptores de presencia y «Lo mío manda» (el Mac ya los respeta) |
 | Apps (abrir con, predeterminada) | falta | Todo |
 | Apariencia (Cosmos) | parcial | Cosmos |
 | Avanzado | falta | Todo; casi nada aplica en Mac |
@@ -442,18 +437,18 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | PAGINA, PROYECTO | etiqueta genérica | no | parcial | K/Vistas.swift |
 | CROQUIS (`croquis3d/*.croquis.gz`) | no | no | falta | — |
 | Lecciones (`.leccion`, fotos `respondeA: lec-<id>`) | sí | sí | parcial | Las fotos de la lección no se ven |
-| Lápidas de proyecto (`LapidaDeChat`, `borrarchat`) | nunca se aplican | no | falta | Siempre `vuelta::una(None)` en N/sincro.rs:364 |
+| Lápidas de proyecto (`LapidaDeChat`, `borrarchat`) | sí (preguntando) | sí | completo | N/sincro.rs `sincronizar_preguntando`, `borrar_proyecto`; sin preguntar no se borra nada, como Windows |
 | `auto-automatizaciones`, `auto-figuras` | no | no | falta | Se conservan |
 | `auto-letra-*` (letras SHX) | sí | no | parcial | nucleo/pixpin-cad |
 | `sincro/direcciones.txt` | no | no | falta | Solo Bonjour |
 | `sincro/elegidos/<id>` | sí | sí | completo | crate |
 | `copias/` | el crate las hace | — | parcial | No hay pantalla para restaurar |
-| Ajustes `[sincro]` presencia, automatica, lo_mio_manda | sí | automatica y presencia | parcial | K/Sincro/Sincronizador.swift:295 siempre enciende la presencia; «Lo mío manda» no sale en la UI |
-| Vuelta automática: al aparecer, 30 s de calma, periodo de 10 min | solo al aparecer y a los 30 s | — | parcial | Sincronizador.swift |
-| Tareas al instante (`solo_estos`, 600 ms) | no | — | falta | Windows y Android lo hacen |
-| «Con todos» en 2 rondas | 1 ronda | — | parcial | Sincronizador.swift:192 |
-| Qué cuenta como «trajo algo» | `traidos` o `archivos` | — | parcial (fallo) | Falta `fusionados` en `ResumenSincro` (N/sincro.rs:61) |
-| `avisos_de_lo_hecho` | no | — | parcial | N/sincro.rs:385 |
+| Ajustes `[sincro]` presencia, automatica, lo_mio_manda | sí | automatica y presencia | parcial | Se respetan los tres; «Lo mío manda» se elige en «¿Qué sincronizar?», pero el valor por defecto no sale en Ajustes (C3) |
+| Vuelta automática: al aparecer, 30 s de calma, periodo de 10 min | sí | — | completo | N/sincro_auto.rs (`RelojSincro`), Sincronizador.swift |
+| Tareas al instante (`solo_estos`, 600 ms) | sí | — | completo | `Nucleo::sincronizar_tareas`; avisa K/Tareas/Tareas.swift (`pixpinTareasCambiadas`) |
+| «Con todos» en 2 rondas | 2 rondas con 3 o más aparatos | — | completo | `rondas_con_todos`, Sincronizador.swift `conTodos` |
+| Qué cuenta como «trajo algo» | `trajo`: traídos, fusionados, archivos o borrados | — | completo | `ResumenSincro.trajo` |
+| `avisos_de_lo_hecho` | sí | — | completo | Van en `ResumenSincro.avisos` |
 | Renombrar el aparato, salir del grupo | no | no | falta | — |
 | Envío por código: archivo, proyecto, lienzo | solo archivo | solo archivo | parcial | N/envio.rs |
 | `suelto` / «Enviar a» | sí | sí | parcial | Nunca va al lienzo (`FrenteMac::Lienzo`) |
@@ -513,8 +508,8 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 
 | # | Tanda | Ficheros |
 |---|---|---|
-| A1 | **«¿Qué sincronizar?» y lápidas de proyecto**: `Alcance::Preguntar`, elegir chats, aplicar o rechazar borrados, «Lo mío manda»; `fusionados` y `avisos_de_lo_hecho` en `ResumenSincro` | N/sincro.rs, K/Sincro/VistaSincro.swift, nuevo K/Sincro/ElegirSincro.swift |
-| A2 | **Sincronización automática como Windows**: periodo de 10 min, tareas al instante (`vuelta::solo_estos`), 2 rondas con 3 o más aparatos, aviso tras 3 fallos, respetar `presencia=false` | K/Sincro/Sincronizador.swift, K/Sincro/Anunciador.swift, nuevo N/sincro_auto.rs (+ `N/lib.rs`) |
+| A1 ✅ | **«¿Qué sincronizar?» y lápidas de proyecto**: `Alcance::Preguntar`, elegir chats, aplicar o rechazar borrados, «Lo mío manda»; `fusionados` y `avisos_de_lo_hecho` en `ResumenSincro` | N/sincro.rs, K/Sincro/VistaSincro.swift, nuevo K/Sincro/ElegirSincro.swift |
+| A2 ✅ | **Sincronización automática como Windows**: periodo de 10 min, tareas al instante (`vuelta::solo_estos`), 2 rondas con 3 o más aparatos, aviso tras 3 fallos, respetar `presencia=false` | K/Sincro/Sincronizador.swift, K/Sincro/Anunciador.swift, nuevo N/sincro_auto.rs (+ `N/lib.rs`) |
 | A3 | **Aparatos**: `sincro/direcciones.txt` (recordar y probar antes que Bonjour), renombrar este aparato, salir del grupo, miembros con «hace X» | nuevo N/aparatos.rs, K/Sincro/BuscarPuerta.swift, K/Sincro/Vecinos.swift, nuevo K/Sincro/VistaAparatos.swift (se enlaza desde VistaSincro **después de A1**) |
 | A4 | **Recordatorios**: `recuerdaEn` en el mensaje, el vigía (reprogramar al arrancar y tras sincronizar), notificaciones con «Hecha», «+10 min» y «Abrir»; el `⏰` de las tareas en el núcleo | nuevo N/recordatorios.rs, nuevo K/Recordatorios/{Vigia,Avisos}.swift, N/tareas.rs (solo parsear `⏰`) |
 | A5 | **Copias**: listar y restaurar `copias/`, recuperar proyectos borrados | nuevo N/copias.rs, nuevo K/Sincro/VistaCopias.swift |

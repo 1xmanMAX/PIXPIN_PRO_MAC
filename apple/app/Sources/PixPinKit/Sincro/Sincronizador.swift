@@ -4,16 +4,24 @@
 //
 // - **Presencia** (`presencia.rs` de Windows): mientras la app vive y el Mac
 //   esta en un grupo, escucha (`Puerta`), se anuncia (`Anunciador`) y mira
-//   quien del grupo hay en la Wi-Fi (`Vecinos`).
-// - **Cuando**: a mano («Sincronizar ahora»), al aparecer un aparato del
-//   grupo y cuando los cambios de aqui llevan `Calma.quieto` (30 s) quietos.
-//   Lo automatico se apaga con el modo de bajo consumo.
-// - **Como**: cada vuelta es `Nucleo.sincronizarCon(host:puerto:)` en una
-//   `Task.detached` con prioridad `.utility` (§4bis.3), una detras de otra.
+//   quien del grupo hay en la Wi-Fi (`Vecinos`). Con `[sincro] presencia =
+//   false` no se abre puerta ni se anuncia (y no hay automatica): se puede
+//   sincronizar a mano, pero nadie encuentra a este Mac.
+// - **Cuando** (el `RelojSincro` del nucleo, igual que Windows): a mano; al
+//   aparecer un aparato del grupo; 30 s despues del ultimo cambio de aqui;
+//   cada 10 min mientras haya alguno; y **las tareas al instante** (600 ms
+//   despues de tachar, solo esos chats). Lo automatico se apaga con el modo
+//   de bajo consumo.
+// - **Como**: a mano con un aparato, **preguntando** («¿Qué sincronizar?»,
+//   con los proyectos borrados); «con todos» y lo automatico, sin preguntar
+//   y en **dos rondas** con tres aparatos o mas. Cada vuelta es una llamada
+//   al nucleo en una `Task.detached` con prioridad `.utility` (§4bis.3).
+// - **Sin ruido**: lo automatico solo avisa de un fallo al tercero seguido.
 //
-// Nada sondea (§4bis.6): Bonjour avisa de quien aparece, el cambio de modo
-// de bajo consumo llega por notificacion y la espera de «quieto» es un solo
-// sueno que se rearma con cada cambio.
+// Nada sondea (§4bis.6): Bonjour avisa de quien aparece, quien escribe avisa
+// con `pixpinCambioLocal` (y `pixpinTareasCambiadas`), el cambio de modo de
+// bajo consumo llega por notificacion y entre medias se duerme de una vez lo
+// que diga el reloj (`proximoMs`).
 
 import Foundation
 import PixPinCore
@@ -22,6 +30,10 @@ public extension Notification.Name {
     /// Algo cambio en los chats de este aparato (una nota, un chat nuevo):
     /// la sincronizacion sola cuenta desde aqui sus 30 s de calma.
     static let pixpinCambioLocal = Notification.Name("PixPinCambioLocal")
+    /// Cambiaron las tareas de un chat (se tacho una casilla, se apunto una
+    /// tarea): salen **al instante** a los aparatos que contestan.
+    /// `object` es la ficha del chat (`FichaChat.id`, un `String`).
+    static let pixpinTareasCambiadas = Notification.Name("PixPinTareasCambiadas")
     /// Llego de otro aparato una foto para el lienzo que esta delante
     /// (`FrenteMac.lienzo`). `object` es el `ArchivoLlegado` (su `ruta`).
     static let pixpinFotoAlLienzo = Notification.Name("PixPinFotoAlLienzo")
@@ -47,6 +59,25 @@ public final class Sincronizador: ObservableObject {
         public var estado: Estado
     }
 
+    /// Que chats entran en una vuelta (`Alcance` de Windows).
+    enum Alcance: Sendable {
+        /// Lo elegido la ultima vez con ese aparato («con todos», lo automatico).
+        case comoSiempre
+        /// Se pregunta en «¿Qué sincronizar?».
+        case preguntar
+        /// Solo los chats de estas fichas: las tareas al instante.
+        case tareas([String])
+    }
+
+    /// Como acabo una vuelta.
+    enum FinVuelta {
+        case hecha(ResumenSincro)
+        /// El otro (o este) ya estaba en otra vuelta: no es un fallo, la
+        /// proxima.
+        case ocupado
+        case fallo(String)
+    }
+
     @Published public private(set) var aparato: InfoAparato?
     /// El codigo del grupo como se lee (`K7Q2M-9XMPA`), si hay grupo.
     @Published public private(set) var codigoLegible: String?
@@ -61,9 +92,16 @@ public final class Sincronizador: ObservableObject {
     @Published public private(set) var bajoConsumo: Bool
     /// El puerto donde escucha este Mac (para escribirlo a mano en otro).
     @Published public private(set) var puerto: UInt16?
-    /// La sincronizacion sola (al aparecer y tras los cambios).
+    /// `[sincro] presencia` de `pixpinmax.toml`: apagada, ni se escucha ni
+    /// se anuncia, y no hay sincronizacion sola.
+    @Published public private(set) var presencia = true
+    /// **«¿Qué sincronizar?» esperando respuesta**: la ventana de
+    /// Sincronizar la ensena y contesta.
+    @Published public var pregunta: PreguntaPendiente?
+    /// La sincronizacion sola (al aparecer, tras los cambios, cada 10 min y
+    /// las tareas al instante).
     @Published public var automatica = true {
-        didSet { reprogramarQuieto() }
+        didSet { latido() }
     }
 
     /// Como va «Enviar a…» con cada aparato (por su id).
@@ -79,11 +117,15 @@ public final class Sincronizador: ObservableObject {
     private let anunciador = Anunciador()
     private var puerta: Puerta?
     private var etiqueta: String?
-    private var calma = Calma()
-    private var esperaQuieto: Task<Void, Never>?
+    /// La decision de cuando sincronizar solo (`automatica.rs` de Windows).
+    private let relojAuto = RelojSincro()
+    /// Cuantos avisos de cambio van: la huella de los chats para el reloj.
+    private var cambios: UInt64 = 0
+    /// El unico sueno hasta lo proximo que toque.
+    private var espera: Task<Void, Never>?
+    /// Una vuelta automatica (o de tareas) en marcha.
+    private var corriendo = false
     private var ultimaVuelta: [String: Date] = [:]
-    /// Una vuelta con todos pedida mientras habia otra en marcha (y por que).
-    private var pendienteConTodos: MotivoSincro?
     private var observadores: [NSObjectProtocol] = []
     private let reloj: () -> Date
 
@@ -106,14 +148,21 @@ public final class Sincronizador: ObservableObject {
                                                queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.cambioLocal() }
         })
+        observadores.append(centro.addObserver(forName: .pixpinTareasCambiadas, object: nil,
+                                               queue: .main) { [weak self] aviso in
+            let ficha = aviso.object as? String
+            MainActor.assumeIsolated { if let ficha { self?.cambiaronTareas(ficha) } }
+        })
         vecinos.alCambiar = { [weak self] _ in self?.vecinosCambiaron() }
+        relojAuto.verCambios(cambios: cambios, ahora: ahoraMs())
         Task { await refrescar() }
     }
 
     /// Lo deja todo: deja de anunciarse, de escuchar y de buscar.
     public func parar() {
-        esperaQuieto?.cancel()
-        esperaQuieto = nil
+        espera?.cancel()
+        espera = nil
+        pregunta?.contestar(nil)
         anunciador.retirar()
         puerta?.cerrar()
         puerta = nil
@@ -145,7 +194,7 @@ public final class Sincronizador: ObservableObject {
         }
         guard !ocupado else { return }
         ocupado = true
-        defer { ocupado = false; fase = nil }
+        defer { ocupado = false; fase = nil; latido() }
         var destino = direccion
         if destino == nil {
             fase = "Buscando un aparato del grupo en esta Wi-Fi…\nEn el otro aparato, ten PixPin abierto."
@@ -173,38 +222,31 @@ public final class Sincronizador: ObservableObject {
         }
         await refrescar()
         fase = "Trayendo los chats…"
-        await vuelta(con: destino, id: nil, nombre: nil)
+        if case let .hecha(r) = await vuelta(con: destino, id: nil, alcance: .comoSiempre) {
+            ultimoResultado = textoDe(r)
+            error = nil
+            if r.trajo { alTraerCambios?() }
+        }
     }
 
     // MARK: - Sincronizar
 
-    /// «Sincronizar ahora» con un aparato (`id`) o con todos los que
-    /// contestan (`nil`).
+    /// «Sincronizar» con un aparato (`id`), **preguntando que** («¿Qué
+    /// sincronizar?», como el boton de cada aparato en Windows), o «con
+    /// todos» los que contestan (`nil`), sin preguntar y en dos rondas si son
+    /// dos o mas.
     public func sincronizarAhora(id: String? = nil) async {
         if let id {
             guard let fila = filas.first(where: { $0.id == id }) else { return }
-            await sincronizar(fila, motivo: .manual)
+            await conUno(fila)
         } else {
-            await conTodos(motivo: .manual)
+            _ = await conTodos(motivo: .manual)
         }
     }
 
-    private func conTodos(motivo: MotivoSincro) async {
-        guard sePuedeSincronizar(motivo, automatica: automatica, bajoConsumo: bajoConsumo) else { return }
-        if ocupado {
-            // Lo manual manda sobre lo automatico.
-            if pendienteConTodos != .manual { pendienteConTodos = motivo }
-            return
-        }
-        calma.hecha()
-        esperaQuieto?.cancel()
-        for fila in filas where fila.direccion != nil {
-            await sincronizar(fila, motivo: motivo)
-        }
-    }
-
-    private func sincronizar(_ fila: Fila, motivo: MotivoSincro) async {
-        guard sePuedeSincronizar(motivo, automatica: automatica, bajoConsumo: bajoConsumo) else { return }
+    /// Una vuelta preguntando con un aparato.
+    private func conUno(_ fila: Fila) async {
+        guard !ocupado else { return }
         // La direccion puede haber cambiado desde que se vio: se sondea otra
         // vez si no la hay.
         var direccion = fila.direccion
@@ -215,36 +257,143 @@ public final class Sincronizador: ObservableObject {
             poner(fila.id, .noContesta, direccion: nil)
             return
         }
-        guard !ocupado else {
-            if motivo != .manual, pendienteConTodos == nil { pendienteConTodos = motivo }
-            return
-        }
         ocupado = true
-        await vuelta(con: direccion, id: fila.id, nombre: fila.nombre)
+        fase = "Conectando con \(fila.nombre)…"
+        let fin = await vuelta(con: direccion, id: fila.id, alcance: .preguntar)
         ocupado = false
-        if let pendiente = pendienteConTodos {
-            pendienteConTodos = nil
-            await conTodos(motivo: pendiente)
+        fase = nil
+        switch fin {
+        case let .hecha(r):
+            if !r.cancelada { ultimoResultado = "Al día con \(r.otroNombre)\n" + textoDe(r) }
+            error = nil
+            if r.trajo { alTraerCambios?() }
+        case .ocupado:
+            error = "\(fila.nombre): está sincronizando con otro aparato. Prueba otra vez en un momento."
+        case let .fallo(texto):
+            error = "\(fila.nombre): \(texto)"
         }
+        latido()
     }
 
-    /// Una vuelta con `direccion`, fuera del hilo principal.
-    private func vuelta(con direccion: Direccion, id: String?, nombre: String?) async {
+    /// **Todos de una vez** (`lanzar_con_todos` de Windows): uno detras de
+    /// otro y sin preguntar, con lo elegido la ultima vez con cada uno. Con
+    /// dos o mas, **dos rondas**: en la primera este queda con todo, pero los
+    /// primeros se quedaron con lo de antes de hablar con los ultimos; la
+    /// segunda lo reparte. Uno que falla no se reintenta en la segunda.
+    /// Devuelve si fue bien (con alguno al dia, o con nadie a quien llamar).
+    private func conTodos(motivo: MotivoSincro) async -> Bool {
+        guard sePuedeSincronizar(motivo, automatica: automatica, bajoConsumo: bajoConsumo,
+                                 presencia: presencia) else { return true }
+        let lista = filas.filter { $0.direccion != nil }
+        guard !lista.isEmpty, !ocupado else { return true }
+        let manual = motivo == .manual
+        ocupado = true
+        defer { ocupado = false; fase = nil }
+        let rondas = rondasConTodos(aparatos: UInt32(lista.count), soloTareas: false)
+        var alDia: [String] = []
+        var textos: [String] = []
+        var avisos: [String] = []
+        var fallaron: [(String, String)] = []
+        var trajo = false
+        for ronda in 1 ... rondas {
+            for fila in lista where !fallaron.contains(where: { $0.0 == fila.nombre }) {
+                guard let direccion = filas.first(where: { $0.id == fila.id })?.direccion else { continue }
+                let rotulo = rondas > 1 ? "Ronda \(ronda) de \(rondas) · " : ""
+                fase = "\(rotulo)Sincronizando con \(fila.nombre)…"
+                switch await vuelta(con: direccion, id: fila.id, alcance: .comoSiempre) {
+                case let .hecha(r):
+                    trajo = trajo || r.trajo
+                    if !alDia.contains(r.otroNombre) { alDia.append(r.otroNombre) }
+                    // De la segunda ronda solo se cuenta lo que hizo algo.
+                    if ronda == 1 || r.traidos + r.enviados + r.fusionados + r.borrados > 0 {
+                        textos.append("\(r.otroNombre): \(r.texto.split(separator: "\n").first ?? "")")
+                    }
+                    for a in r.avisos where !avisos.contains(a) { avisos.append(a) }
+                case .ocupado:
+                    continue
+                case let .fallo(texto):
+                    fallaron.append((fila.nombre, texto))
+                }
+            }
+        }
+        if trajo { alTraerCambios?() }
+        let rotulo = manual ? "" : "Automática: "
+        if alDia.isEmpty {
+            guard let primero = fallaron.first else { return true }
+            let t = "\(primero.0): \(primero.1)"
+            if manual { error = t } else { ultimoResultado = rotulo + "no se pudo (\(t))" }
+            return false
+        }
+        let titulo = alDia.count == 1 ? "Al día con \(alDia[0])" : "Al día con \(alDia.count) aparatos"
+        if let primero = fallaron.first {
+            avisos.append("Quedó pendiente \(fallaron.map { "«\($0.0)»" }.joined(separator: ", ")): \(primero.1)")
+        }
+        ultimoResultado = ([rotulo + titulo] + textos + avisos).joined(separator: "\n")
+        if manual { error = nil }
+        return true
+    }
+
+    /// **Las tareas al instante** con todos los que contestan: solo esos
+    /// chats y una ronda. Sin avisos: si no llego a alguno, la vuelta entera
+    /// de detras lo arregla.
+    private func tareasAlInstante(_ fichas: [String]) async {
+        let lista = filas.filter { $0.direccion != nil }
+        guard !lista.isEmpty, !ocupado else { return }
+        ocupado = true
+        defer { ocupado = false }
+        var trajo = false
+        var alDia: [String] = []
+        for fila in lista {
+            guard let direccion = fila.direccion else { continue }
+            if case let .hecha(r) = await vuelta(con: direccion, id: fila.id, alcance: .tareas(fichas)) {
+                trajo = trajo || r.trajo
+                alDia.append(r.otroNombre)
+            }
+        }
+        if !alDia.isEmpty { ultimoResultado = "Tareas al instante: al día con \(alDia.joined(separator: ", "))" }
+        if trajo { alTraerCambios?() }
+    }
+
+    /// Una vuelta con `direccion`, fuera del hilo principal. No toca
+    /// `ocupado`: eso es de quien llama.
+    private func vuelta(con direccion: Direccion, id: String?, alcance: Alcance) async -> FinVuelta {
         if let id { poner(id, .sincronizando, direccion: direccion) }
         let nucleo = self.nucleo
+        let puente = PuenteElegir { [weak self] pregunta, responder in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    guard let self else { return responder(nil) }
+                    self.pregunta?.contestar(nil)
+                    self.pregunta = PreguntaPendiente(pregunta, responder: responder)
+                }
+            }
+        }
         do {
-            let r = try await Task.detached(priority: .utility) {
-                try nucleo.sincronizarCon(host: direccion.host, puerto: direccion.puerto)
+            let r = try await Task.detached(priority: .utility) { () throws -> ResumenSincro in
+                switch alcance {
+                case .comoSiempre:
+                    try nucleo.sincronizarCon(host: direccion.host, puerto: direccion.puerto)
+                case .preguntar:
+                    try nucleo.sincronizarPreguntando(host: direccion.host, puerto: direccion.puerto,
+                                                      elegir: puente)
+                case let .tareas(fichas):
+                    try nucleo.sincronizarTareas(host: direccion.host, puerto: direccion.puerto,
+                                                 fichas: fichas)
+                }
             }.value
+            pregunta = nil
             ultimaVuelta[r.otroId] = reloj()
-            ultimoResultado = r.avisos.isEmpty ? r.texto : ([r.texto] + r.avisos).joined(separator: "\n")
-            error = nil
-            poner(r.otroId, .hecho(r.texto), direccion: direccion)
-            if r.traidos > 0 || r.archivos > 0 { alTraerCambios?() }
+            poner(r.otroId, r.cancelada ? .contesta : .hecho(r.texto), direccion: direccion)
+            return .hecha(r)
         } catch {
+            pregunta = nil
             let texto = textoDeError(error)
-            self.error = nombre.map { "\($0): \(texto)" } ?? texto
+            if esOcupado(texto) {
+                if let id { poner(id, .contesta, direccion: direccion) }
+                return .ocupado
+            }
             if let id { poner(id, .fallo(texto), direccion: direccion) }
+            return .fallo(texto)
         }
     }
 
@@ -278,29 +427,35 @@ public final class Sincronizador: ObservableObject {
 
     // MARK: - Presencia
 
-    /// Relee la identidad y el anuncio (fuera del hilo principal: la
-    /// etiqueta cuesta PBKDF2 la primera vez) y enciende o apaga la
-    /// presencia segun haya grupo.
+    /// Relee la identidad, el anuncio y `[sincro] presencia` (fuera del hilo
+    /// principal: la etiqueta cuesta PBKDF2 la primera vez) y enciende o
+    /// apaga la presencia segun haya grupo y este permitida.
     public func refrescar() async {
         let nucleo = self.nucleo
         do {
-            let (info, anuncio, presencia) = try await Task.detached(priority: .utility) {
-                try (nucleo.aparato(), nucleo.anuncio(), nucleo.anuncioDePresencia())
+            let (info, anuncio, deja, ajustes) = try await Task.detached(priority: .utility) {
+                try (nucleo.aparato(), nucleo.anuncio(), nucleo.anuncioDePresencia(), try? nucleo.ajustes())
             }.value
             aparato = info
             codigoLegible = info.grupo.map { PixPinCore.codigoLegible(codigo: $0) }
             etiqueta = anuncio?.etiqueta
+            presencia = ajustes?.sincroPresencia ?? true
             // Con grupo, o sin el pero dentro de un chat compartido con
-            // personas (que llaman aqui): se escucha y se anuncia.
-            if let presencia {
-                try encender(presencia)
+            // personas (que llaman aqui): se escucha y se anuncia, salvo que
+            // la presencia este apagada en los ajustes.
+            if let deja, presencia {
+                try encender(deja)
             } else {
-                apagar()
+                cerrarPuerta()
+                // Sin presencia se sigue buscando a los del grupo: a mano se
+                // puede sincronizar igual (como Windows).
+                if etiqueta != nil { vecinos.empezar() } else { vecinos.parar(); filas = [] }
             }
             vecinosCambiaron()
         } catch {
             self.error = textoDeError(error)
         }
+        latido()
     }
 
     private func encender(_ anuncio: AnuncioBonjour) throws {
@@ -318,12 +473,11 @@ public final class Sincronizador: ObservableObject {
         vecinos.empezar()
     }
 
-    private func apagar() {
+    private func cerrarPuerta() {
         anunciador.retirar()
         puerta?.cerrar()
         puerta = nil
         puerto = nil
-        filas = []
     }
 
     /// Alguien llamo a la puerta de este Mac.
@@ -355,7 +509,7 @@ public final class Sincronizador: ObservableObject {
     }
 
     /// La lista de Bonjour cambio: rehace las filas de mi grupo y sondea a
-    /// los nuevos (la sonda da su direccion).
+    /// los nuevos (la sonda da su direccion y le dice al reloj que contesta).
     private func vecinosCambiaron() {
         guard let etiqueta, let yo = aparato?.id else {
             filas = []
@@ -379,9 +533,14 @@ public final class Sincronizador: ObservableObject {
             Task {
                 let d = await Vecinos.sondear(v.punto)
                 poner(v.id, d == nil ? .noContesta : .contesta, direccion: d)
-                guard d != nil, tocaPorAparecer(ultimaVuelta: ultimaVuelta[v.id], ahora: reloj()),
-                      let fila = filas.first(where: { $0.id == v.id }) else { return }
-                await sincronizar(fila, motivo: .aparecio)
+                // Un anuncio de Bonjour que va y viene (la Wi-Fi que se
+                // duerme) no es «aparecer» si se sincronizo con el hace poco:
+                // el reloj solo ve aparecer a quien pasa de no a si.
+                if d != nil, tocaPorAparecer(ultimaVuelta: ultimaVuelta[v.id], ahora: reloj()) {
+                    relojAuto.responde(id: v.id, si: false)
+                }
+                relojAuto.responde(id: v.id, si: d != nil)
+                latido()
             }
         }
     }
@@ -392,35 +551,81 @@ public final class Sincronizador: ObservableObject {
         if let direccion { filas[i].direccion = direccion }
     }
 
-    // MARK: - La espera de «quieto» y el bajo consumo
+    // MARK: - Lo automatico (el reloj)
 
     /// Algo cambio aqui: la vuelta con todos sale tras 30 s sin mas cambios.
     public func cambioLocal() {
-        calma.cambio(en: reloj())
-        reprogramarQuieto()
+        cambios &+= 1
+        relojAuto.verCambios(cambios: cambios, ahora: ahoraMs())
+        latido()
+    }
+
+    /// Cambiaron las tareas del chat de `ficha`: salen al instante.
+    public func cambiaronTareas(_ ficha: String) {
+        relojAuto.avisanTareas(ficha: ficha, ahora: ahoraMs())
+        latido()
     }
 
     private func cambioDeEnergia() {
         bajoConsumo = ProcessInfo.processInfo.isLowPowerModeEnabled
-        reprogramarQuieto()
+        latido()
     }
 
-    /// Un solo sueno hasta que toque (o ninguno si no se puede): cada cambio
-    /// lo cancela y lo vuelve a armar.
-    private func reprogramarQuieto() {
-        esperaQuieto?.cancel()
-        esperaQuieto = nil
-        guard etiqueta != nil,
-              sePuedeSincronizar(.quieto, automatica: automatica, bajoConsumo: bajoConsumo),
-              let falta = calma.falta(en: reloj()) else { return }
-        esperaQuieto = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(falta))
-            guard !Task.isCancelled, let self else { return }
-            guard self.calma.toca(en: self.reloj()) else {
-                self.reprogramarQuieto()
-                return
+    /// Si lo automatico puede andar ahora.
+    private var autoEncendida: Bool {
+        etiqueta != nil && sePuedeSincronizar(.periodo, automatica: automatica, bajoConsumo: bajoConsumo,
+                                              presencia: presencia)
+    }
+
+    private func ahoraMs() -> Int64 { Int64((reloj().timeIntervalSince1970 * 1000).rounded()) }
+
+    /// **Mira que toca** (`Reloj::siguiente`) y, si no toca nada, duerme de
+    /// una vez hasta lo proximo (`proximoMs`). Cualquier aviso (un cambio,
+    /// una tarea, un aparato que aparece, el final de una vuelta) lo vuelve
+    /// a llamar y rearma el sueno.
+    private func latido() {
+        espera?.cancel()
+        espera = nil
+        guard autoEncendida else { return }
+        let ahora = ahoraMs()
+        let enMarcha = ocupado || corriendo
+        switch relojAuto.siguiente(ahora: ahora, ocupado: enMarcha) {
+        case .nada:
+            break
+        case .olvidar:
+            _ = relojAuto.tomarTareas()
+        case let .tareas(fichas):
+            _ = relojAuto.tomarTareas()
+            corriendo = true
+            Task {
+                await tareasAlInstante(fichas)
+                corriendo = false
+                latido()
             }
-            await self.conTodos(motivo: .quieto)
+            return
+        case let .entera(motivo):
+            // Si no sale (otra vuelta a mano a la vez), se cuenta como
+            // hecha: se vuelve a mirar en el siguiente periodo.
+            relojAuto.empezo(ahora: ahora)
+            corriendo = true
+            Task {
+                let bien = await conTodos(motivo: motivo == .aparecio ? .aparecio
+                    : motivo == .cambio ? .quieto : .periodo)
+                corriendo = false
+                if relojAuto.acabo(bien: bien, cambios: cambios, ahora: ahoraMs()) {
+                    // El tercer fallo seguido, una vez.
+                    error = "La sincronización automática falla desde hace un rato"
+                        + (ultimoResultado.map { ": \($0)" } ?? ".")
+                }
+                latido()
+            }
+            return
+        }
+        guard let ms = relojAuto.proximoMs(ahora: ahora, corriendo: enMarcha) else { return }
+        espera = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(max(ms, 20)))
+            guard !Task.isCancelled else { return }
+            self?.latido()
         }
     }
 
@@ -438,5 +643,64 @@ public final class Sincronizador: ObservableObject {
         }
         ocupado = false
         fase = nil
+    }
+}
+
+/// La frase de una vuelta con sus avisos debajo.
+func textoDe(_ r: ResumenSincro) -> String {
+    r.avisos.isEmpty ? r.texto : ([r.texto] + r.avisos).joined(separator: "\n\n")
+}
+
+/// Si el error es el «ocupado» del protocolo (`mensajes::OCUPADO`): otra
+/// vuelta en marcha aqui o alli. No es un fallo: se intenta la proxima vez.
+func esOcupado(_ texto: String) -> Bool {
+    texto.contains("Está sincronizando con otro aparato")
+}
+
+/// **«¿Qué sincronizar?» esperando**: lo que el nucleo pregunta y como
+/// contestarle. Contestar una vez basta; las demas no hacen nada (cerrar la
+/// ventana contesta «cancelar»: un hilo esperando para siempre dejaria el
+/// aparato ocupado).
+public final class PreguntaPendiente: Identifiable, @unchecked Sendable {
+    public let id = UUID()
+    public let pregunta: PreguntaSincro
+    private let responder: @Sendable (EleccionSincro?) -> Void
+    private let cerrojo = NSLock()
+    private var contestada = false
+
+    init(_ pregunta: PreguntaSincro, responder: @escaping @Sendable (EleccionSincro?) -> Void) {
+        self.pregunta = pregunta
+        self.responder = responder
+    }
+
+    public func contestar(_ eleccion: EleccionSincro?) {
+        cerrojo.lock()
+        let ya = contestada
+        contestada = true
+        cerrojo.unlock()
+        if !ya { responder(eleccion) }
+    }
+}
+
+/// El `ElegirSincro` del nucleo: el hilo de la vuelta se queda aqui hasta que
+/// la ventana contesta.
+final class PuenteElegir: ElegirSincro, @unchecked Sendable {
+    typealias Mostrar = @Sendable (PreguntaSincro, @escaping @Sendable (EleccionSincro?) -> Void) -> Void
+    private let mostrar: Mostrar
+
+    init(_ mostrar: @escaping Mostrar) {
+        self.mostrar = mostrar
+    }
+
+    func elegir(pregunta: PreguntaSincro) -> EleccionSincro? {
+        final class Caja: @unchecked Sendable { var valor: EleccionSincro? }
+        let caja = Caja()
+        let listo = DispatchSemaphore(value: 0)
+        mostrar(pregunta) { e in
+            caja.valor = e
+            listo.signal()
+        }
+        listo.wait()
+        return caja.valor
     }
 }
