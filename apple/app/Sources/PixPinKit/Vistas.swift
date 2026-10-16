@@ -259,7 +259,10 @@ struct Burbuja: View {
             case "NOTA":
                 Text(mensaje.texto).textSelection(.enabled)
                     .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))
-            case "TABLA", "MINIAPP" where BurbujaTabla.esTabla(mensaje):
+            // «TABLA» siempre es tabla; una «MINIAPP» solo si lo que trae lo es.
+            case "TABLA":
+                BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)
+            case "MINIAPP" where BurbujaTabla.esTabla(mensaje):
                 BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)
             case "IMAGEN" where mensaje.ruta != nil:
                 BurbujaImagen(mensaje: mensaje, chat: chat, almacen: almacen)

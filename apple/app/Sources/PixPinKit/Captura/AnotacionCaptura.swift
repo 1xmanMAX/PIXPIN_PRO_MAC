@@ -191,7 +191,7 @@ public struct AnotacionCaptura {
     }
 
     public mutating func borrarLetra() {
-        guard case var .texto(t, p) = enCurso?.clase, !t.isEmpty else { return }
+        guard case .texto(var t, let p) = enCurso?.clase, !t.isEmpty else { return }
         t.removeLast()
         enCurso?.clase = .texto(t, en: p)
     }

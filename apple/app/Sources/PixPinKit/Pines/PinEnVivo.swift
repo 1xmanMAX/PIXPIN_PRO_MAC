@@ -34,6 +34,8 @@ final class FuenteViva: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked S
     var alPararse: (@MainActor () -> Void)?
 
     private let cola = DispatchQueue(label: "PixPin pin en vivo", qos: .userInteractive)
+    /// Con `withLock` siempre (nunca `lock`/`unlock` sueltos: no valen en
+    /// codigo `async`, y asi el candado no se queda cogido si algo sale antes).
     private let candado = NSLock()
     // Con el candado:
     private var flujo: SCStream?
@@ -53,9 +55,7 @@ final class FuenteViva: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked S
     }
 
     var capturando: Bool {
-        candado.lock()
-        defer { candado.unlock() }
-        return flujo != nil
+        candado.withLock { flujo != nil }
     }
 
     /// Empieza (o reanuda) la captura.
@@ -93,19 +93,20 @@ final class FuenteViva: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked S
         try flujo.addStreamOutput(self, type: .screen, sampleHandlerQueue: cola)
         cola.sync { politica.reiniciar() }
         try await flujo.startCapture()
-        candado.lock()
-        self.flujo = flujo
-        self.config = config
-        candado.unlock()
+        candado.withLock {
+            self.flujo = flujo
+            self.config = config
+        }
     }
 
     /// Para la captura; la capa se queda con el ultimo fotograma.
     func parar() async {
-        candado.lock()
-        let flujo = self.flujo
-        self.flujo = nil
-        self.config = nil
-        candado.unlock()
+        let flujo: SCStream? = candado.withLock {
+            let flujo = self.flujo
+            self.flujo = nil
+            self.config = nil
+            return flujo
+        }
         guard let flujo else { return }
         try? flujo.removeStreamOutput(self, type: .screen)
         try? await flujo.stopCapture()
@@ -114,17 +115,13 @@ final class FuenteViva: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked S
     /// Suelta tambien el ultimo fotograma (al cerrar el pin).
     func soltar() async {
         await parar()
-        candado.lock()
-        ultimo = nil
-        candado.unlock()
+        candado.withLock { ultimo = nil }
     }
 
     /// El fotograma de ahora como foto suelta (copiada: no retiene la
     /// superficie de la captura). `nil` si aun no llego ninguno.
     func fotograma() -> CGImage? {
-        candado.lock()
-        let pb = ultimo
-        candado.unlock()
+        let pb = candado.withLock { ultimo }
         guard let pb else { return nil }
         var imagen: CGImage?
         guard VTCreateCGImageFromCVPixelBuffer(pb, options: nil, imageOut: &imagen) == noErr, let imagen else {
@@ -157,9 +154,7 @@ final class FuenteViva: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked S
         guard estado == .nuevo, let pb = sampleBuffer.imageBuffer,
               let superficie = CVPixelBufferGetIOSurface(pb)?.takeUnretainedValue()
         else { return }
-        candado.lock()
-        ultimo = pb
-        candado.unlock()
+        candado.withLock { ultimo = pb }
         let capa = self.capa
         DispatchQueue.main.async {
             CATransaction.begin()
@@ -170,13 +165,14 @@ final class FuenteViva: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked S
     }
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
-        candado.lock()
-        let era = flujo === stream
-        if era {
-            flujo = nil
-            config = nil
+        let era = candado.withLock {
+            let era = flujo === stream
+            if era {
+                flujo = nil
+                config = nil
+            }
+            return era
         }
-        candado.unlock()
         guard era else { return }
         let aviso = alPararse
         DispatchQueue.main.async { MainActor.assumeIsolated { aviso?() } }
@@ -197,9 +193,7 @@ final class FuenteViva: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked S
     }
 
     private func cambiarRitmo(_ porSegundo: Int, en stream: SCStream) {
-        candado.lock()
-        let config = self.config
-        candado.unlock()
+        let config = candado.withLock { self.config }
         guard let config else { return }
         config.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(porSegundo))
         stream.updateConfiguration(config) { _ in }

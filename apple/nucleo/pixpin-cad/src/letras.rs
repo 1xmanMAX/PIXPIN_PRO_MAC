@@ -20,6 +20,7 @@
 //! Traido casi tal cual de `herramientas/pixpin-cad-android/src/lib.rs`
 //! (`del_usuario`, `familias_del_usuario`, `falta`, `revisar_ttf`...).
 
+use std::cell::RefCell;
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -34,7 +35,15 @@ pub const TIPOS_DE_LETRA: [&str; 4] = ["shx", "ttf", "otf", "ttc"];
 pub const CARPETA: &str = "fuentes-shx";
 
 static CARPETA_DEL_USUARIO: Mutex<Option<PathBuf>> = Mutex::new(None);
-static FALTAN: Mutex<BTreeSet<String>> = Mutex::new(BTreeSet::new());
+
+thread_local! {
+    /// Lo que falta, **por hilo**: se apunta mientras se lee un plano y se
+    /// saca al acabar, todo en el hilo que lo lee ([`convertir_con_letras`]).
+    /// Con un `Mutex` global, dos lecturas a la vez (o dos pruebas en
+    /// paralelo) se mezclaban sus letras: una decia que faltaba la que pidio
+    /// la otra.
+    static FALTAN: RefCell<BTreeSet<String>> = const { RefCell::new(BTreeSet::new()) };
+}
 
 /// La carpeta de letras de PixPin dentro de `raiz`.
 pub fn carpeta_en(raiz: &Path) -> PathBuf {
@@ -208,10 +217,8 @@ pub fn familias_del_usuario() -> HashMap<String, PathBuf> {
 /// Apunta una letra que el plano pide y no esta.
 pub fn falta(nombre: &str) {
     let n = nombre.trim();
-    if !n.is_empty()
-        && let Ok(mut f) = FALTAN.lock()
-    {
-        f.insert(n.to_string());
+    if !n.is_empty() {
+        FALTAN.with_borrow_mut(|f| f.insert(n.to_string()));
     }
 }
 
@@ -246,9 +253,9 @@ pub fn ruta_de_fuente(sistema: &Path, nombre: &str) -> PathBuf {
     sistema.join(nombre)
 }
 
-/// Lo apuntado desde la ultima vez, y se vacia.
+/// Lo apuntado en este hilo desde la ultima vez, y se vacia.
 pub fn sacar_lo_que_falta() -> Vec<String> {
-    FALTAN.lock().map(|mut f| std::mem::take(&mut *f).into_iter().collect()).unwrap_or_default()
+    FALTAN.with_borrow_mut(|f| std::mem::take(f).into_iter().collect())
 }
 
 /// **Lee un plano con las letras del usuario** (las de `carpeta`) y apunta
@@ -268,8 +275,8 @@ pub fn las_que_faltan(sin_dibujar: &[(String, u32)]) -> Vec<String> {
     sin_dibujar.iter().filter_map(|(t, _)| t.strip_prefix(FUENTE_QUE_FALTA)).map(str::to_string).collect()
 }
 
-/// Lo global (la carpeta y lo que falta) lo comparten las pruebas de aqui y
-/// las de `texto`: una a la vez.
+/// Lo global (la carpeta del usuario) lo comparten las pruebas de aqui y
+/// las de `texto`: una a la vez. Lo que falta ya es de cada hilo.
 #[cfg(test)]
 pub(crate) static UNA_A_LA_VEZ: Mutex<()> = Mutex::new(());
 

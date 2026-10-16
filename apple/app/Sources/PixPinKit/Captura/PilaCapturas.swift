@@ -117,7 +117,7 @@ public final class PilaCapturas: ObservableObject {
                 ruta = nil
             }
             let escrita = ruta
-            await MainActor.run {
+            await MainActor.run { [weak self] in
                 guard let self, let escrita else { return }
                 self.alGuardar?(escrita)
                 self.meter(escrita, miniatura: mini)

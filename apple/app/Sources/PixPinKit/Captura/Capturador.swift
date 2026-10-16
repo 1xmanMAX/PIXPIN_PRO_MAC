@@ -379,7 +379,7 @@ public final class Capturador {
                 ruta = nil
             }
             let guardada = ruta
-            await MainActor.run {
+            await MainActor.run { [weak self] in
                 if let guardada { self?.alGuardar?(guardada) } else { NSSound.beep() }
             }
         }
