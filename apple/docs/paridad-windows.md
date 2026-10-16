@@ -18,9 +18,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 36 |
+| completo | 39 |
 | parcial | 55 |
-| falta | 65 |
+| falta | 62 |
 | no aplica | 6 |
 | interno | 7 |
 
@@ -79,14 +79,14 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | cielo | Fondo cósmico | falta | — | Es un adorno |
 | compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | parcial | K/Compartir/*, N/compartir.rs, K/Lienzo/SacarLienzo.swift | Hecho (D1): la hoja común con las reglas de Windows (formatos de una página que se esconden, «Qué incluir», el peso de verdad), HTML (la página del móvil, con el `.excalidraw` dentro), PDF, PNG, JPG, SVG, Original(es), Editable, `.pixpin` y Texto; de mensajes (dibujo y cada marco, foto, PDF solo, voz, nota), lo elegido, proyectos, pines y ficheros; salidas Compartir (a la Salida), Más… (la hoja del Mac), Guardar como… y Copiar. Falta: el PDF anotado y la web de un documento que se lee (`pdf_anotado`, `documento_web`), las páginas de un Word o un libro, tablas que calculan, Word de una nota, enlace y wifi, lo pixelado tapado en un dibujo del chat, y engancharla en los lectores (`Documentos/*`: `HojaCompartir.abrir(.documento(url), …)`) |
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
-| croquis3d | Ver los croquis 3D del móvil | falta | K/Planos/VisorModelo3D.swift | Abrir `.croquis.gz` en N/modelos3d.rs |
+| croquis3d | Ver los croquis 3D del móvil | completo | K/Chat/BurbujasQueLlegan.swift, K/Planos/VisorModelo3D.swift, N/modelos3d.rs | Hecho (B9): burbuja `CROQUIS` («aún no ha llegado» si falta su `.croquis.gz`), doble clic al visor 3D con sus fotos, su fondo, su tema y su encuadre de fábrica. Solo se ve, como en Windows. Faltan sus vistas guardadas (1–9) y exportarlo (las del visor, E2) |
 | cuenta_atras | Captura con retardo | completo | K/Captura/CuentaAtras.swift, K/Captura/AjustesCaptura.swift | — (Esc la para aunque el foco este en otra app; los segundos de `retardo_captura_s`) |
 | diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | parcial | K/Documentos/LectorDocumento.swift | Hecho F5: a pantalla completa, de hoja en hoja (flechas, espacio) y B en negro. Faltan la vista del orador, las notas y PPTX → proyecto |
 | dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | Hechas todas las herramientas de la barra (zona, láser, lupa, foco, pixelar, marco, copiar estilo, bolita, soldar vértices: N/editor_herramientas.rs, N/editor_tapado.rs). Faltan copiar y pegar elementos, agrupar y los atajos de §2.5 |
 | dispositivo_perdido | Recuperarse si se pierde la GPU | interno | — | Solo para Metal en Planos, si se quita la GPU |
 | editor | Revisar la grabación antes de guardarla | falta | K/Grabar/GrabadorPantalla.swift (guarda directamente) | Todo |
-| fondo_lienzo | Un pin o una página PDF como fondo del lienzo | parcial | K/Lienzo/FondoLienzo.swift, K/Pines/Anotar.swift | El lienzo ya sabe llevar fondo (imagen o página de PDF a 1400 de ancho, dentro de lupas, zona y lo exportado): `VentanasDeLienzo.abrir(…, fondo:)`. Falta quien lo abra así (la hoja-página del chat, B9; el pin) |
-| foto_anotada | Ver el lienzo que el móvil dibujó sobre una foto | falta | K/Chat/Adjuntos.swift | Leer `lienzos/foto-<id>.excalidraw` y pintarlo encima |
+| fondo_lienzo | Un pin o una página PDF como fondo del lienzo | parcial | K/Lienzo/FondoLienzo.swift, K/Pines/Anotar.swift | El lienzo ya sabe llevar fondo (imagen o página de PDF a 1400 de ancho, dentro de lupas, zona y lo exportado): `VentanasDeLienzo.abrir(…, fondo:)`. Ya lo abre la hoja-página del chat (B9); falta el pin |
+| foto_anotada | Ver el lienzo que el móvil dibujó sobre una foto | completo | K/Chat/Adjuntos.swift, K/Chat/BurbujasQueLlegan.swift, N/burbujas.rs | Hecho (B9): la burbuja pinta `lienzos/<referencia o foto-<id>>.excalidraw` recortado a la foto (o entero con `soloLaFoto: false`); doble clic y «Anotar encima» abren ese mismo lienzo (estrenándolo con la foto dentro, `lienzo_de_la_foto::asegurar`, si no lo tiene) |
 | fusionar_paginas | Varias páginas de un PDF → un lienzo | falta | — | Todo |
 | galeria_capturas | Galería con buscador (también OCR), grupos por día, teclado, detalle | completo | K/Galeria/*, N/galeria.rs | Hecho (B6): buscador en la barra (nombre, fecha y el texto de dentro leído con Vision en `cache/galeria/`), grupos por día con «Elegir todo el día», chapa por colores, elegir varias con su barra, el menú de Windows (pinear, copiar, compartir, «Guardar como…», mostrar en el Finder, conservar, 7 días más, borrar con deshacer) más «Mandar a un proyecto» y «Anotar en un lienzo», y las teclas. El panel de detalle lo quitó Windows el 5-oct |
 | gif | GIF en dos fases: marco y luego barra | parcial | K/Captura/GrabadorGif.swift | Hecho (B8): marco azul con el ritmo (−/+, `[gif]`), ↩ empieza y para, Esc global, retardo con cuenta atrás. Falta mover y estirar el marco antes de grabar, y pausar |
@@ -95,7 +95,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | hoja_pin | Excel como pin, ver y editar en el mismo sitio; libro de varias hojas | parcial | K/Documentos/HojaCalculo.swift, N/hojas*.rs | Editar un `.xlsx` como libro; todas las hojas del móvil |
 | imagenes_lienzo | Imágenes pegadas en el lienzo | completo | K/Lienzo/ImagenPegadaLienzo.swift | — |
 | instancia_de_prueba | Instancia aislada para desarrollar | no aplica | — | — |
-| lecciones | Ficha, etiquetas, repaso, dictado, fotos y audios, exportar | parcial | K/Lecciones/*, N/lecciones.rs | Dictado, adjuntos (foto o voz; las del móvil no se ven), exportar |
+| lecciones | Ficha, etiquetas, repaso, dictado, fotos y audios, exportar | parcial | K/Lecciones/*, N/lecciones.rs | Dictado, poner fotos y audios desde el Mac, exportar. Las del móvil ya se ven en la ficha (B9: «Fotos y audios», doble clic con Vista Rápida) |
 | lector | Lo común a los lectores: papel, riel de marcadores | completo | K/Documentos/LectorDocumento.swift, AvanceLector.swift, TonoLector.swift | — (riel a la derecha con ⌘1…9, tira de M con su cifra, negativo) |
 | lector_pdf | Lector PDF, Word y PPTX | parcial | K/Documentos/LectorDocumento.swift, BuscadorLector.swift, AvanceLector.swift, AlDiaLector.swift, N/documentos/lector.rs | Hechos (B7) buscar, D, N, G, imprimir, compartir, F5, ⌘1…9, F2 y `al_dia` (releer y juntar al guardar); escuchar (D2, K/Documentos/VozDelLector.swift). Faltan «Ver como texto», exportar el PDF anotado (D1) y quitar lo anotado |
 | lector_pdf_proyecto | Dónde va la tinta de un PDF | completo | N/documentos.rs | — |
@@ -151,7 +151,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | plano_cad/imprimir | Imprimir | completo | K/Planos/ImpresionPlano.swift | — |
 | plano_cad/textos | Buscar en los textos del plano | falta | — | Todo |
 | pronunciar | Practicar la pronunciación | falta | — | Todo |
-| punto_de_proyecto | Punto verde o rojo en la burbuja | falta | — | Todo |
+| punto_de_proyecto | Punto verde o rojo en la burbuja | completo | K/Chat/BurbujasQueLlegan.swift, N/burbujas.rs | Hecho (B9): `MensajeChat.punto` (las señas de los `proyecto.json`, en caché por fechas), junto a la hora |
 | recibir | Recibir del móvil con QR; lienzo suelto | completo | K/Sincro/EnvioPorCodigo.swift, N/envio.rs, N/recepcion.rs, N/lienzo_suelto.rs | — |
 | recibir_de_windows | «Imprimir a PixPin» y Compartir | parcial | XC/Compartir | PDF Services («Guardar en PixPin» del diálogo de imprimir) |
 | recordatorios | «Recuérdame a las 10» y el vigía | completo | N/recordatorios.rs, K/Recordatorios/{Vigia,Avisos}.swift | Sin hilo en Rust: el vigía es de Swift (temporizador de pared + notificación del sistema para la app cerrada). La llamada secreta es E5 |
@@ -201,7 +201,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Enviar fotos con descripción | falta | — | Todo |
 | Caja de soltar flotante | parcial | K/Vistas.swift | Hay soltar sobre el chat |
 | Tarjetas de enlace | falta | — | Todo |
-| Menú del mensaje (menu_v2) | parcial | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs | Hecho (B2): etiquetas ⭐✅⏳💡💰📍, Responder (con la cita en la burbuja y la barra encima de la caja), Copiar, Pinear (fichero o lista de tareas), Añadir/editar descripción, Abrir en el editor de notas, Pasar a texto, Reenviar, Compartir, Recordármelo (horas de Windows y «Elegir la hora…»), Hacer lección (con `deMensaje`), Cambiar el nombre, Fijar arriba (y la barra «Mensaje fijado»), Abrir con… (el común), Exportar… e Imprimir… de un lienzo (la hoja común, D1), Aligerar el PDF, Guardar esto, Ver comentarios, Elegir varios, Borrar; la barra de elegidos con Copiar, Compartir, Fijar, Reenviar y Borrar. Falta: Anotar encima y Abrir en lienzo de una foto (**dep. lienzo**, foto anotada), Unir/Devolver al proyecto y «como imágenes» (PDF en el chat), Insertar en nota, Letra, Ver el dibujo entero, Guardar receta (asistente) y la llamada secreta de una voz (**E5**) |
+| Menú del mensaje (menu_v2) | parcial | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs | Hecho (B2): etiquetas ⭐✅⏳💡💰📍, Responder (con la cita en la burbuja y la barra encima de la caja), Copiar, Pinear (fichero o lista de tareas), Añadir/editar descripción, Abrir en el editor de notas, Pasar a texto, Reenviar, Compartir, Recordármelo (horas de Windows y «Elegir la hora…»), Hacer lección (con `deMensaje`), Cambiar el nombre, Fijar arriba (y la barra «Mensaje fijado»), Abrir con… (el común), Exportar… e Imprimir… de un lienzo (la hoja común, D1), Aligerar el PDF, Guardar esto, Ver comentarios, Elegir varios, Borrar; la barra de elegidos con Copiar, Compartir, Fijar, Reenviar y Borrar. Anotar encima de una foto (en su lienzo propio, B9). Falta: Unir/Devolver al proyecto y «como imágenes» (PDF en el chat), Insertar en nota, Letra, Ver el dibujo entero, Guardar receta (asistente) y la llamada secreta de una voz (**E5**) |
 | Elegir varios y marcar un tramo | completo | K/Chat/BorrarMensajes.swift | — |
 | Buscar dentro del chat (Ctrl+F) | completo | K/Chat/BuscarEnChat.swift | Hecho (B3): ⌘F con un chat abierto (sin chat, sigue «Buscar en todo»); en todo el chat, no solo lo cargado; filtra las burbujas (texto o lo dicho y nombre del fichero, sin tildes), resalta en las notas, chips de etiqueta, «N resultados · Ver en contexto», ↑/↓ o ⌘G/⇧⌘G entre resultados («3 de 12»), ↩ lo ve en su sitio, Esc apaga |
 | Escala (Ctrl + / − / 0) | parcial | K/Chat/EscalaChat.swift | Hecho (B3): ⌘+ / ⌘− / ⌘0 con los escalones de Windows (75–250 %), su aviso, y se recuerda. Crece el chat (letra, burbujas, fotos, dibujos y la caja); la lista de proyectos y la franja no. Falta la entrada «Escala de la interfaz» del menú de la cabecera (el Mac aún no tiene cabecera del chat) |
@@ -435,9 +435,9 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | `<dibujo>.marcas` (marcadores del lienzo) | no | no | falta | Es cosa del agente del lienzo |
 | `recuerdaEn` (recordatorio en un mensaje) y la llamada secreta | sí (B2) | sí (B2) | parcial | N/chats.rs (`CambioMensaje::Recordar`; quitarla borra la clave). El aviso del sistema se pone al ponerla desde este Mac; el vigía que los vuelve a poner al arrancar y tras sincronizar es A4; la llamada secreta, E5 |
 | MINIAPP tareas con `⏰ AAAA-MM-DD HH:MM` | parcial | no | parcial | N/tareas.rs |
-| PAGINA, PROYECTO | etiqueta genérica | no | parcial | K/Vistas.swift |
-| CROQUIS (`croquis3d/*.croquis.gz`) | no | no | falta | — |
-| Lecciones (`.leccion`, fotos `respondeA: lec-<id>`) | sí | sí | parcial | Las fotos de la lección no se ven |
+| PAGINA, PROYECTO | sí | no | completo | K/Chat/BurbujasQueLlegan.swift, N/burbujas.rs (B9): la página con lo dibujado encima (al abrirla estrena su dibujo en el `proyecto.json` y en el mensaje, como Windows); el proyecto como puerta. Crearlos desde la hoja «+» sigue apagado |
+| CROQUIS (`croquis3d/*.croquis.gz`) | sí | no | completo | N/modelos3d.rs, K/Planos/VisorModelo3D.swift (B9). Solo se ve, como en Windows |
+| Lecciones (`.leccion`, fotos `respondeA: lec-<id>`) | sí | sí | completo | Las fotos y audios se ven en la ficha (B9, `adjuntos_de_leccion`); ponerlos desde el Mac es de la ficha |
 | Lápidas de proyecto (`LapidaDeChat`, `borrarchat`) | sí (preguntando) | sí | completo | N/sincro.rs `sincronizar_preguntando`, `borrar_proyecto`; sin preguntar no se borra nada, como Windows |
 | `auto-automatizaciones`, `auto-figuras` | no | no | falta | Se conservan |
 | `auto-letra-*` (letras SHX) | sí | no | parcial | nucleo/pixpin-cad |
@@ -530,7 +530,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | B6 | ~~**Galería completa**~~ Hecho: buscador (también OCR con Vision), grupos por día, elegir varias, teclado, «Guardar como», mandar a un proyecto, anotar en un lienzo | K/Galeria/*, N/galeria.rs |
 | B7 | ~~**Lectores, parte 1**~~ **hecho**: buscar (⌘F, ⌘G / ⇧⌘G), ⌘1…9 para ir al marcador, N negativo, D avance solo, ⌘P imprimir, F2 renombrar, `al_dia` (recargar la tinta) | K/Documentos/LectorDocumento.swift, nuevo K/Documentos/BuscadorLector.swift, N/documentos.rs |
 | B8 ✅ | **Captura que falta** (hecho; queda mover el marco del GIF): ⌘A, flechas y Espacio, ⇧ HEX/RGB, ⇧⌘S, ⌫ de la anotación, captura con retardo (cuenta atrás), cuentagotas suelto, ↩ y Esc del GIF | K/Captura/Capturador.swift, K/Captura/VistaCaptura.swift, K/Captura/AnotacionCaptura.swift, K/Captura/GrabadorGif.swift, nuevo K/Captura/CuentaAtras.swift |
-| B9 | **Datos que llegan y no se ven**: foto anotada del móvil en la burbuja, croquis 3D, fotos de las lecciones, punto de proyecto, PAGINA y PROYECTO con su burbuja | K/Chat/Adjuntos.swift, N/modelos3d.rs, K/Lecciones/VistaLecciones.swift (usa `PintorLienzo.swift` sin cambiarlo) |
+| B9 ✅ | ~~**Datos que llegan y no se ven**~~ **hecho** (16-oct): foto anotada del móvil en la burbuja, croquis 3D, fotos de las lecciones, punto de proyecto, PAGINA y PROYECTO con su burbuja; además `vieneDe`, `recibidoDe` y `lienzoIa` debajo de la burbuja. Queda crear página y proyecto desde la hoja «+» | K/Chat/BurbujasQueLlegan.swift, K/Chat/Adjuntos.swift, N/burbujas.rs, N/modelos3d.rs, K/Lecciones/VistaLecciones.swift |
 
 ### Grupo C: atajos, integración y ajustes
 
