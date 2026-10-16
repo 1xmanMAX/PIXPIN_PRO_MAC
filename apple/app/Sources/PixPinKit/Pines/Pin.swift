@@ -1346,6 +1346,11 @@ final class Pin: NSObject {
         menu.addItem(elemento("Copiar", #selector(copiar(_:)), tecla: "c"))
         if fichero != nil || esImagen {
             menu.addItem(elemento("Guardar como…", #selector(guardarComo(_:))))
+            // La hoja de compartir comun (D1) y «Abrir con…» comun.
+            menu.addItem(elemento("Compartir…", #selector(compartirDesdeMenu(_:))))
+        }
+        if let fichero {
+            menu.addItem(AbrirCon.menu(fichero) { [weak self] in self?.avisar($0) })
         }
         if esImagen {
             menu.addItem(elemento("Anotar", #selector(anotarDesdeMenu(_:)), tecla: "a", conMando: false))
@@ -1568,6 +1573,18 @@ final class Pin: NSObject {
             }
         } catch {
             avisar("No se pudo guardar: \(error.localizedDescription)")
+        }
+    }
+
+    /// «Compartir…»: la hoja comun con el fichero del pin (tal cual y en
+    /// paginas) o, si es una captura o se ve con filtros, la imagen que se
+    /// ve (`TipoEntrada` de `pines.rs` de Windows).
+    @objc private func compartirDesdeMenu(_ sender: Any?) {
+        if let fichero = imagenVista == nil ? self.fichero : nil {
+            HojaCompartir.abrir(.ficheros(titulo: TextosCompartir.sinExtension(fichero.lastPathComponent), [fichero]),
+                                almacen: nil)
+        } else if let imagen = imagenMostrada {
+            HojaCompartir.abrir(.imagen(titulo: "Pin", imagen), almacen: nil)
         }
     }
 

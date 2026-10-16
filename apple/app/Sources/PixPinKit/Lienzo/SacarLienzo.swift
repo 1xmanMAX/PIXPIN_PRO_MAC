@@ -9,8 +9,10 @@
 // bits, un PDF vectorial o la impresora (`PintorDeHojas`).
 //
 // Compartir es la hoja del Mac (`NSSharingServicePicker`) con el lienzo en
-// el formato que se elija; la hoja de compartir comun de Windows
-// (`compartir/`, D1) aun no existe en el Mac.
+// el formato que se elija; lo exportado sale tambien en la Salida comun
+// (`Compartir/Salida.swift`, D1) para arrastrarlo. Un lienzo del chat se
+// comparte entero, con sus marcos, desde la hoja comun del menu del mensaje
+// (`Compartir/HojaCompartir.swift`).
 
 import AppKit
 import PixPinCore
@@ -137,9 +139,15 @@ extension ModeloEditorLienzo {
                 let datos = self.ficheros(opciones.formato, que: opciones.que, transparente: opciones.transparente)
                 guard !datos.isEmpty else { return self.avisar("No hay nada que exportar con esto.") }
                 do {
+                    var escritos: [URL] = []
                     for (i, d) in datos.enumerated() {
-                        try d.write(to: Self.numerada(url, i, datos.count), options: .atomic)
+                        let destino = Self.numerada(url, i, datos.count)
+                        try d.write(to: destino, options: .atomic)
+                        escritos.append(destino)
                     }
+                    // Lo exportado, en la Salida para arrastrarlo (D1, como
+                    // `exportar.rs` de Windows).
+                    Salida.compartida.mostrar(escritos, titulo: Salida.exportado)
                 } catch {
                     self.avisar("No se pudo exportar el lienzo.\n\n\(error.localizedDescription)")
                 }

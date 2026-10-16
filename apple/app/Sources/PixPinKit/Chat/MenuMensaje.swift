@@ -8,8 +8,10 @@
 //   burbuja (Pasar a texto, T, en una nota de voz; Vista rapida...);
 // - mandarlo a otro sitio y acordarse: Reenviar (F), Compartir…,
 //   Recordarmelo (o Quitar el recordatorio) y Hacer leccion (L);
-// - «Mas»: Cambiar el nombre (F2), Fijar arriba, Abrir con…, Guardar esto
-//   (lo del buzon), Ver comentarios y Elegir varios (⌘-clic);
+// - «Mas»: Cambiar el nombre (F2), Fijar arriba, Abrir con… (el comun,
+//   `Compartir/AbrirCon.swift`), Exportar… e Imprimir… de un lienzo (la
+//   hoja de compartir comun, D1), Guardar esto (lo del buzon), Ver
+//   comentarios y Elegir varios (⌘-clic);
 // - Borrar, en rojo y aparte (⌫), en `BorrarMensajes.swift`.
 //
 // Las letras valen con el menu abierto, como en Windows (alli Ctrl+C, aqui
@@ -298,40 +300,27 @@ final class ChatAbierto: ObservableObject {
         }
     }
 
-    /// «Compartir…»: los servicios del sistema (Mail, Mensajes, AirDrop...)
-    /// con los ficheros, o con el texto si no hay ficheros.
+    /// «Compartir…»: la hoja de compartir comun (D1), la misma de toda la
+    /// app, con lo que sea cada mensaje (un lienzo, una foto, un PDF, una
+    /// nota) y los formatos que le tocan (`compartir_mensajes` de Windows).
     func compartir(_ ids: [String]) {
+        guard let cosa = cosaCompartida(ids) else { return }
+        HojaCompartir.abrir(cosa, almacen: almacen)
+    }
+
+    /// «Imprimir…» de un lienzo (`Accion::Imprimir` de Windows): sus
+    /// paginas (cada marco, o el lienzo entero) en el dialogo del Mac.
+    func imprimir(_ m: MensajeChat) {
+        guard let cosa = cosaCompartida([m.id]) else { return }
+        HojaCompartir.imprimir(cosa, almacen: almacen)
+    }
+
+    /// Los mensajes `ids` como cosa que compartir, en el orden del chat.
+    private func cosaCompartida(_ ids: [String]) -> CosaCompartida? {
         let mensajes = cargados.filter { ids.contains($0.id) }
-        var cosas: [Any] = mensajes.compactMap { fichero($0) }
-        if cosas.isEmpty {
-            let texto = ChatAbierto.textoParaCopiar(mensajes)
-            guard !texto.isEmpty else {
-                avisar("Este mensaje no tiene un archivo en este equipo")
-                return
-            }
-            cosas = [texto]
-        }
-        // Donde esta el raton, tras cerrarse el menu del mensaje.
-        DispatchQueue.main.async {
-            guard let ventana = NSApp.keyWindow, let vista = ventana.contentView else { return }
-            let p = vista.convert(ventana.mouseLocationOutsideOfEventStream, from: nil)
-            NSSharingServicePicker(items: cosas)
-                .show(relativeTo: NSRect(origin: p, size: CGSize(width: 1, height: 1)), of: vista, preferredEdge: .maxY)
-        }
-    }
-
-    /// «Abrir con»: las apps que saben abrir el fichero.
-    func abrir(_ url: URL, con app: URL) {
-        NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
-    }
-
-    /// «Otra app…»: se elige en el disco.
-    func abrirConOtra(_ url: URL) {
-        let panel = NSOpenPanel()
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        panel.allowedContentTypes = [.application]
-        panel.prompt = "Abrir"
-        if panel.runModal() == .OK, let app = panel.url { abrir(url, con: app) }
+        guard !mensajes.isEmpty else { return nil }
+        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PixPin"
+        return .mensajes(chat: chat, titulo: titulo, mensajes)
     }
 
     // MARK: Acordarse
@@ -477,22 +466,13 @@ private struct MenuDeMensaje<Propias: View>: View {
                 Label(m.fijado ? "Quitar de arriba" : "Fijar arriba", systemImage: m.fijado ? "flag.slash" : "flag")
             }
             if let url = c.fichero(m) {
-                Menu {
-                    let apps = NSWorkspace.shared.urlsForApplications(toOpen: url)
-                    ForEach(apps, id: \.self) { app in
-                        Button { c.abrir(url, con: app) } label: {
-                            Label {
-                                Text(FileManager.default.displayName(atPath: app.path))
-                            } icon: {
-                                Image(nsImage: NSWorkspace.shared.icon(forFile: app.path))
-                            }
-                        }
-                    }
-                    if !apps.isEmpty { Divider() }
-                    Button("Otra app…") { c.abrirConOtra(url) }
-                } label: {
-                    Label("Abrir con…", systemImage: "arrow.up.forward.app")
-                }
+                MenuAbrirCon(url: url, avisar: c.avisar)
+            }
+            // Exportar o imprimir la hoja de un lienzo (G2 de Windows): la
+            // hoja de compartir comun (D1) y el dialogo de imprimir.
+            if m.clase == "DIBUJO", m.referencia?.isEmpty == false {
+                Button { c.compartir([m.id]) } label: { Label("Exportar…", systemImage: "square.and.arrow.up.on.square") }
+                Button { c.imprimir(m) } label: { Label("Imprimir…", systemImage: "printer") }
             }
             if m.enBuzon {
                 Button { c.cambiar([m.id], .rescatar) } label: { Label("Guardar esto", systemImage: "bookmark") }

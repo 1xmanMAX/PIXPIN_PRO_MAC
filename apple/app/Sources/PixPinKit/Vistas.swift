@@ -36,6 +36,9 @@ public struct VentanaProyectos: View {
             FranjaProyectos(ventana: ventana)
             HStack(spacing: 0) {
                 ListaProyectos(almacen: almacen, elegido: $elegido) { chat in
+                    // Todo el proyecto en la hoja de compartir comun (D1):
+                    // sus hojas en PDF, web..., sus originales y el .pixpin.
+                    Button("Compartir…") { HojaCompartir.abrir(.proyectos([chat]), almacen: almacen) }
                     if !chat.esGuardados {
                         Button("Borrar", role: .destructive) { aBorrar = chat }
                     }
