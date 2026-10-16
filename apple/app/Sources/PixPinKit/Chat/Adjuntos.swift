@@ -221,11 +221,15 @@ struct AccionesDeFichero: ViewModifier {
         content
             .onTapGesture(count: 2) { abrir() }
             .contextMenu {
-                if let nucleo { MenuDeDocumento(url: url, nucleo: nucleo) }
-                Button("Vista rápida") { vistaRapida = url }
-                Button("Abrir") { NSWorkspace.shared.open(url) }
-                Button("Mostrar en el Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-                EntradasDeMensaje()
+                // Lo de la burbuja va con lo diario del menu del mensaje.
+                EntradasDeMensaje {
+                    if let nucleo { MenuDeDocumento(url: url, nucleo: nucleo) }
+                    Button { vistaRapida = url } label: { Label("Vista rápida", systemImage: "eye") }
+                    Button { NSWorkspace.shared.open(url) } label: { Label("Abrir", systemImage: "arrow.up.right.square") }
+                    Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
+                        Label("Mostrar en el Finder", systemImage: "folder")
+                    }
+                }
             }
             .onDrag {
                 // Un proveedor con el FICHERO (no su URL): quien lo recibe

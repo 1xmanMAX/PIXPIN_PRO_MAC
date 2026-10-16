@@ -3752,6 +3752,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func borrarMensajes(chat: String, ids: [String]) throws  -> UInt32
     
     /**
+     * **Cambia un mensaje desde su menu** (fijar, etiqueta, descripcion,
+     * nombre, recordar, guardar del buzon), como `reescribir` del chat de
+     * Windows. Devuelve el mensaje como quedo, o `None` si ya no esta. Si
+     * no cambia nada, no se escribe. Bloqueante.
+     */
+    func cambiarMensaje(chat: String, id: String, cambio: CambioMensaje) throws  -> MensajeChat?
+    
+    /**
      * «Mensajes guardados», creandolo si no esta.
      */
     func chatGuardados() throws  -> FichaChat
@@ -3778,11 +3786,27 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func escribirNota(chat: String, texto: String, respondeA: String?) throws  -> MensajeChat
     
     /**
+     * Las etiquetas de la fila de emojis, en su orden.
+     */
+    func etiquetasDeMensaje()  -> [String]
+    
+    /**
      * Una pagina de mensajes contando desde el mas antiguo: `desde` es la
      * posicion del primero (0 el mas antiguo) y `cuantos` el largo (hasta
      * [`TOPE_DE_PAGINA`]). Un chat sin nada escrito da una pagina vacia.
      */
     func mensajes(chat: String, desde: UInt64, cuantos: UInt32) throws  -> PaginaMensajes
+    
+    /**
+     * **Reenvia mensajes a otro chat** (`reenviar` de Windows): una copia
+     * de cada uno al final de `destino`, del mas viejo al mas nuevo, con id
+     * y hora nuevos, su numero alli, un `uid` nuevo, este aparato, y
+     * `origen` el `uid` (o el id) del de aqui. Sin fijar, sin buzon y sin
+     * responder a nada. El fichero se copia a `destino` (lo que no esta en
+     * este equipo va sin el, como en el movil) y un lienzo lleva su dibujo.
+     * Devuelve cuantos se copiaron. Bloqueante.
+     */
+    func reenviarMensajes(chat: String, ids: [String], destino: String) throws  -> UInt32
     
     /**
      * La ultima pagina: los `cuantos` mensajes mas nuevos. Es la que se pide
@@ -4062,6 +4086,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * Una leccion por su id.
      */
     func leccion(id: String) throws  -> FichaLeccion
+    
+    /**
+     * Lo que trae escrito la ficha de una leccion hecha desde el mensaje
+     * `id` de `chat` («Hacer lección»). `None` si el mensaje ya no esta,
+     * es una leccion o no tiene nada que decir.
+     */
+    func leccionDeMensaje(chat: String, id: String) throws  -> LeccionDeMensaje?
     
     /**
      * **Una pagina de lecciones** con el filtro dado: `desde` es la
@@ -4584,6 +4615,24 @@ open func borrarMensajes(chat: String, ids: [String])throws  -> UInt32  {
 }
     
     /**
+     * **Cambia un mensaje desde su menu** (fijar, etiqueta, descripcion,
+     * nombre, recordar, guardar del buzon), como `reescribir` del chat de
+     * Windows. Devuelve el mensaje como quedo, o `None` si ya no esta. Si
+     * no cambia nada, no se escribe. Bloqueante.
+     */
+open func cambiarMensaje(chat: String, id: String, cambio: CambioMensaje)throws  -> MensajeChat?  {
+    return try  FfiConverterOptionTypeMensajeChat.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_cambiar_mensaje(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(id),
+        FfiConverterTypeCambioMensaje_lower(cambio),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * «Mensajes guardados», creandolo si no esta.
      */
 open func chatGuardados()throws  -> FichaChat  {
@@ -4642,6 +4691,18 @@ open func escribirNota(chat: String, texto: String, respondeA: String?)throws  -
 }
     
     /**
+     * Las etiquetas de la fila de emojis, en su orden.
+     */
+open func etiquetasDeMensaje() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_etiquetas_de_mensaje(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Una pagina de mensajes contando desde el mas antiguo: `desde` es la
      * posicion del primero (0 el mas antiguo) y `cuantos` el largo (hasta
      * [`TOPE_DE_PAGINA`]). Un chat sin nada escrito da una pagina vacia.
@@ -4654,6 +4715,27 @@ open func mensajes(chat: String, desde: UInt64, cuantos: UInt32)throws  -> Pagin
         FfiConverterString.lower(chat),
         FfiConverterUInt64.lower(desde),
         FfiConverterUInt32.lower(cuantos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Reenvia mensajes a otro chat** (`reenviar` de Windows): una copia
+     * de cada uno al final de `destino`, del mas viejo al mas nuevo, con id
+     * y hora nuevos, su numero alli, un `uid` nuevo, este aparato, y
+     * `origen` el `uid` (o el id) del de aqui. Sin fijar, sin buzon y sin
+     * responder a nada. El fichero se copia a `destino` (lo que no esta en
+     * este equipo va sin el, como en el movil) y un lienzo lleva su dibujo.
+     * Devuelve cuantos se copiaron. Bloqueante.
+     */
+open func reenviarMensajes(chat: String, ids: [String], destino: String)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_reenviar_mensajes(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterSequenceString.lower(ids),
+        FfiConverterString.lower(destino),uniffiCallStatus
     )
 })
 }
@@ -5261,6 +5343,22 @@ open func leccion(id: String)throws  -> FichaLeccion  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_nucleo_leccion(
             self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo que trae escrito la ficha de una leccion hecha desde el mensaje
+     * `id` de `chat` («Hacer lección»). `None` si el mensaje ya no esta,
+     * es una leccion o no tiene nada que decir.
+     */
+open func leccionDeMensaje(chat: String, id: String)throws  -> LeccionDeMensaje?  {
+    return try  FfiConverterOptionTypeLeccionDeMensaje.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_leccion_de_mensaje(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
         FfiConverterString.lower(id),uniffiCallStatus
     )
 })
@@ -11374,6 +11472,90 @@ public func FfiConverterTypeInfoElemento3d_lower(_ value: InfoElemento3d) -> Rus
 
 
 /**
+ * **Una leccion a partir de un mensaje** («Hacer lección»): lo que la
+ * ficha nueva trae ya escrito, como `lecciones::nueva` de Windows.
+ */
+public struct LeccionDeMensaje: Equatable, Hashable {
+    public var titulo: String
+    public var quePaso: String
+    public var porQue: String
+    public var proxima: String
+    /**
+     * Las `#etiquetas` que venian escritas.
+     */
+    public var etiquetas: [String]
+    public var deMensaje: String
+    public var chat: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(titulo: String, quePaso: String, porQue: String, proxima: String, 
+        /**
+         * Las `#etiquetas` que venian escritas.
+         */etiquetas: [String], deMensaje: String, chat: String) {
+        self.titulo = titulo
+        self.quePaso = quePaso
+        self.porQue = porQue
+        self.proxima = proxima
+        self.etiquetas = etiquetas
+        self.deMensaje = deMensaje
+        self.chat = chat
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LeccionDeMensaje: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLeccionDeMensaje: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LeccionDeMensaje {
+        return
+            try LeccionDeMensaje(
+                titulo: FfiConverterString.read(from: &buf), 
+                quePaso: FfiConverterString.read(from: &buf), 
+                porQue: FfiConverterString.read(from: &buf), 
+                proxima: FfiConverterString.read(from: &buf), 
+                etiquetas: FfiConverterSequenceString.read(from: &buf), 
+                deMensaje: FfiConverterString.read(from: &buf), 
+                chat: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LeccionDeMensaje, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterString.write(value.quePaso, into: &buf)
+        FfiConverterString.write(value.porQue, into: &buf)
+        FfiConverterString.write(value.proxima, into: &buf)
+        FfiConverterSequenceString.write(value.etiquetas, into: &buf)
+        FfiConverterString.write(value.deMensaje, into: &buf)
+        FfiConverterString.write(value.chat, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLeccionDeMensaje_lift(_ buf: RustBuffer) throws -> LeccionDeMensaje {
+    return try FfiConverterTypeLeccionDeMensaje.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLeccionDeMensaje_lower(_ value: LeccionDeMensaje) -> RustBuffer {
+    return FfiConverterTypeLeccionDeMensaje.lower(value)
+}
+
+
+/**
  * Lo que se escribe en la ficha. `id` vacio: una nueva.
  */
 public struct LeccionEditada: Equatable, Hashable {
@@ -11397,6 +11579,11 @@ public struct LeccionEditada: Equatable, Hashable {
      * existe no se mira: no se cambia de chat.
      */
     public var chat: String?
+    /**
+     * El mensaje del que sale una nueva («Hacer lección» en su menu): se
+     * guarda en `deMensaje`, como en Windows y el movil.
+     */
+    public var deMensaje: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -11407,7 +11594,11 @@ public struct LeccionEditada: Equatable, Hashable {
         /**
          * El chat de una nueva (ninguno: «Mensajes guardados»). En una que ya
          * existe no se mira: no se cambia de chat.
-         */chat: String?) {
+         */chat: String?, 
+        /**
+         * El mensaje del que sale una nueva («Hacer lección» en su menu): se
+         * guarda en `deMensaje`, como en Windows y el movil.
+         */deMensaje: String? = nil) {
         self.id = id
         self.titulo = titulo
         self.quePaso = quePaso
@@ -11421,6 +11612,7 @@ public struct LeccionEditada: Equatable, Hashable {
         self.quitadas = quitadas
         self.causas = causas
         self.chat = chat
+        self.deMensaje = deMensaje
     }
 
     
@@ -11451,7 +11643,8 @@ public struct FfiConverterTypeLeccionEditada: FfiConverterRustBuffer {
                 etiquetasAuto: FfiConverterSequenceString.read(from: &buf), 
                 quitadas: FfiConverterSequenceString.read(from: &buf), 
                 causas: FfiConverterSequenceString.read(from: &buf), 
-                chat: FfiConverterOptionString.read(from: &buf)
+                chat: FfiConverterOptionString.read(from: &buf), 
+                deMensaje: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -11469,6 +11662,7 @@ public struct FfiConverterTypeLeccionEditada: FfiConverterRustBuffer {
         FfiConverterSequenceString.write(value.quitadas, into: &buf)
         FfiConverterSequenceString.write(value.causas, into: &buf)
         FfiConverterOptionString.write(value.chat, into: &buf)
+        FfiConverterOptionString.write(value.deMensaje, into: &buf)
     }
 }
 
@@ -12045,6 +12239,32 @@ public struct MensajeChat: Equatable, Hashable {
      * mucho 256 (el campo `picos` del movil). Vacio si no los trae.
      */
     public var picos: [Int32]
+    /**
+     * Llego al buzon (caduca si no se guarda: «Guardar esto»).
+     */
+    public var enBuzon: Bool
+    /**
+     * La hora del recordatorio (`recuerdaEn`, UTC en milisegundos).
+     */
+    public var recuerdaEn: Int64?
+    /**
+     * De que tipo es una mini-app (`tareas`, `tabla`...).
+     */
+    public var miniapp: String?
+    /**
+     * Lleva una leccion (no se renombra, ni se describe, ni se hace
+     * leccion otra vez).
+     */
+    public var esLeccion: Bool
+    /**
+     * Si el menu ofrece «Cambiar el nombre» (`renombrar::se_puede` de
+     * Windows).
+     */
+    public var sePuedeRenombrar: Bool
+    /**
+     * Si el menu ofrece «Añadir descripción» (`descripcion::se_puede`).
+     */
+    public var sePuedeDescribir: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -12080,7 +12300,27 @@ public struct MensajeChat: Equatable, Hashable {
         /**
          * Los picos de la onda de una nota de voz: enteros de 0 a 32767, como
          * mucho 256 (el campo `picos` del movil). Vacio si no los trae.
-         */picos: [Int32]) {
+         */picos: [Int32], 
+        /**
+         * Llego al buzon (caduca si no se guarda: «Guardar esto»).
+         */enBuzon: Bool, 
+        /**
+         * La hora del recordatorio (`recuerdaEn`, UTC en milisegundos).
+         */recuerdaEn: Int64?, 
+        /**
+         * De que tipo es una mini-app (`tareas`, `tabla`...).
+         */miniapp: String?, 
+        /**
+         * Lleva una leccion (no se renombra, ni se describe, ni se hace
+         * leccion otra vez).
+         */esLeccion: Bool, 
+        /**
+         * Si el menu ofrece «Cambiar el nombre» (`renombrar::se_puede` de
+         * Windows).
+         */sePuedeRenombrar: Bool, 
+        /**
+         * Si el menu ofrece «Añadir descripción» (`descripcion::se_puede`).
+         */sePuedeDescribir: Bool) {
         self.id = id
         self.cuando = cuando
         self.clase = clase
@@ -12098,6 +12338,12 @@ public struct MensajeChat: Equatable, Hashable {
         self.duracionMs = duracionMs
         self.transcripcion = transcripcion
         self.picos = picos
+        self.enBuzon = enBuzon
+        self.recuerdaEn = recuerdaEn
+        self.miniapp = miniapp
+        self.esLeccion = esLeccion
+        self.sePuedeRenombrar = sePuedeRenombrar
+        self.sePuedeDescribir = sePuedeDescribir
     }
 
     
@@ -12132,7 +12378,13 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
                 pagina: FfiConverterOptionUInt32.read(from: &buf), 
                 duracionMs: FfiConverterInt64.read(from: &buf), 
                 transcripcion: FfiConverterOptionString.read(from: &buf), 
-                picos: FfiConverterSequenceInt32.read(from: &buf)
+                picos: FfiConverterSequenceInt32.read(from: &buf), 
+                enBuzon: FfiConverterBool.read(from: &buf), 
+                recuerdaEn: FfiConverterOptionInt64.read(from: &buf), 
+                miniapp: FfiConverterOptionString.read(from: &buf), 
+                esLeccion: FfiConverterBool.read(from: &buf), 
+                sePuedeRenombrar: FfiConverterBool.read(from: &buf), 
+                sePuedeDescribir: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -12154,6 +12406,12 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
         FfiConverterInt64.write(value.duracionMs, into: &buf)
         FfiConverterOptionString.write(value.transcripcion, into: &buf)
         FfiConverterSequenceInt32.write(value.picos, into: &buf)
+        FfiConverterBool.write(value.enBuzon, into: &buf)
+        FfiConverterOptionInt64.write(value.recuerdaEn, into: &buf)
+        FfiConverterOptionString.write(value.miniapp, into: &buf)
+        FfiConverterBool.write(value.esLeccion, into: &buf)
+        FfiConverterBool.write(value.sePuedeRenombrar, into: &buf)
+        FfiConverterBool.write(value.sePuedeDescribir, into: &buf)
     }
 }
 
@@ -15901,6 +16159,137 @@ public func FfiConverterTypeCambioDeEstilo_lower(_ value: CambioDeEstilo) -> Rus
 
 
 /**
+ * Lo que se le cambia a un mensaje desde su menu.
+ */
+
+public enum CambioMensaje: Equatable, Hashable {
+    
+    /**
+     * «Fijar arriba» / «Quitar de arriba» (`fijado`).
+     */
+    case fijar(fijado: Bool
+    )
+    /**
+     * La etiqueta de la fila de emojis (`emoji`); `None` la quita.
+     */
+    case etiqueta(emoji: String?
+    )
+    /**
+     * La descripcion de una foto o un archivo (`texto`); vacia la quita.
+     */
+    case descripcion(texto: String
+    )
+    /**
+     * El nombre que se ensena (`nombre`). El fichero no se toca: la
+     * sincronizacion empareja por su ruta.
+     */
+    case nombre(nombre: String
+    )
+    /**
+     * La hora de avisar (`recuerdaEn`, UTC en ms); `None` la quita.
+     */
+    case recordar(cuando: Int64?
+    )
+    /**
+     * «Guardar esto»: lo que llego al buzon se queda (`enBuzon = false`).
+     */
+    case rescatar
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CambioMensaje: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCambioMensaje: FfiConverterRustBuffer {
+    typealias SwiftType = CambioMensaje
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CambioMensaje {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .fijar(fijado: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 2: return .etiqueta(emoji: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 3: return .descripcion(texto: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .nombre(nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .recordar(cuando: try FfiConverterOptionInt64.read(from: &buf)
+        )
+        
+        case 6: return .rescatar
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CambioMensaje, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .fijar(fijado):
+            writeInt(&buf, Int32(1))
+            FfiConverterBool.write(fijado, into: &buf)
+            
+        
+        case let .etiqueta(emoji):
+            writeInt(&buf, Int32(2))
+            FfiConverterOptionString.write(emoji, into: &buf)
+            
+        
+        case let .descripcion(texto):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(texto, into: &buf)
+            
+        
+        case let .nombre(nombre):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case let .recordar(cuando):
+            writeInt(&buf, Int32(5))
+            FfiConverterOptionInt64.write(cuando, into: &buf)
+            
+        
+        case .rescatar:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCambioMensaje_lift(_ buf: RustBuffer) throws -> CambioMensaje {
+    return try FfiConverterTypeCambioMensaje.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCambioMensaje_lower(_ value: CambioMensaje) -> RustBuffer {
+    return FfiConverterTypeCambioMensaje.lower(value)
+}
+
+
+
+/**
  * Lo que se abre como modelo 3D o como plano (para el chat y el Finder).
  */
 
@@ -19123,6 +19512,54 @@ fileprivate struct FfiConverterOptionTypeInfoElemento3d: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeLeccionDeMensaje: FfiConverterRustBuffer {
+    typealias SwiftType = LeccionDeMensaje?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeLeccionDeMensaje.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeLeccionDeMensaje.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeMensajeChat: FfiConverterRustBuffer {
+    typealias SwiftType = MensajeChat?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMensajeChat.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMensajeChat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePaginaOffice: FfiConverterRustBuffer {
     typealias SwiftType = PaginaOffice?
 
@@ -21738,6 +22175,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_mensajes() != 49997) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_cambiar_mensaje() != 2216) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_guardados() != 17735) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21750,7 +22190,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_escribir_nota() != 42182) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_etiquetas_de_mensaje() != 6026) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_mensajes() != 22068) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_reenviar_mensajes() != 31368) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ultimos_mensajes() != 11441) {
@@ -21868,6 +22314,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_leccion() != 40308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_leccion_de_mensaje() != 12772) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_lecciones() != 61206) {

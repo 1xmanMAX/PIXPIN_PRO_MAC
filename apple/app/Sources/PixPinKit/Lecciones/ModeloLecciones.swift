@@ -195,6 +195,8 @@ public struct BorradorLeccion: Equatable {
     public var quitadas: [String] = []
     public var causas: [String] = []
     public var chat: String?
+    /// El mensaje del que sale una nueva («Hacer lección» de su menu).
+    public var deMensaje: String?
 
     public init() {}
 
@@ -245,6 +247,7 @@ public struct BorradorLeccion: Equatable {
     public var editada: LeccionEditada {
         LeccionEditada(id: id, titulo: titulo, quePaso: quePaso, porQue: porQue, proxima: proxima,
                        tipo: tipo, area: area, gravedad: gravedad, etiquetas: etiquetas,
-                       etiquetasAuto: etiquetasAuto, quitadas: quitadas, causas: causas, chat: chat)
+                       etiquetasAuto: etiquetasAuto, quitadas: quitadas, causas: causas, chat: chat,
+                       deMensaje: deMensaje)
     }
 }

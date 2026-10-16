@@ -112,16 +112,21 @@ struct BurbujaTabla: View {
     }
 }
 
-/// El menu y el doble clic de una nota (`NOTA`): editarla.
+/// El menu y el doble clic de una nota (`NOTA`): editarla. «Abrir en el
+/// editor de notas» (N) esta en el menu del mensaje (`MenuMensaje.swift`);
+/// fuera de un chat, aqui.
 struct AccionesDeNota: ViewModifier {
     let mensaje: MensajeChat
     let chat: String
     let almacen: Almacen
+    @Environment(\.accionesDeMensaje) private var acciones
 
     func body(content: Content) -> some View {
         content
             .contextMenu {
-                Button("Editar nota") { EditoresDeNotas.compartidos.abrir(mensaje, en: chat, almacen: almacen) }
+                if acciones == nil {
+                    Button("Editar nota") { EditoresDeNotas.compartidos.abrir(mensaje, en: chat, almacen: almacen) }
+                }
                 EntradasDeMensaje()
             }
             .simultaneousGesture(TapGesture(count: 2).onEnded {

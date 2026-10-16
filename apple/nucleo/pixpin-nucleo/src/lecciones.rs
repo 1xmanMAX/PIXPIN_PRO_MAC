@@ -129,6 +129,61 @@ pub struct LeccionEditada {
     /// El chat de una nueva (ninguno: «Mensajes guardados»). En una que ya
     /// existe no se mira: no se cambia de chat.
     pub chat: Option<String>,
+    /// El mensaje del que sale una nueva («Hacer lección» en su menu): se
+    /// guarda en `deMensaje`, como en Windows y el movil.
+    #[uniffi(default = None)]
+    pub de_mensaje: Option<String>,
+}
+
+/// **Una leccion a partir de un mensaje** («Hacer lección»): lo que la
+/// ficha nueva trae ya escrito, como `lecciones::nueva` de Windows.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct LeccionDeMensaje {
+    pub titulo: String,
+    pub que_paso: String,
+    pub por_que: String,
+    pub proxima: String,
+    /// Las `#etiquetas` que venian escritas.
+    pub etiquetas: Vec<String>,
+    pub de_mensaje: String,
+    pub chat: String,
+}
+
+/// Lo que se dijo en una nota de voz sin las marcas de Markdown ni las
+/// fotos (`voz::sin_marcas` de Windows).
+fn sin_marcas(texto: &str) -> String {
+    texto
+        .lines()
+        .filter(|l| !l.trim_start().starts_with("!["))
+        .map(|l| l.trim_start_matches(['#', ' ']).replace("**", "").replace("__", ""))
+        .collect::<Vec<_>>()
+        .join("\n")
+        .trim()
+        .to_string()
+}
+
+/// El texto con que nace la leccion de `m`: lo que se dijo, su texto o su
+/// nombre, lo primero que haya (`Accion::HacerLeccion` de Windows).
+pub fn texto_para_leccion(m: &Mensaje) -> Option<String> {
+    m.transcripcion
+        .as_deref()
+        .map(sin_marcas)
+        .filter(|t| !t.trim().is_empty())
+        .or_else(|| Some(m.texto.clone()).filter(|t| !t.trim().is_empty()))
+        .or_else(|| Some(m.nombre.clone()).filter(|t| !t.trim().is_empty()))
+}
+
+/// Lo escrito repartido en los campos de la ficha (`Estado::poner` de la
+/// ficha de Windows): las `#etiquetas` aparte y el resto por sus marcas
+/// («porque», «la proxima vez»...).
+pub fn repartir_para_leccion(dicho: &str) -> (pixpin_lecciones::dictado::Campos, Vec<String>) {
+    let etiquetas = etiquetador::escritas(dicho);
+    let limpio = etiquetador::sin_etiquetas(dicho);
+    let mut c = pixpin_lecciones::dictado::repartir(&limpio);
+    if c.proxima == c.titulo {
+        c.proxima = String::new();
+    }
+    (c, etiquetas)
 }
 
 /// Como fue el repaso.
@@ -194,7 +249,7 @@ fn firma(
 }
 
 /// Si un mensaje lleva una leccion (`LeccionesStore.esLeccion`).
-fn es_leccion(m: &Mensaje) -> bool {
+pub(crate) fn es_leccion(m: &Mensaje) -> bool {
     m.clase == Some(Clase::Archivo)
         && m.ruta
             .as_deref()
@@ -338,6 +393,37 @@ fn escribir_archivo(archivo: &Path, l: &Leccion) -> std::io::Result<i64> {
 
 #[uniffi::export]
 impl Nucleo {
+    /// Lo que trae escrito la ficha de una leccion hecha desde el mensaje
+    /// `id` de `chat` («Hacer lección»). `None` si el mensaje ya no esta,
+    /// es una leccion o no tiene nada que decir.
+    pub fn leccion_de_mensaje(
+        &self,
+        chat: String,
+        id: String,
+    ) -> Result<Option<LeccionDeMensaje>, ErrorNucleo> {
+        validar_chat(&chat)?;
+        let c = cuaderno::Cuaderno::leer_de(&almacen::carpeta(self.ruta(), &chat))?;
+        let Some(m) = c.mensajes.iter().find(|m| m.id == id) else {
+            return Ok(None);
+        };
+        if es_leccion(m) {
+            return Ok(None);
+        }
+        let Some(texto) = texto_para_leccion(m) else {
+            return Ok(None);
+        };
+        let (campos, etiquetas) = repartir_para_leccion(&texto);
+        Ok(Some(LeccionDeMensaje {
+            titulo: campos.titulo,
+            que_paso: campos.que_paso,
+            por_que: campos.por_que,
+            proxima: campos.proxima,
+            etiquetas,
+            de_mensaje: m.id.clone(),
+            chat,
+        }))
+    }
+
     /// **Una pagina de lecciones** con el filtro dado: `desde` es la
     /// posicion de la primera y `cuantas` el largo (hasta
     /// [`TOPE_DE_PAGINA`]).
@@ -498,6 +584,9 @@ impl Nucleo {
             .collect();
         l.causas = limpiar(editada.causas);
         l.tocada = ahora;
+        if existente.is_none() {
+            l.de_mensaje = editada.de_mensaje.filter(|d| !d.is_empty());
+        }
         let entrada = match existente {
             Some(e) => self.escribir_existente(l, e)?,
             None => self.escribir_nueva(l, editada.chat)?,

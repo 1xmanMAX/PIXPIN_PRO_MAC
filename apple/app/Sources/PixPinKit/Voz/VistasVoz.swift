@@ -46,12 +46,23 @@ struct BurbujaVoz: View {
         }
         .frame(maxWidth: 360, alignment: .leading)
         .contextMenu {
-            Button("Pasar a texto") { transcribir() }
-                .disabled(transcribiendo)
-            if let url {
-                Button("Mostrar en el Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+            // Con texto es VOLVER a pasarlo, como en Windows; T con el menu
+            // abierto.
+            EntradasDeMensaje {
+                if url != nil {
+                    Button(action: transcribir) {
+                        Label(mensaje.transcripcion?.isEmpty == false ? "Volver a pasar a texto" : "Pasar a texto",
+                              systemImage: "captions.bubble")
+                    }
+                    .keyboardShortcut("t", modifiers: [])
+                    .disabled(transcribiendo)
+                }
+                if let url {
+                    Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
+                        Label("Mostrar en el Finder", systemImage: "folder")
+                    }
+                }
             }
-            EntradasDeMensaje()
         }
         .task(id: mensaje.id) {
             guard let ruta = mensaje.ruta else { return }

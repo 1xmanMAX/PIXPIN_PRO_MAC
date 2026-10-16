@@ -128,11 +128,33 @@ public struct VistaChat: View {
     @State private var saltos = 0
     /// Se esta viendo una pagina del medio: no se baja solo al final.
     @State private var enSalto = false
-    /// Los mensajes elegidos (⌘-clic o «Elegir varios») para borrarlos.
-    @State private var eleccion = Eleccion()
+    /// Lo que toca el menu de los mensajes: a quien se responde, lo
+    /// elegido, la hoja de escribir y el aviso (`Chat/MenuMensaje.swift`).
+    @StateObject private var menu: ChatAbierto
+
+    public init(almacen: Almacen, chat: String) {
+        self.almacen = almacen
+        self.chat = chat
+        _menu = StateObject(wrappedValue: ChatAbierto(chat: chat, almacen: almacen))
+    }
+
+    private var eleccion: Eleccion { menu.eleccion }
+
+    /// El ultimo fijado de lo cargado («Mensaje fijado», arriba).
+    private var fijado: MensajeChat? { (almacen.mensajes[chat] ?? []).last(where: \.fijado) }
+
+    /// Aquel al que se responde, si sigue cargado.
+    private var respondido: MensajeChat? {
+        guard let id = menu.respondiendo else { return nil }
+        return (almacen.mensajes[chat] ?? []).first { $0.id == id }
+    }
 
     public var body: some View {
         VStack(spacing: 0) {
+            if let fijado {
+                BarraDeFijado(fijado: fijado) { ir(a: fijado.id) }
+                Divider()
+            }
             ScrollViewReader { lector in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 6) {
@@ -141,7 +163,8 @@ public struct VistaChat: View {
                                 .task { await almacen.cargarAnteriores(chat: chat) }
                         }
                         ForEach(almacen.mensajes[chat] ?? [], id: \.id) { m in
-                            Burbuja(mensaje: m, chat: chat, almacen: almacen)
+                            Burbuja(mensaje: m, chat: chat, almacen: almacen,
+                                    citado: citado(por: m), irACita: { ir(a: m.respondeA ?? "") })
                                 .overlay {
                                     if m.id == destacado {
                                         RoundedRectangle(cornerRadius: 10)
@@ -162,9 +185,11 @@ public struct VistaChat: View {
                                 }
                                 .simultaneousGesture(TapGesture().onEnded { clic(en: m.id) })
                                 .environment(\.accionesDeMensaje, AccionesDeMensaje(
+                                    mensaje: m,
                                     marcado: eleccion.ids.contains(m.id),
-                                    marcar: { eleccion.alternar(m.id) },
-                                    borrar: { borrar([m.id]) }))
+                                    marcar: { menu.eleccion.alternar(m.id) },
+                                    borrar: { borrar(menu.sobre(m)) },
+                                    chat: menu))
                                 .id(m.id)
                         }
                         if almacen.quedanPosteriores(chat: chat) {
@@ -187,8 +212,16 @@ public struct VistaChat: View {
             Divider()
             if !eleccion.vacia {
                 BarraDeElegidos(cuantos: eleccion.ids.count,
-                                borrar: { borrar(eleccion.enOrden(idsCargados)) },
-                                cancelar: { eleccion.vaciar() })
+                                copiar: { menu.copiar(menu.elegidos()) },
+                                compartir: { menu.compartir(menu.elegidos()) },
+                                fijar: { menu.fijar(menu.elegidos()) },
+                                reenviar: { menu.reenviar(menu.elegidos()) },
+                                borrar: { borrar(menu.elegidos()) },
+                                cancelar: { menu.eleccion.vaciar() })
+                Divider()
+            } else if let respondido {
+                // Esc suelta antes lo elegido y luego la respuesta (Windows).
+                BarraDeRespuesta(citado: respondido) { menu.respondiendo = nil }
                 Divider()
             }
             HStack(alignment: .bottom) {
@@ -213,8 +246,16 @@ public struct VistaChat: View {
         .onReceive(peticion.$salto) { _ in _ = atenderSalto() }
         // Lo elegido que ya no esta cargado (borrado, otra pagina) se olvida.
         .onChange(of: almacen.mensajes[chat]?.count) { _, _ in
-            eleccion.quedarse(con: Set(idsCargados))
+            menu.eleccion.quedarse(con: Set(idsCargados))
         }
+        // Describir, cambiar el nombre o la hora de avisar: una linea.
+        .sheet(item: $menu.escritura) { e in
+            HojaEscritura(escritura: e) { menu.guardar(e, $0) }
+        }
+        .overlay(alignment: .bottom) {
+            if let aviso = menu.aviso { AvisoDelChat(texto: aviso).padding(.bottom, 48) }
+        }
+        .animation(.easeOut(duration: 0.15), value: menu.aviso)
         // Soltar ficheros o fotos en el chat los adjunta (se copian).
         .onDrop(of: EntradaDeFicheros.tipos, isTargeted: $soltando) { proveedores in
             MainActor.assumeIsolated {
@@ -230,8 +271,25 @@ public struct VistaChat: View {
                     .allowsHitTesting(false)
             }
         }
-        .onAppear(perform: vigilarPegar)
+        .onAppear {
+            vigilarPegar()
+            menu.irA = { id in ir(a: id) }
+        }
         .onDisappear(perform: dejarDeVigilarPegar)
+    }
+
+    /// Aquel al que responde `m`, si esta cargado.
+    private func citado(por m: MensajeChat) -> MensajeChat? {
+        guard let id = m.respondeA, !id.isEmpty else { return nil }
+        return (almacen.mensajes[chat] ?? []).first { $0.id == id }
+    }
+
+    /// Lleva a un mensaje cargado y lo marca (la cita, el fijado, el hilo).
+    private func ir(a id: String) {
+        guard !id.isEmpty, idsCargados.contains(id) else { return }
+        destacado = id
+        irA = id
+        saltos += 1
     }
 
     /// ⌘V con ficheros o una imagen en el portapapeles los adjunta, aunque
@@ -280,11 +338,11 @@ public struct VistaChat: View {
     private func clic(en id: String) {
         let teclas = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if teclas.contains(.command) {
-            eleccion.alternar(id)
+            menu.eleccion.alternar(id)
         } else if teclas.contains(.shift), !eleccion.vacia {
-            eleccion.tramo(hasta: id, en: idsCargados)
+            menu.eleccion.tramo(hasta: id, en: idsCargados)
         } else if !eleccion.vacia {
-            eleccion.alternar(id)
+            menu.eleccion.alternar(id)
         }
     }
 
@@ -293,11 +351,13 @@ public struct VistaChat: View {
     private func borrar(_ ids: [String]) {
         guard !ids.isEmpty, ConfirmarBorrar.preguntar(cuantos: ids.count) else { return }
         if let d = destacado, ids.contains(d) { destacado = nil }
+        if let r = menu.respondiendo, ids.contains(r) { menu.respondiendo = nil }
         let almacen = self.almacen
         let chat = self.chat
+        let menu = self.menu
         Task {
             await almacen.borrar(mensajes: ids, en: chat)
-            eleccion.quedarse(con: Set(idsCargados))
+            menu.eleccion.quedarse(con: Set((almacen.mensajes[chat] ?? []).map(\.id)))
         }
     }
 
@@ -318,7 +378,10 @@ public struct VistaChat: View {
         destacado = nil
         let texto = borrador
         borrador = ""
-        Task { await almacen.escribir(nota: texto, en: chat) }
+        // Contestando a un mensaje (Responder, R): la nota lleva `respondeA`.
+        let respondeA = menu.respondiendo
+        menu.respondiendo = nil
+        Task { await almacen.escribir(nota: texto, en: chat, respondeA: respondeA) }
     }
 }
 
@@ -327,9 +390,15 @@ struct Burbuja: View {
     let chat: String
     /// Sin observar: una burbuja no se repinta por cada cambio del almacen.
     let almacen: Almacen
+    /// Aquel al que responde (si lo hace y esta cargado) y como ir a el.
+    var citado: MensajeChat?
+    var irACita: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
+            if let r = mensaje.respondeA, !r.isEmpty {
+                CitaDeMensaje(citado: citado, irA: irACita)
+            }
             switch mensaje.clase {
             case "NOTA":
                 Text(mensaje.texto).textSelection(.enabled)
@@ -351,9 +420,12 @@ struct Burbuja: View {
                 Label(mensaje.resumen.isEmpty ? mensaje.nombre : mensaje.resumen,
                       systemImage: Burbuja.icono(mensaje.clase))
             }
-            Text(Date(timeIntervalSince1970: TimeInterval(mensaje.cuando) / 1000),
-                 format: .dateTime.hour().minute())
-                .font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Text(Date(timeIntervalSince1970: TimeInterval(mensaje.cuando) / 1000),
+                     format: .dateTime.hour().minute())
+                    .font(.caption2).foregroundStyle(.secondary)
+                MarcasDeMensaje(mensaje: mensaje)
+            }
         }
         .padding(8)
         .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))

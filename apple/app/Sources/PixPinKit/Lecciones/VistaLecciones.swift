@@ -132,6 +132,8 @@ struct FilaLeccion: View {
 struct FichaLeccionVista: View {
     @ObservedObject var modelo: ModeloLecciones
     let ficha: FichaLeccion?
+    /// Lo que trae escrito una nueva (la de «Hacer lección» de un mensaje).
+    var inicial: BorradorLeccion?
     let alAcabar: (FichaLeccion?) -> Void
 
     @State private var b = BorradorLeccion()
@@ -245,7 +247,7 @@ struct FichaLeccionVista: View {
             Text("Se borra también en los demás aparatos al sincronizar.")
         }
         .onAppear {
-            if let ficha { b = BorradorLeccion(ficha) }
+            if let ficha { b = BorradorLeccion(ficha) } else if let inicial { b = inicial }
         }
         .onChange(of: b.textoEntero) { _, _ in programarPropuesta() }
         .onDisappear { proponer?.cancel() }

@@ -92,6 +92,20 @@ pub struct MensajeChat {
     /// Los picos de la onda de una nota de voz: enteros de 0 a 32767, como
     /// mucho 256 (el campo `picos` del movil). Vacio si no los trae.
     pub picos: Vec<i32>,
+    /// Llego al buzon (caduca si no se guarda: «Guardar esto»).
+    pub en_buzon: bool,
+    /// La hora del recordatorio (`recuerdaEn`, UTC en milisegundos).
+    pub recuerda_en: Option<i64>,
+    /// De que tipo es una mini-app (`tareas`, `tabla`...).
+    pub miniapp: Option<String>,
+    /// Lleva una leccion (no se renombra, ni se describe, ni se hace
+    /// leccion otra vez).
+    pub es_leccion: bool,
+    /// Si el menu ofrece «Cambiar el nombre» (`renombrar::se_puede` de
+    /// Windows).
+    pub se_puede_renombrar: bool,
+    /// Si el menu ofrece «Añadir descripción» (`descripcion::se_puede`).
+    pub se_puede_describir: bool,
 }
 
 /// Una pagina de mensajes, del mas antiguo al mas nuevo.
@@ -136,7 +150,14 @@ impl From<Mensaje> for MensajeChat {
             .and_then(|v| v.as_str().map(str::to_string))
             .unwrap_or_default();
         let picos = crate::voz::picos_de(&m);
+        let es_leccion = crate::lecciones::es_leccion(&m);
         MensajeChat {
+            en_buzon: m.en_buzon,
+            recuerda_en: hora_de_recordar(&m),
+            se_puede_renombrar: se_puede_renombrar(&m),
+            se_puede_describir: se_puede_describir(&m),
+            es_leccion,
+            miniapp: m.miniapp.clone(),
             resumen: m.resumen(),
             codigo_chat: m.codigo_chat(),
             duracion_ms: m.duracion_ms,
@@ -498,6 +519,297 @@ impl Nucleo {
             indice.guardar(raiz)?;
         }
         Ok(quitados.len() as u32)
+    }
+}
+
+// ── El menu de un mensaje (`menu_de_mensaje` de Windows) ──
+//
+// Lo que cambia un mensaje sin crear otro: fijarlo, ponerle etiqueta,
+// describirlo, cambiarle el nombre, la hora de recordar y «Guardar esto».
+// Todo se escribe con `cuaderno::cambiar`, que lee, cambia y reescribe con
+// el cerrojo tomado y copia tal cual las lineas que no entiende: los mismos
+// campos y el mismo formato que Windows y el movil, para que viajen.
+
+/// El campo del recordatorio. Es el del movil y **no se traduce**: ya viaja
+/// entre aparatos (`recordatorios::CAMPO` de Windows).
+pub const CAMPO_RECORDAR: &str = "recuerdaEn";
+
+/// Lo mas largo de un nombre (`renombrar::TOPE` de Windows, el del movil).
+const TOPE_DE_NOMBRE: usize = 120;
+
+/// Lo mas largo del nombre de un lienzo (`guardar_nombre_de_mensaje`).
+const TOPE_DE_NOMBRE_LIENZO: usize = 80;
+
+/// Las etiquetas que se le pueden poner a un mensaje, las del movil
+/// (`ETIQUETAS` de `MensajesActivity.kt`) y en su orden: ⭐ ✅ ⏳ 💡 💰 📍.
+pub const ETIQUETAS: [&str; 6] = [
+    "\u{2b50}",
+    "\u{2705}",
+    "\u{23f3}",
+    "\u{1f4a1}",
+    "\u{1f4b0}",
+    "\u{1f4cd}",
+];
+
+/// Lo que se le cambia a un mensaje desde su menu.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum CambioMensaje {
+    /// «Fijar arriba» / «Quitar de arriba» (`fijado`).
+    Fijar { fijado: bool },
+    /// La etiqueta de la fila de emojis (`emoji`); `None` la quita.
+    Etiqueta { emoji: Option<String> },
+    /// La descripcion de una foto o un archivo (`texto`); vacia la quita.
+    Descripcion { texto: String },
+    /// El nombre que se ensena (`nombre`). El fichero no se toca: la
+    /// sincronizacion empareja por su ruta.
+    Nombre { nombre: String },
+    /// La hora de avisar (`recuerdaEn`, UTC en ms); `None` la quita.
+    Recordar { cuando: Option<i64> },
+    /// «Guardar esto»: lo que llego al buzon se queda (`enBuzon = false`).
+    Rescatar,
+}
+
+/// La hora de recordar que lleva un mensaje. Lo que no sea un entero (una
+/// cadena, un `null` de otro aparato) es «no hay hora».
+pub fn hora_de_recordar(m: &Mensaje) -> Option<i64> {
+    m.resto.get(CAMPO_RECORDAR)?.as_i64()
+}
+
+/// Si a `m` se le puede cambiar el nombre (`renombrar::se_puede`): un
+/// archivo con fichero o con hoja, que no sea una leccion ni del buzon.
+pub fn se_puede_renombrar(m: &Mensaje) -> bool {
+    use pixpin_proyecto::cuaderno::Clase;
+    matches!(
+        m.clase,
+        Some(Clase::Imagen | Clase::Archivo | Clase::Voz | Clase::Dibujo | Clase::Pagina)
+    ) && !m.en_buzon
+        && (m.ruta.is_some() || m.referencia.is_some())
+        && !crate::lecciones::es_leccion(m)
+}
+
+/// Si a `m` se le puede poner descripcion (`descripcion::se_puede`): una
+/// foto o un archivo con su fichero, que no sea leccion ni del buzon.
+pub fn se_puede_describir(m: &Mensaje) -> bool {
+    use pixpin_proyecto::cuaderno::Clase;
+    matches!(m.clase, Some(Clase::Imagen | Clase::Archivo))
+        && !m.en_buzon
+        && m.ruta.is_some()
+        && !crate::lecciones::es_leccion(m)
+}
+
+/// `nuevo` limpio y **con la extension que tenia** `viejo` si no se la puso
+/// (`renombrar::con_su_extension` de Windows): «informe.pdf» renombrado a
+/// «Memoria» queda «Memoria.pdf». Vacio si no queda nada.
+pub fn con_su_extension(viejo: &str, nuevo: &str) -> String {
+    let limpio: String = nuevo
+        .replace('\n', " ")
+        .replace('/', "-")
+        .trim()
+        .chars()
+        .take(TOPE_DE_NOMBRE)
+        .collect();
+    if limpio.is_empty() {
+        return String::new();
+    }
+    let Some(ext) = extension(viejo) else {
+        return limpio;
+    };
+    if limpio.to_lowercase().ends_with(&ext.to_lowercase()) {
+        limpio
+    } else {
+        limpio + ext
+    }
+}
+
+/// La extension de `nombre` con su punto: de una a cinco letras o cifras al
+/// final (`\.[A-Za-z0-9]{1,5}$` en el movil).
+fn extension(nombre: &str) -> Option<&str> {
+    let punto = nombre.rfind('.')?;
+    let ext = &nombre[punto + 1..];
+    ((1..=5).contains(&ext.len()) && ext.chars().all(|c| c.is_ascii_alphanumeric()))
+        .then(|| &nombre[punto..])
+}
+
+/// Aplica `cambio` a `m`. `false` si no cambia nada (no se reescribe).
+pub fn aplicar(m: &mut Mensaje, cambio: &CambioMensaje) -> bool {
+    use pixpin_proyecto::cuaderno::Clase;
+    match cambio {
+        CambioMensaje::Fijar { fijado } => {
+            let antes = m.fijado;
+            m.fijado = *fijado;
+            antes != *fijado
+        }
+        CambioMensaje::Etiqueta { emoji } => {
+            let emoji = emoji.clone().filter(|e| !e.trim().is_empty());
+            let antes = std::mem::replace(&mut m.emoji, emoji);
+            antes != m.emoji
+        }
+        CambioMensaje::Descripcion { texto } => {
+            // `descripcion::con_descripcion`: lo mismo de antes no reescribe.
+            let limpio = texto.trim();
+            if limpio == m.texto.trim() {
+                return false;
+            }
+            m.texto = limpio.to_string();
+            true
+        }
+        CambioMensaje::Nombre { nombre } => {
+            // `guardar_nombre_de_mensaje`: un lienzo, recortado; lo demas,
+            // con su extension.
+            let nuevo = if m.clase == Some(Clase::Dibujo) {
+                nombre.trim().chars().take(TOPE_DE_NOMBRE_LIENZO).collect()
+            } else {
+                con_su_extension(&m.nombre, nombre)
+            };
+            if nuevo.is_empty() || nuevo == m.nombre {
+                return false;
+            }
+            m.nombre = nuevo;
+            true
+        }
+        CambioMensaje::Recordar { cuando } => {
+            let antes = hora_de_recordar(m);
+            match cuando {
+                Some(t) => {
+                    m.resto
+                        .insert(CAMPO_RECORDAR.to_string(), serde_json::Value::from(*t));
+                }
+                // Se BORRA la clave (no `null`): el mensaje vuelve a ser
+                // byte a byte el de antes y no viaja entero en cada vuelta
+                // (`recordatorios::quitar_hora`).
+                None => {
+                    m.resto.remove(CAMPO_RECORDAR);
+                }
+            }
+            antes != *cuando
+        }
+        CambioMensaje::Rescatar => std::mem::replace(&mut m.en_buzon, false),
+    }
+}
+
+#[uniffi::export]
+impl Nucleo {
+    /// **Cambia un mensaje desde su menu** (fijar, etiqueta, descripcion,
+    /// nombre, recordar, guardar del buzon), como `reescribir` del chat de
+    /// Windows. Devuelve el mensaje como quedo, o `None` si ya no esta. Si
+    /// no cambia nada, no se escribe. Bloqueante.
+    pub fn cambiar_mensaje(
+        &self,
+        chat: String,
+        id: String,
+        cambio: CambioMensaje,
+    ) -> Result<Option<MensajeChat>, ErrorNucleo> {
+        validar_chat(&chat)?;
+        let carpeta = almacen::carpeta(self.ruta(), &chat);
+        let fichero = carpeta.join("guardados.jsonl");
+        if !fichero.exists() {
+            return Ok(None);
+        }
+        let mut cache = self.cache_tomada();
+        let hecho = cuaderno::cambiar(&carpeta, &id, |m| aplicar(m, &cambio))?;
+        cache.quitar(&fichero);
+        Ok(hecho.map(MensajeChat::from))
+    }
+
+    /// **Reenvia mensajes a otro chat** (`reenviar` de Windows): una copia
+    /// de cada uno al final de `destino`, del mas viejo al mas nuevo, con id
+    /// y hora nuevos, su numero alli, un `uid` nuevo, este aparato, y
+    /// `origen` el `uid` (o el id) del de aqui. Sin fijar, sin buzon y sin
+    /// responder a nada. El fichero se copia a `destino` (lo que no esta en
+    /// este equipo va sin el, como en el movil) y un lienzo lleva su dibujo.
+    /// Devuelve cuantos se copiaron. Bloqueante.
+    pub fn reenviar_mensajes(
+        &self,
+        chat: String,
+        ids: Vec<String>,
+        destino: String,
+    ) -> Result<u32, ErrorNucleo> {
+        use pixpin_proyecto::cuaderno::Clase;
+        validar_chat(&chat)?;
+        validar_chat(&destino)?;
+        let raiz = self.ruta();
+        let mut indice = Indice::leer_si_esta(raiz)?;
+        if indice.buscar(&destino).is_none() {
+            return Err(ErrorNucleo::NoExiste { que: destino });
+        }
+        let aparato = self.identidad()?.yo.codigo();
+        let origen = cuaderno::Cuaderno::leer_de(&almacen::carpeta(raiz, &chat))?;
+        let quiero: std::collections::BTreeSet<&str> = ids.iter().map(String::as_str).collect();
+        let mut elegidos: Vec<&Mensaje> = origen
+            .mensajes
+            .iter()
+            .filter(|m| quiero.contains(m.id.as_str()))
+            .collect();
+        elegidos.sort_by_key(|m| m.cuando);
+        if elegidos.is_empty() {
+            return Ok(0);
+        }
+        let carpeta = almacen::carpeta(raiz, &destino);
+        let fichero = carpeta.join("guardados.jsonl");
+        let mut cache = self.cache_tomada();
+        let mut numero = cache.indice(&fichero)?.map_or(0, |i| i.mayor_numero) + 1;
+        let mut hechos = 0u32;
+        let mut ultimo = (0, String::new());
+        for m in elegidos {
+            let cuando = hora_unica();
+            let mut copia = m.clone();
+            copia.id = format!("{cuando}");
+            copia.cuando = cuando;
+            copia.numero = numero;
+            copia.uid = Some(pixpin_proyecto::codigos::nuevo());
+            copia.aparato = Some(aparato.clone());
+            copia.letra = None;
+            copia.origen = m.uid.clone().or_else(|| Some(m.id.clone()));
+            copia.proyecto = Some(destino.clone());
+            copia.fijado = false;
+            copia.en_buzon = false;
+            copia.responde_a = None;
+            if let Some(ruta) = m.ruta.as_deref() {
+                match self.resolver(&chat, ruta).filter(|r| r.is_file()) {
+                    Some(r) => {
+                        let bytes = std::fs::read(&r)?;
+                        let nombre = if m.nombre.trim().is_empty() {
+                            r.file_name()
+                                .map(|n| n.to_string_lossy().to_string())
+                                .unwrap_or_else(|| "archivo".into())
+                        } else {
+                            m.nombre.clone()
+                        };
+                        copia.ruta = Some(almacen::guardar_adjunto(raiz, &destino, &nombre, &bytes)?);
+                    }
+                    None => copia.ruta = None,
+                }
+            }
+            if m.clase == Some(Clase::Dibujo)
+                && let Some(id) = m.referencia.as_deref().filter(|r| !r.is_empty())
+            {
+                let de = almacen::lienzo(raiz, &chat, id);
+                let a = almacen::lienzo(raiz, &destino, id);
+                if de.is_file() && !a.exists() {
+                    if let Some(padre) = a.parent() {
+                        std::fs::create_dir_all(padre)?;
+                    }
+                    std::fs::copy(&de, &a)?;
+                }
+            }
+            cuaderno::anadir(&carpeta, &copia)?;
+            ultimo = (cuando, copia.resumen());
+            numero += 1;
+            hechos += 1;
+        }
+        cache.quitar(&fichero);
+        drop(cache);
+        if let Some(f) = indice.proyectos.iter_mut().find(|f| f.id == destino) {
+            f.tocado = ultimo.0;
+            f.resumen = ultimo.1;
+            indice.guardar(raiz)?;
+        }
+        Ok(hechos)
+    }
+
+    /// Las etiquetas de la fila de emojis, en su orden.
+    pub fn etiquetas_de_mensaje(&self) -> Vec<String> {
+        ETIQUETAS.iter().map(|e| e.to_string()).collect()
     }
 }
 

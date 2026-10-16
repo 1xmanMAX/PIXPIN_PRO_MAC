@@ -5,53 +5,18 @@
 // - ⌘-clic marca o desmarca una burbuja (el Ctrl+clic de Windows) y, con
 //   alguna marcada, un clic tambien; ⇧-clic marca el tramo;
 // - con marcadas, una barra encima de la caja de escribir: cuantas,
-//   «Borrar» y «Cancelar» (Escape);
+//   Copiar, Compartir, Fijar, Reenviar, «Borrar» y «Cancelar» (Escape);
 // - antes de borrar se pregunta, con «Cancelar» por defecto (el
 //   `confirmar_destructivo` de Windows). No hay deshacer: Windows tampoco
 //   lo tiene, y el fichero adjunto se borra con su mensaje.
 //
 // Lo que borra es `Almacen.borrar(mensajes:en:)` (`Nucleo.borrarMensajes`).
+// El resto del menu (y las acciones del entorno de cada burbuja) esta en
+// `MenuMensaje.swift`.
 
 import AppKit
 import PixPinCore
 import SwiftUI
-
-/// Lo que el menu de una burbuja puede hacer con su mensaje. Lo pone el
-/// chat (`VistaChat`) en el entorno de cada burbuja, para que lo usen
-/// tambien los menus propios de las burbujas (fichero, nota, voz), que
-/// tapan al de fuera.
-struct AccionesDeMensaje {
-    var marcado: Bool
-    var marcar: () -> Void
-    var borrar: () -> Void
-}
-
-private struct ClaveAccionesDeMensaje: EnvironmentKey {
-    static let defaultValue: AccionesDeMensaje? = nil
-}
-
-extension EnvironmentValues {
-    var accionesDeMensaje: AccionesDeMensaje? {
-        get { self[ClaveAccionesDeMensaje.self] }
-        set { self[ClaveAccionesDeMensaje.self] = newValue }
-    }
-}
-
-/// Las entradas comunes del menu de un mensaje: elegir varios y, en rojo y
-/// aparte, borrar. Fuera de un chat (sin acciones en el entorno), nada.
-struct EntradasDeMensaje: View {
-    @Environment(\.accionesDeMensaje) private var acciones
-
-    var body: some View {
-        if let acciones {
-            Divider()
-            Button(acciones.marcado ? "Quitar de los elegidos" : "Elegir varios", action: acciones.marcar)
-            Divider()
-            Button("Borrar", role: .destructive, action: acciones.borrar)
-                .keyboardShortcut(.delete, modifiers: [])
-        }
-    }
-}
 
 /// **La pregunta antes de borrar**, con los textos de Windows
 /// (`chat-borrar`, `chat-borrar-aviso`). «Cancelar» es el boton por
@@ -123,9 +88,14 @@ struct Eleccion: Equatable {
     }
 }
 
-/// La barra de los elegidos, encima de la caja de escribir.
+/// La barra de los elegidos, encima de la caja de escribir: lo que hace la
+/// de Windows con lo marcado (Copiar, Compartir, Fijar, Reenviar y Borrar).
 struct BarraDeElegidos: View {
     let cuantos: Int
+    var copiar: () -> Void = {}
+    var compartir: () -> Void = {}
+    var fijar: () -> Void = {}
+    var reenviar: () -> Void = {}
     let borrar: () -> Void
     let cancelar: () -> Void
 
@@ -134,6 +104,10 @@ struct BarraDeElegidos: View {
             Text(cuantos == 1 ? "1 elegido" : "\(cuantos) elegidos")
                 .font(.callout.weight(.medium))
             Spacer()
+            Button(action: copiar) { Label("Copiar", systemImage: "doc.on.doc") }
+            Button(action: compartir) { Label("Compartir", systemImage: "square.and.arrow.up") }
+            Button(action: fijar) { Label("Fijar", systemImage: "flag") }
+            Button(action: reenviar) { Label("Reenviar", systemImage: "arrowshape.turn.up.right") }
             Button(role: .destructive, action: borrar) {
                 Label("Borrar", systemImage: "trash")
             }
