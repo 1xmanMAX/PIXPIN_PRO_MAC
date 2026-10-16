@@ -1,0 +1,40 @@
+name: Nucleo
+
+# El nucleo de Rust (apple/nucleo, su propio espacio de trabajo): sus
+# pruebas en macOS, que es donde vive.
+on:
+  push:
+    branches: [main, "ccr-**"]
+    paths:
+      - "apple/nucleo/**"
+      - "apple/Cargo.toml"
+      - "apple/Cargo.lock"
+      - ".github/workflows/nucleo.yml"
+  pull_request:
+    paths:
+      - "apple/nucleo/**"
+      - "apple/Cargo.toml"
+      - "apple/Cargo.lock"
+  workflow_dispatch:
+
+concurrency:
+  group: nucleo-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  pruebas:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: apple
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apple
+      - name: Pruebas del nucleo
+        run: cargo test --workspace -- --test-threads=1
