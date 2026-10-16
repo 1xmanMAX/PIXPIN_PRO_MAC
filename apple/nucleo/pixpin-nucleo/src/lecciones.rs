@@ -622,6 +622,39 @@ impl Nucleo {
         Ok(ficha_de(&entrada, ahora))
     }
 
+    /// **Las fotos y audios de una leccion** (`LeccionesStore.adjuntosDe`,
+    /// `almacen::adjuntos_de` de Windows): los de su lista, en su orden, y
+    /// **tambien los que le responden** (si dos aparatos le pusieron una
+    /// foto cada uno, la lista del archivo trae la de uno, pero las dos le
+    /// responden). Viven en el chat de la leccion (`FichaLeccion.chat`).
+    pub fn adjuntos_de_leccion(&self, id: String) -> Result<Vec<AdjuntoLeccion>, ErrorNucleo> {
+        let e = self
+            .cache_lecciones()?
+            .entradas
+            .iter()
+            .find(|e| e.leccion.id == id)
+            .cloned()
+            .ok_or(ErrorNucleo::NoExiste {
+                que: format!("leccion {id}"),
+            })?;
+        let c = cuaderno::Cuaderno::leer_de(&almacen::carpeta(self.ruta(), &e.ficha))?;
+        Ok(adjuntos_de(&e.leccion.adjuntos, &e.mensaje, &c.mensajes)
+            .into_iter()
+            .map(|m| {
+                let fichero = m
+                    .ruta
+                    .as_deref()
+                    .and_then(|r| self.resolver(&e.ficha, r))
+                    .filter(|r| r.is_file())
+                    .map(|r| r.display().to_string());
+                AdjuntoLeccion {
+                    mensaje: crate::chats::MensajeChat::from(m),
+                    fichero,
+                }
+            })
+            .collect())
+    }
+
     /// **Borra una leccion** como borra el chat: su mensaje y los de sus
     /// fotos y audios salen del cuaderno con su marca de borrado (para que
     /// no vuelvan del otro aparato) y sus archivos se van.
@@ -658,6 +691,38 @@ impl Nucleo {
         self.soltar_lecciones();
         Ok(())
     }
+}
+
+/// Una foto o un audio de una leccion, con su fichero en este Mac (`None`
+/// si aun no ha llegado).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct AdjuntoLeccion {
+    pub mensaje: crate::chats::MensajeChat,
+    pub fichero: Option<String>,
+}
+
+/// Una foto o un audio (no del buzon): lo que puede ir con una leccion.
+fn es_adjunto(m: &Mensaje) -> bool {
+    matches!(m.clase, Some(Clase::Imagen) | Some(Clase::Voz)) && !m.en_buzon
+}
+
+/// Los adjuntos de la leccion del mensaje `mensaje`: los de `lista` que
+/// siguen en el chat, en su orden, y luego las fotos y audios que le
+/// responden y no estaban en la lista.
+pub fn adjuntos_de(lista: &[String], mensaje: &str, chat: &[Mensaje]) -> Vec<Mensaje> {
+    let mut v: Vec<Mensaje> = lista
+        .iter()
+        .filter_map(|id| chat.iter().find(|m| m.id == *id).cloned())
+        .collect();
+    for m in chat {
+        if m.responde_a.as_deref() == Some(mensaje)
+            && es_adjunto(m)
+            && !v.iter().any(|x| x.id == m.id)
+        {
+            v.push(m.clone());
+        }
+    }
+    v
 }
 
 impl Nucleo {

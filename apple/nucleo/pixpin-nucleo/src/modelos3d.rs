@@ -31,7 +31,7 @@ use std::sync::Arc;
 use pixpin_cad::modelo3d::{Modelo3d, V3, tipo_legible};
 use pixpin_cad::orbita::Orbita;
 
-use crate::ErrorNucleo;
+use crate::{ErrorNucleo, Nucleo};
 
 /// Un punto (o una direccion) del modelo, respecto a su origen.
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
@@ -199,6 +199,9 @@ fn de_caja3d(c: Caja3d) -> [f32; 6] {
 #[derive(uniffi::Object)]
 pub struct Modelo3dApple {
     m: Modelo3d,
+    /// Lo que pide un croquis del movil (su fondo, su tema, que encuadrar y
+    /// desde donde mira). `None` en un modelo de un fichero.
+    croquis: Option<ExtrasCroquis>,
 }
 
 /// Lo que se abre como modelo 3D o como plano (para el chat y el Finder).
@@ -251,7 +254,7 @@ impl Modelo3dApple {
 
     /// Para las pruebas y para quien ya tiene el modelo leido.
     pub fn de_modelo(m: Modelo3d) -> Arc<Modelo3dApple> {
-        Arc::new(Modelo3dApple { m })
+        Arc::new(Modelo3dApple { m, croquis: None })
     }
 }
 
@@ -286,7 +289,12 @@ impl Modelo3dApple {
                 detalle: format!("{}: no hay nada que dibujar", ruta.display()),
             });
         }
-        Ok(Arc::new(Modelo3dApple { m }))
+        Ok(Arc::new(Modelo3dApple { m, croquis: None }))
+    }
+
+    /// Lo que pide un croquis (ver [`ExtrasCroquis`]); `None` si no lo es.
+    pub fn extras_croquis(&self) -> Option<ExtrasCroquis> {
+        self.croquis
     }
 
     pub fn resumen(&self) -> ResumenModelo3d {
@@ -589,6 +597,143 @@ pub fn camara_hacia(camara: Camara3d, destino: Camara3d, k: f64) -> Camara3d {
 #[uniffi::export]
 pub fn camara_cerca_de(camara: Camara3d, destino: Camara3d) -> bool {
     orbita(camara).cerca_de(&orbita(destino))
+}
+
+// ------------------------------------------------------------- croquis
+
+/// La clase de un mensaje con un croquis 3D del movil (`Clase.CROQUIS`).
+pub const CLASE_CROQUIS: &str = "CROQUIS";
+
+/// Un color en tanto por uno.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct Color3d {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
+}
+
+/// **Lo que un croquis del movil le dice al visor** (`croquis3d::extras_de`
+/// de Windows): su fondo si eligio uno, si abre en claro, que encuadrar (lo
+/// dibujado, sin el suelo ni las hojas sin fin) y desde donde mira de
+/// fabrica (`Camara3D()` del movil).
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct ExtrasCroquis {
+    pub fondo: Option<Color3d>,
+    pub claro: bool,
+    /// Respecto al origen del modelo. `None` si no hay nada dibujado.
+    pub encuadre: Option<Caja3d>,
+    pub rumbo: f64,
+    pub altura: f64,
+}
+
+/// Lo que hace falta de un croquis leido para el visor.
+pub fn extras_de(c: &pixpin_cad::croquis::Croquis, origen: [f64; 3]) -> ExtrasCroquis {
+    use pixpin_cad::croquis::{Camara3D, malla};
+    let fabrica = Camara3D::default();
+    ExtrasCroquis {
+        fondo: malla::fondo_propio(c).map(|[r, g, b, a]| Color3d { r, g, b, a }),
+        claro: malla::abre_claro(c),
+        encuadre: malla::caja_de_lo_dibujado(c, origen).map(caja3d),
+        rumbo: -fabrica.giro - std::f64::consts::FRAC_PI_2,
+        altura: fabrica.inclinacion,
+    }
+}
+
+/// Donde esta en este Mac el croquis `id` de un chat:
+/// `croquis3d/<id>.croquis.gz` de su carpeta del movil, donde lo deja la
+/// sincronizacion. `None` si no esta o si el id intenta salirse.
+pub fn fichero_del_croquis(raiz: &Path, chat: &str, id: &str) -> Option<std::path::PathBuf> {
+    let id = id.trim();
+    if id.is_empty() || id.contains(['/', '\\', '\0']) || id.contains("..") {
+        return None;
+    }
+    pixpin_proyecto::vista::ruta_real(
+        raiz,
+        chat,
+        &format!("pixpin:files/croquis3d/{id}.croquis.gz"),
+    )
+    .filter(|r| r.is_file())
+}
+
+/// **Lee un croquis y lo pasa a triangulos**. Sus fotos (`pixpin:files/…`)
+/// se buscan como las de cualquier mensaje de `chat`.
+pub fn modelo_de_croquis(raiz: &Path, chat: &str, bytes: &[u8]) -> Result<Modelo3dApple, String> {
+    use pixpin_cad::croquis::{self, malla};
+    let c = croquis::leer(bytes)?;
+    let fotos = |r: &str| -> Option<malla::Foto> {
+        let ruta = pixpin_proyecto::vista::ruta_real(raiz, chat, r)?;
+        let im = pixpin_codec::imagen::cargar(&ruta).ok()?;
+        Some(malla::Foto {
+            ancho: im.ancho,
+            alto: im.alto,
+            rgba: im.pixeles,
+        })
+    };
+    let m = malla::a_modelo(&c, &fotos);
+    let extras = extras_de(&c, m.origen);
+    Ok(Modelo3dApple {
+        m,
+        croquis: Some(extras),
+    })
+}
+
+/// La camara que encuadra `caja` mirando desde `rumbo` y `altura` (la de
+/// fabrica de un croquis), lo bastante lejos para que quepa entera: la
+/// esfera que la envuelve, en el lado mas corto de la ventana.
+#[uniffi::export]
+pub fn camara_encuadrar_desde(
+    caja: Caja3d,
+    ancho: u32,
+    alto: u32,
+    rumbo: f64,
+    altura: f64,
+) -> Camara3d {
+    // El campo de vision de `Orbita` (45 grados en vertical).
+    const FOV: f64 = std::f64::consts::FRAC_PI_4;
+    let mut o = Orbita::encuadrar(de_caja3d(caja), ancho, alto);
+    o.rumbo = rumbo;
+    o.altura = altura.clamp(-1.5697, 1.5697);
+    let d = [
+        f64::from(caja.x1 - caja.x0),
+        f64::from(caja.y1 - caja.y0),
+        f64::from(caja.z1 - caja.z0),
+    ];
+    let radio = (d[0] * d[0] + d[1] * d[1] + d[2] * d[2]).sqrt() / 2.0;
+    let mitad_v = FOV / 2.0;
+    let mitad_h = (mitad_v.tan() * f64::from(ancho.max(1)) / f64::from(alto.max(1))).atan();
+    let lado = mitad_v.min(mitad_h).sin().max(1e-3);
+    o.dist = (radio / lado / 0.94).max(1e-3);
+    camara(o)
+}
+
+#[uniffi::export]
+impl Nucleo {
+    /// **El fichero del croquis 3D `referencia` de un chat**, si ya llego a
+    /// este Mac (`croquis3d::fichero` de Windows).
+    pub fn croquis_del_chat(&self, chat: String, referencia: String) -> Option<String> {
+        crate::chats::validar_chat(&chat).ok()?;
+        fichero_del_croquis(self.ruta(), &chat, &referencia).map(|r| r.display().to_string())
+    }
+
+    /// **Abre el croquis 3D `referencia` de un chat** para el visor: lo lee
+    /// y lo pasa a triangulos (con sus fotos). Solo se ve: el fichero no se
+    /// escribe nunca. Bloquea: Swift lo llama desde una `Task`.
+    pub fn abrir_croquis(
+        &self,
+        chat: String,
+        referencia: String,
+    ) -> Result<Arc<Modelo3dApple>, ErrorNucleo> {
+        crate::chats::validar_chat(&chat)?;
+        let ruta =
+            fichero_del_croquis(self.ruta(), &chat, &referencia).ok_or(ErrorNucleo::NoExiste {
+                que: format!("croquis {referencia}"),
+            })?;
+        let bytes = std::fs::read(&ruta)?;
+        let m = modelo_de_croquis(self.ruta(), &chat, &bytes)
+            .map_err(|detalle| ErrorNucleo::Argumento { detalle })?;
+        Ok(Arc::new(m))
+    }
 }
 
 #[cfg(test)]

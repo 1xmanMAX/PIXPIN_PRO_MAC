@@ -1707,6 +1707,7 @@ dependencies = [
  "pdfsqueeze-core",
  "pixpin-bim",
  "pixpin-cad",
+ "pixpin-codec",
  "pixpin-docs",
  "pixpin-ia",
  "pixpin-lecciones",

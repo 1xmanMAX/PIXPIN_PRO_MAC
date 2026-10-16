@@ -41,6 +41,9 @@ pixpin-timeline = { version = "0.1.0", path = "../pixpin-timeline" }
 # Metal: los mismos crates que el visor de Windows, sin su D3D11.
 pixpin-cad = { version = "0.1.0", path = "../pixpin-cad" }
 pixpin-bim = { version = "0.1.0", path = "../pixpin-bim" }
+# Medir una foto del chat (su lienzo propio, B9) y leer las de un croquis
+# 3D: el mismo crate que Windows (ya estaba en el arbol por `pixpin-ia`).
+pixpin-codec = { path = "../pixpin-codec" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"

@@ -106,6 +106,22 @@ pub struct MensajeChat {
     pub se_puede_renombrar: bool,
     /// Si el menu ofrece «Añadir descripción» (`descripcion::se_puede`).
     pub se_puede_describir: bool,
+    /// El punto de la burbuja (`punto_de_proyecto`): `None` sin punto (una
+    /// nota, una voz), verde (`true`) si vive tambien en las hojas de un
+    /// proyecto, rojo si solo en el chat. Solo en las paginas del chat; un
+    /// mensaje recien escrito lo trae vacio. Ver [`crate::burbujas`].
+    pub punto: Option<bool>,
+    /// De una foto anotada se ensena solo la foto (`soloLaFoto` del movil,
+    /// por defecto si) o el dibujo entero.
+    pub solo_la_foto: bool,
+    /// De donde viene (`vieneDe`, la zona de un lienzo mandada al chat): el
+    /// texto que se ensena debajo y el lienzo al que lleva.
+    pub viene_de: Option<String>,
+    pub viene_de_dibujo: Option<String>,
+    /// De quien llego por Wi-Fi (`recibidoDe`): «Max phone · K7Q2».
+    pub recibido_de: Option<String>,
+    /// El lienzo donde dibujo el asistente al contestar (`lienzoIa`).
+    pub lienzo_ia: Option<String>,
 }
 
 /// Una pagina de mensajes, del mas antiguo al mas nuevo.
@@ -151,7 +167,14 @@ impl From<Mensaje> for MensajeChat {
             .unwrap_or_default();
         let picos = crate::voz::picos_de(&m);
         let es_leccion = crate::lecciones::es_leccion(&m);
+        let (viene_de, viene_de_dibujo) = crate::burbujas::viene_de(&m).unzip();
         MensajeChat {
+            punto: None,
+            solo_la_foto: crate::burbujas::solo_la_foto(&m),
+            viene_de,
+            viene_de_dibujo: viene_de_dibujo.flatten(),
+            recibido_de: crate::burbujas::recibido_de(&m),
+            lienzo_ia: crate::burbujas::lienzo_ia(&m),
             en_buzon: m.en_buzon,
             recuerda_en: hora_de_recordar(&m),
             se_puede_renombrar: se_puede_renombrar(&m),
@@ -319,8 +342,10 @@ pub(crate) fn validar_chat(chat: &str) -> Result<(), ErrorNucleo> {
 }
 
 /// Las lineas `[desde, desde+cuantos)` del indice, ya como mensajes: una sola
-/// lectura del tramo del fichero que las contiene.
+/// lectura del tramo del fichero que las contiene. Cada uno con su punto de
+/// proyecto (las senas de `raiz`, leidas una vez para toda la pagina).
 fn leer_tramo(
+    raiz: &Path,
     fichero: &Path,
     ind: &IndiceCuaderno,
     desde: usize,
@@ -348,7 +373,13 @@ fn leer_tramo(
             let a = (i - inicio) as usize;
             serde_json::from_slice::<Mensaje>(&tramo[a..a + l as usize]).ok()
         })
-        .map(MensajeChat::from)
+        .map(|m| {
+            let punto = crate::burbujas::punto(raiz, &m);
+            MensajeChat {
+                punto,
+                ..MensajeChat::from(m)
+            }
+        })
         .collect())
 }
 
@@ -838,7 +869,7 @@ impl Nucleo {
             None => total.saturating_sub(cuantos),
         };
         let hasta = (desde + cuantos).min(total);
-        let mensajes = leer_tramo(&fichero, &ind, desde, hasta)?;
+        let mensajes = leer_tramo(self.ruta(), &fichero, &ind, desde, hasta)?;
         Ok(PaginaMensajes {
             mensajes,
             desde: desde as u64,

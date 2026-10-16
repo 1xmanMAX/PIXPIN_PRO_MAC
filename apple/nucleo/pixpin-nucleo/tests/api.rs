@@ -319,7 +319,15 @@ fn adjuntar_copia_el_fichero_y_escribe_su_mensaje_como_windows() {
     // En el cuaderno, como cualquier mensaje: la pagina lo trae y el chat sube.
     let pagina = n.ultimos_mensajes(obra.id.clone(), 10).unwrap();
     assert_eq!(pagina.total, 4);
-    assert_eq!(pagina.mensajes[1], m);
+    // La pagina trae ademas su punto de proyecto: una foto solo en el chat, rojo.
+    assert_eq!(pagina.mensajes[1].punto, Some(false));
+    assert_eq!(
+        pixpin_nucleo::chats::MensajeChat {
+            punto: None,
+            ..pagina.mensajes[1].clone()
+        },
+        m
+    );
     let en_disco = cuaderno::Cuaderno::leer_de(&almacen::carpeta(&raiz, &obra.id)).unwrap();
     let linea: &Mensaje = &en_disco.mensajes[1];
     assert_eq!(linea.clase, Some(cuaderno::Clase::Imagen));
