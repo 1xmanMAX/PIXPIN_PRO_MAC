@@ -559,7 +559,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 
 | # | Tanda | Ficheros |
 |---|---|---|
-| E1 | Asistente, parte 2: en el chat, recetas, permisos, «ojos», hoja→lienzo (**después de A7 y D6; dep. lienzo**) | K/Asistente/*, K/Vistas.swift |
+| E1 | Asistente, parte 2: en el chat (y que viaje), recetas, «ojos», hoja→lienzo, anotar documentos, editar el lienzo abierto, figuras guardadas, acciones sobre documentos y del chat (**después de A7 y D6; dep. lienzo**) | K/Asistente/*, K/Vistas.swift |
 | E2 | Planos: anotar a mano (**dep. lienzo**), exportar, buscar textos, caché `.pxcad`, vistas 3D guardadas | K/Planos/*, N/planos.rs, N/modelos3d.rs (**no a la vez que B9** en modelos3d.rs) |
 | E3 | Anotar la pantalla (vivo, varios monitores) y anotador al chat (**dep. lienzo**) | K/Captura/Capturador.swift (**después de B8**), nuevo K/Captura/AnotadorPantalla.swift |
 | E4 | Centro de la barra de menús (panel rico) y grupos de ventanas (**dep. ventanas**) | APP, nuevo K/Bandeja/* |
