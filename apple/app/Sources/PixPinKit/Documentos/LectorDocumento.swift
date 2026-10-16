@@ -1400,8 +1400,17 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     // MARK: Presentar (F5)
 
     /// F5: las hojas de una en una, a pantalla completa y sobre negro; F5 o
-    /// ⎋ vuelven.
+    /// ⎋ vuelven. Un PowerPoint se presenta como en Windows
+    /// (`Diapositivas`: orador, notas, transiciones) desde la hoja que se
+    /// ve, y al salir el lector se queda en la ultima que se vio.
     func presentar() {
+        if antesDePresentar == nil, Diapositivas.sePresenta(url) {
+            Diapositivas.presentar(url, desde: modelo.pagina) { [weak self] i in
+                guard let self, let p = self.vistaPDF.document?.page(at: i) else { return }
+                self.vistaPDF.go(to: p)
+            }
+            return
+        }
         if let a = antesDePresentar {
             modelo.presentando = false
             antesDePresentar = nil

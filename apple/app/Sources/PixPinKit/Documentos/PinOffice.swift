@@ -69,8 +69,10 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
             }
         }
         let nombre = url.lastPathComponent
+        // Un PowerPoint se presenta (D9), como el boton del lector.
+        let presentar: (() -> Void)? = Diapositivas.sePresenta(url) ? { Diapositivas.presentar(url) } : nil
         let barra = BarraFlotante(ventana: panel) {
-            BarraPinOffice(nombre: nombre, ventana: RefVentana(panel), leer: leer)
+            BarraPinOffice(nombre: nombre, ventana: RefVentana(panel), leer: leer, presentar: presentar)
         }
         panel.contentView = vista
         abiertos[clave] = Abierto(panel: panel, vista: vista, barra: barra)
@@ -97,12 +99,14 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
 }
 
 /// **La barra del pin de Office**, como la de los lectores de Windows: el
-/// asa y el nombre a la izquierda, y a la derecha «Leer y anotar», el pin
+/// asa y el nombre a la izquierda, y a la derecha «Leer y anotar», presentar
+/// (un PowerPoint), el pin
 /// (siempre encima o no) y la ✕. Flota encima del panel (`BarraFlotante`).
 struct BarraPinOffice: View {
     let nombre: String
     let ventana: RefVentana
     let leer: (() -> Void)?
+    var presentar: (() -> Void)?
     @State private var encima = true
 
     var body: some View {
@@ -117,6 +121,9 @@ struct BarraPinOffice: View {
                 .fixedSize(horizontal: true, vertical: false)
             if let leer {
                 BotonFlotante(simbolo: "pencil.tip", ayuda: "Leer y anotar: abrirlo en el lector", accion: leer)
+            }
+            if let presentar {
+                BotonFlotante(simbolo: "play.fill", ayuda: "Presentar", accion: presentar)
             }
             BotonFlotante(simbolo: encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
                        encendido: encima) {

@@ -13,13 +13,19 @@ import SwiftUI
 public enum AbrirDocumento {
     /// **Abre un documento como toca**: un PDF en el lector con tinta; un
     /// Word, Excel, PowerPoint, ODF, RTF, CSV o EPUB al instante en un pin de
-    /// Vista Rapida; un `.md` en el editor de notas. `false` si no es un
+    /// Vista Rapida; un `.md` en el editor de notas; un `.html` en su visor.
+    /// `false` si no es un
     /// documento de estos.
     @discardableResult
     public static func abrir(_ url: URL, nucleo: Nucleo, titulo: String? = nil) -> Bool {
         // Un `.md`, en el editor de notas (como Windows: `notas_md::es_markdown`).
         if ["md", "markdown"].contains(url.pathExtension.lowercased()) {
             EditoresDeNotas.compartidos.abrir(fichero: url, nucleo: nucleo)
+            return true
+        }
+        // Un `.html`, en el visor propio (D9, `visor_html.rs` de Windows).
+        if VisorHtml.seAbre(url) {
+            VisorHtml.compartido.abrir(url, nucleo: nucleo)
             return true
         }
         switch TiposDeDocumento.clase(de: url) {
@@ -53,6 +59,9 @@ struct MenuDeDocumento: View {
         case .officePaginado:
             Button("Abrir en un pin") { PinesDeOffice.compartidos.abrir(url, nucleo: nucleo) }
             Button("Leer y anotar") { AbrirDocumento.leerYAnotar(url, nucleo: nucleo) }
+            if Diapositivas.sePresenta(url) {
+                Button("Presentar") { Diapositivas.presentar(url) }
+            }
         case .vistaRapida:
             Button("Abrir en un pin") { PinesDeOffice.compartidos.abrir(url, nucleo: nucleo) }
         case .otro:
