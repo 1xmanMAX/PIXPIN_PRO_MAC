@@ -173,6 +173,11 @@ public final class HacerPedidos {
     }
 
     func hacerYa(_ p: Pedido) async {
+        // Dentro de un paso «pedido al asistente» de una automatizacion, lo
+        // que la haria saltar otra vez no se hace (E6, sin bucles).
+        if let motivo = MotorAutomatizaciones.compartido.bloqueado(p.accion) {
+            return avisar("No se hizo: \(motivo).")
+        }
         switch p.accion {
         case "abrir": await abrir(p)
         case "ventana_principal":
@@ -215,6 +220,7 @@ public final class HacerPedidos {
         case "sincronizar": await sincronizar(p)
         case "enviar_al_movil": await alMovil(p)
         case "asistente": await preguntar(p)
+        case "automatizacion": await automatizacion(p)
         case "pines": pines(p.texto("operacion") ?? "")
         case "timeline": await timeline(p)
         case "leer_en_voz": leer(p)
@@ -614,8 +620,8 @@ public final class HacerPedidos {
     // MARK: Asistente, voz, timeline y texto
 
     private func preguntar(_ p: Pedido) async {
-        if p.texto("automatizacion") != nil {
-            return avisar("Las automatizaciones aún no están en el Mac.")
+        if let id = p.texto("automatizacion") {
+            return await automatizacion(Pedido("automatizacion", ["operacion": .texto("ejecutar"), "id": .texto(id)]))
         }
         let texto = p.texto("texto") ?? ""
         guard !texto.isEmpty else { return ventana("asistente") }
@@ -626,6 +632,57 @@ public final class HacerPedidos {
         await modelo.enviar(texto)
         let respuesta = modelo.burbujas.last { !$0.delUsuario }?.texto ?? ""
         avisar(respuesta.isEmpty ? "El asistente no contestó." : String(respuesta.prefix(400)))
+    }
+
+    /// `automatizacion` (E6): crear (la receta que manda el asistente tras
+    /// preguntar), encender, apagar, borrar (sin preguntar: quien lo manda
+    /// ya pregunto) o correr una ya. Lo hecho, en el globo, con los textos
+    /// de Windows.
+    private func automatizacion(_ p: Pedido) async {
+        guard let nucleo = almacen?.nucleo else { return avisar("No se pudo abrir la carpeta de datos de PixPin.") }
+        let operacion = p.texto("operacion") ?? ""
+        if operacion == "crear" {
+            guard let receta = p["receta"], !receta.esNulo else {
+                return avisar("No se pudo guardar la automatización: falta la receta")
+            }
+            let texto = receta.texto ?? receta.json
+            do {
+                let nombre = try await Task.detached { try nucleo.automatizacionDeReceta(recetaJson: texto) }.value
+                NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                avisar("Automatización «\(nombre)» creada.")
+            } catch {
+                avisar("No se pudo guardar la automatización: \(ModeloAjustes.texto(de: error))")
+            }
+            return
+        }
+        guard ["activar", "desactivar", "borrar", "ejecutar"].contains(operacion) else {
+            return avisar("Las automatizaciones no saben «\(operacion)».")
+        }
+        guard let id = p.texto("id") else { return avisar("Falta el id de la automatización.") }
+        do {
+            let nombre: String? = try await Task.detached { () throws -> String? in
+                switch operacion {
+                case "activar", "desactivar":
+                    return try nucleo.automatizacionActivar(id: id, activa: operacion == "activar")
+                case "borrar":
+                    return try nucleo.automatizacionBorrar(id: id)
+                default:
+                    return try nucleo.automatizaciones().first { $0.id == id && $0.rota == nil }?.nombre
+                }
+            }.value
+            guard let nombre else { return avisar("No hay ninguna automatización «\(id)».") }
+            switch operacion {
+            case "activar": avisar("Automatización «\(nombre)» encendida.")
+            case "desactivar": avisar("Automatización «\(nombre)» apagada.")
+            case "borrar": avisar("Automatización «\(nombre)» borrada.")
+            default:
+                MotorAutomatizaciones.compartido.aMano(id)
+                avisar("Corriendo «\(nombre)»…")
+            }
+            if operacion != "ejecutar" { NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil) }
+        } catch {
+            avisar("No se pudo guardar la automatización: \(ModeloAjustes.texto(de: error))")
+        }
     }
 
     private func leer(_ p: Pedido) {

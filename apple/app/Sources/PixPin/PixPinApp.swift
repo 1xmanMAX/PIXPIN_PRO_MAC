@@ -118,6 +118,12 @@ struct PixPinApp: App {
                 .ventanaLisa()
             }
             .defaultSize(width: 520, height: 640)
+            // Las automatizaciones del asistente (E6).
+            Window("Automatizaciones", id: "automatizaciones") {
+                ConAlmacen(estado.almacen, error: estado.error) { VentanaAutomatizaciones(almacen: $0) }
+                    .ventanaLisa()
+            }
+            .defaultSize(width: 720, height: 600)
         }
     }
 }
@@ -156,13 +162,16 @@ final class EstadoApp: ObservableObject {
         self.sincro = sincro
         ajustes = almacen.map { ModeloAjustes(nucleo: $0.nucleo, sincro: sincro) }
         if let almacen, let sincro {
-            sincro.alTraerCambios = { [weak almacen] in
+            sincro.alTraerCambios = { [weak almacen, weak sincro] in
                 Task { await almacen?.cargarChats() }
                 // Un temporizador o una alarma puestos en otro aparato
                 // tambien suenan aqui.
                 AvisosMini.compartido.reprogramar()
                 // Y un recordatorio puesto en el movil (A4).
                 Recordatorios.compartido.releer()
+                // Las automatizaciones «al sincronizar» (E6) y las que
+                // llegaron de otro aparato.
+                MotorAutomatizaciones.compartido.alSincronizar(sincro?.ultimoResultado ?? "")
             }
             sincro.arrancar()
         }
@@ -186,6 +195,9 @@ final class EstadoApp: ObservableObject {
         // notificaciones comunes (C4).
         CentroAvisos.compartido.preparar()
         if let nucleo = almacen?.nucleo { Recordatorios.compartido.vigilar(nucleo: nucleo) }
+        // Las automatizaciones (E6): la hora, las capturas nuevas y la
+        // sincronizacion las hacen saltar.
+        if let nucleo = almacen?.nucleo { MotorAutomatizaciones.compartido.arrancar(nucleo: nucleo, almacen: almacen) }
         capturador.alSacarTexto = { imagen in
             Task {
                 guard let texto = try? await sacarTexto(de: imagen), !texto.isEmpty else {
@@ -354,6 +366,7 @@ struct MenuPrincipal: View {
             abrirVentana(id: "asistente")
             NSApp.activate()
         }
+        Button("Automatizaciones…") { abrir("automatizaciones") }
         Button("Buscar en PixPin…") { atajos.ejecutar(.buscar) }
             .atajo(.buscar, atajos, siNo: KeyboardShortcut("f", modifiers: [.command, .option]))
         Button("Galería de capturas…") { abrir(IdVentana.galeria) }
