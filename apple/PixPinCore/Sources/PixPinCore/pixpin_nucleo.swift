@@ -2512,14 +2512,44 @@ public func FfiConverterTypeEscucha_lower(_ value: Escucha) -> UInt64 {
 
 
 /**
- * **Una hoja de calculo del chat abierta para editar.**
+ * **Una hoja de calculo del chat abierta para editar**: un libro con sus
+ * hojas en pestanas (una tabla suelta es un libro de una hoja). Lo que no
+ * dice que hoja, es de la activa.
  */
 public protocol HojaDeCalculoProtocol: AnyObject, Sendable {
+    
+    /**
+     * La hoja que se ve.
+     */
+    func activa()  -> UInt32
     
     /**
      * Los anchos puestos a mano.
      */
     func anchos()  -> [AnchoColumna]
+    
+    /**
+     * **Si hay que avisar de que el archivo original no cambia**: la
+     * primera vez que se edita un libro que aun no tiene tablas en el chat.
+     * Una vez por hoja abierta.
+     */
+    func avisoAlEditar()  -> Bool
+    
+    /**
+     * Suprimir: vacia lo elegido (el formato se queda, como en Excel).
+     */
+    func borrarSeleccion()  -> Bool
+    
+    /**
+     * Pasa a otra hoja (lo tecleado en la que se deja ya se confirmo).
+     */
+    func cambiarHoja(hoja: UInt32) 
+    
+    /**
+     * Cuantos cambios lleva (sube tambien al deshacer): si cambia, lo que
+     * se ve hay que pedirlo otra vez.
+     */
+    func cambios()  -> UInt64
     
     /**
      * **Las celdas con algo del rectangulo** `filas x columnas` (desde 0,
@@ -2533,20 +2563,62 @@ public protocol HojaDeCalculoProtocol: AnyObject, Sendable {
     func contenido(fila: UInt32, columna: UInt32)  -> String
     
     /**
+     * **Copia lo elegido** (texto con tabuladores y HTML).
+     */
+    func copiar()  -> CopiaHoja
+    
+    /**
+     * Deshace el ultimo cambio (vuelve a su hoja y a su seleccion).
+     */
+    func deshacer()  -> Bool
+    
+    /**
+     * Elige un rango (el ancla y la celda activa; las dos iguales, una
+     * celda).
+     */
+    func elegir(s: SeleccionHoja) 
+    
+    /**
      * El formato de una celda (`None` sin formato).
      */
     func estilo(fila: UInt32, columna: UInt32)  -> EstiloCeldaHoja?
     
     /**
-     * **Guarda** donde vive la tabla (ver la doc del modulo). Devuelve si
-     * escribio algo. Bloqueante: Swift lo llama fuera del hilo principal.
+     * **Un cambio de formato en todo lo elegido**, como un solo paso de
+     * deshacer (un interruptor se pone si alguna celda no lo tiene y se
+     * quita si ya lo tienen todas). `false` si no cambio nada o el rango es
+     * demasiado grande.
+     */
+    func formato(f: FormatoHoja)  -> Bool
+    
+    /**
+     * **Guarda** donde vive cada hoja (ver la doc del modulo y
+     * `Editable::guardar` de Windows). Devuelve si escribio algo.
+     * Bloqueante: Swift lo llama fuera del hilo principal.
      */
     func guardar() throws  -> Bool
     
+    /**
+     * **Las pestanas**: el nombre de cada hoja, en su orden (sin el
+     * «libro · » que les pone `importar_hojas`).
+     */
+    func hojas()  -> [String]
+    
+    /**
+     * El nombre de la hoja activa.
+     */
     func nombre()  -> String
     
     /**
-     * **Escribe una celda** (vacio la quita). Devuelve si cambio algo.
+     * **Pega** lo del portapapeles (la tabla HTML de Excel o Sheets, o
+     * texto con tabuladores) con la esquina en la celda activa, como un
+     * solo paso de deshacer. Lo pegado queda elegido.
+     */
+    func pegar(html: String?, texto: String?)  -> Bool
+    
+    /**
+     * **Escribe una celda** (vacio la quita), como un paso de deshacer.
+     * Devuelve si cambio algo.
      */
     func poner(fila: UInt32, columna: UInt32, contenido: String)  -> Bool
     
@@ -2561,6 +2633,22 @@ public protocol HojaDeCalculoProtocol: AnyObject, Sendable {
      */
     func ponerEstilo(fila: UInt32, columna: UInt32, estilo: EstiloCeldaHoja)  -> Bool
     
+    func puedeDeshacer()  -> Bool
+    
+    func puedeRehacer()  -> Bool
+    
+    func rehacer()  -> Bool
+    
+    /**
+     * El archivo del libro (para «Abrir con su programa»), si lo es.
+     */
+    func rutaOriginal()  -> String?
+    
+    /**
+     * Lo elegido en la hoja activa.
+     */
+    func seleccion()  -> SeleccionHoja
+    
     /**
      * Hasta donde llega lo escrito: `[columnas, filas]`.
      */
@@ -2573,7 +2661,9 @@ public protocol HojaDeCalculoProtocol: AnyObject, Sendable {
     
 }
 /**
- * **Una hoja de calculo del chat abierta para editar.**
+ * **Una hoja de calculo del chat abierta para editar**: un libro con sus
+ * hojas en pestanas (una tabla suelta es un libro de una hoja). Lo que no
+ * dice que hoja, es de la activa.
  */
 open class HojaDeCalculo: HojaDeCalculoProtocol, @unchecked Sendable {
     fileprivate let handle: UInt64
@@ -2629,12 +2719,75 @@ open class HojaDeCalculo: HojaDeCalculoProtocol, @unchecked Sendable {
 
     
     /**
+     * La hoja que se ve.
+     */
+open func activa() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_activa(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Los anchos puestos a mano.
      */
 open func anchos() -> [AnchoColumna]  {
     return try!  FfiConverterSequenceTypeAnchoColumna.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_hojadecalculo_anchos(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Si hay que avisar de que el archivo original no cambia**: la
+     * primera vez que se edita un libro que aun no tiene tablas en el chat.
+     * Una vez por hoja abierta.
+     */
+open func avisoAlEditar() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_aviso_al_editar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Suprimir: vacia lo elegido (el formato se queda, como en Excel).
+     */
+open func borrarSeleccion() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_borrar_seleccion(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Pasa a otra hoja (lo tecleado en la que se deja ya se confirmo).
+     */
+open func cambiarHoja(hoja: UInt32)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_cambiar_hoja(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(hoja),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Cuantos cambios lleva (sube tambien al deshacer): si cambia, lo que
+     * se ve hay que pedirlo otra vez.
+     */
+open func cambios() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_cambios(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
@@ -2672,6 +2825,43 @@ open func contenido(fila: UInt32, columna: UInt32) -> String  {
 }
     
     /**
+     * **Copia lo elegido** (texto con tabuladores y HTML).
+     */
+open func copiar() -> CopiaHoja  {
+    return try!  FfiConverterTypeCopiaHoja_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_copiar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Deshace el ultimo cambio (vuelve a su hoja y a su seleccion).
+     */
+open func deshacer() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_deshacer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Elige un rango (el ancla y la celda activa; las dos iguales, una
+     * celda).
+     */
+open func elegir(s: SeleccionHoja)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_elegir(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSeleccionHoja_lower(s),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * El formato de una celda (`None` sin formato).
      */
 open func estilo(fila: UInt32, columna: UInt32) -> EstiloCeldaHoja?  {
@@ -2686,8 +2876,25 @@ open func estilo(fila: UInt32, columna: UInt32) -> EstiloCeldaHoja?  {
 }
     
     /**
-     * **Guarda** donde vive la tabla (ver la doc del modulo). Devuelve si
-     * escribio algo. Bloqueante: Swift lo llama fuera del hilo principal.
+     * **Un cambio de formato en todo lo elegido**, como un solo paso de
+     * deshacer (un interruptor se pone si alguna celda no lo tiene y se
+     * quita si ya lo tienen todas). `false` si no cambio nada o el rango es
+     * demasiado grande.
+     */
+open func formato(f: FormatoHoja) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_formato(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeFormatoHoja_lower(f),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Guarda** donde vive cada hoja (ver la doc del modulo y
+     * `Editable::guardar` de Windows). Devuelve si escribio algo.
+     * Bloqueante: Swift lo llama fuera del hilo principal.
      */
 open func guardar()throws  -> Bool  {
     return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -2698,6 +2905,22 @@ open func guardar()throws  -> Bool  {
 })
 }
     
+    /**
+     * **Las pestanas**: el nombre de cada hoja, en su orden (sin el
+     * «libro · » que les pone `importar_hojas`).
+     */
+open func hojas() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_hojas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El nombre de la hoja activa.
+     */
 open func nombre() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
         uniffiCallStatus in
@@ -2708,7 +2931,24 @@ open func nombre() -> String  {
 }
     
     /**
-     * **Escribe una celda** (vacio la quita). Devuelve si cambio algo.
+     * **Pega** lo del portapapeles (la tabla HTML de Excel o Sheets, o
+     * texto con tabuladores) con la esquina en la celda activa, como un
+     * solo paso de deshacer. Lo pegado queda elegido.
+     */
+open func pegar(html: String?, texto: String?) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_pegar(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(html),
+        FfiConverterOptionString.lower(texto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Escribe una celda** (vacio la quita), como un paso de deshacer.
+     * Devuelve si cambio algo.
      */
 open func poner(fila: UInt32, columna: UInt32, contenido: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -2748,6 +2988,57 @@ open func ponerEstilo(fila: UInt32, columna: UInt32, estilo: EstiloCeldaHoja) ->
         FfiConverterUInt32.lower(fila),
         FfiConverterUInt32.lower(columna),
         FfiConverterTypeEstiloCeldaHoja_lower(estilo),uniffiCallStatus
+    )
+})
+}
+    
+open func puedeDeshacer() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_puede_deshacer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func puedeRehacer() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_puede_rehacer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func rehacer() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_rehacer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El archivo del libro (para «Abrir con su programa»), si lo es.
+     */
+open func rutaOriginal() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_ruta_original(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo elegido en la hoja activa.
+     */
+open func seleccion() -> SeleccionHoja  {
+    return try!  FfiConverterTypeSeleccionHoja_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_hojadecalculo_seleccion(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -4544,9 +4835,10 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     
     /**
      * **Abre la hoja de calculo de un mensaje**: una tabla del PC (`MINIAPP`
-     * tabla) o del movil (`TABLA`). `NoExiste` si el mensaje no esta o su
-     * fichero aun no llego (mejor no abrir que abrir en blanco y guardar
-     * encima); `Argumento` si no es una tabla.
+     * tabla), una del movil (`TABLA`) o un libro del chat (Excel,
+     * OpenDocument, CSV) con todas sus hojas. `NoExiste` si el mensaje no
+     * esta o su fichero aun no llego (mejor no abrir que abrir en blanco y
+     * guardar encima); `Argumento` si no es una hoja o no se lee.
      */
     func abrirHojaDeCalculo(chat: String, mensaje: String) throws  -> HojaDeCalculo
     
@@ -4559,8 +4851,8 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     
     /**
      * Si el mensaje es una hoja de calculo que se abre con
-     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla). Un Excel lo es
-     * solo si trae hojas viejas del movil sin pasar a mensajes.
+     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla): una tabla, o
+     * un libro (no `.xls`) que este en este equipo o tenga ya sus hojas.
      */
     func esHojaDeCalculo(chat: String, mensaje: String)  -> Bool
     
@@ -6470,9 +6762,10 @@ open func prorrogarCaptura(nombre: String, dias: Int64)throws  -> Int64?  {
     
     /**
      * **Abre la hoja de calculo de un mensaje**: una tabla del PC (`MINIAPP`
-     * tabla) o del movil (`TABLA`). `NoExiste` si el mensaje no esta o su
-     * fichero aun no llego (mejor no abrir que abrir en blanco y guardar
-     * encima); `Argumento` si no es una tabla.
+     * tabla), una del movil (`TABLA`) o un libro del chat (Excel,
+     * OpenDocument, CSV) con todas sus hojas. `NoExiste` si el mensaje no
+     * esta o su fichero aun no llego (mejor no abrir que abrir en blanco y
+     * guardar encima); `Argumento` si no es una hoja o no se lee.
      */
 open func abrirHojaDeCalculo(chat: String, mensaje: String)throws  -> HojaDeCalculo  {
     return try  FfiConverterTypeHojaDeCalculo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -6503,8 +6796,8 @@ open func crearTabla(chat: String, nombre: String)throws  -> MensajeChat  {
     
     /**
      * Si el mensaje es una hoja de calculo que se abre con
-     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla). Un Excel lo es
-     * solo si trae hojas viejas del movil sin pasar a mensajes.
+     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla): una tabla, o
+     * un libro (no `.xls`) que este en este equipo o tenga ya sus hojas.
      */
 open func esHojaDeCalculo(chat: String, mensaje: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -11282,6 +11575,63 @@ public func FfiConverterTypeColorEstilo_lower(_ value: ColorEstilo) -> RustBuffe
 
 
 /**
+ * Un color de la barra de formato: `#rrggbb` y su nombre.
+ */
+public struct ColorHoja: Equatable, Hashable {
+    public var hex: String
+    public var nombre: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(hex: String, nombre: String) {
+        self.hex = hex
+        self.nombre = nombre
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ColorHoja: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeColorHoja: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ColorHoja {
+        return
+            try ColorHoja(
+                hex: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ColorHoja, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.hex, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeColorHoja_lift(_ buf: RustBuffer) throws -> ColorHoja {
+    return try FfiConverterTypeColorHoja.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeColorHoja_lower(_ value: ColorHoja) -> RustBuffer {
+    return FfiConverterTypeColorHoja.lower(value)
+}
+
+
+/**
  * **Lo de dentro de un mosaico o de una lupa**, para pintarlo en un mapa.
  *
  * La imagen cubre la caja `(x, y, ancho, alto)` del mundo. Dentro, un
@@ -11503,6 +11853,64 @@ public func FfiConverterTypeCopiaDeSeguridad_lift(_ buf: RustBuffer) throws -> C
 #endif
 public func FfiConverterTypeCopiaDeSeguridad_lower(_ value: CopiaDeSeguridad) -> RustBuffer {
     return FfiConverterTypeCopiaDeSeguridad.lower(value)
+}
+
+
+/**
+ * Lo copiado: el texto con tabuladores (los valores) y la tabla HTML (las
+ * formulas), como lo copian Excel y Windows.
+ */
+public struct CopiaHoja: Equatable, Hashable {
+    public var texto: String
+    public var html: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(texto: String, html: String) {
+        self.texto = texto
+        self.html = html
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CopiaHoja: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCopiaHoja: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CopiaHoja {
+        return
+            try CopiaHoja(
+                texto: FfiConverterString.read(from: &buf), 
+                html: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CopiaHoja, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterString.write(value.html, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCopiaHoja_lift(_ buf: RustBuffer) throws -> CopiaHoja {
+    return try FfiConverterTypeCopiaHoja.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCopiaHoja_lower(_ value: CopiaHoja) -> RustBuffer {
+    return FfiConverterTypeCopiaHoja.lower(value)
 }
 
 
@@ -18784,6 +19192,71 @@ public func FfiConverterTypeSegmentoVoz_lower(_ value: SegmentoVoz) -> RustBuffe
 
 
 /**
+ * Lo elegido: el ancla y la celda activa (desde 0).
+ */
+public struct SeleccionHoja: Equatable, Hashable {
+    public var anclaFila: UInt32
+    public var anclaColumna: UInt32
+    public var fila: UInt32
+    public var columna: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(anclaFila: UInt32, anclaColumna: UInt32, fila: UInt32, columna: UInt32) {
+        self.anclaFila = anclaFila
+        self.anclaColumna = anclaColumna
+        self.fila = fila
+        self.columna = columna
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SeleccionHoja: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSeleccionHoja: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SeleccionHoja {
+        return
+            try SeleccionHoja(
+                anclaFila: FfiConverterUInt32.read(from: &buf), 
+                anclaColumna: FfiConverterUInt32.read(from: &buf), 
+                fila: FfiConverterUInt32.read(from: &buf), 
+                columna: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SeleccionHoja, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.anclaFila, into: &buf)
+        FfiConverterUInt32.write(value.anclaColumna, into: &buf)
+        FfiConverterUInt32.write(value.fila, into: &buf)
+        FfiConverterUInt32.write(value.columna, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeleccionHoja_lift(_ buf: RustBuffer) throws -> SeleccionHoja {
+    return try FfiConverterTypeSeleccionHoja.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeleccionHoja_lower(_ value: SeleccionHoja) -> RustBuffer {
+    return FfiConverterTypeSeleccionHoja.lower(value)
+}
+
+
+/**
  * Una tarea de una lista.
  */
 public struct Tarea: Equatable, Hashable {
@@ -22159,6 +22632,169 @@ public func FfiConverterTypeFinRecibir_lower(_ value: FinRecibir) -> RustBuffer 
 
 
 /**
+ * **Un cambio de formato en lo elegido** (`editor::Formato`): los botones y
+ * los atajos de la barra de formato.
+ */
+
+public enum FormatoHoja: Equatable, Hashable {
+    
+    case negrita
+    case cursiva
+    case subrayado
+    case tachado
+    case ajustar
+    /**
+     * El fondo `#rrggbb`; `None`, sin color.
+     */
+    case fondo(color: String?
+    )
+    /**
+     * El color de la letra; `None`, el automatico.
+     */
+    case letra(color: String?
+    )
+    /**
+     * `i`, `c` o `d`; la misma otra vez la quita.
+     */
+    case alinear(alineacion: String
+    )
+    /**
+     * La siguiente alineacion (el boton, como el movil).
+     */
+    case alinearSiguiente
+    /**
+     * `numero`, `moneda`, `porcentaje`, `fecha`; `None`, General.
+     */
+    case numero(formato: String?
+    )
+    /**
+     * Quitar todo el formato.
+     */
+    case borrar
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FormatoHoja: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFormatoHoja: FfiConverterRustBuffer {
+    typealias SwiftType = FormatoHoja
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FormatoHoja {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .negrita
+        
+        case 2: return .cursiva
+        
+        case 3: return .subrayado
+        
+        case 4: return .tachado
+        
+        case 5: return .ajustar
+        
+        case 6: return .fondo(color: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 7: return .letra(color: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 8: return .alinear(alineacion: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 9: return .alinearSiguiente
+        
+        case 10: return .numero(formato: try FfiConverterOptionString.read(from: &buf)
+        )
+        
+        case 11: return .borrar
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FormatoHoja, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .negrita:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .cursiva:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .subrayado:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .tachado:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .ajustar:
+            writeInt(&buf, Int32(5))
+        
+        
+        case let .fondo(color):
+            writeInt(&buf, Int32(6))
+            FfiConverterOptionString.write(color, into: &buf)
+            
+        
+        case let .letra(color):
+            writeInt(&buf, Int32(7))
+            FfiConverterOptionString.write(color, into: &buf)
+            
+        
+        case let .alinear(alineacion):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(alineacion, into: &buf)
+            
+        
+        case .alinearSiguiente:
+            writeInt(&buf, Int32(9))
+        
+        
+        case let .numero(formato):
+            writeInt(&buf, Int32(10))
+            FfiConverterOptionString.write(formato, into: &buf)
+            
+        
+        case .borrar:
+            writeInt(&buf, Int32(11))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFormatoHoja_lift(_ buf: RustBuffer) throws -> FormatoHoja {
+    return try FfiConverterTypeFormatoHoja.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFormatoHoja_lower(_ value: FormatoHoja) -> RustBuffer {
+    return FfiConverterTypeFormatoHoja.lower(value)
+}
+
+
+
+/**
  * **Lo que el usuario tiene delante en este Mac** (el `Frente` de
  * Windows): a donde va un archivo suelto que llega de otro aparato. Gana lo
  * ultimo que se puso; Swift lo pone al abrir un chat o un lienzo y lo
@@ -25512,6 +26148,31 @@ fileprivate struct FfiConverterSequenceTypeChatCompartidoMac: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeColorHoja: FfiConverterRustBuffer {
+    typealias SwiftType = [ColorHoja]
+
+    public static func write(_ value: [ColorHoja], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeColorHoja.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ColorHoja] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ColorHoja]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeColorHoja.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCopiaDeSeguridad: FfiConverterRustBuffer {
     typealias SwiftType = [CopiaDeSeguridad]
 
@@ -27133,6 +27794,26 @@ public func tipoDeServicioRecibir() -> String  {
 })
 }
 /**
+ * Los colores de letra: los fuertes de la paleta de Excel.
+ */
+public func hojaColoresDeLetra() -> [ColorHoja]  {
+    return try!  FfiConverterSequenceTypeColorHoja.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_hoja_colores_de_letra(uniffiCallStatus
+    )
+})
+}
+/**
+ * Los fondos de «Resaltar»: la paleta del movil, en su orden.
+ */
+public func hojaFondos() -> [ColorHoja]  {
+    return try!  FfiConverterSequenceTypeColorHoja.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_hoja_fondos(uniffiCallStatus
+    )
+})
+}
+/**
  * Borra la clave del proveedor.
  */
 public func iaBorrarClave(proveedorId: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -28022,6 +28703,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_recibir() != 11481) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_hoja_colores_de_letra() != 29542) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_hoja_fondos() != 8002) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_borrar_clave() != 36941) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -28490,13 +29177,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_prorrogar_captura() != 30433) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_hoja_de_calculo() != 65164) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_hoja_de_calculo() != 48889) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_tabla() != 57188) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_es_hoja_de_calculo() != 39310) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_es_hoja_de_calculo() != 30308) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntos_de_leccion() != 13576) {
@@ -28874,7 +29561,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_puertarecibir_texto_del_qr() != 34867) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_activa() != 19804) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_anchos() != 15869) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_aviso_al_editar() != 29894) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_borrar_seleccion() != 29981) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_cambiar_hoja() != 20204) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_cambios() != 37737) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_celdas() != 62917) {
@@ -28883,22 +29585,55 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_contenido() != 11965) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_copiar() != 17315) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_deshacer() != 32675) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_elegir() != 6181) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_estilo() != 60117) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_guardar() != 17237) {
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_formato() != 51191) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_nombre() != 59729) {
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_guardar() != 39297) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_poner() != 15619) {
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_hojas() != 10523) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_nombre() != 38088) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_pegar() != 8046) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_poner() != 48971) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_poner_ancho() != 30595) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_poner_estilo() != 279) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_puede_deshacer() != 9375) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_puede_rehacer() != 62416) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_rehacer() != 22388) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_ruta_original() != 4674) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_seleccion() != 8823) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_tamano() != 17230) {

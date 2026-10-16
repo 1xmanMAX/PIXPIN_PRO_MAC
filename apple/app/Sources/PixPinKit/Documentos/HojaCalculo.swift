@@ -1,8 +1,18 @@
 // **El editor de hojas de calculo** del chat: una tabla del PC (mensaje
-// `MINIAPP` tabla) o del movil (`TABLA`, `tablas/<ref>.json`), editada celda
-// a celda y guardada donde la guarda Windows (`HojaDeCalculo` de Rust, el
-// `hoja_pin` de Windows). Las formulas las calcula el motor de
-// `pixpin-proyecto` (el mismo `=SUMA(...)` que Windows).
+// `MINIAPP` tabla), una del movil (`TABLA`, `tablas/<ref>.json`) o un libro
+// del chat (Excel, OpenDocument, CSV) con todas sus hojas en pestanas,
+// guardado donde lo guarda Windows (`HojaDeCalculo` de Rust, el `hoja_pin`
+// de Windows): cada hoja de un libro pasa a ser una tabla del chat y el
+// archivo no cambia. Las formulas las calcula el motor de `pixpin-proyecto`
+// (el mismo `=SUMA(...)` que Windows).
+//
+// Lo de Windows (D5): elegir un rango (⇧ + flechas o ⇧ + clic), formato de
+// todo lo elegido como un paso de deshacer (negrita, cursiva, subrayado,
+// tachado, ajustar, resaltar, color de letra, alinear, formato de numero,
+// borrar formato), deshacer y rehacer, copiar, cortar y pegar (con Excel y
+// Sheets: texto con tabuladores y tabla HTML), y sus teclas con ⌘
+// (`AccionHoja.de`): ⌘B, ⌘I, ⌘U, ⌘5, ⇧⌘L/E/R, F2, ⌘Z/⇧⌘Z/⌘Y, ⌘C/X/V, ⌫.
+// ⌘N, ⌘K y ⌘S (los otros de Windows) son de macOS y no se usan.
 //
 // Rendimiento (§4bis): la rejilla es un `NSTableView` (solo existen las
 // filas que se ven) y las celdas se piden a Rust por bloques de 100 filas,
@@ -69,8 +79,98 @@ func colorDeHex(_ hex: String?) -> NSColor? {
                    blue: CGFloat(v & 0xFF) / 255, alpha: 1)
 }
 
-/// La rejilla: las flechas mueven la celda elegida, escribir empieza a
-/// editarla en la barra de formulas, Suprimir la vacia.
+/// **Lo que hace una tecla en la hoja** (`hoja_pin::accion_de_tecla` de
+/// Windows, con ⌘ donde Windows pone Ctrl). Pura: se prueba sin ventanas.
+public enum AccionHoja: Equatable {
+    case deshacer, rehacer, copiar, cortar, pegar, elegirTodo
+    case formato(FormatoHoja)
+    /// F2: escribir en la celda con lo que tiene.
+    case empezar
+    /// Suprimir o ⌫ sin escribir: vaciar lo elegido.
+    case borrar
+    /// Escribiendo, Esc deja la celda como estaba.
+    case cancelar
+    /// La hoja de al lado (⌃⇟ / ⌃⇞ y ⌥⌘→ / ⌥⌘←).
+    case hojaSiguiente, hojaAnterior
+    /// ⌘ + flecha: al borde de lo escrito.
+    case borde(dx: Int, dy: Int)
+
+    /// Las teclas de Mac (`keyCode`) que usa.
+    public enum Tecla {
+        public static let izquierda: UInt16 = 123, derecha: UInt16 = 124, abajo: UInt16 = 125, arriba: UInt16 = 126
+        public static let retroceso: UInt16 = 51, suprimir: UInt16 = 117, escape: UInt16 = 53, f2: UInt16 = 120
+        public static let rePag: UInt16 = 116, avPag: UInt16 = 121
+    }
+
+    /// `letra`: lo que da la tecla sin modificadores (`charactersIgnoringModifiers`).
+    public static func de(tecla: UInt16, letra: String, mayus: Bool, comando: Bool, opcion: Bool, control: Bool,
+                          escribiendo: Bool) -> AccionHoja? {
+        let l = letra.lowercased()
+        if control, !comando {
+            switch tecla {
+            case Tecla.avPag: return .hojaSiguiente
+            case Tecla.rePag: return .hojaAnterior
+            default: return nil
+            }
+        }
+        if comando {
+            if opcion {
+                switch tecla {
+                case Tecla.derecha: return .hojaSiguiente
+                case Tecla.izquierda: return .hojaAnterior
+                default: return nil
+                }
+            }
+            // Escribiendo, deshacer, copiar y pegar son del texto de la barra.
+            if !escribiendo {
+                switch (l, mayus) {
+                case ("z", true): return .rehacer
+                case ("z", false): return .deshacer
+                case ("y", _): return .rehacer
+                case ("c", false): return .copiar
+                case ("x", false): return .cortar
+                case ("v", false): return .pegar
+                case ("a", false): return .elegirTodo
+                default: break
+                }
+                switch tecla {
+                case Tecla.arriba: return .borde(dx: 0, dy: -1)
+                case Tecla.abajo: return .borde(dx: 0, dy: 1)
+                case Tecla.izquierda: return .borde(dx: -1, dy: 0)
+                case Tecla.derecha: return .borde(dx: 1, dy: 0)
+                default: break
+                }
+            }
+            if mayus {
+                switch l {
+                case "l": return .formato(.alinear(alineacion: "i"))
+                case "e": return .formato(.alinear(alineacion: "c"))
+                case "r": return .formato(.alinear(alineacion: "d"))
+                case "x": return .formato(.tachado)
+                default: return nil
+                }
+            }
+            switch l {
+            case "b": return .formato(.negrita)
+            case "i": return .formato(.cursiva)
+            case "u": return .formato(.subrayado)
+            case "5": return .formato(.tachado)
+            default: return nil
+            }
+        }
+        if opcion { return nil }
+        switch tecla {
+        case Tecla.escape where escribiendo: return .cancelar
+        case Tecla.f2: return .empezar
+        case Tecla.retroceso, Tecla.suprimir: return escribiendo ? nil : .borrar
+        default: return nil
+        }
+    }
+}
+
+/// La rejilla: las flechas mueven la celda elegida (con ⇧, alargan lo
+/// elegido), escribir empieza a editarla en la barra de formulas,
+/// Suprimir la vacia; las teclas con ⌘ van antes que los menus del Mac.
 final class RejillaHoja: NSTableView {
     weak var controlador: ControladorHoja?
 
@@ -78,6 +178,20 @@ final class RejillaHoja: NSTableView {
         if let c = controlador, c.tecla(event) { return }
         super.keyDown(with: event)
     }
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let c = controlador, c.atajo(event) { return true }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    // Los del menu Edicion, por si llegan por el.
+    @objc func copy(_ sender: Any?) { controlador?.hacer(.copiar) }
+    @objc func cut(_ sender: Any?) { controlador?.hacer(.cortar) }
+    @objc func paste(_ sender: Any?) { controlador?.hacer(.pegar) }
+    @objc func undo(_ sender: Any?) { controlador?.hacer(.deshacer) }
+    @objc func redo(_ sender: Any?) { controlador?.hacer(.rehacer) }
+    override func selectAll(_ sender: Any?) { controlador?.hacer(.elegirTodo) }
+    @objc func delete(_ sender: Any?) { controlador?.hacer(.borrar) }
 }
 
 @MainActor
@@ -88,19 +202,24 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private let rejilla = RejillaHoja()
     private let barra = NSTextField()
     private let referencia = NSTextField(labelWithString: "A1")
+    private let aviso = NSTextField(labelWithString: "")
+    private let pestanas = NSStackView()
     private var columnas = 26
     private var filas = 200
     private var bloques: [Int: [Int: [Int: CeldaHoja]]] = [:]
     private static let filasPorBloque = 100
+    /// La celda activa y el ancla de lo elegido.
     private var fila = 0
     private var columna = 0
+    private var anclaFila = 0
+    private var anclaColumna = 0
     private let colaGuardar = DispatchQueue(label: "pixpin.hoja.guardar", qos: .utility)
     private var guardado: DispatchWorkItem?
     var alCerrar: (@MainActor (ControladorHoja) -> Void)?
 
     init(hoja: HojaDeCalculo, titulo: String) {
         self.hoja = hoja
-        ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 640),
+        ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
                            styleMask: [.titled, .closable, .miniaturizable, .resizable],
                            backing: .buffered, defer: false)
         super.init()
@@ -111,6 +230,8 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         ventana.delegate = self
         montar()
         recalcularTamano()
+        let s = hoja.seleccion()
+        elegir(Int(s.fila), Int(s.columna))
     }
 
     private func boton(_ simbolo: String, _ ayuda: String, _ accion: Selector) -> NSButton {
@@ -119,6 +240,27 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         b.bezelStyle = .rounded
         b.toolTip = ayuda
         return b
+    }
+
+    private func menuDeColores(_ titulo: String, _ colores: [ColorHoja], sinColor: String, _ accion: Selector) -> NSPopUpButton {
+        let p = NSPopUpButton(frame: .zero, pullsDown: true)
+        p.addItem(withTitle: titulo)
+        p.addItem(withTitle: sinColor)
+        for c in colores {
+            p.addItem(withTitle: c.nombre)
+            if let color = colorDeHex(c.hex) {
+                let img = NSImage(size: NSSize(width: 12, height: 12), flipped: false) { r in
+                    color.setFill()
+                    NSBezierPath(roundedRect: r, xRadius: 2, yRadius: 2).fill()
+                    return true
+                }
+                p.lastItem?.image = img
+            }
+        }
+        p.target = self
+        p.action = accion
+        p.toolTip = titulo
+        return p
     }
 
     private func montar() {
@@ -133,25 +275,33 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         formato.target = self
         formato.action = #selector(elegirFormato(_:))
         formato.toolTip = "Formato del número"
-        let fondo = NSPopUpButton(frame: .zero, pullsDown: true)
-        fondo.addItems(withTitles: ["Fondo", "Sin fondo", "Amarillo", "Verde", "Azul", "Rojo", "Gris"])
-        fondo.target = self
-        fondo.action = #selector(elegirFondo(_:))
+        let fondo = menuDeColores("Resaltar", hojaFondos(), sinColor: "Sin color", #selector(elegirFondo(_:)))
+        let letra = menuDeColores("Color de letra", hojaColoresDeLetra(), sinColor: "Automático", #selector(elegirLetra(_:)))
         let arriba = NSStackView(views: [
             referencia, barra,
+            boton("arrow.uturn.backward", "Deshacer (⌘Z)", #selector(deshacer)),
+            boton("arrow.uturn.forward", "Rehacer (⇧⌘Z)", #selector(rehacer)),
             boton("bold", "Negrita (⌘B)", #selector(negrita)),
             boton("italic", "Cursiva (⌘I)", #selector(cursiva)),
             boton("underline", "Subrayado (⌘U)", #selector(subrayado)),
-            boton("strikethrough", "Tachado", #selector(tachado)),
-            boton("text.alignleft", "Izquierda", #selector(alinearIzquierda)),
-            boton("text.aligncenter", "Centro", #selector(alinearCentro)),
-            boton("text.alignright", "Derecha", #selector(alinearDerecha)),
-            formato, fondo,
+            boton("strikethrough", "Tachado (⌘5)", #selector(tachado)),
+            boton("text.alignleft", "Izquierda (⇧⌘L)", #selector(alinearIzquierda)),
+            boton("text.aligncenter", "Centro (⇧⌘E)", #selector(alinearCentro)),
+            boton("text.alignright", "Derecha (⇧⌘R)", #selector(alinearDerecha)),
+            boton("text.word.spacing", "Ajustar texto", #selector(ajustar)),
+            formato, fondo, letra,
+            boton("eraser", "Borrar formato", #selector(borrarFormato)),
         ])
         arriba.orientation = .horizontal
         arriba.spacing = 6
         arriba.edgeInsets = NSEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
         arriba.translatesAutoresizingMaskIntoConstraints = false
+        barra.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+
+        aviso.textColor = .secondaryLabelColor
+        aviso.font = .systemFont(ofSize: 11)
+        aviso.isHidden = true
+        aviso.translatesAutoresizingMaskIntoConstraints = false
 
         rejilla.controlador = self
         rejilla.dataSource = self
@@ -172,24 +322,80 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         scroll.hasHorizontalScroller = true
         scroll.translatesAutoresizingMaskIntoConstraints = false
 
+        // Las pestanas de las hojas, abajo como en Excel.
+        pestanas.orientation = .horizontal
+        pestanas.spacing = 2
+        pestanas.edgeInsets = NSEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
+        pestanas.translatesAutoresizingMaskIntoConstraints = false
+
         let raiz = NSView()
         raiz.addSubview(arriba)
+        raiz.addSubview(aviso)
         raiz.addSubview(scroll)
+        raiz.addSubview(pestanas)
         NSLayoutConstraint.activate([
             arriba.topAnchor.constraint(equalTo: raiz.topAnchor),
             arriba.leadingAnchor.constraint(equalTo: raiz.leadingAnchor),
-            arriba.trailingAnchor.constraint(equalTo: raiz.trailingAnchor),
-            scroll.topAnchor.constraint(equalTo: arriba.bottomAnchor),
+            arriba.trailingAnchor.constraint(lessThanOrEqualTo: raiz.trailingAnchor),
+            barra.widthAnchor.constraint(greaterThanOrEqualToConstant: 160),
+            aviso.topAnchor.constraint(equalTo: arriba.bottomAnchor),
+            aviso.leadingAnchor.constraint(equalTo: raiz.leadingAnchor, constant: 10),
+            aviso.trailingAnchor.constraint(lessThanOrEqualTo: raiz.trailingAnchor, constant: -10),
+            scroll.topAnchor.constraint(equalTo: aviso.bottomAnchor, constant: 2),
             scroll.leadingAnchor.constraint(equalTo: raiz.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: raiz.trailingAnchor),
-            scroll.bottomAnchor.constraint(equalTo: raiz.bottomAnchor),
+            scroll.bottomAnchor.constraint(equalTo: pestanas.topAnchor),
+            pestanas.leadingAnchor.constraint(equalTo: raiz.leadingAnchor),
+            pestanas.trailingAnchor.constraint(lessThanOrEqualTo: raiz.trailingAnchor),
+            pestanas.bottomAnchor.constraint(equalTo: raiz.bottomAnchor),
         ])
         ventana.contentView = raiz
-        ventana.setContentSize(NSSize(width: 900, height: 640))
+        ventana.setContentSize(NSSize(width: 980, height: 660))
         ventana.center()
         _ = ventana.setFrameAutosaveName("PixPinHoja")
         NotificationCenter.default.addObserver(self, selector: #selector(columnaCambiada(_:)),
                                                name: NSTableView.columnDidResizeNotification, object: rejilla)
+        ponerPestanas()
+    }
+
+    /// Las pestanas de un libro (con una sola hoja no hacen falta).
+    private func ponerPestanas() {
+        for v in pestanas.arrangedSubviews { pestanas.removeArrangedSubview(v); v.removeFromSuperview() }
+        let nombres = hoja.hojas()
+        pestanas.isHidden = nombres.count < 2
+        let activa = Int(hoja.activa())
+        for (i, n) in nombres.enumerated() {
+            let b = NSButton(title: n, target: self, action: #selector(elegirPestana(_:)))
+            b.tag = i
+            b.bezelStyle = .recessed
+            b.setButtonType(.pushOnPushOff)
+            b.state = i == activa ? .on : .off
+            b.toolTip = "⌃⇟ / ⌃⇞ o ⌥⌘→ / ⌥⌘← cambian de hoja"
+            pestanas.addArrangedSubview(b)
+        }
+    }
+
+    @objc private func elegirPestana(_ b: NSButton) { irAHoja(b.tag) }
+
+    private func irAHoja(_ i: Int) {
+        let n = hoja.hojas().count
+        guard n > 0 else { return }
+        let destino = (i % n + n) % n
+        if ventana.firstResponder === barra.currentEditor() { confirmar() }
+        hoja.cambiarHoja(hoja: UInt32(destino))
+        trasCambioDeHoja()
+    }
+
+    /// Otra hoja (o deshacer llevo a otra): todo lo que se ve es nuevo.
+    private func trasCambioDeHoja() {
+        bloques = [:]
+        rejilla.tableColumns.forEach { rejilla.removeTableColumn($0) }
+        recalcularTamano()
+        ponerPestanas()
+        let s = hoja.seleccion()
+        anclaFila = Int(s.anclaFila)
+        anclaColumna = Int(s.anclaColumna)
+        elegir(Int(s.fila), Int(s.columna), extender: true)
     }
 
     /// Lo que se ensena: lo escrito y un margen para seguir escribiendo.
@@ -240,6 +446,10 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     func numberOfRows(in tableView: NSTableView) -> Int { filas }
 
+    private var rango: (f0: Int, c0: Int, f1: Int, c1: Int) {
+        (min(fila, anclaFila), min(columna, anclaColumna), max(fila, anclaFila), max(columna, anclaColumna))
+    }
+
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard let id = tableColumn?.identifier else { return nil }
         let vista = (tableView.makeView(withIdentifier: id, owner: self) as? NSTextField) ?? {
@@ -265,6 +475,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         if e?.negrita == true { letra = NSFontManager.shared.convert(letra, toHaveTrait: .boldFontMask) }
         if e?.cursiva == true { letra = NSFontManager.shared.convert(letra, toHaveTrait: .italicFontMask) }
         vista.font = letra
+        vista.lineBreakMode = e?.ajustar == true ? .byWordWrapping : .byTruncatingTail
         vista.textColor = x?.error == true ? .systemRed : (colorDeHex(e?.color) ?? .labelColor)
         switch e?.alineacion {
         case "c": vista.alignment = .center
@@ -272,8 +483,11 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         case "i": vista.alignment = .left
         default: vista.alignment = x?.numero != nil ? .right : .left
         }
-        let elegida = row == fila && c == columna
-        vista.backgroundColor = elegida ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.25)
+        let r = rango
+        let activa = row == fila && c == columna
+        let dentro = (r.f0...r.f1).contains(row) && (r.c0...r.c1).contains(c)
+        vista.backgroundColor = activa ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.25)
+            : dentro ? NSColor.selectedContentBackgroundColor.withAlphaComponent(0.12)
             : (colorDeHex(e?.fondo) ?? .clear)
         var adornos: [NSAttributedString.Key: Any] = [.font: letra, .foregroundColor: vista.textColor ?? NSColor.labelColor]
         if e?.subrayado == true { adornos[.underlineStyle] = NSUnderlineStyle.single.rawValue }
@@ -292,26 +506,41 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         bloques = [:]
         recalcularTamano()
         programarGuardado()
+        // La primera vez que se edita un libro: el archivo no cambia.
+        if hoja.avisoAlEditar() {
+            aviso.stringValue = "El archivo original no cambia: lo editado queda en el chat como tablas (el móvil las ve igual)."
+            aviso.isHidden = false
+        }
     }
 
     // MARK: Elegir y editar
 
-    private func elegir(_ f: Int, _ c: Int) {
-        let antes = (fila, columna)
+    /// Elige una celda; con `extender` (⇧) alarga lo elegido desde el ancla.
+    private func elegir(_ f: Int, _ c: Int, extender: Bool = false) {
+        let antes = rango
         fila = max(0, min(f, filas - 1))
         columna = max(0, min(c, columnas - 1))
-        referencia.stringValue = "\(letrasDeColumna(columna))\(fila + 1)"
+        if !extender {
+            anclaFila = fila
+            anclaColumna = columna
+        }
+        hoja.elegir(s: SeleccionHoja(anclaFila: UInt32(anclaFila), anclaColumna: UInt32(anclaColumna),
+                                     fila: UInt32(fila), columna: UInt32(columna)))
+        let r = rango
+        referencia.stringValue = r.f0 == r.f1 && r.c0 == r.c1 ? "\(letrasDeColumna(columna))\(fila + 1)"
+            : "\(letrasDeColumna(r.c0))\(r.f0 + 1):\(letrasDeColumna(r.c1))\(r.f1 + 1)"
         barra.stringValue = hoja.contenido(fila: UInt32(fila), columna: UInt32(columna))
-        rejilla.reloadData(forRowIndexes: IndexSet([antes.0, fila]), columnIndexes: IndexSet(integersIn: 0..<rejilla.numberOfColumns))
+        let filasRepintar = IndexSet(integersIn: min(antes.f0, r.f0)...max(antes.f1, r.f1))
+        rejilla.reloadData(forRowIndexes: filasRepintar, columnIndexes: IndexSet(integersIn: 0..<rejilla.numberOfColumns))
         rejilla.scrollRowToVisible(fila)
         rejilla.scrollColumnToVisible(columna + 1)
-        _ = antes
     }
 
     @objc private func clic() {
         let f = rejilla.clickedRow, c = rejilla.clickedColumn - 1
         guard f >= 0, c >= 0 else { return }
-        elegir(f, c)
+        let extender = NSEvent.modifierFlags.contains(.shift)
+        elegir(f, c, extender: extender)
     }
 
     @objc private func dobleClic() {
@@ -334,32 +563,52 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             ventana.makeFirstResponder(rejilla)
             return true
         }
+        // Tab escribiendo: se deja escrito y se va a la derecha (⇧, izquierda).
+        if selector == #selector(NSResponder.insertTab(_:)) || selector == #selector(NSResponder.insertBacktab(_:)) {
+            if hoja.poner(fila: UInt32(fila), columna: UInt32(columna), contenido: barra.stringValue) { trasCambio() }
+            elegir(fila, columna + (selector == #selector(NSResponder.insertTab(_:)) ? 1 : -1))
+            ventana.makeFirstResponder(rejilla)
+            return true
+        }
         return false
+    }
+
+    private var escribiendo: Bool {
+        guard let r = ventana.firstResponder as? NSText else { return false }
+        return r === barra.currentEditor()
+    }
+
+    private func accion(_ e: NSEvent) -> AccionHoja? {
+        let m = e.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        return AccionHoja.de(tecla: e.keyCode, letra: e.charactersIgnoringModifiers ?? "",
+                             mayus: m.contains(.shift), comando: m.contains(.command), opcion: m.contains(.option),
+                             control: m.contains(.control), escribiendo: escribiendo)
+    }
+
+    /// Las teclas con ⌘ (antes que los menus). `true` si era suya.
+    func atajo(_ e: NSEvent) -> Bool {
+        guard e.modifierFlags.contains(.command) || e.modifierFlags.contains(.control),
+              ventana.isKeyWindow, let a = accion(e) else { return false }
+        hacer(a)
+        return true
     }
 
     /// Las teclas de la rejilla. `true` si era suya.
     func tecla(_ e: NSEvent) -> Bool {
         let m = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
-        switch e.keyCode {
-        case 123: elegir(fila, columna - 1); return true
-        case 124: elegir(fila, columna + 1); return true
-        case 125: elegir(fila + 1, columna); return true
-        case 126: elegir(fila - 1, columna); return true
-        case 48: elegir(fila, columna + (m.contains(.shift) ? -1 : 1)); return true
-        case 36, 76: ventana.makeFirstResponder(barra); return true
-        case 51, 117:
-            if hoja.poner(fila: UInt32(fila), columna: UInt32(columna), contenido: "") { trasCambio() }
-            barra.stringValue = ""
+        if let a = accion(e) {
+            hacer(a)
             return true
-        default: break
         }
-        if m == .command, let c = e.charactersIgnoringModifiers?.lowercased() {
-            switch c {
-            case "b": negrita(); return true
-            case "i": cursiva(); return true
-            case "u": subrayado(); return true
-            default: return false
-            }
+        let ext = m.contains(.shift)
+        switch e.keyCode {
+        case 123: elegir(fila, columna - 1, extender: ext); return true
+        case 124: elegir(fila, columna + 1, extender: ext); return true
+        case 125: elegir(fila + 1, columna, extender: ext); return true
+        case 126: elegir(fila - 1, columna, extender: ext); return true
+        case 48: elegir(fila, columna + (ext ? -1 : 1)); return true
+        case 36, 76: ventana.makeFirstResponder(barra); return true
+        default: break
         }
         // Escribir algo empieza a editar la celda en la barra.
         if m.subtracting(.shift).isEmpty, let s = e.characters, let u = s.unicodeScalars.first,
@@ -372,35 +621,104 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         return false
     }
 
-    // MARK: Formato
-
-    private func cambiarEstilo(_ cambio: (inout EstiloCeldaHoja) -> Void) {
-        var e = hoja.estilo(fila: UInt32(fila), columna: UInt32(columna))
-            ?? EstiloCeldaHoja(negrita: false, cursiva: false, subrayado: false, tachado: false, alineacion: nil,
-                               fondo: nil, color: nil, ajustar: false, formatoNumero: nil)
-        cambio(&e)
-        if hoja.ponerEstilo(fila: UInt32(fila), columna: UInt32(columna), estilo: e) { trasCambio() }
+    /// **Hace lo que pide una tecla o un boton.**
+    func hacer(_ a: AccionHoja) {
+        switch a {
+        case .deshacer, .rehacer:
+            let hoja0 = hoja.activa()
+            let hecho = a == .deshacer ? hoja.deshacer() : hoja.rehacer()
+            guard hecho else { NSSound.beep(); return }
+            if hoja.activa() != hoja0 {
+                trasCambioDeHoja()
+            } else {
+                let s = hoja.seleccion()
+                anclaFila = Int(s.anclaFila)
+                anclaColumna = Int(s.anclaColumna)
+                trasCambio()
+                elegir(Int(s.fila), Int(s.columna), extender: true)
+            }
+            programarGuardado()
+        case .copiar, .cortar:
+            let copia = hoja.copiar()
+            let pb = NSPasteboard.general
+            pb.clearContents()
+            pb.setString(copia.texto, forType: .string)
+            pb.setString(copia.html, forType: .html)
+            if a == .cortar, hoja.borrarSeleccion() { trasCambio(); barra.stringValue = "" }
+        case .pegar:
+            let pb = NSPasteboard.general
+            if hoja.pegar(html: pb.string(forType: .html), texto: pb.string(forType: .string)) {
+                let s = hoja.seleccion()
+                anclaFila = Int(s.anclaFila)
+                anclaColumna = Int(s.anclaColumna)
+                trasCambio()
+                elegir(Int(s.fila), Int(s.columna), extender: true)
+            } else {
+                NSSound.beep()
+            }
+        case .elegirTodo:
+            let t = hoja.tamano()
+            anclaFila = 0
+            anclaColumna = 0
+            elegir(max(Int(t.count > 1 ? t[1] : 1) - 1, 0), max(Int(t.first ?? 1) - 1, 0), extender: true)
+        case let .formato(f):
+            if escribiendo { confirmar(); elegir(fila - 1, columna) }
+            if hoja.formato(f: f) { trasCambio() }
+        case .empezar:
+            ventana.makeFirstResponder(barra)
+            barra.currentEditor()?.selectedRange = NSRange(location: (barra.stringValue as NSString).length, length: 0)
+        case .borrar:
+            if hoja.borrarSeleccion() { trasCambio() }
+            barra.stringValue = ""
+        case .cancelar:
+            barra.stringValue = hoja.contenido(fila: UInt32(fila), columna: UInt32(columna))
+            ventana.makeFirstResponder(rejilla)
+        case .hojaSiguiente:
+            irAHoja(Int(hoja.activa()) + 1)
+        case .hojaAnterior:
+            irAHoja(Int(hoja.activa()) - 1)
+        case let .borde(dx, dy):
+            let t = hoja.tamano()
+            let ultimaC = max(Int(t.first ?? 1) - 1, 0), ultimaF = max(Int(t.count > 1 ? t[1] : 1) - 1, 0)
+            let f = dy < 0 ? 0 : dy > 0 ? max(ultimaF, fila) : fila
+            let c = dx < 0 ? 0 : dx > 0 ? max(ultimaC, columna) : columna
+            elegir(f, c, extender: NSEvent.modifierFlags.contains(.shift))
+        }
     }
 
-    @objc private func negrita() { cambiarEstilo { $0.negrita.toggle() } }
-    @objc private func cursiva() { cambiarEstilo { $0.cursiva.toggle() } }
-    @objc private func subrayado() { cambiarEstilo { $0.subrayado.toggle() } }
-    @objc private func tachado() { cambiarEstilo { $0.tachado.toggle() } }
-    @objc private func alinearIzquierda() { cambiarEstilo { $0.alineacion = $0.alineacion == "i" ? nil : "i" } }
-    @objc private func alinearCentro() { cambiarEstilo { $0.alineacion = $0.alineacion == "c" ? nil : "c" } }
-    @objc private func alinearDerecha() { cambiarEstilo { $0.alineacion = $0.alineacion == "d" ? nil : "d" } }
+    // MARK: Formato (de todo lo elegido)
+
+    @objc private func deshacer() { hacer(.deshacer) }
+    @objc private func rehacer() { hacer(.rehacer) }
+    @objc private func negrita() { hacer(.formato(.negrita)) }
+    @objc private func cursiva() { hacer(.formato(.cursiva)) }
+    @objc private func subrayado() { hacer(.formato(.subrayado)) }
+    @objc private func tachado() { hacer(.formato(.tachado)) }
+    @objc private func ajustar() { hacer(.formato(.ajustar)) }
+    @objc private func borrarFormato() { hacer(.formato(.borrar)) }
+    @objc private func alinearIzquierda() { hacer(.formato(.alinear(alineacion: "i"))) }
+    @objc private func alinearCentro() { hacer(.formato(.alinear(alineacion: "c"))) }
+    @objc private func alinearDerecha() { hacer(.formato(.alinear(alineacion: "d"))) }
 
     @objc private func elegirFormato(_ s: NSPopUpButton) {
         let nf: String? = [nil, "numero", "moneda", "porcentaje", "fecha"][max(0, min(s.indexOfSelectedItem, 4))]
-        cambiarEstilo { $0.formatoNumero = nf }
+        hacer(.formato(.numero(formato: nf)))
+    }
+
+    /// De un menu de colores: 1 es «sin color», 2… los de la paleta.
+    private func colorElegido(_ s: NSPopUpButton, _ paleta: [ColorHoja]) -> String?? {
+        let i = s.indexOfSelectedItem
+        if i == 1 { return .some(nil) }
+        guard i >= 2, i - 2 < paleta.count else { return nil }
+        return .some(paleta[i - 2].hex)
     }
 
     @objc private func elegirFondo(_ s: NSPopUpButton) {
-        let colores: [String?] = [nil, nil, "#fff3bf", "#d3f9d8", "#d0ebff", "#ffe3e3", "#e9ecef"]
-        let i = s.indexOfSelectedItem
-        guard i >= 1, i < colores.count else { return }
-        let c = colores[i]
-        cambiarEstilo { $0.fondo = c }
+        if let c = colorElegido(s, hojaFondos()) { hacer(.formato(.fondo(color: c))) }
+    }
+
+    @objc private func elegirLetra(_ s: NSPopUpButton) {
+        if let c = colorElegido(s, hojaColoresDeLetra()) { hacer(.formato(.letra(color: c))) }
     }
 
     @objc private func columnaCambiada(_ n: Notification) {
@@ -469,7 +787,7 @@ public final class HojasDeCalculo {
                 c.ventana.makeKeyAndOrderFront(nil)
                 NSApp.activate()
             case let .failure(e):
-                almacen.ponerError("No se puede abrir la tabla: \(e)")
+                almacen.ponerError("No se puede abrir la hoja: \(e)")
             }
         }
     }

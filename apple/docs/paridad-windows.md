@@ -18,8 +18,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 39 |
-| parcial | 55 |
+| completo | 40 |
+| parcial | 54 |
 | falta | 62 |
 | no aplica | 6 |
 | interno | 7 |
@@ -92,7 +92,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | gif | GIF en dos fases: marco y luego barra | parcial | K/Captura/GrabadorGif.swift | Hecho (B8): marco azul con el ritmo (−/+, `[gif]`), ↩ empieza y para, Esc global, retardo con cuenta atrás. Falta mover y estirar el marco antes de grabar, y pausar |
 | grabador | Grabación en dos fases | parcial | K/Grabar/* | Marco ajustable antes de grabar |
 | grupos_ventanas | Guardar y reabrir grupos de ventanas | falta | — | Todo |
-| hoja_pin | Excel como pin, ver y editar en el mismo sitio; libro de varias hojas | parcial | K/Documentos/HojaCalculo.swift, N/hojas*.rs | Editar un `.xlsx` como libro; todas las hojas del móvil |
+| hoja_pin | Excel como pin, ver y editar en el mismo sitio; libro de varias hojas | completo | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/{editor,libro}.rs | — (D5: un Excel, ODS o CSV del chat se edita como libro con sus hojas en pestañas y pasa al chat como tablas sin tocar el archivo; rango, formato, deshacer, copiar y pegar con Excel. Ver sigue siendo el pin de Vista Rápida, no el mismo visor) |
 | imagenes_lienzo | Imágenes pegadas en el lienzo | completo | K/Lienzo/ImagenPegadaLienzo.swift | — |
 | instancia_de_prueba | Instancia aislada para desarrollar | no aplica | — | — |
 | lecciones | Ficha, etiquetas, repaso, dictado, fotos y audios, exportar | parcial | K/Lecciones/*, N/lecciones.rs | Dictado, poner fotos y audios desde el Mac, exportar. Las del móvil ya se ven en la ficha (B9: «Fotos y audios», doble clic con Vista Rápida) |
@@ -182,7 +182,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | ventanita | Base de las ventanitas de voz | interno | — | Hará falta con el telepronter y Pronunciar |
 | visor | Word, EPUB y páginas reflujados | parcial | K/Documentos/LectorDocumento.swift (paginado) | Reflujo, letra (+/−, T, B), índice, «PDF como texto», tinta del EPUB |
 | visor/como_texto, imagenes, tablas, maqueta_movil | — | falta | — | La maqueta del móvil (para que la tinta caiga igual) |
-| visor_hoja | `.xlsx` entero como pin | parcial | K/Documentos/HojaCalculo.swift | Pestañas, ⌘flechas, enlaces, capa de tinta |
+| visor_hoja | `.xlsx` entero como pin | parcial | K/Documentos/PinOffice.swift, K/Documentos/HojaCalculo.swift | Las pestañas y ⌘flechas están en el editor (D5); el pin de ver (Vista Rápida) no tiene enlaces ni capa de tinta |
 | visor_html | `.html` a pantalla completa | falta | — | `WKWebView` sin marco |
 | vista_rapida | Espacio en el Explorador | no aplica | XC/VistaPrevia | Quick Look del Finder |
 | voz | Nota de voz → texto | completo | K/Voz/* | — |
@@ -397,8 +397,8 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 | Timeline | Ctrl+1…4, Ctrl+F, Ctrl+M (en Mac, otra tecla), Ctrl+Z, Intro, Ctrl+V, ↑ corrige | ⌘1…4, ⌘F, ⌘⇧M, ⌘Z, ↩ / ⇧↩, ⌘V (imagen), ↑, Esc por capas; en el detalle ←/→ y ↑/↓ | completo |
 | Lecciones (ficha) | Esc guarda, Ctrl+Intro, Ctrl+E, Tab | ⌘S | parcial |
 | Galería | flechas, Espacio, Intro, Supr, Ctrl+C/S/A/Z, Esc, escribir busca | flechas, Inicio/Fin, Espacio, ↩, ⌫, ⌘C/S/A/Z, ⌘F, ⌘Y, Esc, escribir busca | completo |
-| Hoja de cálculo (editar) | Ctrl+N/B, Ctrl+K/I, Ctrl+S/U, Ctrl+5, Ctrl+Mayús+L/E/R, F2, Ctrl+Z/Y/C/X/V | ⌘B/I/U, ⌫ (⌘N, ⌘K y ⌘S no: son de macOS) | parcial |
-| Visor de hoja | Ctrl+flechas, Ctrl+Intro, Ctrl+RePág/AvPág, Ctrl+Inicio/Fin, zoom, F11 | flechas, ⇥ | parcial |
+| Hoja de cálculo (editar) | Ctrl+N/B, Ctrl+K/I, Ctrl+S/U, Ctrl+5, Ctrl+Mayús+L/E/R, F2, Ctrl+Z/Y/C/X/V | ⌘B/I/U, ⌘5 (y ⇧⌘X), ⇧⌘L/E/R, F2, ⌘Z/⇧⌘Z/⌘Y, ⌘C/X/V, ⌫, ⇧+flechas (⌘N, ⌘K y ⌘S no: son de macOS) | completo |
+| Visor de hoja | Ctrl+flechas, Ctrl+Intro, Ctrl+RePág/AvPág, Ctrl+Inicio/Fin, zoom, F11 | en el editor: ⌘flechas, ⌃⇟ / ⌃⇞ y ⌥⌘→ / ⌥⌘← (hojas), ⌘A; faltan Ctrl+Intro (enlace), zoom y F11 | parcial |
 | Plano CAD | Esc, Supr, Ctrl+P, Ctrl+E, I, A, L, F, B, M, T, 3, +/−, flechas | ⎋, ↩, ⌫, F, M, +/−, ⌘P | parcial |
 | Modelo 3D | F, B, C, I, L, A, P, T, 1–9, +/−, flechas | ⎋, flechas, F, +/− | parcial |
 | Diapositivas y presentar | → ↓ AvPág Intro Espacio / ← ↑ RePág Retroceso P, Inicio/Fin, B o «.», N, T, J L R E M, Esc | — | falta |
@@ -549,7 +549,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | D2 | ✅ **Leer en voz** (hecho): `AVSpeechSynthesizer`, resaltar el trozo y la palabra, el 🟢, `MPRemoteCommandCenter`, L en el lector, notas (clic derecho) | K/Voz/{LeerEnVoz,VozAlta,MandosSistema}.swift, K/Documentos/{VozDelLector,VozDeLaNota}.swift, K/Documentos/LectorDocumento.swift |
 | D3 | ✅ **Audio** (hecho): reproductor global (velocidad, ±saltos, barra de lo que suena, fila, «Está sonando»), biblioteca de audio, reproductor y micrófono flotantes con la hora | K/Voz/{ReproductorVoz,VistasVoz,BibliotecaAudio,FlotantesVoz,GrabadoraVoz}.swift, K/Vistas.swift (la barra y la entrada del menú) |
 | D4 ✅ | **Notas Markdown** (hecho, 16-oct): el editor de Windows (su página en un `WKWebView`) con sus atajos, fotos, documentos y audios en la nota, «Del chat», comentarios (`.comentarios.json`, viajan), copia `.md`, Word y compartir. Quedan las páginas vivas y los enlaces a hojas, y saltar al mensaje de un incrustado | K/Documentos/EditorNotaWeb.swift, K/Documentos/EditorNota.swift, N/notas.rs, N/notas/{web,adjuntos,comentarios,vista}.rs |
-| D5 | **Hojas**: editar un `.xlsx` como libro con pestañas, todas las hojas del móvil, los atajos de Windows (sin ⌘N, ⌘K ni ⌘S) | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/libro.rs |
+| D5 ✅ | **Hojas** (hecho, 16-oct): un `.xlsx`, `.ods` o `.csv` del chat se edita como libro con pestañas (todas sus hojas, también las viejas del móvil) y pasa al chat como tablas; rango, formato de lo elegido, deshacer, copiar y pegar, y los atajos de Windows (sin ⌘N, ⌘K ni ⌘S). Queda ver y editar en el mismo pin (Windows) | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/{editor,libro}.rs |
 | D6 | **Asistente, parte 1**: nube con URLSession, bajar el modelo y su catálogo para Mac, que no quede `llama-server` huérfano | K/Asistente/*, N/asistente.rs (**después de A7**) |
 | D7 | **Grabación**: marco movible en dos fases, editor para revisar (bucle, recortar, guardar o descartar) | K/Grabar/*, nuevo K/Grabar/EditorGrabacion.swift |
 | D8 | **Buscar en todo completo**: pestañas, recientes, lecciones y capturas, acciones por fila y su teclado | K/Buscar/Buscar.swift, N/buscar.rs |

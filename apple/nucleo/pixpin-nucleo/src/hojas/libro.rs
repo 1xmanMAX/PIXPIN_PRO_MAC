@@ -1,14 +1,14 @@
 //! **Un Excel del chat es un libro de tablas**, traido de Windows
-//! (`apps/pixpin/src/hoja_pin/libro.rs`, igual salvo lo que el Mac no usa:
-//! el Mac aun no edita un `.xlsx`, lo ensena con Vista Rapida). Es
+//! (`apps/pixpin/src/hoja_pin/libro.rs`, igual). Es
 //! `guardados/LibroDelChat.kt` del movil.
 //!
 //! Cada hoja del libro, al editarla, queda como una tabla del proyecto con
 //! una referencia **sacada del mensaje** (`libro-<mensaje>-<hoja>`, la misma
-//! que el movil). Aqui sirve para las hojas que el movil guardaba solo en
-//! `tablas/libro-*.json` antes del 13-oct (`vista::tablas_viejas_del_libro`):
-//! al guardarlas en el Mac pasan a mensajes, como en Windows. El `.xlsx`
-//! original no se toca nunca.
+//! que el movil): la proxima vez que se toque el archivo se editan esas
+//! tablas, con lo que se haya cambiado en ellas, en vez de volver a leer el
+//! libro encima. El `.xlsx` original no se toca nunca. Las hojas que el
+//! movil guardaba solo en `tablas/libro-*.json` antes del 13-oct
+//! (`vista::tablas_viejas_del_libro`) pasan tambien a mensajes al guardar.
 
 use pixpin_proyecto::cuaderno::{Clase, Mensaje, Sello};
 use pixpin_proyecto::importar_hojas;
@@ -88,6 +88,15 @@ pub fn editada(m: &Mensaje) -> bool {
     serde_json::from_str::<Solo>(&m.texto).is_ok_and(|s| s.tocado > m.cuando + 2_000)
 }
 
+/// El nombre de la pestana de una tabla de libro: «Cuentas · Gastos» ->
+/// «Gastos». Una tabla suelta se queda con el suyo.
+pub fn nombre_de_pestana(nombre: &str) -> &str {
+    match nombre.rsplit_once(" · ") {
+        Some((_, h)) if !h.trim().is_empty() => h,
+        _ => nombre,
+    }
+}
+
 #[cfg(test)]
 mod pruebas {
     use super::*;
@@ -165,5 +174,13 @@ mod pruebas {
         assert!(!editada(&m));
         m.texto = "hola".into();
         assert!(!editada(&m));
+    }
+
+    #[test]
+    fn la_pestana_de_una_tabla_de_libro_es_el_nombre_de_su_hoja() {
+        assert_eq!(nombre_de_pestana("Cuentas · Gastos"), "Gastos");
+        assert_eq!(nombre_de_pestana("Cuentas"), "Cuentas");
+        // Caso negativo: un separador sin hoja detras no corta el nombre.
+        assert_eq!(nombre_de_pestana("Cuentas · "), "Cuentas · ");
     }
 }

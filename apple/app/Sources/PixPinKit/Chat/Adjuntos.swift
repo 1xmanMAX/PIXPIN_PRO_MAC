@@ -67,9 +67,9 @@ struct BurbujaArchivo: View {
     let almacen: Almacen
     @State private var url: URL?
     @State private var icono: NSImage?
-    /// Un Excel con hojas que el movil edito antes del 13-oct-2026 (solo en
-    /// `tablas/libro-*.json`): se abren como tabla y al guardar pasan a
-    /// mensajes, como en Windows (`Nucleo.esHojaDeCalculo`).
+    /// Un Excel, OpenDocument o CSV que se edita aqui como libro, con todas
+    /// sus hojas (o las que el movil edito): al guardar pasan al chat como
+    /// tablas y el archivo no cambia, como en Windows (`Nucleo.esHojaDeCalculo`).
     @State private var hojasDelMovil = false
 
     /// Las extensiones de un libro de hojas (`importar_hojas::LEGIBLES`).
@@ -103,9 +103,9 @@ struct BurbujaArchivo: View {
                 Button {
                     HojasDeCalculo.compartidas.abrir(mensaje, en: chat, almacen: almacen)
                 } label: {
-                    Label("Hojas editadas en el móvil", systemImage: "tablecells")
+                    Label("Editar las hojas", systemImage: "tablecells")
                 }
-                .help("Lo que se editó en el móvil; al guardar pasa al chat como tablas. El archivo no cambia.")
+                .help("Editar en PixPin, con sus hojas en pestañas; lo editado queda en el chat como tablas. El archivo no cambia.")
             }
             // Un PDF que se esta aligerando (o como acabo).
             if let url, TiposDeDocumento.clase(de: url) == .pdf {
