@@ -816,6 +816,7 @@ mod pruebas {
             quitadas: Vec::new(),
             causas: Vec::new(),
             chat: None,
+            de_mensaje: None,
         }
     }
 
