@@ -1,0 +1,181 @@
+// **Las ventanas lisas, como en Windows** (15-oct-2026, el usuario: «todas
+// las ventanas tienen la interfaz clasica de macOS, con la barra del titulo y
+// los botones de cerrar y minimizar; el PixPin original es plano, mas
+// limpio»).
+//
+// En Windows ninguna ventana de PixPin lleva el marco del sistema
+// (`WS_POPUP`): la de Proyectos tiene una franja fina del color del fondo con
+// el nombre a la izquierda y −, ☐ y ✕ planos a la derecha; Galeria, Tareas,
+// Lecciones y Timeline, su cabecera (`cabecera.rs`) con la ✕ al final; y los
+// lectores nacen sin marco, como un pin, con su barra (`lector_pin.rs`).
+//
+// Aqui se queda el marco de AppKit por dentro (sombra, esquinas, estirar por
+// los bordes, ⌘W y ⌘M, pantalla completa) pero no se ve: sin titulo, sin
+// semaforo y con la barra del titulo transparente, del color de la ventana.
+// En su lugar van los botones planos de Windows a la derecha
+// (`BotonesDeVentana`); las ventanas con barra propia (el lector, el pin de
+// Office) los llevan dentro de ella.
+
+import AppKit
+import SwiftUI
+
+@MainActor
+public enum VentanaLisa {
+    /// Quita a `ventana` lo que se ve del marco del Mac. `botones`: poner los
+    /// planos de Windows (−, ☐, ✕) a la derecha de la barra del titulo; sin
+    /// ellos, la ventana los lleva en su propia barra.
+    public static func vestir(_ ventana: NSWindow, botones: Bool = true) {
+        ventana.titleVisibility = .hidden
+        ventana.titlebarAppearsTransparent = true
+        ventana.titlebarSeparatorStyle = .none
+        for tipo in [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton] {
+            ventana.standardWindowButton(tipo)?.isHidden = true
+        }
+        if botones, !ventana.titlebarAccessoryViewControllers.contains(where: { $0 is AccesorioBotones }) {
+            ventana.addTitlebarAccessoryViewController(AccesorioBotones(ventana: ventana))
+        }
+    }
+
+    /// Como `vestir`, para una ventana cuyo contenido llega hasta arriba (su
+    /// barra hace de titulo): sin franja, el contenido ocupa la ventana.
+    public static func vestirEntera(_ ventana: NSWindow) {
+        ventana.styleMask.insert(.fullSizeContentView)
+        vestir(ventana, botones: false)
+    }
+
+    /// Cerrar como la ✕ del sistema: preguntando antes al delegado.
+    static func cerrar(_ ventana: NSWindow?) {
+        guard let ventana else { return }
+        if ventana.delegate?.windowShouldClose?(ventana) == false { return }
+        ventana.close()
+    }
+}
+
+/// Los botones planos de Windows a la derecha de la barra del titulo.
+final class AccesorioBotones: NSTitlebarAccessoryViewController {
+    init(ventana: NSWindow) {
+        super.init(nibName: nil, bundle: nil)
+        layoutAttribute = .trailing
+        let vista = NSHostingView(rootView: BotonesDeVentana(ventana: RefVentana(ventana))
+            .padding(.trailing, 4))
+        vista.frame.size = vista.fittingSize
+        view = vista
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError("init(coder:) no se usa") }
+}
+
+/// La ventana de unos botones, sin retenerla.
+@MainActor
+public final class RefVentana {
+    public weak var ventana: NSWindow?
+    public init(_ ventana: NSWindow? = nil) { self.ventana = ventana }
+}
+
+/// **−, ☐ y ✕ planos**, como los de Windows: sin fondo hasta pasar el raton
+/// (gris; la ✕, roja con la cruz blanca). ☐ solo si la ventana se estira.
+public struct BotonesDeVentana: View {
+    let ref: RefVentana
+    var minimizar = true
+
+    public init(ventana: RefVentana, minimizar: Bool = true) {
+        ref = ventana
+        self.minimizar = minimizar
+    }
+
+    public var body: some View {
+        HStack(spacing: 0) {
+            if minimizar {
+                BotonPlano(simbolo: "minus", ayuda: "Minimizar (⌘M)") { ref.ventana?.miniaturize(nil) }
+                if ref.ventana?.styleMask.contains(.resizable) ?? true {
+                    BotonPlano(simbolo: "square", ayuda: "Maximizar") { ref.ventana?.zoom(nil) }
+                }
+            }
+            BotonPlano(simbolo: "xmark", ayuda: "Cerrar (⌘W)", rojo: true) { VentanaLisa.cerrar(ref.ventana) }
+        }
+    }
+}
+
+/// Un boton de la barra: icono fino, fondo solo con el raton encima.
+public struct BotonPlano: View {
+    let simbolo: String
+    let ayuda: String
+    var rojo = false
+    var encendido = false
+    let accion: () -> Void
+    @State private var encima = false
+
+    public init(simbolo: String, ayuda: String, rojo: Bool = false, encendido: Bool = false,
+                accion: @escaping () -> Void) {
+        self.simbolo = simbolo
+        self.ayuda = ayuda
+        self.rojo = rojo
+        self.encendido = encendido
+        self.accion = accion
+    }
+
+    public var body: some View {
+        Button(action: accion) {
+            Image(systemName: simbolo)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundStyle(encima && rojo ? Color.white : encendido ? Color.white : Color.secondary)
+                .frame(width: 38, height: 26)
+                .background {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(encendido ? Color.accentColor
+                              : encima ? (rojo ? Color(red: 0.77, green: 0.17, blue: 0.11) : Color.primary.opacity(0.1))
+                              : Color.clear)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { encima = $0 }
+        .help(ayuda)
+        .accessibilityLabel(ayuda)
+    }
+}
+
+public extension View {
+    /// La ventana de esta vista, lisa como en Windows (`VentanaLisa`).
+    func ventanaLisa() -> some View {
+        modifier(ModificadorVentanaLisa())
+    }
+}
+
+struct ModificadorVentanaLisa: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .toolbar(removing: .title)
+            .toolbarBackground(.hidden, for: .windowToolbar)
+            .background(AccesoVentana { VentanaLisa.vestir($0) })
+    }
+}
+
+/// Da la ventana de la vista en cuanto la tiene (y otra vez despues, por si
+/// SwiftUI vuelve a poner lo suyo al montar la barra).
+struct AccesoVentana: NSViewRepresentable {
+    let alTener: @MainActor (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> VistaAcceso {
+        let v = VistaAcceso()
+        v.alTener = alTener
+        return v
+    }
+
+    func updateNSView(_ nsView: VistaAcceso, context: Context) {}
+}
+
+final class VistaAcceso: NSView {
+    var alTener: (@MainActor (NSWindow) -> Void)?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let ventana = window else { return }
+        alTener?(ventana)
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let ventana = self.window else { return }
+            self.alTener?(ventana)
+        }
+    }
+}

@@ -31,73 +31,90 @@ struct PixPinApp: App {
                 }
             }
             .modifier(AlReabrirSaleProyectos())
+            .ventanaLisa()
         }
         .defaultSize(width: 980, height: 680)
         .defaultLaunchBehavior(.presented)
         Window("Sincronizar", id: "sincronizar") {
-            if let sincro = estado.sincro {
-                VistaSincro(sincro: sincro)
-            } else {
-                ContentUnavailableView("No se pudo abrir la carpeta de datos",
-                                       systemImage: "exclamationmark.triangle",
-                                       description: Text(estado.error ?? ""))
+            Group {
+                if let sincro = estado.sincro {
+                    VistaSincro(sincro: sincro)
+                } else {
+                    ContentUnavailableView("No se pudo abrir la carpeta de datos",
+                                           systemImage: "exclamationmark.triangle",
+                                           description: Text(estado.error ?? ""))
+                }
             }
+            .ventanaLisa()
         }
         .defaultSize(width: 520, height: 600)
         Window("Lecciones", id: "lecciones") {
-            if let almacen = estado.almacen {
-                VentanaLecciones(nucleo: almacen.nucleo)
-                    .frame(minWidth: 760, minHeight: 480)
-            } else {
-                ContentUnavailableView("No se pudo abrir la carpeta de datos",
-                                       systemImage: "exclamationmark.triangle",
-                                       description: Text(estado.error ?? ""))
+            Group {
+                if let almacen = estado.almacen {
+                    VentanaLecciones(nucleo: almacen.nucleo)
+                        .frame(minWidth: 760, minHeight: 480)
+                } else {
+                    ContentUnavailableView("No se pudo abrir la carpeta de datos",
+                                           systemImage: "exclamationmark.triangle",
+                                           description: Text(estado.error ?? ""))
+                }
             }
+            .ventanaLisa()
         }
         .defaultSize(width: 960, height: 640)
         Window("Asistente", id: "asistente") {
             VentanaAsistente(almacen: estado.almacen)
+                .ventanaLisa()
         }
         .defaultSize(width: 460, height: 640)
         // Ajustes (⌘,): lo que vale en Windows y Mac va a `pixpinmax.toml`.
         Settings {
-            if let ajustes = estado.ajustes {
-                VistaAjustes(modelo: ajustes, atajo: estado.atajoCaptura)
-            } else {
-                ContentUnavailableView("No se pudo abrir la carpeta de datos",
-                                       systemImage: "exclamationmark.triangle",
-                                       description: Text(estado.error ?? ""))
-                    .frame(width: 420, height: 240)
+            Group {
+                if let ajustes = estado.ajustes {
+                    VistaAjustes(modelo: ajustes, atajo: estado.atajoCaptura)
+                } else {
+                    ContentUnavailableView("No se pudo abrir la carpeta de datos",
+                                           systemImage: "exclamationmark.triangle",
+                                           description: Text(estado.error ?? ""))
+                        .frame(width: 420, height: 240)
+                }
             }
+            .ventanaLisa()
         }
         Window("Galería de capturas", id: IdVentana.galeria) {
             ConAlmacen(estado.almacen, error: estado.error) { VentanaGaleria(almacen: $0) }
+                .ventanaLisa()
         }
         .defaultSize(width: 900, height: 640)
         Window("Timeline", id: IdVentana.timeline) {
             ConAlmacen(estado.almacen, error: estado.error) { VentanaTimeline(almacen: $0) }
+                .ventanaLisa()
         }
         .defaultSize(width: 860, height: 640)
         Window("Tareas", id: IdVentana.tareas) {
             ConAlmacen(estado.almacen, error: estado.error) { VentanaTareas(almacen: $0) }
+                .ventanaLisa()
         }
         .defaultSize(width: 620, height: 640)
         // En un `Group`: un `SceneBuilder` admite diez escenas seguidas.
         Group {
             Window("Buscar en PixPin", id: IdVentana.buscar) {
                 ConAlmacen(estado.almacen, error: estado.error) { VentanaBuscar(almacen: $0) }
+                    .ventanaLisa()
             }
             .defaultSize(width: 900, height: 600)
             // Enviar y recibir con un codigo de seis cifras, y los chats
             // compartidos con personas (`Sincro/`).
             Window("Enviar y recibir por Wi-Fi", id: "envio") {
                 ConAlmacen(estado.almacen, error: estado.error) { VistaEnvio(nucleo: $0.nucleo) }
+                    .ventanaLisa()
             }
             .defaultSize(width: 460, height: 560)
             Window("Chats compartidos", id: "compartidos") {
                 ConAlmacen(estado.almacen, error: estado.error) {
                     VistaCompartidos(almacen: $0, sincro: estado.sincro)
                 }
+                .ventanaLisa()
             }
             .defaultSize(width: 520, height: 640)
         }
