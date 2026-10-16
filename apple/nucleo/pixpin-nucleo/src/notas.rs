@@ -13,12 +13,28 @@
 //! Rendimiento: analizar es una pasada lineal por el texto (una nota de
 //! cien mil letras, unos milisegundos); Swift lo pide tras una pausa al
 //! escribir, no por cada tecla, y solo restila lo que cambio.
+//!
+//! El editor que se abre ahora es el de Windows (`web`): su misma pagina en
+//! un `WKWebView`. Lo de arriba queda para el editor de antes (AppKit).
+
+mod adjuntos;
+mod comentarios;
+pub mod vista;
+pub mod web;
 
 use pixpin_docs::{formulas, md_vivo};
 use pixpin_proyecto::{almacen, cuaderno};
 
 use crate::chats::validar_chat;
 use crate::{ErrorNucleo, MensajeChat, Nucleo};
+
+/// **Que nota se edita** (`notas_md::Destino` de Windows): un mensaje
+/// `NOTA` de un chat, por su id, o un `.md` suelto, por su ruta.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum DestinoNota {
+    Mensaje { chat: String, mensaje: String },
+    Fichero { ruta: String },
+}
 
 /// Que formato lleva un tramo (`md_vivo::Estilo`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]

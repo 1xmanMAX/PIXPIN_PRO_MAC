@@ -9,6 +9,9 @@
 // Las marcas (`#`, `**`, `[`, los dolares) se esconden fuera del renglon del
 // cursor; en el suyo se ven, para poder borrarlas sin adivinar.
 //
+// Desde el 16-oct se abre el editor de Windows (`EditorNotaWeb.swift`); este
+// queda como «el editor anterior».
+//
 // Guardar es leer el texto y ya: 1 s despues de la ultima tecla, fuera del
 // hilo principal, con `Nucleo.editarNota` (la linea del cuaderno y, si es
 // una nota del movil, su hoja `nota`), como Windows.
@@ -381,13 +384,54 @@ final class ControladorNota: NSObject, NSTextViewDelegate, NSWindowDelegate {
     }
 }
 
-/// **Las notas abiertas**: una ventana por nota.
+/// **Las notas abiertas**: una ventana por nota. Se abren en el editor de
+/// Windows (`ControladorNotaWeb`); el de antes (`ControladorNota`, AppKit)
+/// queda para «Abrir en el editor anterior» y por si la nota no se pudiera
+/// abrir en el nuevo.
 @MainActor
 public final class EditoresDeNotas {
     public static let compartidos = EditoresDeNotas()
     private var abiertos: [String: ControladorNota] = [:]
+    private var web: [String: ControladorNotaWeb] = [:]
 
     public func abrir(_ mensaje: MensajeChat, en chat: String, almacen: Almacen) {
+        let clave = chat + "\u{0}" + mensaje.id
+        if let c = web[clave] { c.mostrar(); return }
+        if let c = abiertos[clave] { c.mostrar(); return }
+        let destino = DestinoNota.mensaje(chat: chat, mensaje: mensaje.id)
+        guard let sesion = try? almacen.nucleo.abrirNota(destino: destino, ingles: false) else {
+            abrirAnterior(mensaje, en: chat, almacen: almacen)
+            return
+        }
+        let c = ControladorNotaWeb(sesion: sesion, chat: chat, mensaje: mensaje, almacen: almacen)
+        c.alCerrar = { [weak self] _ in self?.web[clave] = nil }
+        c.alPedirAnterior = { [weak self] c in
+            guard let m = c.mensaje else { return }
+            // Con el texto ya guardado, no el de cuando se abrio.
+            let actual = almacen.mensajes[chat]?.first { $0.id == m.id } ?? m
+            self?.abrirAnterior(actual, en: chat, almacen: almacen)
+        }
+        web[clave] = c
+        c.mostrar()
+    }
+
+    /// Un `.md` suelto (un adjunto del chat, uno del Finder): se edita en su
+    /// sitio y sus fotos van a `adjuntos/` a su lado.
+    public func abrir(fichero url: URL, nucleo: Nucleo) {
+        let clave = "fichero\u{0}" + url.path
+        if let c = web[clave] { c.mostrar(); return }
+        guard let sesion = try? nucleo.abrirNota(destino: .fichero(ruta: url.path), ingles: false) else {
+            NSWorkspace.shared.open(url)
+            return
+        }
+        let c = ControladorNotaWeb(sesion: sesion, chat: nil, mensaje: nil, almacen: nil)
+        c.alCerrar = { [weak self] _ in self?.web[clave] = nil }
+        web[clave] = c
+        c.mostrar()
+    }
+
+    /// El editor de antes (AppKit), con la misma nota.
+    public func abrirAnterior(_ mensaje: MensajeChat, en chat: String, almacen: Almacen) {
         let clave = chat + "\u{0}" + mensaje.id
         if let c = abiertos[clave] {
             c.mostrar()

@@ -18,9 +18,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 32 |
+| completo | 36 |
 | parcial | 55 |
-| falta | 69 |
+| falta | 65 |
 | no aplica | 6 |
 | interno | 7 |
 
@@ -118,12 +118,12 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | miniaturas | Fotos del proyecto en el panel de información | falta | — | Todo |
 | modelo_bim | IFC, Revit, LandXML en 3D | parcial | K/Planos/VisorModelo3D.swift, N/modelos3d.rs | Vistas guardadas, caché; probarlo en un Mac real |
 | navegacion | Cámara del lienzo | parcial | K/Lienzo/EditorLienzoView.swift | Espacio + arrastrar (lo lleva el agente del lienzo) |
-| notas_md (editor, guardar) | Editor de notas Markdown | parcial | K/Documentos/EditorNota.swift, N/notas.rs | Atajos de formato |
-| notas_md/adjuntos | Fotos dentro de la nota | falta | — | Todo |
-| notas_md/comentarios | Comentarios (`anot-<uid>.comentarios.json`, viajan) | falta | — | Leer, escribir y sincronizar |
-| notas_md/incrustados | Documentos o mensajes dentro de la nota | falta | — | Todo |
-| notas_md/paginas_vivas | Páginas vivas y enlaces a hojas | falta | — | Todo |
-| notas_md/lector_web | Modo lector de la nota | falta | — | Todo |
+| notas_md (editor, guardar) | Editor de notas Markdown | completo | K/Documentos/EditorNotaWeb.swift, N/notas/web.rs | — (D4: la misma página de Windows, `lector-md.html`, en un `WKWebView`: formato vivo, barra flotante, menú `/`, tablas, fórmulas, casillas, letra y tamaño en `vista-de-notas.txt`, copia `.md`, Word, compartir, lo de fuera al día; el editor de AppKit queda como «anterior»; un `.md` del chat o del Finder se abre aquí) |
+| notas_md/adjuntos | Fotos dentro de la nota | completo | N/notas/adjuntos.rs, K/Documentos/EditorNotaWeb.swift | — (elegir, pegar o soltar fotos, documentos y audios; se copian a `notas/` como `pixpin:files/…` y viajan; la página los pide por `pixpin-nota://`) |
+| notas_md/comentarios | Comentarios (`anot-<uid>.comentarios.json`, viajan) | completo | N/notas/comentarios.rs | — (los de Windows: hilos, responder, editar, borrar, resolver; se juntan con lo que llega al disco) |
+| notas_md/incrustados | Documentos o mensajes dentro de la nota | parcial | N/notas/web.rs | Hechos documentos y audios (los pinta la página) y «Del chat» (enlace `pixpin:mensaje=` o el audio de una voz). Faltan saltar al mensaje en su chat al tocarlo y la transcripción bajo el audio |
+| notas_md/paginas_vivas | Páginas vivas y enlaces a hojas | falta | — | La página ya las pinta; falta pintar la hoja a PNG y la lista de hojas (`paginas_vivas.rs`); de momento salen apagadas |
+| notas_md/lector_web | Modo lector de la nota | completo | K/Documentos/EditorNotaWeb.swift, N/notas/web.rs | — (es el editor que se abre, D4) |
 | notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | completo | K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift | Sin permiso del sistema, lo urgente sale en una ventanita de la app con los mismos botones |
 | orden | Línea de órdenes y `pixpinmax://` | falta | — | `CFBundleURLTypes` y los verbos |
 | oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Documentos/TonoLector.swift, N/documentos/lector.rs | Hecho en el lector (luna/sol en su barra, `lectores_oscuros` del estado, la tinta se adapta). Faltan el pin de Office, la hoja de cálculo y los visores de planos |
@@ -379,14 +379,14 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 
 | Windows | Mac | Estado |
 |---|---|---|
-| Ctrl+B / I, Ctrl+Mayús+X, Ctrl+E / K | ⌘B / I, ⇧⌘X, ⌘E / K | falta |
-| Ctrl+M (fórmula), Ctrl+Alt+M (comentario) | Otra tecla: ⌘M y ⌘⌥M chocan con macOS | falta |
-| Ctrl+1/2/3, Ctrl+Mayús+8/7/9, Ctrl+Intro, Ctrl+Mayús+. / C / T / D | ⌘1/2/3, ⇧⌘8/7/9, ⌘↩, ⇧⌘. / C / T / D | falta |
-| Ctrl+V de fotos | ⌘V | parcial (solo texto) |
-| Ctrl+S / Ctrl+Mayús+S | se guarda solo / ⇧⌘S | parcial |
-| Ctrl+W, F11, Ctrl+Z / Y, menú contextual | nativos | completo |
-| Intro sigue la lista o la tabla | ↩ | parcial (sin tablas) |
-| Ctrl + / − / 0, Ctrl+clic en un enlace, comentarios, título | ⌘ + / − / 0, ⌘-clic | falta |
+| Ctrl+B / I, Ctrl+Mayús+X, Ctrl+E / K | ⌘B / I, ⇧⌘X, ⌘E / K | completo |
+| Ctrl+M (fórmula), Ctrl+Alt+M (comentario) | ⌘M (la página la toma antes que el menú) y ⌥⌘M | completo |
+| Ctrl+1/2/3, Ctrl+Mayús+8/7/9, Ctrl+Intro, Ctrl+Mayús+. / C / T / D | ⌘1/2/3, ⇧⌘8/7/9, ⌘↩, ⇧⌘. / C / T / D | completo |
+| Ctrl+V de fotos | ⌘V (y soltar) | completo |
+| Ctrl+S / Ctrl+Mayús+S | ⌘S (y solo a los 0,8 s) / ⇧⌘S | completo |
+| Ctrl+W, F11, Ctrl+Z / Y, menú contextual | ⌘W, F11, ⌘Z / ⌘Y, el de la página | completo |
+| Intro sigue la lista o la tabla | ↩, ⇥ / ⇧⇥ en la tabla | completo |
+| Ctrl + / − / 0, Ctrl+clic en un enlace, comentarios, título | ⌘ + / −, ⌘-clic, ⌥⌘M, la flecha del título | completo |
 
 ### 2.8 Otras ventanas
 
@@ -430,7 +430,7 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | Borrado de mensajes (`sincro/borrados.jsonl`) | sí | sí | completo | N/chats.rs |
 | Galería (`galeria`, `galeriajunta`, `damecaptura`, `poncaptura`) | sí | sí | completo | N/galeria_sincro.rs |
 | Anotado `anot-<uid>`: tinta, `.hoja`, `.marcas`, `.espacios`, `.maqueta`, `.voz`, `.sitio` | sí | sí | completo | N/documentos.rs (falta la pasada `marco_de_la_tinta::tras_sincronizar`) |
-| `anot-<uid>.comentarios.json` (comentarios de notas) | no | no | falta | Android también los espera |
+| `anot-<uid>.comentarios.json` (comentarios de notas) | sí | sí | completo | N/notas/comentarios.rs (D4) |
 | `anot-<uid>.asistente.json` | no | no | falta | Se conserva |
 | `<dibujo>.marcas` (marcadores del lienzo) | no | no | falta | Es cosa del agente del lienzo |
 | `recuerdaEn` (recordatorio en un mensaje) y la llamada secreta | sí (B2) | sí (B2) | parcial | N/chats.rs (`CambioMensaje::Recordar`; quitarla borra la clave). El aviso del sistema se pone al ponerla desde este Mac; el vigía que los vuelve a poner al arrancar y tras sincronizar es A4; la llamada secreta, E5 |
@@ -548,7 +548,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | D1 | ✅ **Compartir y exportar común** (hecho): la hoja (HTML, PDF, PNG, JPG, SVG, original, editable, `.pixpin`, texto) con la hoja del Mac en «Más…», la ventanita «Salida» y «Abrir con…»; enganchada al chat (mensaje, lo elegido, Exportar/Imprimir de un lienzo), a los proyectos, al pin y al exportar del lienzo. Queda engancharla en los lectores (`Documentos/*`), el PDF anotado y la web de un documento, Word, enlace y wifi | K/Compartir/{Compartible,PreparadoCompartir,PrepararCompartir,HojaCompartir,Salida,AbrirCon}.swift, N/compartir.rs |
 | D2 | ✅ **Leer en voz** (hecho): `AVSpeechSynthesizer`, resaltar el trozo y la palabra, el 🟢, `MPRemoteCommandCenter`, L en el lector, notas (clic derecho) | K/Voz/{LeerEnVoz,VozAlta,MandosSistema}.swift, K/Documentos/{VozDelLector,VozDeLaNota}.swift, K/Documentos/LectorDocumento.swift |
 | D3 | **Audio**: reproductor global (velocidad, ±saltos, barra de lo que suena), biblioteca de audio, micrófono flotante con hora | K/Voz/ReproductorVoz.swift, K/Voz/VistasVoz.swift, nuevo K/Voz/BibliotecaAudio.swift |
-| D4 | **Notas Markdown**: atajos de formato, fotos en la nota, comentarios (`.comentarios.json`, viajan) | K/Documentos/EditorNota.swift, N/notas.rs |
+| D4 ✅ | **Notas Markdown** (hecho, 16-oct): el editor de Windows (su página en un `WKWebView`) con sus atajos, fotos, documentos y audios en la nota, «Del chat», comentarios (`.comentarios.json`, viajan), copia `.md`, Word y compartir. Quedan las páginas vivas y los enlaces a hojas, y saltar al mensaje de un incrustado | K/Documentos/EditorNotaWeb.swift, K/Documentos/EditorNota.swift, N/notas.rs, N/notas/{web,adjuntos,comentarios,vista}.rs |
 | D5 | **Hojas**: editar un `.xlsx` como libro con pestañas, todas las hojas del móvil, los atajos de Windows (sin ⌘N, ⌘K ni ⌘S) | K/Documentos/HojaCalculo.swift, N/hojas.rs, N/hojas/libro.rs |
 | D6 | **Asistente, parte 1**: nube con URLSession, bajar el modelo y su catálogo para Mac, que no quede `llama-server` huérfano | K/Asistente/*, N/asistente.rs (**después de A7**) |
 | D7 | **Grabación**: marco movible en dos fases, editor para revisar (bucle, recortar, guardar o descartar) | K/Grabar/*, nuevo K/Grabar/EditorGrabacion.swift |

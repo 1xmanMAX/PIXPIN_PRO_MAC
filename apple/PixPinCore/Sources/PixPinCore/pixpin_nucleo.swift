@@ -4610,6 +4610,12 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func editarNota(chat: String, mensaje: String, texto: String) throws  -> MensajeChat
     
     /**
+     * **Abre una nota en el editor web**: un mensaje `NOTA` de un chat o un
+     * `.md` suelto. `NoExiste` si ya no esta (no se abre, para no pisarla).
+     */
+    func abrirNota(destino: DestinoNota, ingles: Bool) throws  -> SesionNota
+    
+    /**
      * **Abre un plano DWG o DXF** (por capas). Bloquea (un plano grande
      * tarda segundos): Swift lo llama desde una `Task` de prioridad
      * `.userInitiated`.
@@ -6581,6 +6587,21 @@ open func editarNota(chat: String, mensaje: String, texto: String)throws  -> Men
         FfiConverterString.lower(chat),
         FfiConverterString.lower(mensaje),
         FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Abre una nota en el editor web**: un mensaje `NOTA` de un chat o un
+     * `.md` suelto. `NoExiste` si ya no esta (no se abre, para no pisarla).
+     */
+open func abrirNota(destino: DestinoNota, ingles: Bool)throws  -> SesionNota  {
+    return try  FfiConverterTypeSesionNota_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_abrir_nota(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeDestinoNota_lower(destino),
+        FfiConverterBool.lower(ingles),uniffiCallStatus
     )
 })
 }
@@ -8663,6 +8684,237 @@ public func FfiConverterTypeRelojSincro_lift(_ handle: UInt64) throws -> RelojSi
 #endif
 public func FfiConverterTypeRelojSincro_lower(_ value: RelojSincro) -> UInt64 {
     return FfiConverterTypeRelojSincro.lower(value)
+}
+
+
+
+
+
+
+/**
+ * **Una nota abierta en el editor web.**
+ */
+public protocol SesionNotaProtocol: AnyObject, Sendable {
+    
+    /**
+     * Copia junto a la nota los ficheros elegidos con el panel del Mac y
+     * da el JSON que los mete en ella (`None` si no entro ninguno).
+     */
+    func adjuntarFicheros(rutas: [String])  -> String?
+    
+    /**
+     * El `.md` suelto que se edita, si no es una nota de un chat.
+     */
+    func fichero()  -> String?
+    
+    /**
+     * **Lo que llego de fuera** (otro aparato, otra ventana): el JSON
+     * `texto_externo` si la nota cambio en el disco desde lo ultimo que se
+     * vio. La pagina lo pone solo si no tiene nada sin guardar. Para
+     * llamarlo cada 2 s.
+     */
+    func mirarFuera()  -> String?
+    
+    /**
+     * **Un mensaje de la pagina** (el JSON tal cual) y lo que hay que hacer.
+     * Lo que no se entiende no hace nada. Bloqueante (guarda en el disco).
+     */
+    func recibir(mensaje: String)  -> [OrdenNota]
+    
+    /**
+     * **Lo que la pagina pide bajo `pixpin-nota://nota/`**: las fotos,
+     * audios y videos de la nota, por la misma ruta con que van en el
+     * Markdown (`archivo?r=<ruta>`).
+     */
+    func servir(peticion: String)  -> RecursoNota?
+    
+    /**
+     * El titulo con que nace la ventana.
+     */
+    func titulo()  -> String
+    
+}
+/**
+ * **Una nota abierta en el editor web.**
+ */
+open class SesionNota: SesionNotaProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_sesionnota(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_sesionnota(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Copia junto a la nota los ficheros elegidos con el panel del Mac y
+     * da el JSON que los mete en ella (`None` si no entro ninguno).
+     */
+open func adjuntarFicheros(rutas: [String]) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_sesionnota_adjuntar_ficheros(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(rutas),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El `.md` suelto que se edita, si no es una nota de un chat.
+     */
+open func fichero() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_sesionnota_fichero(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo que llego de fuera** (otro aparato, otra ventana): el JSON
+     * `texto_externo` si la nota cambio en el disco desde lo ultimo que se
+     * vio. La pagina lo pone solo si no tiene nada sin guardar. Para
+     * llamarlo cada 2 s.
+     */
+open func mirarFuera() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_sesionnota_mirar_fuera(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Un mensaje de la pagina** (el JSON tal cual) y lo que hay que hacer.
+     * Lo que no se entiende no hace nada. Bloqueante (guarda en el disco).
+     */
+open func recibir(mensaje: String) -> [OrdenNota]  {
+    return try!  FfiConverterSequenceTypeOrdenNota.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_sesionnota_recibir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo que la pagina pide bajo `pixpin-nota://nota/`**: las fotos,
+     * audios y videos de la nota, por la misma ruta con que van en el
+     * Markdown (`archivo?r=<ruta>`).
+     */
+open func servir(peticion: String) -> RecursoNota?  {
+    return try!  FfiConverterOptionTypeRecursoNota.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_sesionnota_servir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(peticion),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El titulo con que nace la ventana.
+     */
+open func titulo() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_sesionnota_titulo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSesionNota: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = SesionNota
+
+    public static func lift(_ handle: UInt64) throws -> SesionNota {
+        return SesionNota(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: SesionNota) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SesionNota {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: SesionNota, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSesionNota_lift(_ handle: UInt64) throws -> SesionNota {
+    return try FfiConverterTypeSesionNota.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSesionNota_lower(_ value: SesionNota) -> UInt64 {
+    return FfiConverterTypeSesionNota.lower(value)
 }
 
 
@@ -16959,6 +17211,63 @@ public func FfiConverterTypeRecuperados_lower(_ value: Recuperados) -> RustBuffe
 
 
 /**
+ * Un fichero que la pagina pidio, con su tipo.
+ */
+public struct RecursoNota: Equatable, Hashable {
+    public var tipo: String
+    public var datos: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(tipo: String, datos: Data) {
+        self.tipo = tipo
+        self.datos = datos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RecursoNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecursoNota: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecursoNota {
+        return
+            try RecursoNota(
+                tipo: FfiConverterString.read(from: &buf), 
+                datos: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RecursoNota, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.tipo, into: &buf)
+        FfiConverterData.write(value.datos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecursoNota_lift(_ buf: RustBuffer) throws -> RecursoNota {
+    return try FfiConverterTypeRecursoNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecursoNota_lower(_ value: RecursoNota) -> RustBuffer {
+    return FfiConverterTypeRecursoNota.lower(value)
+}
+
+
+/**
  * Lo que contesto el motor local en un turno.
  */
 public struct RespuestaIa: Equatable, Hashable {
@@ -19982,6 +20291,83 @@ public func FfiConverterTypeDesenlaceAligerar_lower(_ value: DesenlaceAligerar) 
 
 
 /**
+ * **Que nota se edita** (`notas_md::Destino` de Windows): un mensaje
+ * `NOTA` de un chat, por su id, o un `.md` suelto, por su ruta.
+ */
+
+public enum DestinoNota: Equatable, Hashable {
+    
+    case mensaje(chat: String, mensaje: String
+    )
+    case fichero(ruta: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DestinoNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDestinoNota: FfiConverterRustBuffer {
+    typealias SwiftType = DestinoNota
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DestinoNota {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .mensaje(chat: try FfiConverterString.read(from: &buf), mensaje: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .fichero(ruta: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DestinoNota, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .mensaje(chat,mensaje):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(chat, into: &buf)
+            FfiConverterString.write(mensaje, into: &buf)
+            
+        
+        case let .fichero(ruta):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(ruta, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDestinoNota_lift(_ buf: RustBuffer) throws -> DestinoNota {
+    return try FfiConverterTypeDestinoNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDestinoNota_lower(_ value: DestinoNota) -> RustBuffer {
+    return FfiConverterTypeDestinoNota.lower(value)
+}
+
+
+
+/**
  * Lo que paso al cambiar el nombre de un documento desde el lector.
  */
 
@@ -21660,6 +22046,216 @@ public func FfiConverterTypeNotaRepaso_lift(_ buf: RustBuffer) throws -> NotaRep
 #endif
 public func FfiConverterTypeNotaRepaso_lower(_ value: NotaRepaso) -> RustBuffer {
     return FfiConverterTypeNotaRepaso.lower(value)
+}
+
+
+
+/**
+ * **Lo que Swift tiene que hacer** tras un mensaje de la pagina.
+ */
+
+public enum OrdenNota: Equatable, Hashable {
+    
+    /**
+     * Un JSON para la pagina: `window.__pixpin(json)`.
+     */
+    case mandar(json: String
+    )
+    /**
+     * Se guardo: la burbuja del chat tiene que ensenar lo nuevo.
+     */
+    case guardada(mensaje: MensajeChat?
+    )
+    /**
+     * Elegir ficheros con el panel del Mac (`imagenes`: solo fotos); lo
+     * elegido vuelve por [`SesionNota::adjuntar_ficheros`].
+     */
+    case elegir(imagenes: Bool
+    )
+    /**
+     * Guardar estos bytes donde diga el panel de guardar del Mac.
+     */
+    case guardarComo(nombre: String, `extension`: String, datos: Data
+    )
+    /**
+     * `arrastrar`, `minimizar`, `maximizar` o `pantalla`.
+     */
+    case ventana(accion: String
+    )
+    /**
+     * El titulo de la ventana.
+     */
+    case titulo(texto: String
+    )
+    /**
+     * Una pagina o un correo, en el navegador.
+     */
+    case abrirEnlace(url: String
+    )
+    /**
+     * Un fichero de la nota (una foto, un documento, un audio).
+     */
+    case abrirFichero(ruta: String
+    )
+    /**
+     * Un mensaje del chat metido en la nota.
+     */
+    case abrirMensaje(chat: String, codigo: String
+    )
+    /**
+     * La hoja de compartir del Mac con la nota.
+     */
+    case compartir(titulo: String, texto: String
+    )
+    /**
+     * La pagina ya guardo lo ultimo: cerrar la ventana.
+     */
+    case cerrar
+    /**
+     * Abrir la misma nota en el editor de antes (el de AppKit).
+     */
+    case editorAnterior
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension OrdenNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOrdenNota: FfiConverterRustBuffer {
+    typealias SwiftType = OrdenNota
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OrdenNota {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .mandar(json: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .guardada(mensaje: try FfiConverterOptionTypeMensajeChat.read(from: &buf)
+        )
+        
+        case 3: return .elegir(imagenes: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 4: return .guardarComo(nombre: try FfiConverterString.read(from: &buf), extension: try FfiConverterString.read(from: &buf), datos: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 5: return .ventana(accion: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 6: return .titulo(texto: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 7: return .abrirEnlace(url: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 8: return .abrirFichero(ruta: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 9: return .abrirMensaje(chat: try FfiConverterString.read(from: &buf), codigo: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 10: return .compartir(titulo: try FfiConverterString.read(from: &buf), texto: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 11: return .cerrar
+        
+        case 12: return .editorAnterior
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: OrdenNota, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .mandar(json):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(json, into: &buf)
+            
+        
+        case let .guardada(mensaje):
+            writeInt(&buf, Int32(2))
+            FfiConverterOptionTypeMensajeChat.write(mensaje, into: &buf)
+            
+        
+        case let .elegir(imagenes):
+            writeInt(&buf, Int32(3))
+            FfiConverterBool.write(imagenes, into: &buf)
+            
+        
+        case let .guardarComo(nombre,`extension`,datos):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(nombre, into: &buf)
+            FfiConverterString.write(`extension`, into: &buf)
+            FfiConverterData.write(datos, into: &buf)
+            
+        
+        case let .ventana(accion):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(accion, into: &buf)
+            
+        
+        case let .titulo(texto):
+            writeInt(&buf, Int32(6))
+            FfiConverterString.write(texto, into: &buf)
+            
+        
+        case let .abrirEnlace(url):
+            writeInt(&buf, Int32(7))
+            FfiConverterString.write(url, into: &buf)
+            
+        
+        case let .abrirFichero(ruta):
+            writeInt(&buf, Int32(8))
+            FfiConverterString.write(ruta, into: &buf)
+            
+        
+        case let .abrirMensaje(chat,codigo):
+            writeInt(&buf, Int32(9))
+            FfiConverterString.write(chat, into: &buf)
+            FfiConverterString.write(codigo, into: &buf)
+            
+        
+        case let .compartir(titulo,texto):
+            writeInt(&buf, Int32(10))
+            FfiConverterString.write(titulo, into: &buf)
+            FfiConverterString.write(texto, into: &buf)
+            
+        
+        case .cerrar:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .editorAnterior:
+            writeInt(&buf, Int32(12))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOrdenNota_lift(_ buf: RustBuffer) throws -> OrdenNota {
+    return try FfiConverterTypeOrdenNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOrdenNota_lower(_ value: OrdenNota) -> RustBuffer {
+    return FfiConverterTypeOrdenNota.lower(value)
 }
 
 
@@ -23541,6 +24137,30 @@ fileprivate struct FfiConverterOptionTypePuntoPlano: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeRecursoNota: FfiConverterRustBuffer {
+    typealias SwiftType = RecursoNota?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeRecursoNota.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeRecursoNota.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeResumenMini: FfiConverterRustBuffer {
     typealias SwiftType = ResumenMini?
 
@@ -25257,6 +25877,31 @@ fileprivate struct FfiConverterSequenceTypeVistoEnRed: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeOrdenNota: FfiConverterRustBuffer {
+    typealias SwiftType = [OrdenNota]
+
+    public static func write(_ value: [OrdenNota], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOrdenNota.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [OrdenNota] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [OrdenNota]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOrdenNota.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [[String]]
 
@@ -26375,6 +27020,16 @@ public func mdTramos(texto: String) -> [TramoMd]  {
 })
 }
 /**
+ * **La pagina del editor de notas**, lista para el `WKWebView`.
+ */
+public func notaPagina() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nota_pagina(uniffiCallStatus
+    )
+})
+}
+/**
  * Si el nombre es de los que se paginan aqui (`.docx`, `.pptx`...).
  */
 public func esDocumentoOffice(nombre: String) -> Bool  {
@@ -26768,6 +27423,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_md_tramos() != 14058) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_nota_pagina() != 6212) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_es_documento_office() != 43696) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -27111,6 +27769,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_editar_nota() != 59830) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_nota() != 49902) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_plano() != 5693) {
@@ -27516,6 +28177,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_visibles() != 51453) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_sesionnota_adjuntar_ficheros() != 21738) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_sesionnota_fichero() != 56105) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_sesionnota_mirar_fuera() != 35068) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_sesionnota_recibir() != 22602) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_sesionnota_servir() != 24129) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_sesionnota_titulo() != 36375) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_documentooffice_es_presentacion() != 37611) {
