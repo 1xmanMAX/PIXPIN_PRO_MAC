@@ -727,6 +727,12 @@ public protocol AppIa: AnyObject, Sendable {
      */
     func leerTexto(ruta: String, paginas: [RangoPaginas]) throws  -> String
     
+    /**
+     * **Los ojos**: pinta la vista con el pintor del lienzo y devuelve el
+     * PNG (`None` si no se pudo). Ver [`super::ojos`].
+     */
+    func pintarVista(vista: VistaParaPintar)  -> Data?
+    
 }
 /**
  * **Las manos del asistente en la app**: lo implementa Swift. Se le llama
@@ -824,6 +830,20 @@ open func leerTexto(ruta: String, paginas: [RangoPaginas])throws  -> String  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(ruta),
         FfiConverterSequenceTypeRangoPaginas.lower(paginas),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los ojos**: pinta la vista con el pintor del lienzo y devuelve el
+     * PNG (`None` si no se pudo). Ver [`super::ojos`].
+     */
+open func pintarVista(vista: VistaParaPintar) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_appia_pintar_vista(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeVistaParaPintar_lower(vista),uniffiCallStatus
     )
 })
 }
@@ -929,6 +949,30 @@ fileprivate struct UniffiCallbackInterfaceAppIa {
                 makeCall: makeCall,
                 writeReturn: writeReturn,
                 lowerError: FfiConverterTypeErrorNucleo_lower
+            )
+        },
+        pintarVista: { (
+            uniffiHandle: UInt64,
+            vista: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Data? in
+                guard let uniffiObj = try? FfiConverterTypeAppIa.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.pintarVista(
+                     vista: try FfiConverterTypeVistaParaPintar_lift(vista)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionData.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
             )
         }
     )
@@ -5236,6 +5280,41 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func iaResponder(chat: String, nota: String, texto: String, lienzo: String?) throws  -> MensajeChat
     
     /**
+     * La quita (de la fila y de las automatizaciones: es la misma).
+     */
+    func iaRecetaBorrar(id: String) throws 
+    
+    /**
+     * Cambia el nombre, el icono y el pedido de una.
+     */
+    func iaRecetaCambiar(id: String, nombre: String, icono: String, pedido: String) throws 
+    
+    /**
+     * **«Guardar como receta»** desde un mensaje del chat: el de una
+     * pregunta, su texto; el de una respuesta del asistente, la pregunta
+     * que contesta (la que cuelga, o la ultima nota del usuario de antes).
+     * Sin la mencion `@asistente`. `None` si no hay nada que pedir.
+     */
+    func iaRecetaDesde(chat: String, mensaje: String) throws  -> RecetaIa?
+    
+    /**
+     * La mueve `paso` sitios en la fila (−1: a la izquierda).
+     */
+    func iaRecetaMover(id: String, paso: Int32) throws 
+    
+    /**
+     * Una receta nueva al final de la fila. Sin nombre, el principio del
+     * pedido; sin icono, uno segun lo que pide.
+     */
+    func iaRecetaNueva(nombre: String, icono: String, pedido: String) throws  -> RecetaIa
+    
+    /**
+     * **Las recetas**, de izquierda a derecha (vacio si aun no hay chat
+     * «Asistente» o su fichero no se entiende).
+     */
+    func iaRecetas()  -> [RecetaIa]
+    
+    /**
      * Enciende o apaga una. Su nombre, o `None` si no esta.
      */
     func automatizacionActivar(id: String, activa: Bool) throws  -> String?
@@ -6757,6 +6836,92 @@ open func iaResponder(chat: String, nota: String, texto: String, lienzo: String?
         FfiConverterString.lower(nota),
         FfiConverterString.lower(texto),
         FfiConverterOptionString.lower(lienzo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La quita (de la fila y de las automatizaciones: es la misma).
+     */
+open func iaRecetaBorrar(id: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_receta_borrar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Cambia el nombre, el icono y el pedido de una.
+     */
+open func iaRecetaCambiar(id: String, nombre: String, icono: String, pedido: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_receta_cambiar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(nombre),
+        FfiConverterString.lower(icono),
+        FfiConverterString.lower(pedido),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **«Guardar como receta»** desde un mensaje del chat: el de una
+     * pregunta, su texto; el de una respuesta del asistente, la pregunta
+     * que contesta (la que cuelga, o la ultima nota del usuario de antes).
+     * Sin la mencion `@asistente`. `None` si no hay nada que pedir.
+     */
+open func iaRecetaDesde(chat: String, mensaje: String)throws  -> RecetaIa?  {
+    return try  FfiConverterOptionTypeRecetaIa.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_receta_desde(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La mueve `paso` sitios en la fila (−1: a la izquierda).
+     */
+open func iaRecetaMover(id: String, paso: Int32)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_receta_mover(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterInt32.lower(paso),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Una receta nueva al final de la fila. Sin nombre, el principio del
+     * pedido; sin icono, uno segun lo que pide.
+     */
+open func iaRecetaNueva(nombre: String, icono: String, pedido: String)throws  -> RecetaIa  {
+    return try  FfiConverterTypeRecetaIa_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_receta_nueva(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(nombre),
+        FfiConverterString.lower(icono),
+        FfiConverterString.lower(pedido),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las recetas**, de izquierda a derecha (vacio si aun no hay chat
+     * «Asistente» o su fichero no se entiende).
+     */
+open func iaRecetas() -> [RecetaIa]  {
+    return try!  FfiConverterSequenceTypeRecetaIa.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_recetas(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -22282,6 +22447,136 @@ public func FfiConverterTypeRangoPaginas_lower(_ value: RangoPaginas) -> RustBuf
 
 
 /**
+ * **Una raya de la rejilla**, en pixeles de la imagen.
+ */
+public struct RayaVista: Equatable, Hashable {
+    public var x0: Float
+    public var y0: Float
+    public var x1: Float
+    public var y1: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x0: Float, y0: Float, x1: Float, y1: Float) {
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RayaVista: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRayaVista: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RayaVista {
+        return
+            try RayaVista(
+                x0: FfiConverterFloat.read(from: &buf), 
+                y0: FfiConverterFloat.read(from: &buf), 
+                x1: FfiConverterFloat.read(from: &buf), 
+                y1: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RayaVista, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x0, into: &buf)
+        FfiConverterFloat.write(value.y0, into: &buf)
+        FfiConverterFloat.write(value.x1, into: &buf)
+        FfiConverterFloat.write(value.y1, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRayaVista_lift(_ buf: RustBuffer) throws -> RayaVista {
+    return try FfiConverterTypeRayaVista.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRayaVista_lower(_ value: RayaVista) -> RustBuffer {
+    return FfiConverterTypeRayaVista.lower(value)
+}
+
+
+/**
+ * **Una receta**, como la ve la fila de botones.
+ */
+public struct RecetaIa: Equatable, Hashable {
+    public var id: String
+    public var nombre: String
+    public var icono: String
+    public var pedido: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, nombre: String, icono: String, pedido: String) {
+        self.id = id
+        self.nombre = nombre
+        self.icono = icono
+        self.pedido = pedido
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RecetaIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecetaIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RecetaIa {
+        return
+            try RecetaIa(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                icono: FfiConverterString.read(from: &buf), 
+                pedido: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RecetaIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.icono, into: &buf)
+        FfiConverterString.write(value.pedido, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecetaIa_lift(_ buf: RustBuffer) throws -> RecetaIa {
+    return try FfiConverterTypeRecetaIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecetaIa_lower(_ value: RecetaIa) -> RustBuffer {
+    return FfiConverterTypeRecetaIa.lower(value)
+}
+
+
+/**
  * Algo recibido con un codigo, ya en su sitio.
  */
 public struct RecibidoEnvio: Equatable, Hashable {
@@ -23785,6 +24080,73 @@ public func FfiConverterTypeResumenSincro_lower(_ value: ResumenSincro) -> RustB
 
 
 /**
+ * **Un rotulo**: un numero de la rejilla o la etiqueta `#id` de un
+ * elemento (`etiqueta`, sobre amarillo), con su esquina de arriba a la
+ * izquierda en pixeles de la imagen.
+ */
+public struct RotuloVista: Equatable, Hashable {
+    public var texto: String
+    public var x: Float
+    public var y: Float
+    public var etiqueta: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(texto: String, x: Float, y: Float, etiqueta: Bool) {
+        self.texto = texto
+        self.x = x
+        self.y = y
+        self.etiqueta = etiqueta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RotuloVista: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRotuloVista: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RotuloVista {
+        return
+            try RotuloVista(
+                texto: FfiConverterString.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                etiqueta: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RotuloVista, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterBool.write(value.etiqueta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRotuloVista_lift(_ buf: RustBuffer) throws -> RotuloVista {
+    return try FfiConverterTypeRotuloVista.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRotuloVista_lower(_ value: RotuloVista) -> RustBuffer {
+    return FfiConverterTypeRotuloVista.lower(value)
+}
+
+
+/**
  * Un trozo de lo reconocido y en que milisegundo del audio empieza (el
  * `Segmento` de `pixpin-voz`; Swift lo saca de `SFTranscriptionSegment`).
  */
@@ -24662,6 +25024,102 @@ public func FfiConverterTypeTransicionDiapositiva_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeTransicionDiapositiva_lower(_ value: TransicionDiapositiva) -> RustBuffer {
     return FfiConverterTypeTransicionDiapositiva.lower(value)
+}
+
+
+/**
+ * **Lo que Swift pinta para el modelo**: la zona `(x0, y0)–(x1, y1)` del
+ * mundo en una imagen de `ancho` x `alto` (`escala` pixeles por unidad),
+ * con el papel y lo dibujado (`plano`, sus fotos en `imagenes`) y encima la
+ * rejilla y las etiquetas.
+ */
+public struct VistaParaPintar: Equatable, Hashable {
+    public var plano: LienzoPlano
+    public var imagenes: [ImagenDelLienzo]
+    public var x0: Float
+    public var y0: Float
+    public var x1: Float
+    public var y1: Float
+    public var ancho: UInt32
+    public var alto: UInt32
+    public var escala: Float
+    public var rayas: [RayaVista]
+    public var rotulos: [RotuloVista]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(plano: LienzoPlano, imagenes: [ImagenDelLienzo], x0: Float, y0: Float, x1: Float, y1: Float, ancho: UInt32, alto: UInt32, escala: Float, rayas: [RayaVista], rotulos: [RotuloVista]) {
+        self.plano = plano
+        self.imagenes = imagenes
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.ancho = ancho
+        self.alto = alto
+        self.escala = escala
+        self.rayas = rayas
+        self.rotulos = rotulos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VistaParaPintar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVistaParaPintar: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VistaParaPintar {
+        return
+            try VistaParaPintar(
+                plano: FfiConverterTypeLienzoPlano.read(from: &buf), 
+                imagenes: FfiConverterSequenceTypeImagenDelLienzo.read(from: &buf), 
+                x0: FfiConverterFloat.read(from: &buf), 
+                y0: FfiConverterFloat.read(from: &buf), 
+                x1: FfiConverterFloat.read(from: &buf), 
+                y1: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterUInt32.read(from: &buf), 
+                alto: FfiConverterUInt32.read(from: &buf), 
+                escala: FfiConverterFloat.read(from: &buf), 
+                rayas: FfiConverterSequenceTypeRayaVista.read(from: &buf), 
+                rotulos: FfiConverterSequenceTypeRotuloVista.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VistaParaPintar, into buf: inout [UInt8]) {
+        FfiConverterTypeLienzoPlano.write(value.plano, into: &buf)
+        FfiConverterSequenceTypeImagenDelLienzo.write(value.imagenes, into: &buf)
+        FfiConverterFloat.write(value.x0, into: &buf)
+        FfiConverterFloat.write(value.y0, into: &buf)
+        FfiConverterFloat.write(value.x1, into: &buf)
+        FfiConverterFloat.write(value.y1, into: &buf)
+        FfiConverterUInt32.write(value.ancho, into: &buf)
+        FfiConverterUInt32.write(value.alto, into: &buf)
+        FfiConverterFloat.write(value.escala, into: &buf)
+        FfiConverterSequenceTypeRayaVista.write(value.rayas, into: &buf)
+        FfiConverterSequenceTypeRotuloVista.write(value.rotulos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistaParaPintar_lift(_ buf: RustBuffer) throws -> VistaParaPintar {
+    return try FfiConverterTypeVistaParaPintar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistaParaPintar_lower(_ value: VistaParaPintar) -> RustBuffer {
+    return FfiConverterTypeVistaParaPintar.lower(value)
 }
 
 
@@ -31064,6 +31522,30 @@ fileprivate struct FfiConverterOptionTypePuntoPlano: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeRecetaIa: FfiConverterRustBuffer {
+    typealias SwiftType = RecetaIa?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeRecetaIa.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeRecetaIa.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeRecursoNota: FfiConverterRustBuffer {
     typealias SwiftType = RecursoNota?
 
@@ -33102,6 +33584,56 @@ fileprivate struct FfiConverterSequenceTypeRangoPaginas: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeRayaVista: FfiConverterRustBuffer {
+    typealias SwiftType = [RayaVista]
+
+    public static func write(_ value: [RayaVista], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRayaVista.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RayaVista] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RayaVista]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRayaVista.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRecetaIa: FfiConverterRustBuffer {
+    typealias SwiftType = [RecetaIa]
+
+    public static func write(_ value: [RecetaIa], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRecetaIa.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RecetaIa] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RecetaIa]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRecetaIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRecibidoEnvio: FfiConverterRustBuffer {
     typealias SwiftType = [RecibidoEnvio]
 
@@ -33194,6 +33726,31 @@ fileprivate struct FfiConverterSequenceTypeResultadoBusqueda: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeResultadoBusqueda.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRotuloVista: FfiConverterRustBuffer {
+    typealias SwiftType = [RotuloVista]
+
+    public static func write(_ value: [RotuloVista], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRotuloVista.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RotuloVista] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RotuloVista]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRotuloVista.read(from: &buf))
         }
         return seq
     }
@@ -33788,6 +34345,16 @@ public func iaVerificarDescarga(carpeta: String, que: String, nombre: String)thr
         FfiConverterString.lower(nombre),uniffiCallStatus
     )
 }
+}
+/**
+ * Los iconos que se ofrecen para elegir.
+ */
+public func iaIconosDeReceta() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_iconos_de_receta(uniffiCallStatus
+    )
+})
 }
 /**
  * Si ya hay HTTPS para la nube.
@@ -35267,6 +35834,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_ia_verificar_descarga() != 22430) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_iconos_de_receta() != 21306) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_hay_transporte() != 42300) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -35625,6 +36195,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_responder() != 19377) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_receta_borrar() != 32432) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_receta_cambiar() != 2540) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_receta_desde() != 56280) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_receta_mover() != 18800) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_receta_nueva() != 11572) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_recetas() != 23600) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizacion_activar() != 27883) {
@@ -36111,6 +36699,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_appia_leer_texto() != 8155) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_appia_pintar_vista() != 21259) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_empieza() != 29565) {

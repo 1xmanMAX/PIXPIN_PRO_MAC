@@ -48,17 +48,21 @@ pub enum Trabajo {
     Resumir,
     /// Copiar lo que hay (para «guarda esto como figura» sin nada elegido).
     Elegido,
+    /// **Mirarlo** (`ojos`): se copia la zona con sus fotos.
+    Ver { mirada: pixpin_ia::ojos::Mirada, ctx: Contexto },
 }
 
 /// Lo que contesta el lienzo: el texto para el modelo, los ids que toco
 /// (pasan a ser «lo ultimo») y, al resumir, el contexto del turno.
-#[derive(Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, Default)]
 pub struct Respuesta {
     pub texto: String,
     pub ids: Vec<u64>,
     pub ctx: Option<Contexto>,
     /// Con [`Trabajo::Elegido`]: lo elegido en el lienzo abierto.
     pub elegido: Vec<Elemento>,
+    /// Con [`Trabajo::Ver`]: lo copiado para pintarlo.
+    pub vista: Option<Box<super::ojos::Encargo>>,
 }
 
 /// Los elementos de un documento del asistente.
@@ -143,8 +147,18 @@ impl Anfitrion for SinImagenes {
 /// **Hace un trabajo de editar o resumir sobre una escena** (la de un
 /// lienzo abierto o la de uno cerrado). `elegidos`: lo elegido ahora;
 /// `marco`: desde donde mide el modelo si es un resumen nuevo.
-pub fn trabajar(escena: &mut Escena, trabajo: &Trabajo, elegidos: &[u64], marco: (f32, f32)) -> Result<Respuesta, String> {
+pub fn trabajar(escena: &mut Escena, trabajo: &Trabajo, elegidos: &[u64], marco: (f32, f32), fotos: &[ImagenDelLienzo]) -> Result<Respuesta, String> {
     match trabajo {
+        Trabajo::Ver { mirada, ctx } => {
+            let mut ctx = ctx.clone();
+            ctx.elegidos = elegidos.to_vec();
+            let ruta = |id: u64| fotos.iter().find(|f| f.id_objeto == id).map(|f| f.ruta.clone());
+            let enc = super::ojos::encargo_de(escena, mirada, &ctx, ruta)?;
+            Ok(Respuesta {
+                vista: Some(Box::new(enc)),
+                ..Default::default()
+            })
+        }
         Trabajo::Resumir => {
             let ctx = Contexto {
                 marco,
@@ -182,6 +196,7 @@ pub const DESTINO_VACIO: &str = "Lienzo destino: vacio (aun no hay lienzo del as
 /// **El trabajo en un lienzo abierto**: centrado en lo que se ve.
 fn en_el_abierto(editor: &EditorLienzo, trabajo: &Trabajo, marco: Option<(f32, f32)>) -> Result<Respuesta, String> {
     let elegidos = editor.elegidos();
+    let fotos = editor.imagenes();
     editor.con_la_escena(|escena, vista| {
         let vista = vista.unwrap_or_else(|| {
             let c = escena.caja().unwrap_or((0.0, 0.0, 800.0, 600.0));
@@ -193,7 +208,7 @@ fn en_el_abierto(editor: &EditorLienzo, trabajo: &Trabajo, marco: Option<(f32, f
                 let ids = meter_ids(escena, doc, centro)?;
                 Ok(resumen_con_ids(escena, ids, marco))
             }
-            otro => trabajar(escena, otro, &elegidos, (vista.0.floor(), vista.1.floor())),
+            otro => trabajar(escena, otro, &elegidos, (vista.0.floor(), vista.1.floor()), &fotos),
         }
     })
 }
@@ -270,6 +285,7 @@ pub fn en_el_chat(
                 ));
             }
             Trabajo::Elegido => return Ok((Respuesta::default(), None)),
+            Trabajo::Ver { .. } => return Err("todavia no hay ningun lienzo en este chat: no hay nada que ver".into()),
             Trabajo::Editar { .. } => return Err("todavia no hay ningun lienzo en este chat: dibuja algo primero".into()),
             Trabajo::Dibujar(_) => {
                 let m = nucleo
@@ -288,7 +304,7 @@ pub fn en_el_chat(
         let r = en_el_abierto(&ed, trabajo, marco)?;
         return Ok((con_nombre(r, Some(&mensaje), nuevo), Some(referencia)));
     }
-    let ed = EditorLienzo::sin_ventana(ruta, carpeta, imagenes).map_err(|e| format!("no se pudo abrir el lienzo: {e}"))?;
+    let ed = EditorLienzo::sin_ventana(ruta, carpeta, imagenes.clone()).map_err(|e| format!("no se pudo abrir el lienzo: {e}"))?;
     let respuesta = ed.con_la_escena(|escena, _| match trabajo {
         Trabajo::Dibujar(doc) => {
             let ids = meter_al_lado_ids(escena, doc)?;
@@ -296,14 +312,14 @@ pub fn en_el_chat(
         }
         otro => {
             let marco = pixpin_ia::edicion::marco_de(escena);
-            trabajar(escena, otro, &[], marco)
+            trabajar(escena, otro, &[], marco, &imagenes)
         }
     })?;
     match ed.guardar() {
         Ok(_) => {}
         Err(e) => return Err(format!("no se pudo guardar el lienzo: {e}")),
     }
-    if matches!(trabajo, Trabajo::Resumir | Trabajo::Elegido) {
+    if matches!(trabajo, Trabajo::Resumir | Trabajo::Elegido | Trabajo::Ver { .. }) {
         return Ok((respuesta, Some(referencia)));
     }
     Ok((con_nombre(respuesta, Some(&mensaje), nuevo), Some(referencia)))

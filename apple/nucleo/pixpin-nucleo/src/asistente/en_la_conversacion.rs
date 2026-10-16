@@ -346,6 +346,10 @@ impl AppIa for ManosEnLaBurbuja {
     fn leer_texto(&self, ruta: String, paginas: Vec<RangoPaginas>) -> Result<String, ErrorNucleo> {
         self.dentro.leer_texto(ruta, paginas)
     }
+
+    fn pintar_vista(&self, vista: super::ojos::VistaParaPintar) -> Option<Vec<u8>> {
+        self.dentro.pintar_vista(vista)
+    }
 }
 
 // ---------------------------------------------------------------------------

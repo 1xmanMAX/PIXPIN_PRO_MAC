@@ -48,6 +48,8 @@ pub mod chat;
 pub mod documentos;
 pub mod en_la_conversacion;
 pub mod local;
+pub mod ojos;
+pub mod recetas;
 pub mod transporte;
 pub mod turno;
 

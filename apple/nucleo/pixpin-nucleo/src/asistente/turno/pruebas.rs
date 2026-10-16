@@ -31,6 +31,9 @@ impl AppIa for Manos {
         self.leidos.lock().unwrap().push((ruta, paginas));
         Ok("ACTA DE LA REUNION: se aprueba el presupuesto".into())
     }
+    fn pintar_vista(&self, _vista: crate::asistente::ojos::VistaParaPintar) -> Option<Vec<u8>> {
+        None
+    }
 }
 
 fn entorno(nube: bool, pensar: bool) -> Entorno {

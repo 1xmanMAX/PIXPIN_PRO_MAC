@@ -205,6 +205,9 @@ pub trait AppIa: Send + Sync {
     /// El texto de un PDF o una imagen (la capa de texto o Vision). `paginas`
     /// vacio: todas.
     fn leer_texto(&self, ruta: String, paginas: Vec<RangoPaginas>) -> Result<String, ErrorNucleo>;
+    /// **Los ojos**: pinta la vista con el pintor del lienzo y devuelve el
+    /// PNG (`None` si no se pudo). Ver [`super::ojos`].
+    fn pintar_vista(&self, vista: super::ojos::VistaParaPintar) -> Option<Vec<u8>>;
 }
 
 /// Lo que el Mac aun no hace (hoja→lienzo, anotar documentos, las acciones
@@ -514,11 +517,21 @@ pub(crate) fn turno_nucleo(
     let mut historial = preparado.historial;
     // El lienzo destino, resumido (tipos, #id, cajas, colores, textos) al
     // final del pedido: solo si el pedido es de dibujar o editar y hay
-    // lienzo (`pixpin_ia::edicion`).
-    if pixpin_ia::edicion::viene_a_cuento(&pedido)
+    // lienzo (`pixpin_ia::edicion`). Con ojos (en una conversacion, con un
+    // modelo que ve imagenes), «corrige», «alinea», «¿que falta?» llevan
+    // ademas la vista.
+    let ojos = en_chat && motor.ve_imagenes();
+    let mirar = pixpin_ia::ojos::pide_mirar(&pedido);
+    if (pixpin_ia::edicion::viene_a_cuento(&pedido) || mirar)
         && let Some(r) = ejecutor.resumen_del_lienzo()
     {
         pixpin_ia::edicion::anadir_resumen(&mut historial, &r);
+        if ojos
+            && mirar
+            && let Ok(v) = pixpin_ia::agente::Ejecutor::ver(ejecutor, &pixpin_ia::ojos::Mirada::default())
+        {
+            poner_vista(&mut historial, &v);
+        }
     }
 
     let buscar = |c: &str| contexto::buscar(&fuentes, c, 3);
@@ -535,8 +548,8 @@ pub(crate) fn turno_nucleo(
         buscar: (preparado.reiniciado || hoja.reinicios > 0).then_some(&buscar as &dyn Fn(&str) -> String),
         ampliar: Some(&todas[..]),
         rapido: Some(ahora),
-        ojos: false,
-        revisar: 0,
+        ojos,
+        revisar: if ojos && entorno.nube { 1 } else { 0 },
     };
 
     let mut recogido = Recogido::default();
@@ -674,6 +687,9 @@ pub(crate) struct EnChat {
     pub ultimo_dibujo: Option<String>,
     /// El texto entero de lo leido (OCR), para dejarlo en el chat.
     pub leidos: Vec<(AdjuntoIa, String)>,
+    /// Todo lo que dibujo o toco este turno (la revision de los ojos lo
+    /// mira: `Zona::Turno`).
+    pub del_turno: Vec<u64>,
 }
 
 impl EnChat {
@@ -682,6 +698,11 @@ impl EnChat {
     fn apuntar(&mut self, ids: &[u64], referencia: Option<String>) {
         if !ids.is_empty() {
             self.ctx.ultimos = ids.to_vec();
+            for id in ids {
+                if !self.del_turno.contains(id) {
+                    self.del_turno.push(*id);
+                }
+            }
         }
         if referencia.is_some() {
             self.lienzo = referencia;
@@ -698,6 +719,7 @@ impl EnChat {
             lienzo: None,
             ultimo_dibujo: None,
             leidos: Vec::new(),
+            del_turno: Vec::new(),
         }
     }
 }
@@ -998,10 +1020,47 @@ impl Ejecutor for EjecutorDelMac {
         }
     }
 
+    /// **Mirar el lienzo** (`ojos`): quien tiene la escena copia la zona y
+    /// Swift la pinta con el pintor del lienzo.
+    fn ver(&mut self, m: &pixpin_ia::ojos::Mirada) -> Result<pixpin_ia::ojos::Vista, String> {
+        if m.zona == pixpin_ia::ojos::Zona::Documento {
+            return Err("ver un documento anotado aun no se puede en PixPin para Mac".into());
+        }
+        if self.chat.as_ref().is_some_and(|c| !c.con_marco) {
+            // Que la rejilla mida desde donde mide el resumen.
+            let _ = self.resumen_del_lienzo();
+        }
+        let c = self.chat.as_ref().ok_or("aqui no hay lienzo que mirar")?;
+        let app = self.app.clone().ok_or("aqui no se puede pintar la vista")?;
+        let mut ctx = c.ctx.clone();
+        if m.zona == pixpin_ia::ojos::Zona::Turno {
+            ctx.ultimos = c.del_turno.clone();
+        }
+        let t0 = std::time::Instant::now();
+        let trabajo = super::al_lienzo::Trabajo::Ver { mirada: m.clone(), ctx: ctx.clone() };
+        let (r, _) = super::al_lienzo::en_el_chat(&c.nucleo, &c.chat, c.destino.as_deref(), &trabajo, None)?;
+        let enc = r.vista.ok_or("el lienzo no devolvio nada que ver")?;
+        let para = super::ojos::para_pintar(*enc);
+        let png = app.pintar_vista(para.clone()).ok_or("no se pudo pintar la vista del lienzo")?;
+        Ok(super::ojos::vista(&para, ctx.marco, m.marcas, png, t0.elapsed().as_millis()))
+    }
+
     /// Lo que dibuja antes que lo que edita (`edicion::en_orden`).
     fn ejecutar_varias(&mut self, llamadas: &[Llamada]) -> Vec<Result<String, String>> {
         pixpin_ia::edicion::en_orden(llamadas, |l| self.ejecutar(l))
     }
+}
+
+/// Pega la vista del lienzo al pedido del usuario (la imagen delante, como
+/// una foto adjunta, y su leyenda detras del texto).
+fn poner_vista(historial: &mut [Mensaje], v: &pixpin_ia::ojos::Vista) {
+    use pixpin_ia::motor::{Parte, Rol};
+    let Some(m) = historial.iter_mut().rev().find(|m| m.rol == Rol::Usuario) else { return };
+    m.partes.insert(0, Parte::Imagen { bytes: v.png.clone(), mime: "image/png".into() });
+    m.partes.push(Parte::Texto(format!(
+        "\n\n(La imagen adjunta es la vista del lienzo ahora; {})",
+        v.texto.trim_start_matches(pixpin_ia::ojos::MARCA).trim()
+    )));
 }
 
 /// Recorta a `n` letras diciendolo.

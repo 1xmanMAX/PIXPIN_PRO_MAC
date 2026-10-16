@@ -18,6 +18,7 @@ struct Manos {
     si: bool,
     preguntas: Mutex<Vec<String>>,
     pedidos: Mutex<Vec<Value>>,
+    vistas: Mutex<Vec<crate::asistente::ojos::VistaParaPintar>>,
 }
 
 impl AppIa for Manos {
@@ -31,6 +32,10 @@ impl AppIa for Manos {
     }
     fn leer_texto(&self, _ruta: String, _paginas: Vec<RangoPaginas>) -> Result<String, ErrorNucleo> {
         Ok("Clausula primera: el plazo es de 30 dias.".into())
+    }
+    fn pintar_vista(&self, vista: crate::asistente::ojos::VistaParaPintar) -> Option<Vec<u8>> {
+        self.vistas.lock().unwrap().push(vista);
+        Some(b"\x89PNG de mentira".to_vec())
     }
 }
 
@@ -496,4 +501,36 @@ fn medidas_reducidas_nunca_amplian() {
     assert_eq!(medidas_reducidas(4000, 3000, 768), (768, 576));
     assert_eq!(medidas_reducidas(300, 200, 768), (300, 200));
     assert_eq!(medidas_reducidas(100, 5000, 768), (15, 768));
+}
+
+#[test]
+fn con_ojos_revisar_lleva_la_vista_y_ver_lienzo_la_pinta_swift() {
+    let (n, d) = nucleo("ojos");
+    let chat = n.chat_asistente().unwrap().id;
+    let motor = MotorGuionado::nuevo(vec![
+        Respuesta::de_llamada("dibujar_en_lienzo", CIRCULO),
+        Respuesta::de_texto("Hecho."),
+        Respuesta::de_llamada("ver_lienzo", r#"{"zona":"todo"}"#),
+        Respuesta::de_texto("Esta bien centrado."),
+    ])
+    .con_vision();
+    preguntar(&n, &chat, "dibuja un circulo", &motor, Arc::default(), Arc::default(), &CorteIa::nuevo()).unwrap();
+    let manos = Arc::new(Manos::default());
+    let fin = preguntar(&n, &chat, "revisa el lienzo y corrige lo que falte", &motor, manos.clone(), Arc::default(), &CorteIa::nuevo()).unwrap();
+    assert_eq!(fin.respuesta.texto, "Esta bien centrado.");
+    // Al empezar, la vista va pegada al pedido; y `ver_lienzo` pinta otra.
+    let vistas = manos.vistas.lock().unwrap();
+    assert_eq!(vistas.len(), 2, "la del principio y la de ver_lienzo");
+    assert!(vistas[0].rotulos.iter().any(|r| r.etiqueta && r.texto.starts_with('#')));
+    let pedidas = motor.recibido.lock().unwrap();
+    let pedido = pedidas[2].mensajes.iter().rev().find(|m| m.rol == pixpin_ia::motor::Rol::Usuario).unwrap();
+    assert!(pedido.tiene_imagen(), "la vista del lienzo va con el pedido");
+    assert!(pedido.texto_entero().contains("vista del lienzo"), "{}", pedido.texto_entero());
+    drop(vistas);
+    // Sin vision no se mira (caso negativo).
+    let ciego = MotorGuionado::nuevo(vec![Respuesta::de_texto("Vale.")]);
+    let manos2 = Arc::new(Manos::default());
+    preguntar(&n, &chat, "revisa el lienzo", &ciego, manos2.clone(), Arc::default(), &CorteIa::nuevo()).unwrap();
+    assert!(manos2.vistas.lock().unwrap().is_empty());
+    let _ = std::fs::remove_dir_all(d);
 }
