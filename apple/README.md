@@ -180,6 +180,14 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         temporizador y alarma avisan con el pin cerrado (`Pines/AvisosMini.swift`: temporizador
         de pared, ventana flotante con sonido y notificación del sistema `mini:<id>`, reprogramados
         al arrancar y tras sincronizar, como el vigía de recordatorios de Windows).
+  - [x] Pines que **vuelven al arrancar** como en Windows (`Pines/AlmacenPines.swift`: el mismo
+        `almacen/indice.json` y `objetos/<año>/<mes>/`, Swift puro; capturas en PNG, fotos
+        copiadas tal cual, notas y mini-apps en `.txt`, PDF y vídeo por referencia), con su
+        sitio, opacidad, grupo, giro, filtros y clic a través; «Restaurar el último pin» y
+        «Cerrar todos» en el menú. Teclas del pin (`Pines/Pin.swift`, `Pines/FiltrosPin.swift`):
+        1–3 tamaños, 5 6 7 8 0 filtros, N negativo, R/⇧R girar, H/V voltear, flechas (⇧ ×10)
+        mueven, ⌘T clic a través, T modo texto, ⇧C todo el texto, ⌘C el texto marcado,
+        RePág/AvPág en PDF y ←→↑↓ en vídeo. Pines planos, sin borde ni cristal.
   - [x] Adjuntos en el chat: miniaturas con ImageIO y caché con tope, Quick Look, soltar y ⌘V.
   - [x] Sincronizar por la Wi‑Fi (Bonjour) con Windows y Android.
   - [x] Notas de voz (`app/Sources/PixPinKit/Voz/`, en verde en la CI):

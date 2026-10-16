@@ -26,6 +26,7 @@
 import AppKit
 import AVFoundation
 import AVKit
+import CoreImage
 import PDFKit
 import PixPinCore
 import UniformTypeIdentifiers
@@ -80,6 +81,23 @@ final class VistaPin: NSView {
     override func mouseExited(with event: NSEvent) { alSalir?() }
 }
 
+/// El asa de arriba: una franja plana del color de la ventana, que sigue al
+/// modo claro u oscuro.
+final class AsaPin: NSView {
+    override var wantsUpdateLayer: Bool { true }
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    override func updateLayer() {
+        layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.94).cgColor
+    }
+}
+
 @MainActor
 final class Pin: NSObject {
     /// Uno para todos los pines, y solo si alguno llega a pedir Live Text.
@@ -97,10 +115,34 @@ final class Pin: NSObject {
         didSet {
             pintarBorde()
             alCambiar?()
+            alGuardar?(self)
         }
     }
     /// Oculto con el ojo o con ⌃2 (sigue abierto).
     private(set) var oculto = false
+    /// Su entrada en el almacen (`AlmacenPines`). Un pin en vivo no tiene.
+    var idAlmacen: UInt64?
+    /// Vuelve del almacen: su marco es el guardado.
+    var restaurado = false
+    /// Cambio donde o como esta (sitio, tamano, giro, filtros, opacidad,
+    /// grupo, clic a traves): el gestor lo apunta en el almacen.
+    var alGuardar: (@MainActor (Pin) -> Void)?
+    /// Cambio lo de dentro: el texto de una nota o mini-app, o la foto al
+    /// fijar lo anotado.
+    var alCambiarContenido: (@MainActor (Pin) -> Void)?
+    /// Los filtros de la foto (5 6 7 8 0) y su giro (R, H, V).
+    private(set) var filtros = FiltrosPin()
+    private(set) var giro = GiroPin()
+    /// En negativo (N): todo el pin, sea lo que sea.
+    private(set) var negativo = false
+    /// Deja pasar el clic a lo de debajo (⌘T).
+    private(set) var pasante = false
+    /// Modo texto (T): el texto reconocido se marca y se puede seleccionar.
+    private(set) var modoTexto = false
+    /// La foto que se ve, con filtros y giro; `nil` si es la de `contenido`.
+    private var imagenVista: CGImage?
+    /// Para no rehacer la foto dos veces a la vez.
+    private var tareaVista: Task<Void, Never>?
 
     private let contenedor: VistaPin
     private var vistaImagen: NSImageView?
@@ -151,6 +193,24 @@ final class Pin: NSObject {
     private var esImagen: Bool {
         if case .imagen = contenido { return true }
         return false
+    }
+
+    /// La foto tal como se ve (con filtros y giro).
+    var imagenMostrada: CGImage? {
+        guard case let .imagen(imagen, _) = contenido else { return nil }
+        return imagenVista ?? imagen
+    }
+
+    /// La foto de siempre, sin filtros ni giro (lo que guarda el almacen).
+    var imagenOriginal: CGImage? {
+        if case let .imagen(imagen, _) = contenido { return imagen }
+        return nil
+    }
+
+    /// El texto de una nota o mini-app (lo que guarda el almacen).
+    var textoHerramienta: String? {
+        if case let .herramienta(h) = contenido { return h.texto }
+        return nil
     }
 
     private var zonaViva: ZonaViva? {
@@ -209,9 +269,15 @@ final class Pin: NSObject {
         panel.isMovableByWindowBackground = false
         panel.animationBehavior = .utilityWindow
 
-        // Borde fino y esquinas apenas redondeadas; la sombra la pone el panel.
+        // Plano, como en Windows (cero cromo): sin borde, solo la sombra del
+        // panel. La foto, el video y el pin en vivo llegan hasta las
+        // esquinas; lo demas va en su tarjeta apenas redondeada.
         contenedor.wantsLayer = true
-        contenedor.layer?.cornerRadius = 4
+        contenedor.layerUsesCoreImageFilters = true
+        switch contenido {
+        case .imagen, .video, .vivo: contenedor.layer?.cornerRadius = 0
+        case .pdf, .herramienta: contenedor.layer?.cornerRadius = 6
+        }
         contenedor.layer?.masksToBounds = true
         contenedor.autoresizingMask = [.width, .height]
         contenedor.alEntrar = { [weak self] in self?.alEntrarRaton() }
@@ -220,14 +286,13 @@ final class Pin: NSObject {
         pintarBorde()
     }
 
-    /// El borde: fino y oscuro, o del color de su grupo.
+    /// Sin borde; con grupo, una linea de su color.
     private func pintarBorde() {
         if let grupo {
             contenedor.layer?.borderWidth = 2
             contenedor.layer?.borderColor = ColoresGrupo.nsColor(grupo).cgColor
         } else {
-            contenedor.layer?.borderWidth = 0.5
-            contenedor.layer?.borderColor = NSColor.black.withAlphaComponent(0.25).cgColor
+            contenedor.layer?.borderWidth = 0
         }
     }
 
@@ -291,7 +356,11 @@ final class Pin: NSObject {
             vista.frame = todo
             vista.autoresizingMask = [.width, .height]
             contenedor.addSubview(vista)
-            h.alCambiar = { [weak self] in self?.alCambiar?() }
+            h.alCambiar = { [weak self] in
+                guard let self else { return }
+                self.alCambiar?()
+                self.alCambiarContenido?(self)
+            }
             montarAsa()
         }
     }
@@ -300,11 +369,8 @@ final class Pin: NSObject {
     /// ve al pasar el raton (en un audio, siempre: es casi todo el pin).
     private func montarAsa() {
         let b = contenedor.bounds
-        let asa = NSVisualEffectView(frame: CGRect(x: 0, y: b.height - Pin.altoAsa,
-                                                   width: b.width, height: Pin.altoAsa))
-        asa.material = .hudWindow
-        asa.blendingMode = .withinWindow
-        asa.state = .active
+        // Una franja plana del color de la ventana (sin cristal).
+        let asa = AsaPin(frame: CGRect(x: 0, y: b.height - Pin.altoAsa, width: b.width, height: Pin.altoAsa))
         asa.autoresizingMask = [.width, .minYMargin]
         if let simbolo = NSImage(systemSymbolName: "line.3.horizontal", accessibilityDescription: "Mover") {
             let icono = NSImageView(image: simbolo)
@@ -326,7 +392,8 @@ final class Pin: NSObject {
         panel.makeKey()
         if case let .video(reproductor, _, audio) = contenido {
             reproductor.play()
-            if !audio { ajustarAlVideo(reproductor) }
+            // Uno que vuelve del almacen ya trae su marco.
+            if !audio, !restaurado { ajustarAlVideo(reproductor) }
         }
         if let zona = zonaViva {
             zona.fuente.alPararse = { [weak self] in self?.vivoParado() }
@@ -355,6 +422,7 @@ final class Pin: NSObject {
                                        y: (marco.midY - tam.height / 2).rounded(),
                                        width: tam.width, height: tam.height), display: true)
             self.barra?.colocar(junto: self.panel)
+            self.alGuardar?(self)
         }
     }
 
@@ -430,6 +498,7 @@ final class Pin: NSObject {
                 panel.alphaValue = ReglasPin.opacidadTrasRueda(panel.alphaValue, deltaY: delta,
                                                                precisa: evento.hasPreciseScrollingDeltas)
                 alCambiar?()
+                alGuardar?(self)
                 return true
             }
             zoom(por: ReglasPin.factorZoom(deltaY: evento.scrollingDeltaY, precisa: evento.hasPreciseScrollingDeltas),
@@ -453,13 +522,19 @@ final class Pin: NSObject {
         let escribiendo = panel.firstResponder is NSText || (anotacion?.escribiendo ?? false)
         let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let letra = (e.charactersIgnoringModifiers ?? "").lowercased()
-        if e.keyCode == 53 { // Esc
+        if e.keyCode == 53 { // Esc, por capas
             if anotacion?.escribiendo == true {
                 anotacion?.terminarTexto()
             } else if anotando {
                 terminarAnotar()
             } else if escribiendo {
                 panel.makeFirstResponder(nil)
+            } else if let capa = superposicion, capa.hasActiveTextSelection {
+                // En modo texto, el primero quita la seleccion y el
+                // siguiente sale del modo; despues, cerrar.
+                capa.resetSelection()
+            } else if modoTexto {
+                ponerModoTexto(false)
             } else {
                 cerrar()
             }
@@ -488,18 +563,38 @@ final class Pin: NSObject {
             case "0": tamanoOriginal()
             case "=", "+": zoom(por: 1.25, ancla: CGPoint(x: panel.frame.midX, y: panel.frame.midY))
             case "-": zoom(por: 0.8, ancla: CGPoint(x: panel.frame.midX, y: panel.frame.midY))
+            case "t": ponerPasante(!pasante)
             default: return false
             }
             return true
         }
+        // ⌥N: el negativo de una herramienta (la N sola se escribe dentro).
+        if mods.contains(.option), !mods.contains(.control), e.keyCode == 45 {
+            alternarNegativo()
+            return true
+        }
         guard mods.isDisjoint(with: [.control, .option]) else { return false }
         if case .herramienta = contenido { return false }
+        let mayus = mods.contains(.shift)
         switch e.keyCode {
-        case 123, 126: // izquierda, arriba
+        case 123, 124, 125, 126: // flechas
+            if case .video = contenido, !mayus {
+                // Como cualquier reproductor: ±5 s y el volumen.
+                switch e.keyCode {
+                case 123: saltarVideo(segundos: -5)
+                case 124: saltarVideo(segundos: 5)
+                case 126: cambiarVolumen(1)
+                default: cambiarVolumen(-1)
+                }
+                return true
+            }
+            moverConFlechas(e.keyCode, paso: mayus ? 10 : 1)
+            return true
+        case 116: // RePag
             guard vistaPDF != nil else { return false }
             accion(.paginaAnterior)
             return true
-        case 124, 125: // derecha, abajo
+        case 121: // AvPag
             guard vistaPDF != nil else { return false }
             accion(.paginaSiguiente)
             return true
@@ -511,15 +606,35 @@ final class Pin: NSObject {
             break
         }
         switch letra {
-        case "a" where esImagen:
+        case "a" where esImagen && !mayus:
             accion(.anotar)
-            return true
         case "m":
-            if case .video = contenido { accion(.sonido); return true }
-            return false
+            guard case .video = contenido else { return false }
+            accion(.sonido)
+        case "1", "2", "3":
+            guard esImagen || zonaViva != nil else { return false }
+            ponerVista(letra == "1" ? .original : letra == "2" ? .ajustar : .rellenar)
+        case "5", "6", "7", "8", "0":
+            guard esImagen else { return false }
+            cambiarFiltro(letra)
+        case "n":
+            alternarNegativo()
+        case "r":
+            guard esImagen else { return false }
+            girar(mayus ? 3 : 1)
+        case "h", "v":
+            guard esImagen, !mayus else { return false }
+            voltear(horizontal: letra == "h")
+        case "t" where !mayus:
+            guard esImagen else { return false }
+            ponerModoTexto(!modoTexto)
+        case "c" where mayus:
+            guard esImagen else { return false }
+            copiarTodoElTexto()
         default:
             return false
         }
+        return true
     }
 
     private func zoom(por factor: CGFloat, ancla: CGPoint) {
@@ -530,13 +645,15 @@ final class Pin: NSObject {
         panel.setFrame(ReglasPin.marcoTrasZoom(panel.frame, ancla: ancla, tamano: tamano), display: true)
         barra?.colocar(junto: panel)
         ponerZoom()
+        alGuardar?(self)
     }
 
     /// Un pixel de la foto (o de la zona) por pixel de la pantalla.
     private func tamanoOriginal() {
         let natural: CGSize
         switch contenido {
-        case let .imagen(imagen, _):
+        case .imagen:
+            guard let imagen = imagenMostrada else { return }
             let s = max(panel.backingScaleFactor, 1)
             natural = CGSize(width: CGFloat(imagen.width) / s, height: CGFloat(imagen.height) / s)
         case let .vivo(z):
@@ -579,7 +696,10 @@ final class Pin: NSObject {
         if let a = ajuste, !a.guias.isEmpty, a.rect.origin != panel.frame.origin {
             panel.setFrame(CGRect(origin: a.rect.origin, size: panel.frame.size), display: true, animate: true)
         }
-        if movido { barra?.colocar(junto: panel) }
+        if movido {
+            barra?.colocar(junto: panel)
+            alGuardar?(self)
+        }
     }
 
     // MARK: Barra
@@ -672,8 +792,9 @@ final class Pin: NSObject {
     private func ponerZoom() {
         let porcentaje: CGFloat
         switch contenido {
-        case let .imagen(imagen, _):
-            porcentaje = panel.frame.width * max(panel.backingScaleFactor, 1) / CGFloat(max(imagen.width, 1)) * 100
+        case .imagen:
+            let ancho = imagenMostrada?.width ?? 1
+            porcentaje = panel.frame.width * max(panel.backingScaleFactor, 1) / CGFloat(max(ancho, 1)) * 100
         case let .vivo(z):
             porcentaje = panel.frame.width / max(z.zona.width, 1) * 100
         default:
@@ -769,6 +890,220 @@ final class Pin: NSObject {
         case .fijar: fijarAnotacion()
         case .listo: terminarAnotar()
         }
+    }
+
+    // MARK: Vista: filtros, giro, negativo, tamanos, flechas, clic a traves
+
+    /// Las tres vistas de las teclas 1, 2 y 3.
+    enum VistaTamano { case original, ajustar, rellenar }
+
+    /// Las flechas mueven el pin un punto (con ⇧, diez). Guarda el gestor,
+    /// que junta una rafaga en una sola escritura.
+    private func moverConFlechas(_ tecla: UInt16, paso: CGFloat) {
+        var origen = panel.frame.origin
+        switch tecla {
+        case 123: origen.x -= paso
+        case 124: origen.x += paso
+        case 126: origen.y += paso
+        default: origen.y -= paso
+        }
+        panel.setFrameOrigin(origen)
+        barra?.colocar(junto: panel)
+        alGuardar?(self)
+    }
+
+    /// 1: un pixel de la foto por pixel de la pantalla; 2: cabe entera en la
+    /// pantalla; 3: la cubre. Las dos ultimas, centradas.
+    private func ponerVista(_ vista: VistaTamano) {
+        let natural: CGSize
+        if let imagen = imagenMostrada {
+            let s = max(panel.backingScaleFactor, 1)
+            natural = CGSize(width: CGFloat(imagen.width) / s, height: CGFloat(imagen.height) / s)
+        } else if let z = zonaViva {
+            natural = z.zona.size
+        } else {
+            return
+        }
+        guard natural.width > 0, natural.height > 0 else { return }
+        let area = (panel.screen ?? NSScreen.main)?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+        var tam = natural
+        if vista != .original {
+            let fx = area.width / natural.width, fy = area.height / natural.height
+            let f = vista == .ajustar ? min(fx, fy) : max(fx, fy)
+            tam = CGSize(width: max(1, (natural.width * f).rounded()), height: max(1, (natural.height * f).rounded()))
+        }
+        let marco: CGRect
+        if vista == .original {
+            // El original, quieto alrededor de su centro.
+            let f = panel.frame
+            marco = CGRect(x: (f.midX - tam.width / 2).rounded(), y: (f.midY - tam.height / 2).rounded(),
+                           width: tam.width, height: tam.height)
+        } else {
+            marco = CGRect(x: (area.midX - tam.width / 2).rounded(), y: (area.midY - tam.height / 2).rounded(),
+                           width: tam.width, height: tam.height)
+        }
+        tamanoBase = tam
+        escala = 1
+        panel.setFrame(marco, display: true)
+        barra?.colocar(junto: panel)
+        ponerZoom()
+        alGuardar?(self)
+    }
+
+    /// 5 gris, 6 invertir, 7 y 8 el brillo; 0 lo devuelve todo a como era
+    /// (tambien el giro: es «restaurar el original»).
+    private func cambiarFiltro(_ tecla: String) {
+        var f = filtros
+        switch tecla {
+        case "5": f.gris.toggle()
+        case "6": f.invertido.toggle()
+        case "7": f = f.conBrillo(1)
+        case "8": f = f.conBrillo(-1)
+        default:
+            f = FiltrosPin()
+            if giro.cuartos % 2 == 1 {
+                panel.setFrame(ReglasFiltros.marcoGirado(panel.frame), display: true)
+                tamanoBase = CGSize(width: tamanoBase.height, height: tamanoBase.width)
+                barra?.colocar(junto: panel)
+            }
+            giro = GiroPin()
+        }
+        filtros = f
+        rehacerVista()
+        alGuardar?(self)
+    }
+
+    /// R gira a la derecha (⇧R, `pasos` 3, a la izquierda): el pin cambia
+    /// ancho por alto alrededor de su centro.
+    private func girar(_ pasos: Int) {
+        guard anotacion == nil else { return NSSound.beep() }
+        giro.girar(pasos)
+        panel.setFrame(ReglasFiltros.marcoGirado(panel.frame), display: true)
+        tamanoBase = CGSize(width: tamanoBase.height, height: tamanoBase.width)
+        barra?.colocar(junto: panel)
+        rehacerVista()
+        alGuardar?(self)
+    }
+
+    /// H y V: voltear lo que se ve.
+    private func voltear(horizontal: Bool) {
+        guard anotacion == nil else { return NSSound.beep() }
+        if horizontal { giro.volteoH.toggle() } else { giro.volteoV.toggle() }
+        rehacerVista()
+        alGuardar?(self)
+    }
+
+    /// N: el pin entero en negativo, sea foto, PDF, video o nota.
+    private func alternarNegativo() {
+        negativo.toggle()
+        contenedor.contentFilters = negativo ? [CIFilter(name: "CIColorInvert")].compactMap { $0 } : []
+    }
+
+    /// ⌘T: el clic pasa a lo de debajo; el pin se ve pero no se toca. Se
+    /// vuelve con el menu de PixPin («Dejar pasar el clic»), o con ⌘T si el
+    /// pin aun tiene el teclado.
+    func ponerPasante(_ si: Bool, guardar: Bool = true) {
+        guard si != pasante else { return }
+        pasante = si
+        panel.ignoresMouseEvents = si
+        if si {
+            esconderBarra?.cancel()
+            barra?.esconder()
+            pararRelojVideo()
+            avisar("El clic pasa a través. Para volver: ⌘T o «Recoger el clic» en el menú de PixPin")
+        }
+        alCambiar?()
+        if guardar { alGuardar?(self) }
+    }
+
+    /// T: entra o sale del modo texto. Al entrar se lee la foto (una vez) y
+    /// el texto reconocido se marca para poder seleccionarlo.
+    private func ponerModoTexto(_ si: Bool) {
+        modoTexto = si
+        if si {
+            prepararTextoVivo()
+            superposicion?.selectableItemsHighlighted = true
+            avisar("Modo texto: selecciona con el ratón · ⌘C copia · ⇧C copia todo")
+        } else {
+            superposicion?.resetSelection()
+            superposicion?.selectableItemsHighlighted = false
+        }
+    }
+
+    /// ⇧C: todo el texto reconocido al portapapeles.
+    private func copiarTodoElTexto() {
+        if let texto = superposicion?.analysis?.transcript, !texto.isEmpty {
+            let portapapeles = NSPasteboard.general
+            portapapeles.clearContents()
+            portapapeles.setString(texto, forType: .string)
+            avisar("Texto copiado")
+            return
+        }
+        sacarTextoDelPin(nil)
+    }
+
+    /// Rehace la foto que se ve desde la original (fuera del hilo principal).
+    private func rehacerVista() {
+        guard case let .imagen(original, _) = contenido else { return }
+        let f = filtros, g = giro
+        tareaVista?.cancel()
+        if f.sonNeutros, g.esNeutro {
+            imagenVista = nil
+            mostrarVista()
+            return
+        }
+        tareaVista = Task { [weak self] in
+            let hecha = await Miniatura.fueraDelPrincipal { ReglasFiltros.aplicar(original, filtros: f, giro: g) }
+            guard let self, !Task.isCancelled, !self.cerrado, self.filtros == f, self.giro == g else { return }
+            self.imagenVista = hecha
+            self.mostrarVista()
+        }
+    }
+
+    private func mostrarVista() {
+        guard let imagen = imagenMostrada else { return }
+        vistaImagen?.image = NSImage(cgImage: imagen, size: .zero)
+        // El texto reconocido era de la foto de antes.
+        aligerar()
+        if modoTexto { prepararTextoVivo() }
+        ponerZoom()
+    }
+
+    /// Donde y como esta, para el almacen. `techo`: el `maxY` de la
+    /// pantalla principal.
+    func guardado(techo: CGFloat) -> PinGuardado {
+        let r = ReglasAlmacen.aAlmacen(panel.frame, techo: techo)
+        var g = PinGuardado(x: r.x, y: r.y, ancho: r.ancho, alto: r.alto,
+                            escalaPorCien: Int((panel.backingScaleFactor * 100).rounded()))
+        g.giro = giro.cuartos
+        g.volteoH = giro.volteoH
+        g.volteoV = giro.volteoV
+        g.pasante = pasante
+        g.gris = filtros.gris
+        g.invertido = filtros.invertido
+        g.brillo = filtros.brillo
+        g.opacidad = ReglasPin.porcentaje(panel.alphaValue)
+        return g
+    }
+
+    /// Vuelve como se quedo (al restaurar): el marco ya viene girado.
+    func aplicar(_ g: PinGuardado) {
+        filtros = FiltrosPin(gris: g.gris, invertido: g.invertido,
+                             brillo: min(max(g.brillo, -FiltrosPin.pasosMaximos), FiltrosPin.pasosMaximos))
+        giro = GiroPin(cuartos: ((g.giro % 4) + 4) % 4, volteoH: g.volteoH, volteoV: g.volteoV)
+        if g.opacidad != 100 { panel.alphaValue = ReglasPin.limitarOpacidad(CGFloat(g.opacidad) / 100) }
+        if esImagen { rehacerVista() }
+        if g.pasante { ponerPasante(true, guardar: false) }
+    }
+
+    private func saltarVideo(segundos: Double) {
+        guard case let .video(r, _, _) = contenido else { return }
+        let total = r.currentItem?.duration.seconds ?? .nan
+        var destino = r.currentTime().seconds + segundos
+        if total.isFinite, total > 0 { destino = min(destino, total - 0.05) }
+        r.seek(to: CMTime(seconds: max(0, destino), preferredTimescale: 600),
+               toleranceBefore: .zero, toleranceAfter: .zero)
+        ponerTiempo(r)
     }
 
     // MARK: Pin en vivo
@@ -901,12 +1236,18 @@ final class Pin: NSObject {
 
     /// Quema lo dibujado en la foto (una vez, a su tamano) y quita la capa.
     private func fijarAnotacion() {
-        guard case let .imagen(imagen, _) = contenido, let capa = anotacion else { return }
+        guard let imagen = imagenMostrada, let capa = anotacion else { return }
         capa.terminarTexto()
         guard !capa.trazos.isEmpty else { return terminarAnotar() }
         guard let nueva = ReglasAnotacion.quemar(capa.trazos, en: imagen) else { return NSSound.beep() }
-        // Ya no es el fichero de antes: copiar y guardar dan la anotada.
+        // Ya no es el fichero de antes: copiar y guardar dan la anotada. Se
+        // quema sobre lo que se ve, asi que filtros y giro quedan dentro.
         contenido = .imagen(nueva, fichero: nil)
+        imagenVista = nil
+        filtros = FiltrosPin()
+        giro = GiroPin()
+        alCambiarContenido?(self)
+        alGuardar?(self)
         vistaImagen?.image = NSImage(cgImage: nueva, size: .zero)
         capa.removeFromSuperview()
         anotacion = nil
@@ -920,7 +1261,7 @@ final class Pin: NSObject {
     /// Analiza la foto la primera vez que hace falta (raton encima) y pone la
     /// capa de Live Text encima: el texto se selecciona sobre el propio pin.
     private func prepararTextoVivo() {
-        guard case let .imagen(imagen, _) = contenido, let vista = vistaImagen, !anotando,
+        guard let imagen = imagenMostrada, let vista = vistaImagen, !anotando,
               superposicion?.analysis == nil, tareaAnalisis == nil, ImageAnalyzer.isSupported
         else { return }
         tareaAnalisis = Task { [weak self] in
@@ -944,6 +1285,7 @@ final class Pin: NSObject {
                 self.superposicion = capa
             }
             capa.analysis = analisis
+            if self.modoTexto { capa.selectableItemsHighlighted = true }
         }
     }
 
@@ -1020,6 +1362,7 @@ final class Pin: NSObject {
             menu.addItem(elemento("Guardar en «Mensajes guardados»", #selector(notaAlChat(_:))))
         }
         menu.addItem(elemento("Tamaño original", #selector(tamanoOriginalDesdeMenu(_:)), tecla: "0"))
+        menu.addItem(construirMenuVista())
         menu.addItem(.separator())
 
         let opacidad = NSMenuItem(title: "Opacidad", action: nil, keyEquivalent: "")
@@ -1063,10 +1406,86 @@ final class Pin: NSObject {
         let texto = elemento("Sacar texto", #selector(sacarTextoDelPin(_:)))
         texto.isEnabled = !soloAudio
         menu.addItem(texto)
+        if esImagen {
+            let modo = elemento("Modo texto", #selector(teclaDesdeMenu(_:)), tecla: "t", conMando: false)
+            modo.tag = Pin.teclaModoTexto
+            modo.state = modoTexto ? .on : .off
+            menu.addItem(modo)
+            let todo = elemento("Copiar todo el texto", #selector(teclaDesdeMenu(_:)), tecla: "C", conMando: false)
+            todo.tag = Pin.teclaCopiarTexto
+            menu.addItem(todo)
+        }
+        let paso = elemento("Dejar pasar el clic", #selector(pasanteDesdeMenu(_:)), tecla: "t")
+        paso.state = pasante ? .on : .off
+        menu.addItem(paso)
         menu.addItem(.separator())
         menu.addItem(elemento("Cerrar", #selector(cerrarDesdeMenu(_:))))
         return menu
     }
+
+    // Las acciones de teclado que tambien salen en el menu (su `tag`).
+    private static let teclaModoTexto = 100
+    private static let teclaCopiarTexto = 101
+    private static let teclaNegativo = 102
+    private static let teclaGirarDerecha = 103
+    private static let teclaGirarIzquierda = 104
+    private static let teclaVoltearH = 105
+    private static let teclaVoltearV = 106
+    private static let teclaOriginal = 107
+    private static let teclaAjustar = 108
+    private static let teclaRellenar = 109
+
+    /// «Vista»: tamanos, giro, volteos, filtros y negativo, con sus teclas.
+    private func construirMenuVista() -> NSMenuItem {
+        let item = NSMenuItem(title: "Vista", action: nil, keyEquivalent: "")
+        let m = NSMenu()
+        m.autoenablesItems = false
+        func anadir(_ titulo: String, _ tag: Int, _ tecla: String, activo: Bool = true, marcado: Bool = false) {
+            let i = elemento(titulo, #selector(teclaDesdeMenu(_:)), tecla: tecla, conMando: false)
+            i.tag = tag
+            i.isEnabled = activo
+            i.state = marcado ? .on : .off
+            m.addItem(i)
+        }
+        let conTamanos = esImagen || zonaViva != nil
+        anadir("Tamaño real", Pin.teclaOriginal, "1", activo: conTamanos)
+        anadir("Ajustar a la pantalla", Pin.teclaAjustar, "2", activo: conTamanos)
+        anadir("Rellenar la pantalla", Pin.teclaRellenar, "3", activo: conTamanos)
+        m.addItem(.separator())
+        anadir("Girar a la derecha", Pin.teclaGirarDerecha, "r", activo: esImagen)
+        anadir("Girar a la izquierda", Pin.teclaGirarIzquierda, "R", activo: esImagen)
+        anadir("Voltear en horizontal", Pin.teclaVoltearH, "h", activo: esImagen, marcado: giro.volteoH)
+        anadir("Voltear en vertical", Pin.teclaVoltearV, "v", activo: esImagen, marcado: giro.volteoV)
+        m.addItem(.separator())
+        anadir("Gris", 5, "5", activo: esImagen, marcado: filtros.gris)
+        anadir("Invertir colores", 6, "6", activo: esImagen, marcado: filtros.invertido)
+        anadir("Más brillo", 7, "7", activo: esImagen && filtros.brillo < FiltrosPin.pasosMaximos)
+        anadir("Menos brillo", 8, "8", activo: esImagen && filtros.brillo > -FiltrosPin.pasosMaximos)
+        anadir("Restaurar el original", 0, "0", activo: esImagen && !(filtros.sonNeutros && giro.esNeutro))
+        m.addItem(.separator())
+        anadir("Negativo", Pin.teclaNegativo, "n", marcado: negativo)
+        item.submenu = m
+        return item
+    }
+
+    @objc private func teclaDesdeMenu(_ sender: NSMenuItem) {
+        switch sender.tag {
+        case 0, 5, 6, 7, 8: cambiarFiltro(String(sender.tag))
+        case Pin.teclaModoTexto: ponerModoTexto(!modoTexto)
+        case Pin.teclaCopiarTexto: copiarTodoElTexto()
+        case Pin.teclaNegativo: alternarNegativo()
+        case Pin.teclaGirarDerecha: girar(1)
+        case Pin.teclaGirarIzquierda: girar(3)
+        case Pin.teclaVoltearH: voltear(horizontal: true)
+        case Pin.teclaVoltearV: voltear(horizontal: false)
+        case Pin.teclaOriginal: ponerVista(.original)
+        case Pin.teclaAjustar: ponerVista(.ajustar)
+        case Pin.teclaRellenar: ponerVista(.rellenar)
+        default: break
+        }
+    }
+
+    @objc private func pasanteDesdeMenu(_ sender: Any?) { ponerPasante(!pasante) }
 
     private func elemento(_ titulo: String, _ accion: Selector, tecla: String = "", conMando: Bool = true) -> NSMenuItem {
         let item = NSMenuItem(title: titulo, action: accion, keyEquivalent: tecla)
@@ -1088,9 +1507,18 @@ final class Pin: NSObject {
     /// video, el fichero; de un pin en vivo, lo que se ve ahora; de una
     /// herramienta, su texto.
     @objc private func copiar(_ sender: Any?) {
+        // Con texto marcado, ⌘C copia ESO y no la foto.
+        if let capa = superposicion, capa.hasActiveTextSelection, !capa.selectedText.isEmpty {
+            let portapapeles = NSPasteboard.general
+            portapapeles.clearContents()
+            portapapeles.setString(capa.selectedText, forType: .string)
+            avisar("Texto copiado")
+            return
+        }
         var objetos: [NSPasteboardWriting] = []
         switch contenido {
-        case let .imagen(imagen, _):
+        case .imagen:
+            guard let imagen = imagenMostrada else { return }
             objetos.append(NSImage(cgImage: imagen, size: .zero))
         case let .vivo(zona):
             guard let foto = zona.fuente.fotograma() else { return NSSound.beep() }
@@ -1100,7 +1528,8 @@ final class Pin: NSObject {
         default:
             break
         }
-        if let fichero { objetos.append(fichero as NSURL) }
+        // Girada o filtrada ya no es el fichero: solo lo que se ve.
+        if let fichero, imagenVista == nil { objetos.append(fichero as NSURL) }
         guard !objetos.isEmpty else { return NSSound.beep() }
         let portapapeles = NSPasteboard.general
         portapapeles.clearContents()
@@ -1113,6 +1542,7 @@ final class Pin: NSObject {
     @objc private func guardarComo(_ sender: Any?) {
         let dialogo = NSSavePanel()
         dialogo.canCreateDirectories = true
+        let fichero = imagenVista == nil ? self.fichero : nil
         if let fichero {
             dialogo.nameFieldStringValue = fichero.lastPathComponent
             if let tipo = UTType(filenameExtension: fichero.pathExtension) {
@@ -1130,7 +1560,7 @@ final class Pin: NSObject {
                     try FileManager.default.removeItem(at: destino)
                 }
                 try FileManager.default.copyItem(at: fichero, to: destino)
-            } else if case let .imagen(imagen, _) = contenido {
+            } else if let imagen = imagenMostrada {
                 guard let salida = CGImageDestinationCreateWithURL(destino as CFURL, UTType.png.identifier as CFString, 1, nil)
                 else { throw CocoaError(.fileWriteUnknown) }
                 CGImageDestinationAddImage(salida, imagen, nil)
@@ -1144,6 +1574,7 @@ final class Pin: NSObject {
     @objc private func elegirOpacidad(_ sender: NSMenuItem) {
         panel.alphaValue = ReglasPin.limitarOpacidad(CGFloat(sender.tag) / 100)
         alCambiar?()
+        alGuardar?(self)
     }
 
     @objc private func elegirGrupo(_ sender: NSMenuItem) {
@@ -1219,7 +1650,7 @@ final class Pin: NSObject {
                                            escala: panel.backingScaleFactor)
         switch contenido {
         case let .imagen(imagen, _):
-            return try await sacarTexto(de: imagen)
+            return try await sacarTexto(de: imagenMostrada ?? imagen)
 
         case let .pdf(documento, _):
             guard let pagina = vistaPDF?.currentPage ?? documento.page(at: 0) else { return "" }

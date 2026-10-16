@@ -27,10 +27,12 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 **Los 10 huecos que más pesan**, de más a menos valor para el uso diario y la sincronización:
 
 1. ~~**«¿Qué sincronizar?» y las lápidas de proyecto.**~~ Hecho (A1).
-2. **Recordatorios.** Faltan `recuerdaEn` en los mensajes, `⏰` en las tareas, el vigía con sus notificaciones y la llamada secreta. Llegan y se conservan, pero nadie avisa.
+2. ~~**Recordatorios.**~~ Hecho (A4): `recuerdaEn` en los mensajes y `⏰` en las tareas suenan con el vigía (al arrancar, tras sincronizar y al cambiar algo aquí), con «Hecha», «+10 min» y «Abrir» (C4).
+   - Queda la llamada secreta (E5).
 3. ~~**Sincronización automática incompleta.**~~ Hecho (A2): periodo de 10 min, tareas al instante, dos rondas, aviso al tercer fallo, `presencia=false` y `fusionados`.
    - Queda `direcciones.txt` (A3).
-4. **Los pines no se guardan ni se restauran** entre arranques. Faltan también sus filtros, giros y modo texto, y moverlos con las flechas.
+4. ~~**Los pines no se guardan ni se restauran** entre arranques.~~ Hecho (B1): el mismo `almacen/indice.json` que Windows, filtros, giros, negativo, modo texto, tamaños 1–3, flechas y ⌘T.
+   - Quedan las marcas de texto guardadas (resaltar, subrayar) y su ⌘Z.
 5. **El menú del mensaje del chat** ya es el de Windows (B2): etiquetas, responder, copiar, pinear, describir, reenviar, compartir, recordar, hacer lección, renombrar, fijar, abrir con, guardar del buzón y ver comentarios, con sus letras. Faltan anotar encima de una foto, exportar e imprimir un lienzo, unir PDF y la letra de una voz. Tampoco hay buscar dentro del chat ni la hoja «+».
 6. **Tareas y Timeline casi de solo lectura.**
    - Tareas: falta buscar, mover, editar, y borrar con deshacer.
@@ -40,7 +42,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
    - Faltan buscar (⌘F/⌘G), ir al marcador con ⌘1…9, el negativo, el avance solo y renombrar.
    - Falta escuchar en voz alta (`leer_en_voz`).
    - Falta recargar la tinta si cambia en el disco (`al_dia`).
-9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. Faltan «dejar pasar el clic» y «restaurar el último pin» (esperan a los pines), el esquema `pixpinmax://`, los pedidos y el menú del Dock.
+9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. Faltan el esquema `pixpinmax://`, los pedidos y el menú del Dock.
 10. **El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**: le faltan 10 módulos. También van detrás `pixpin-motor2d` y las letras de `pixpin-pdf`. Por eso el asistente del Mac no hace lo que hace el de Windows.
 
 ---
@@ -69,7 +71,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | buscador | Ctrl+F en los lectores, «3 de 12», F3 | falta | K/Documentos/LectorDocumento.swift | `PDFDocument.findString` con siguiente y anterior |
 | buscar_todo | «Buscar en PixPin»: pestañas, recientes, acciones | parcial | K/Buscar/Buscar.swift, N/buscar.rs | Pestañas; recientes; lecciones y capturas; botones por fila; usar `pixpin-lanzador` |
 | cabecera | Barra común de Galería, Lecciones, Tareas y Timeline | no aplica | SwiftUI | — (unificar su aspecto) |
-| caducidad_capturas | Capturas que se borran solas | completo | K/Caducidad/BarrenderoCapturas.swift, N/galeria.rs | El aviso «se van en 24 h» (ver notificaciones) |
+| caducidad_capturas | Capturas que se borran solas | completo | K/Caducidad/BarrenderoCapturas.swift, N/galeria.rs | — (el aviso «se van en 24 h», con «Conservar» y «Abrir», hecho en C4) |
 | caja_dibujo | Barra de herramientas estilo Excalidraw, la misma en todas partes | parcial | K/Lienzo/* | Lector, pin y captura tienen barras propias. **Lo lleva el agente del lienzo** |
 | caja_texto | Caja de texto propia | no aplica | NSTextField | — |
 | capa | Anotar sobre la pantalla (viva o congelada, varios monitores) | parcial | K/Captura/Capturador.swift, GestosAlt.swift | Modo vivo, varios monitores, herramientas del lienzo, entrada en el menú |
@@ -110,7 +112,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Módulo Windows | Función | Estado Mac | Archivo(s) Mac | Qué falta |
 |---|---|---|---|---|
 | main (bandeja) | Menú de la bandeja con 27 comandos | parcial | APP, K/Ajustes/ComandosApp.swift | Faltan: clic a través y restaurar el último pin (salen solos cuando los pines los den) |
-| main (arranque) | Restaurar pines, vigía de recordatorios, automatizaciones, línea de órdenes, avisos de caducidad | parcial | APP | Restaurar pines, recordatorios, automatizaciones |
+| main (arranque) | Restaurar pines, vigía de recordatorios, automatizaciones, línea de órdenes, avisos de caducidad | parcial | APP, K/Pines/GestorPines.swift | Recordatorios, automatizaciones |
 | marco_de_la_tinta | Migrar la tinta vieja al marco `.hoja` | interno | N/documentos.rs (lee el marco) | Pasada `tras_sincronizar`; solo hace falta con datos viejos |
 | medir_fotogramas | Medir fotogramas | interno | — | No hace falta (Instruments) |
 | mini_panel | Mini-apps: tareas, contador, ruleta, gastos, relojes | completo | K/Pines/Herramientas.swift, RelojesPin.swift, N/miniapps.rs | Su teclado (F2, Supr, «25»+↩) |
@@ -123,7 +125,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | notas_md/incrustados | Documentos o mensajes dentro de la nota | falta | — | Todo |
 | notas_md/paginas_vivas | Páginas vivas y enlaces a hojas | falta | — | Todo |
 | notas_md/lector_web | Modo lector de la nota | falta | — | Todo |
-| notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | parcial | K/Pines/AvisosMini.swift | `UNNotificationAction` para recordatorios y caducidad |
+| notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | completo | K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift | Sin permiso del sistema, lo urgente sale en una ventanita de la app con los mismos botones |
 | orden | Línea de órdenes y `pixpinmax://` | falta | — | `CFBundleURLTypes` y los verbos |
 | oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Ajustes/ModeloAjustes.swift | Botón en los pines-lector |
 | overlay | Overlay de captura | parcial | K/Captura/* | ⌘A, flechas, Espacio, ⇧ HEX/RGB, ⇧⌘S, Supr; comandos sin barra |
@@ -135,12 +137,12 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | pila_capturas | Pila de capturas | completo | K/Captura/PilaCapturas.swift | — |
 | pin_office | Office como pin con la vista previa del sistema | completo | K/Documentos/PinOffice.swift | Su F11 (⌃⌘F) |
 | pin_vivo | Pin en vivo | completo | K/Pines/PinEnVivo.swift | — |
-| pines (gestor) | Guardar y restaurar pines, restaurar el último | falta | K/Pines/GestorPines.swift | No se guardan entre arranques |
-| pines (ventana) | Filtros 5–8 y 0, negativo, girar, voltear, tamaños 1–3, flechas, clic a través | falta | K/Pines/Pin.swift | Todo eso |
+| pines (gestor) | Guardar y restaurar pines, restaurar el último | completo | K/Pines/GestorPines.swift, K/Pines/AlmacenPines.swift | El mismo `almacen/indice.json` (en puntos del Mac). Los lectores, hojas, Office y planos (otras tandas) aún no se guardan; ocultar un grupo entero no existe en Mac |
+| pines (ventana) | Filtros 5–8 y 0, negativo, girar, voltear, tamaños 1–3, flechas, clic a través | completo | K/Pines/Pin.swift, K/Pines/FiltrosPin.swift | Filtros, giro y volteos solo en fotos (en Windows, en todo pin con imagen); el negativo, en todos |
 | pines/abiertos | Panel «Pines abiertos» | completo | K/Pines/PanelAbiertos.swift | ⎋ |
 | pines/dispositivo | Pines tras perder la GPU | no aplica | — | — |
 | pines/extras | Pegatina de la esquina | parcial | K/Pines/RelojesPin.swift | La pegatina para cualquier pin |
-| pines/marcas_texto | Resaltar o subrayar el OCR del pin; modo T | parcial | K/Pines/SacarTexto.swift | Marcas guardadas, T, ⇧C, ⌘Z |
+| pines/marcas_texto | Resaltar o subrayar el OCR del pin; modo T | parcial | K/Pines/Pin.swift (Live Text) | Marcas guardadas y su ⌘Z |
 | pines/panel | Panel de anotar | completo | K/Pines/Anotar.swift | — |
 | pines/pizarra | Pines pizarra y hoja | falta | — | Todo |
 | pines/herramienta, sacar | Mini-app en un pin; sacarla escribiendo su nombre | parcial | K/Pines/Herramientas.swift | Sacarla por la palabra |
@@ -153,7 +155,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | punto_de_proyecto | Punto verde o rojo en la burbuja | falta | — | Todo |
 | recibir | Recibir del móvil con QR; lienzo suelto | parcial | K/Sincro/EnvioPorCodigo.swift, N/envio.rs | El lienzo suelto llega como fichero, no a su proyecto |
 | recibir_de_windows | «Imprimir a PixPin» y Compartir | parcial | XC/Compartir | PDF Services («Guardar en PixPin» del diálogo de imprimir) |
-| recordatorios | «Recuérdame a las 10» y el vigía | falta | — | Todo (`recuerdaEn` viaja y se conserva) |
+| recordatorios | «Recuérdame a las 10» y el vigía | completo | N/recordatorios.rs, K/Recordatorios/{Vigia,Avisos}.swift | Sin hilo en Rust: el vigía es de Swift (temporizador de pared + notificación del sistema para la app cerrada). La llamada secreta es E5 |
 | renombrar_doc | F2 para renombrar en el lector | falta | — | Todo |
 | reproductor | Editor de grabaciones | falta | — | Todo |
 | salida | Ventanita «Salida» para arrastrar lo exportado | falta | — | Todo |
@@ -170,7 +172,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | sincronizar/enviar_wifi, recibir_wifi | Enviar y recibir con código | parcial | K/Sincro/EnvioPorCodigo.swift | Mandar proyectos y lienzos; «actualizar o crear» |
 | sincronizar/galeria | La galería viaja | completo | N/galeria_sincro.rs | — |
 | sincronizar/presencia | Localizable mientras está abierta | completo | K/Sincro/Anunciador.swift, Sincronizador.swift | El interruptor en Ajustes es C3 |
-| tareas (ventana) | Tareas de todos los chats | parcial | K/Tareas/Tareas.swift, N/tareas.rs | Buscar, «Mover a…», borrar y deshacer, F2, pegar imágenes, `⏰` |
+| tareas (ventana) | Tareas de todos los chats | parcial | K/Tareas/Tareas.swift, N/tareas.rs | Buscar, «Mover a…», borrar y deshacer, F2, pegar imágenes (el `⏰`, hecho en A4: se ve y se pone desde el menú de la fila) |
 | tareas/rejilla, tarjetas, emoticonos | Vista de tarjetas y etiquetas | falta | — | Todo |
 | teleprompter | Telepronter | falta | — | Todo |
 | tema_cosmos | Tema Cosmos | falta | — | Es un adorno |
@@ -306,19 +308,19 @@ Choques con macOS que hay que esquivar:
 
 | Windows | Acción | Mac | Estado |
 |---|---|---|---|
-| Ctrl+C | Copiar la imagen o el texto marcado | ⌘C | parcial (sin el texto marcado) |
-| Mayús+C · T | Copiar todo el OCR · modo texto | ⇧C · T | falta |
+| Ctrl+C | Copiar la imagen o el texto marcado | ⌘C | completo |
+| Mayús+C · T | Copiar todo el OCR · modo texto | ⇧C · T | completo |
 | A | Anotar | A | completo |
 | Ctrl+0 | Tamaño original | ⌘0 (y ⌘+/⌘− solo en Mac) | completo |
-| 1 2 3 · 5 6 7 8 0 · N | Tamaños · gris, invertir, brillo, restaurar · negativo | igual | falta |
-| R / Mayús+R · H / V | Girar · voltear | igual (sin ⌘) | falta |
-| Ctrl+T | Dejar pasar el clic | ⌘T | falta |
+| 1 2 3 · 5 6 7 8 0 · N | Tamaños · gris, invertir, brillo, restaurar · negativo | igual (⌥N en una nota o mini-app) | completo |
+| R / Mayús+R · H / V | Girar · voltear | igual (sin ⌘) | completo |
+| Ctrl+T | Dejar pasar el clic | ⌘T (vuelta: menú «Pines: dejar pasar el clic» o su atajo) | completo |
 | Ctrl+Z (sin anotar) | Deshacer la marca de texto | ⌘Z | parcial |
 | Esc por capas | — | ⎋ | completo |
-| Flechas (Mayús ×10) | Mover el pin | — (hoy pasan página) | falta |
-| RePág / AvPág | Página | flechas | parcial |
+| Flechas (Mayús ×10) | Mover el pin | igual | completo |
+| RePág / AvPág | Página | Fn+↑ / Fn+↓ (RePág / AvPág) | completo |
 | Espacio · M | Reproducir · silenciar | igual | completo |
-| ← → ↑ ↓ en vídeo | ±5 s, volumen | — | falta |
+| ← → ↑ ↓ en vídeo | ±5 s, volumen | igual (⇧ + flechas mueve) | completo |
 | Rueda · Mayús+rueda · Ctrl+rueda | Tamaño · opacidad · zoom de dentro | igual, ⌥+rueda · ⌘+rueda | completo / parcial |
 | Ctrl + arrastrar · Alt al arrastrar | Sacar arrastrando · sin imán | ⌘ + arrastrar · ⌥ | parcial · completo |
 | Mini-apps: Intro, ↑↓, Alt+↑↓, F2, Supr, Espacio, RePág/AvPág | — | Espacio, V, ↩ | parcial |
@@ -511,7 +513,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | A1 ✅ | **«¿Qué sincronizar?» y lápidas de proyecto**: `Alcance::Preguntar`, elegir chats, aplicar o rechazar borrados, «Lo mío manda»; `fusionados` y `avisos_de_lo_hecho` en `ResumenSincro` | N/sincro.rs, K/Sincro/VistaSincro.swift, nuevo K/Sincro/ElegirSincro.swift |
 | A2 ✅ | **Sincronización automática como Windows**: periodo de 10 min, tareas al instante (`vuelta::solo_estos`), 2 rondas con 3 o más aparatos, aviso tras 3 fallos, respetar `presencia=false` | K/Sincro/Sincronizador.swift, K/Sincro/Anunciador.swift, nuevo N/sincro_auto.rs (+ `N/lib.rs`) |
 | A3 | **Aparatos**: `sincro/direcciones.txt` (recordar y probar antes que Bonjour), renombrar este aparato, salir del grupo, miembros con «hace X» | nuevo N/aparatos.rs, K/Sincro/BuscarPuerta.swift, K/Sincro/Vecinos.swift, nuevo K/Sincro/VistaAparatos.swift (se enlaza desde VistaSincro **después de A1**) |
-| A4 | **Recordatorios**: `recuerdaEn` en el mensaje, el vigía (reprogramar al arrancar y tras sincronizar), notificaciones con «Hecha», «+10 min» y «Abrir»; el `⏰` de las tareas en el núcleo | nuevo N/recordatorios.rs, nuevo K/Recordatorios/{Vigia,Avisos}.swift, N/tareas.rs (solo parsear `⏰`) |
+| A4 ✅ | **Recordatorios**: `recuerdaEn` en el mensaje, el vigía (reprogramar al arrancar y tras sincronizar), notificaciones con «Hecha», «+10 min» y «Abrir»; el `⏰` de las tareas en el núcleo | nuevo N/recordatorios.rs, nuevo K/Recordatorios/{Vigia,Avisos}.swift, N/tareas.rs (solo parsear `⏰`) |
 | A5 | **Copias**: listar y restaurar `copias/`, recuperar proyectos borrados | nuevo N/copias.rs, nuevo K/Sincro/VistaCopias.swift |
 | A6 | **Envío por código completo**: mandar proyectos y lienzos, poner el lienzo suelto en su proyecto, «actualizar o crear», reconocer un archivo que vuelve | N/envio.rs, K/Sincro/EnvioPorCodigo.swift |
 | A7 | **Poner el núcleo al día con Windows (sin el lienzo)**: copiar `pixpin-ia` (los 10 módulos que faltan, sin tocar la parte de `cfg`), `pixpin-pdf` `escribir.rs` y `letra.rs`, `pixpin-store/estado.rs`, `pixpin-lanzador`; pasar `cargo test --workspace`. Avisar a Windows del NFC y de `formulas.rs` | nucleo/pixpin-ia/**, nucleo/pixpin-pdf/src/{escribir,letra}.rs, nucleo/pixpin-store/src/estado.rs, por-adaptar/pixpin-lanzador/** |
@@ -521,7 +523,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 
 | # | Tanda | Ficheros |
 |---|---|---|
-| B1 | **Pines persistentes y sus teclas**: guardar y restaurar al arrancar, «restaurar el último», «cerrar todos» en el menú; 1–3, 5–8, 0, N, R/⇧R, H/V, flechas que mueven, ⌘T clic a través, T y ⇧C del OCR | K/Pines/GestorPines.swift, K/Pines/Pin.swift, K/Pines/BarraPin.swift, nuevo K/Pines/AlmacenPines.swift, APP (menú) |
+| B1 ✅ | **Pines persistentes y sus teclas**: guardar y restaurar al arrancar, «restaurar el último», «cerrar todos» en el menú; 1–3, 5–8, 0, N, R/⇧R, H/V, flechas que mueven, ⌘T clic a través, T y ⇧C del OCR | K/Pines/GestorPines.swift, K/Pines/Pin.swift, K/Pines/BarraPin.swift, nuevo K/Pines/AlmacenPines.swift, APP (menú) |
 | B2 | ✅ **Menú del mensaje** (hecho): etiquetas, Responder, Copiar, Pinear, Describir, Reenviar, Compartir, Fijar, Renombrar, Hacer lección, Recordar, Abrir con, Guardar esto, Ver comentarios; letras R, ⌘C, P, E, N, T, F, L, F2. Queda Anotar encima (dep. lienzo), Exportar/Imprimir un lienzo (D1), Unir PDF, Letra | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs (`cambiar_mensaje`, `reenviar_mensajes`), N/lecciones.rs (`leccion_de_mensaje`) |
 | B3 | **Caja del chat y la hoja «+»**: ⇧↩ para el salto de línea, Esc limpia, hoja «+» con todas las entradas, buscar dentro del chat (⌘F), escala ⌘+ / − / 0 | K/Vistas.swift, nuevo K/Chat/HojaAdjuntar.swift, nuevo K/Chat/BuscarEnChat.swift (**no a la vez que B2 si B2 tiene que tocar Vistas.swift**: B2 solo engancha su menú con una línea) |
 | B4 | **Tareas editables**: buscar, «Mover a…», borrar con deshacer, F2 para editar, pegar imágenes, ver y poner `⏰`, teclado | K/Tareas/Tareas.swift, N/tareas.rs (**después de A4** o junto a él en `⏰`) |
@@ -538,7 +540,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | C1 | ✅ **Atajos globales configurables**: el catálogo de `pixpin-store/comandos.rs` entero, regiones, silenciar atajos, programas ignorados; sección «Atajos» con ⌫ para quitar uno. Hecho (faltan clic a través y restaurar el último pin: los ata el agente de pines con `GestorAtajos.poner`) | K/Captura/AtajoGlobal.swift, K/Ajustes/AtajoDeCaptura.swift, nuevo K/Ajustes/SeccionAtajos.swift, APP |
 | C2 | **Integración con macOS**: esquema `pixpinmax://` con los verbos de `docs/integraciones.md` y la firma, más App Intents (tarea, lienzo, grabar, abrir proyecto, al móvil), menú del Dock, imágenes en `CFBundleDocumentTypes`, Servicios del Finder | nuevo K/Pedidos/{Enlaces,Verbos}.swift, XC/App/Intenciones.swift, XC/project.yml, app/Recursos/Info.plist (**APP: después de C1**) |
 | C3 | **Ajustes que faltan**: idioma, Captura (retardo, color, carpeta, GIF y scroll), Voz, pantalla de claves del asistente, Sincro (presencia, «Lo mío manda»), buscador y restablecer | K/Ajustes/VistaAjustes.swift, K/Ajustes/ModeloAjustes.swift, N/ajustes.rs |
-| C4 | **Notificaciones comunes**: categorías y acciones (`UNNotificationAction`), aviso «se van en 24 h» de la caducidad; que AvisosMini las use | nuevo K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift, K/Caducidad/BarrenderoCapturas.swift (**coordinar con A4**: A4 usa CentroAvisos si ya existe) |
+| C4 ✅ | **Notificaciones comunes**: categorías y acciones (`UNNotificationAction`), aviso «se van en 24 h» de la caducidad; que AvisosMini las use | nuevo K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift, K/Caducidad/BarrenderoCapturas.swift (**coordinar con A4**: A4 usa CentroAvisos si ya existe) |
 
 ### Grupo D: documentos, compartir y voz
 

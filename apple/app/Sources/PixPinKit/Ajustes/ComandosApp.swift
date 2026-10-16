@@ -2,10 +2,8 @@
 // `match` del bucle de Windows, pero atado una vez al arrancar. El atajo y
 // la entrada del menu llaman a lo mismo (`GestorAtajos.ejecutar`).
 //
-// Dos comandos de Windows esperan a los pines: «dejar pasar el clic» en
-// todos y «restaurar el ultimo pin». Cuando `GestorPines` los tenga, basta
-// con `atajos.poner(.alternarPasoDeClics) { ... }`: hasta entonces no salen
-// en Ajustes (todo comando que se ve hace algo, como en Windows).
+// «Dejar pasar el clic» en todos los pines (la vuelta del ⌘T de un pin) y
+// «restaurar el ultimo pin» los hace `GestorPines` (B1).
 
 import AppKit
 import Carbon.HIToolbox
@@ -61,6 +59,10 @@ public enum ComandosApp {
         }
         atajos.poner(.alternarPines) { pines.alternarTodos() }
         atajos.poner(.cerrarTodosLosPines) { pines.cerrarTodosConDeshacer() }
+        atajos.poner(.alternarPasoDeClics) { _ = pines.alternarPasoDeClics() }
+        atajos.poner(.restaurarUltimoPin) {
+            if !pines.restaurarUltimoCerrado() { NSSound.beep() }
+        }
         atajos.poner(.copiarTexto) { capturador.capturar(.texto) }
         atajos.poner(.ventanaEncima) {
             guard let marco = Capturador.ventanaBajoElRaton() else { return NSSound.beep() }

@@ -9,6 +9,14 @@
 //     GestorPines.compartido.pinearMiniapp("tareas")
 //     GestorPines.compartido.alternarTodos()          // ⌃2
 //     GestorPines.compartido.mostrarPanelAbiertos()
+//     GestorPines.compartido.restaurarUltimoCerrado()
+//     GestorPines.compartido.alternarPasoDeClics()     // ⌘T de vuelta
+//
+// **Se guardan y vuelven al arrancar** como en Windows (`AlmacenPines`, el
+// mismo `almacen/indice.json`): cada pin nuevo deja su entrada y lo que se
+// mueve, gira o filtra se apunta (juntado: una rafaga de flechas es una
+// sola escritura). Cerrar lo marca cerrado sin borrar nada, y «Restaurar el
+// ultimo cerrado» lo devuelve a su sitio. El pin en vivo no se guarda.
 //
 // Rendimiento (§4bis del plan): las fotos se leen con ImageIO ya reducidas
 // al tamano de la pantalla y fuera del hilo principal; el aviso de memoria
@@ -37,7 +45,30 @@ public final class GestorPines {
     /// El nucleo de la carpeta de datos: donde viven las mini-apps (en
     /// «Mensajes guardados») y adonde va una nota. Lo pone la app al
     /// arrancar; sin el, las herramientas viven solo en memoria.
-    public var nucleo: Nucleo?
+    ///
+    /// Al ponerlo se abre el almacen de pines de esa carpeta y vuelven los
+    /// que estaban abiertos (en la siguiente vuelta del bucle: la app aun
+    /// esta arrancando).
+    public var nucleo: Nucleo? {
+        didSet {
+            guard let nucleo, almacen == nil else { return }
+            abrirAlmacen(en: URL(fileURLWithPath: nucleo.raiz(), isDirectory: true))
+            DispatchQueue.main.async { [weak self] in self?.restaurar() }
+        }
+    }
+
+    /// Los pines guardados (nil sin carpeta de datos: viven en memoria).
+    private var almacen: AlmacenPines?
+    /// Los cerrados, con su sitio, para «Restaurar el ultimo cerrado» (el
+    /// ultimo, el primero en volver).
+    private var reabrir: [(id: UInt64, guardado: PinGuardado)] = []
+    /// Lo que «Cerrar todos» marco cerrado, por si se deshace.
+    private var guardadosApartados: [Int: PinGuardado] = [:]
+    /// Pines con cambios por apuntar (sitio, como) y por reescribir (lo de
+    /// dentro), y el temporizador que los junta.
+    private var porGuardar: [Int: Pin] = [:]
+    private var porReescribir: [Int: Pin] = [:]
+    private var tareaGuardar: Task<Void, Never>?
 
     init() {
         let m = panelAbiertos.modelo
@@ -51,6 +82,12 @@ public final class GestorPines {
         m.alOcultarTodos = { [weak self] in self?.ocultarTodos(true) }
         m.alCerrarTodos = { [weak self] in self?.cerrarTodosConDeshacer() }
         m.alDeshacer = { [weak self] in self?.deshacerCerrarTodos() }
+        // Al salir, lo pendiente se escribe ya (los pines abiertos se quedan
+        // abiertos en el almacen: vuelven al arrancar).
+        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil,
+                                               queue: .main) { _ in
+            MainActor.assumeIsolated { GestorPines.compartido.guardarPendientes() }
+        }
     }
 
     /// Cuantos pines hay abiertos.
@@ -79,7 +116,8 @@ public final class GestorPines {
         let visible = pantalla?.visibleFrame ?? CGRect(origin: .zero, size: Self.pantallaSupuesta)
         let marco = ReglasPin.marcoInicial(tamano: CGSize(width: 300, height: 260),
                                            centro: NSEvent.mouseLocation, visible: visible)
-        abrir(.herramienta(HerramientaPin(.nota(ModeloNota(texto: texto)))), marco: marco)
+        abrir(.herramienta(HerramientaPin(.nota(ModeloNota(texto: texto)))), marco: marco,
+              almacen: .nota(texto, origen: "nota"))
     }
 
     /// Una mini-app nueva (`tareas`, `contador`, `ruleta`, `gastos`,
@@ -126,7 +164,9 @@ public final class GestorPines {
         let visible = pantalla?.visibleFrame ?? CGRect(origin: .zero, size: Self.pantallaSupuesta)
         let tam = doc.miniapp == "ruleta" ? CGSize(width: 300, height: 420) : CGSize(width: 300, height: 340)
         abrir(.herramienta(HerramientaPin(.mini(doc))),
-              marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible))
+              marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible),
+              almacen: .nota(doc.documento, origen: AlmacenPines.origenMini(doc.miniapp, chat: doc.chat,
+                                                                           mensaje: doc.mensaje)))
     }
 
     // MARK: Todos
@@ -161,7 +201,13 @@ public final class GestorPines {
     public func cerrarTodosConDeshacer() {
         olvidarApartadosYa()
         apartados = pines
-        for pin in apartados { pin.apartar() }
+        guardarPendientes()
+        for pin in apartados {
+            pin.apartar()
+            // Cerrado ya en el almacen (y para «Restaurar el ultimo»): si se
+            // sale ahora de PixPin, no vuelven.
+            if let g = marcarCerrado(pin) { guardadosApartados[pin.id] = g }
+        }
         pines = []
         refrescarPanel()
         olvidarApartados = Task { [weak self] in
@@ -177,7 +223,14 @@ public final class GestorPines {
         let vuelven = apartados.filter { !$0.estaCerrado }
         apartados = []
         pines += vuelven
-        for pin in vuelven { pin.ocultar(false) }
+        for pin in vuelven {
+            pin.ocultar(false)
+            if let id = pin.idAlmacen, let g = guardadosApartados[pin.id] {
+                try? almacen?.actualizarPin(id, g)
+                reabrir.removeAll { $0.id == id }
+            }
+        }
+        guardadosApartados = [:]
         refrescarPanel()
     }
 
@@ -186,6 +239,7 @@ public final class GestorPines {
         olvidarApartados = nil
         let lista = apartados
         apartados = []
+        guardadosApartados = [:]
         for pin in lista { pin.cerrar() }
         if !lista.isEmpty { refrescarPanel() }
     }
@@ -214,11 +268,12 @@ public final class GestorPines {
         let lado = ReglasPin.ladoMiniatura(pantalla: pantalla?.frame.size ?? Self.pantallaSupuesta,
                                            escala: pantalla?.backingScaleFactor ?? 2)
         let reducida = Miniatura.reducir(imagen, ladoMaximo: lado)
+        // Al almacen va la captura entera, no la reducida.
         if let marco, marco.width >= 1, marco.height >= 1 {
-            abrir(.imagen(reducida, fichero: nil), marco: marco)
+            abrir(.imagen(reducida, fichero: nil), marco: marco, almacen: .captura(imagen, origen: "recorte"))
         } else {
             abrirImagen(reducida, pixelesNaturales: CGSize(width: imagen.width, height: imagen.height),
-                        fichero: nil, pantalla: pantalla)
+                        fichero: nil, pantalla: pantalla, almacen: .captura(imagen, origen: "recorte"))
         }
     }
 
@@ -241,7 +296,7 @@ public final class GestorPines {
                     NSSound.beep()
                     return
                 }
-                self.abrirImagen(imagen, pixelesNaturales: nil, fichero: url, pantalla: pantalla)
+                self.abrirImagen(imagen, pixelesNaturales: nil, fichero: url, pantalla: pantalla, almacen: .foto(url))
             }
 
         case .pdf:
@@ -255,7 +310,8 @@ public final class GestorPines {
             }
             let tam = ReglasPin.tamanoInicial(pixeles: tamano, escala: 1, visible: visible.size)
             abrir(.pdf(documento, fichero: url),
-                  marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible))
+                  marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible),
+                  almacen: .archivo(url))
 
         case .video, .audio:
             // AVPlayer decodifica por hardware (VideoToolbox).
@@ -263,7 +319,8 @@ public final class GestorPines {
             let audio = tipo == .audio
             let tam = audio ? CGSize(width: 360, height: 66) : CGSize(width: 480, height: 270)
             abrir(.video(reproductor, fichero: url, soloAudio: audio),
-                  marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible))
+                  marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible),
+                  almacen: .archivo(url))
         }
         return true
     }
@@ -299,7 +356,8 @@ public final class GestorPines {
                 NSSound.beep()
                 return
             }
-            self.abrirImagen(imagen, pixelesNaturales: nil, fichero: nil, pantalla: pantalla)
+            self.abrirImagen(imagen, pixelesNaturales: nil, fichero: nil, pantalla: pantalla,
+                             almacen: .captura(imagen, origen: "portapapeles"))
         }
         return true
     }
@@ -320,27 +378,43 @@ public final class GestorPines {
         return NSScreen.screens.first { NSMouseInRect(raton, $0.frame, false) } ?? NSScreen.main
     }
 
-    private func abrirImagen(_ imagen: CGImage, pixelesNaturales: CGSize?, fichero: URL?, pantalla: NSScreen?) {
+    private func abrirImagen(_ imagen: CGImage, pixelesNaturales: CGSize?, fichero: URL?, pantalla: NSScreen?,
+                             almacen: ParaAlmacen) {
         let visible = pantalla?.visibleFrame ?? CGRect(origin: .zero, size: Self.pantallaSupuesta)
         let pixeles = pixelesNaturales ?? CGSize(width: imagen.width, height: imagen.height)
         let tam = ReglasPin.tamanoInicial(pixeles: pixeles, escala: pantalla?.backingScaleFactor ?? 2,
                                           visible: visible.size)
         abrir(.imagen(imagen, fichero: fichero),
-              marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible))
+              marco: ReglasPin.marcoInicial(tamano: tam, centro: NSEvent.mouseLocation, visible: visible),
+              almacen: almacen)
     }
 
-    private func abrir(_ contenido: ContenidoPin, marco: CGRect) {
+    @discardableResult
+    private func abrir(_ contenido: ContenidoPin, marco: CGRect, almacen para: ParaAlmacen = .nada,
+                       guardado: PinGuardado? = nil) -> Pin {
         let pin = Pin(id: siguienteId, contenido: contenido, marco: marco)
         siguienteId += 1
         pin.alCerrar = { [weak self] cerrado in self?.quitar(cerrado) }
         pin.alCambiar = { [weak self] in self?.refrescarPanel() }
         pines.append(pin)
         vigilarMemoria()
+        // Uno que vuelve trae su vista (giro, filtros...) y su marco.
+        if let guardado {
+            pin.restaurado = true
+            pin.aplicar(guardado)
+        }
         pin.mostrar()
+        registrar(pin, para)
+        pin.alGuardar = { [weak self] p in self?.programarGuardar(p) }
+        pin.alCambiarContenido = { [weak self] p in self?.programarReescribir(p) }
         refrescarPanel()
+        return pin
     }
 
     private func quitar(_ pin: Pin) {
+        porGuardar[pin.id] = nil
+        if let p = porReescribir.removeValue(forKey: pin.id) { reescribir(p) }
+        if !apartados.contains(where: { $0 === pin }) { marcarCerrado(pin) }
         pines.removeAll { $0 === pin }
         apartados.removeAll { $0 === pin }
         refrescarPanel()
@@ -361,5 +435,240 @@ public final class GestorPines {
         }
         fuente.resume()
         vigiaMemoria = fuente
+    }
+}
+
+// MARK: - El almacen: guardar y restaurar
+
+extension GestorPines {
+    /// Como va al almacen un pin nuevo.
+    enum ParaAlmacen {
+        /// Una captura: un PNG propio («recorte» o «portapapeles»).
+        case captura(CGImage, origen: String)
+        /// Una foto abierta: se copia tal cual.
+        case foto(URL)
+        /// Una nota o una mini-app (`origen` `mini:…`).
+        case nota(String, origen: String)
+        /// Un PDF o un video: por referencia.
+        case archivo(URL)
+        /// Ya tiene entrada (vuelve del almacen).
+        case entrada(UInt64)
+        /// No se guarda (el pin en vivo).
+        case nada
+    }
+
+    /// El `maxY` de la pantalla principal: el «arriba» del almacen.
+    private var techo: CGFloat { NSScreen.screens.first?.frame.maxY ?? 900 }
+
+    func abrirAlmacen(en raiz: URL) {
+        almacen = try? AlmacenPines(raiz: raiz)
+    }
+
+    /// Le da su entrada al pin nuevo.
+    fileprivate func registrar(_ pin: Pin, _ para: ParaAlmacen) {
+        if case let .entrada(id) = para {
+            pin.idAlmacen = id
+            return
+        }
+        guard let almacen else { return }
+        switch para {
+        case let .captura(imagen, origen):
+            // El PNG se hace fuera del hilo principal; si el pin se cierra
+            // entretanto, queda guardado y cerrado.
+            Task { [weak self] in
+                let png = await withCheckedContinuation { (c: CheckedContinuation<Data?, Never>) in
+                    DispatchQueue.global(qos: .utility).async { c.resume(returning: AlmacenPines.png(imagen)) }
+                }
+                guard let self, let png else { return }
+                let abierto = pin.estaCerrado ? nil : pin.guardado(techo: self.techo)
+                pin.idAlmacen = try? almacen.guardarImagen(png: png, origen: origen, pin: abierto)
+                if !pin.estaCerrado { self.programarGuardar(pin) }
+            }
+        case let .foto(url):
+            pin.idAlmacen = try? almacen.guardarImagen(deFichero: url, origen: AlmacenPines.origenFoto,
+                                                       pin: pin.guardado(techo: techo))
+        case let .nota(texto, origen):
+            pin.idAlmacen = try? almacen.guardarNota(texto, origen: origen, pin: pin.guardado(techo: techo))
+        case let .archivo(url):
+            pin.idAlmacen = try? almacen.guardarArchivo(url, pin: pin.guardado(techo: techo))
+        case .entrada, .nada:
+            break
+        }
+    }
+
+    /// Lo marca cerrado en el almacen y lo apunta para «Restaurar el ultimo
+    /// cerrado». Devuelve donde estaba.
+    @discardableResult
+    fileprivate func marcarCerrado(_ pin: Pin) -> PinGuardado? {
+        guard let almacen, let id = pin.idAlmacen, let g = almacen.entrada(id)?.pin else { return nil }
+        reabrir.append((id, g))
+        if reabrir.count > 50 { reabrir.removeFirst(reabrir.count - 50) }
+        try? almacen.actualizarPin(id, nil)
+        return g
+    }
+
+    /// Junta los cambios de medio segundo en una escritura.
+    fileprivate func programarGuardar(_ pin: Pin) {
+        porGuardar[pin.id] = pin
+        programarEscritura()
+    }
+
+    fileprivate func programarReescribir(_ pin: Pin) {
+        porReescribir[pin.id] = pin
+        programarEscritura()
+    }
+
+    private func programarEscritura() {
+        guard tareaGuardar == nil else { return }
+        tareaGuardar = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            self?.guardarPendientes()
+        }
+    }
+
+    /// Escribe ya lo pendiente (tambien al salir de PixPin).
+    func guardarPendientes() {
+        tareaGuardar?.cancel()
+        tareaGuardar = nil
+        let guardar = porGuardar.values
+        let reescribir = porReescribir.values
+        porGuardar = [:]
+        porReescribir = [:]
+        guard let almacen else { return }
+        for pin in guardar where !pin.estaCerrado && !apartados.contains(where: { $0 === pin }) {
+            guard let id = pin.idAlmacen else { continue }
+            try? almacen.actualizarPin(id, pin.guardado(techo: techo))
+            _ = try? almacen.ponerGrupo(id, color: pin.grupo.flatMap(ColorGrupo.porIndice))
+        }
+        for pin in reescribir { self.reescribir(pin) }
+    }
+
+    /// Lo de dentro al almacen: el texto de la nota o mini-app, o la foto
+    /// recien anotada.
+    fileprivate func reescribir(_ pin: Pin) {
+        guard let almacen, let id = pin.idAlmacen else { return }
+        if let texto = pin.textoHerramienta {
+            try? almacen.reescribirNota(id, texto: texto)
+        } else if let foto = pin.imagenOriginal, let png = AlmacenPines.png(foto) {
+            try? almacen.reemplazarImagen(id, png: png)
+        }
+    }
+
+    /// Devuelve a la pantalla lo que el almacen da por abierto y no esta ya
+    /// (al arrancar). Lo que no se puede leer se queda en el almacen.
+    public func restaurar() {
+        guard let almacen else { return }
+        let yaAbiertos = Set(pines.compactMap(\.idAlmacen))
+        for e in almacen.abiertas where !yaAbiertos.contains(e.id) {
+            restaurar(e)
+        }
+    }
+
+    /// Devuelve el ultimo pin cerrado a donde estaba. `false` si no queda
+    /// ninguno.
+    @discardableResult
+    public func restaurarUltimoCerrado() -> Bool {
+        guard let almacen else { return false }
+        while let (id, g) = reabrir.popLast() {
+            // Si ya se borro, o ya volvio, el siguiente.
+            guard let e = almacen.entrada(id), e.pin == nil else { continue }
+            try? almacen.actualizarPin(id, g)
+            guard let vuelta = almacen.entrada(id) else { continue }
+            restaurar(vuelta)
+            return true
+        }
+        return false
+    }
+
+    /// Que todos los pines dejen pasar el clic, o que lo recojan: es la
+    /// vuelta de ⌘T (un pin pasante no recibe su clic derecho). Manda la
+    /// mayoria, como en Windows. Devuelve si quedaron pasantes y cuantos
+    /// cambiaron.
+    @discardableResult
+    public func alternarPasoDeClics() -> (pasantes: Bool, cambiados: Int) {
+        let pasantes = pines.filter(\.pasante).count
+        let hacia = pasantes * 2 <= pines.count
+        var cambiados = 0
+        for pin in pines where pin.pasante != hacia {
+            pin.ponerPasante(hacia)
+            cambiados += 1
+        }
+        return (hacia, cambiados)
+    }
+
+    /// Cuantos pines dejan pasar el clic (para el menu).
+    public var cuantosPasantes: Int { pines.filter(\.pasante).count }
+
+    /// Un pin del almacen, a su sitio. Si su pantalla ya no esta, entra en
+    /// la principal.
+    private func restaurar(_ e: EntradaAlmacen) {
+        guard let almacen, let g = e.pin else { return }
+        let pantallas = NSScreen.screens.map { (marco: $0.frame, visible: $0.visibleFrame) }
+        var marco = ReglasAlmacen.deAlmacen(g, techo: techo)
+        if let area = ReglasAlmacen.areaDeVuelta(marco, pantallas: pantallas) {
+            marco = ReglasAlmacen.recolocar(marco, en: area)
+        }
+        let grupo = almacen.colorDe(e.id)?.indice
+        let poner: (ContenidoPin) -> Void = { [weak self] contenido in
+            guard let self else { return }
+            let pin = self.abrir(contenido, marco: marco, almacen: .entrada(e.id), guardado: g)
+            if let grupo { pin.grupo = grupo }
+        }
+        switch e.tipo {
+        case .imagen:
+            let url = almacen.rutaObjeto(e)
+            leerFoto(url) { imagen in
+                poner(.imagen(imagen, fichero: e.origen == AlmacenPines.origenFoto ? url : nil))
+            }
+        case .nota:
+            guard let texto = try? String(contentsOf: almacen.rutaObjeto(e), encoding: .utf8) else { return }
+            guard let mini = AlmacenPines.miniDeOrigen(e.origen) else {
+                poner(.herramienta(HerramientaPin(.nota(ModeloNota(texto: texto)))))
+                return
+            }
+            // Una mini-app del chat vuelve con lo que diga el chat ahora (pudo
+            // cambiar en otro aparato); si no, con lo guardado.
+            if let chat = mini.chat, let mensaje = mini.mensaje, let nucleo {
+                let actual = (try? nucleo.documentoMiniapp(chat: chat, mensaje: mensaje)) ?? texto
+                poner(.herramienta(HerramientaPin(.mini(DocumentoMini(miniapp: mini.cual, documento: actual,
+                                                                      nucleo: nucleo, chat: chat,
+                                                                      mensaje: mensaje)))))
+            } else {
+                poner(.herramienta(HerramientaPin(.mini(DocumentoMini(miniapp: mini.cual, documento: texto,
+                                                                      nucleo: nil, chat: nil, mensaje: nil)))))
+            }
+        case .archivo:
+            // Una referencia rota se queda en el almacen: si el fichero
+            // vuelve, el pin tambien.
+            guard let ruta = e.ruta, FileManager.default.fileExists(atPath: ruta) else { return }
+            let url = URL(fileURLWithPath: ruta)
+            switch TipoContenido.de(url) {
+            case .pdf:
+                guard let documento = PDFDocument(url: url) else { return }
+                poner(.pdf(documento, fichero: url))
+            case .video, .audio:
+                // Los que vuelven al arrancar, callados.
+                let reproductor = AVPlayer(url: url)
+                reproductor.isMuted = true
+                poner(.video(reproductor, fichero: url, soloAudio: TipoContenido.de(url) == .audio))
+            case .imagen:
+                leerFoto(url) { poner(.imagen($0, fichero: url)) }
+            case nil:
+                return
+            }
+        }
+    }
+
+    /// Lee una foto reducida a la pantalla, fuera del hilo principal.
+    private func leerFoto(_ url: URL, _ listo: @escaping (CGImage) -> Void) {
+        let pantalla = NSScreen.main
+        let lado = ReglasPin.ladoMiniatura(pantalla: pantalla?.frame.size ?? CGSize(width: 1440, height: 900),
+                                           escala: pantalla?.backingScaleFactor ?? 2)
+        Task {
+            guard let imagen = await Miniatura.fueraDelPrincipal({ Miniatura.de(url: url, ladoMaximo: lado) })
+            else { return }
+            listo(imagen)
+        }
     }
 }

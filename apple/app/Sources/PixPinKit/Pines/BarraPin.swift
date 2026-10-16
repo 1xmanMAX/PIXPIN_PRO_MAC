@@ -195,10 +195,10 @@ enum ReglasBarra {
 
 /// Un boton de la barra: avisa al entrar y salir el raton (la chapita) y
 /// acepta el primer clic (el panel no es clave).
-final class BotonBarra: NSButton {
+final class BotonBarraPin: NSButton {
     var accionBarra: AccionBarraPin = .mas
-    var alEntrar: ((BotonBarra) -> Void)?
-    var alSalir: ((BotonBarra) -> Void)?
+    var alEntrar: ((BotonBarraPin) -> Void)?
+    var alSalir: ((BotonBarraPin) -> Void)?
     /// La rueda encima (el volumen sobre el boton de sonido).
     var alRueda: ((CGFloat) -> Void)?
     private var zona: NSTrackingArea?
@@ -254,7 +254,7 @@ final class BarraPin {
     private let pila: NSStackView
     private let chapa: NSPanel
     private let textoChapa: NSTextField
-    private var botones: [AccionBarraPin: BotonBarra] = [:]
+    private var botones: [AccionBarraPin: BotonBarraPin] = [:]
     private var rotulos: [RotuloBarra: NSTextField] = [:]
     private(set) var recorrido: RecorridoBarra?
     private(set) var piezas: [PiezaBarra] = []
@@ -348,7 +348,7 @@ final class BarraPin {
         for p in nuevas {
             switch p {
             case let .boton(a):
-                let b = BotonBarra()
+                let b = BotonBarraPin()
                 b.accionBarra = a
                 b.isBordered = false
                 b.bezelStyle = .regularSquare
@@ -468,7 +468,7 @@ final class BarraPin {
     /// Si el raton esta encima de la barra.
     var tieneElRaton: Bool { panel.isVisible && panel.frame.contains(NSEvent.mouseLocation) }
 
-    private func ensenarChapa(de boton: BotonBarra) {
+    private func ensenarChapa(de boton: BotonBarraPin) {
         textoChapa.stringValue = ReglasBarra.chapa(boton.accionBarra)
         let ancho = max(40, textoChapa.fittingSize.width + 14)
         let enPantalla = boton.window?.convertToScreen(boton.convert(boton.bounds, to: nil)) ?? .zero
@@ -481,7 +481,7 @@ final class BarraPin {
         chapa.orderFront(nil)
     }
 
-    @objc private func pulsado(_ sender: BotonBarra) {
+    @objc private func pulsado(_ sender: BotonBarraPin) {
         alPulsar?(sender.accionBarra)
     }
 
