@@ -3,8 +3,10 @@
 // monta Xcode (`apple/xcode/project.yml`): el extractor de metadatos de App
 // Intents es del sistema de compilacion de Xcode, no de SwiftPM.
 //
-// Cada intencion llama a `AccionesApp` (PixPinKit), que trabaja con el
-// mismo almacen y el mismo sincronizador que la app.
+// Cada intencion llama a `AccionesApp` o, las de los pedidos de Windows
+// (tarea, lienzo, grabar, abrir proyecto, al movil), a `HacerPedidos`
+// (PixPinKit), que trabajan con el mismo almacen y el mismo sincronizador
+// que la app.
 
 import AppIntents
 import PixPinKit
@@ -119,6 +121,125 @@ struct SincronizarAhora: AppIntent {
     }
 }
 
+// MARK: - Los pedidos de Windows (C2)
+//
+// Lo que en Windows piden la linea de ordenes, Flow Launcher y los enlaces
+// (`docs/integraciones.md`): cada intencion arma el mismo pedido y lo hace
+// `HacerPedidos`, como un enlace `pixpinmax://` de la casa (sin preguntar:
+// quien usa Atajos ya esta delante del Mac).
+
+/// Hace un pedido con la app abierta.
+@MainActor
+private func hacerPedido(_ accion: String, _ campos: [String: ValorPedido]) {
+    HacerPedidos.compartidos.hacer(Pedido(accion, campos))
+}
+
+struct NuevaTarea: AppIntent {
+    static let title: LocalizedStringResource = "Nueva tarea"
+    static let description = IntentDescription(
+        "Apunta una tarea: sin proyecto, en el Inbox de Mensajes guardados; con proyecto, en su última lista.")
+    static let openAppWhenRun: Bool = true
+
+    @Parameter(title: "Tarea")
+    var texto: String
+
+    @Parameter(title: "Proyecto")
+    var proyecto: ProyectoEntidad?
+
+    static var parameterSummary: some ParameterSummary {
+        Summary("Apuntar \(\.$texto) en \(\.$proyecto)")
+    }
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        var campos: [String: ValorPedido] = ["texto": .texto(texto)]
+        if let proyecto { campos["proyecto"] = .texto(proyecto.id) }
+        hacerPedido("anadir_tarea", campos)
+        return .result()
+    }
+}
+
+struct NuevoLienzo: AppIntent {
+    static let title: LocalizedStringResource = "Nuevo lienzo"
+    static let description = IntentDescription("Crea un lienzo en un proyecto y lo abre.")
+    static let openAppWhenRun: Bool = true
+
+    @Parameter(title: "Nombre")
+    var nombre: String?
+
+    @Parameter(title: "Proyecto")
+    var proyecto: ProyectoEntidad?
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        hacerPedido("lienzo_nuevo", ["nombre": .t(nombre), "proyecto": .t(proyecto?.id)])
+        return .result()
+    }
+}
+
+struct GrabarNotaDeVoz: AppIntent {
+    static let title: LocalizedStringResource = "Grabar nota de voz"
+    static let description = IntentDescription(
+        "Saca el micrófono flotante y graba una nota de voz para un proyecto (otro toque la guarda).")
+    static let openAppWhenRun: Bool = true
+
+    @Parameter(title: "Proyecto")
+    var proyecto: ProyectoEntidad?
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        hacerPedido("grabar", ["nombre": .texto("Nota de voz"), "proyecto": .t(proyecto?.id)])
+        return .result()
+    }
+}
+
+struct AbrirProyecto: AppIntent {
+    static let title: LocalizedStringResource = "Abrir proyecto"
+    static let description = IntentDescription("Abre el chat de un proyecto en PixPin.")
+    static let openAppWhenRun: Bool = true
+
+    @Parameter(title: "Proyecto")
+    var proyecto: ProyectoEntidad
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        hacerPedido("abrir", ["que": .objeto(["tipo": .texto("proyecto"), "proyecto": .texto(proyecto.id)])])
+        return .result()
+    }
+}
+
+struct MandarAlMovil: AppIntent {
+    static let title: LocalizedStringResource = "Mandar al móvil"
+    static let description = IntentDescription(
+        "Manda ficheros a tus aparatos del grupo: las imágenes a su lienzo, lo demás a su chat.")
+    static let openAppWhenRun: Bool = true
+
+    @Parameter(title: "Ficheros", supportedContentTypes: [.item])
+    var ficheros: [IntentFile]
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        // Un fichero sin ruta (lo dio otra accion de Atajos) se escribe en
+        // una carpeta temporal con su nombre.
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("pixpin-al-movil", isDirectory: true)
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        var rutas: [String] = []
+        for f in ficheros {
+            if let url = f.fileURL {
+                rutas.append(url.path)
+            } else {
+                let url = tmp.appendingPathComponent(f.filename)
+                try f.data.write(to: url)
+                rutas.append(url.path)
+            }
+        }
+        hacerPedido("enviar_al_movil", ["aparato": .texto("todos"),
+                                        "imagenes": .textos(rutas.filter(Verbos.esImagen)),
+                                        "archivos": .textos(rutas.filter { !Verbos.esImagen($0) })])
+        return .result()
+    }
+}
+
 // MARK: - Frases para Siri y Spotlight
 
 struct AtajosPixPin: AppShortcutsProvider {
@@ -154,5 +275,33 @@ struct AtajosPixPin: AppShortcutsProvider {
             ],
             shortTitle: "Sincronizar ahora",
             systemImageName: "arrow.triangle.2.circlepath")
+        AppShortcut(
+            intent: NuevaTarea(),
+            phrases: [
+                "Nueva tarea en \(.applicationName)",
+                "Apuntar una tarea en \(.applicationName)",
+            ],
+            shortTitle: "Nueva tarea",
+            systemImageName: "checklist")
+        AppShortcut(
+            intent: NuevoLienzo(),
+            phrases: ["Nuevo lienzo en \(.applicationName)"],
+            shortTitle: "Nuevo lienzo",
+            systemImageName: "scribble.variable")
+        AppShortcut(
+            intent: GrabarNotaDeVoz(),
+            phrases: ["Grabar una nota de voz con \(.applicationName)"],
+            shortTitle: "Grabar nota de voz",
+            systemImageName: "mic")
+        AppShortcut(
+            intent: AbrirProyecto(),
+            phrases: ["Abrir un proyecto de \(.applicationName)"],
+            shortTitle: "Abrir proyecto",
+            systemImageName: "folder")
+        AppShortcut(
+            intent: MandarAlMovil(),
+            phrases: ["Mandar al móvil con \(.applicationName)"],
+            shortTitle: "Mandar al móvil",
+            systemImageName: "iphone.and.arrow.forward")
     }
 }

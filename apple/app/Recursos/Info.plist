@@ -70,6 +70,42 @@
 				<string>org.landxml.landxml</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Imagen</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.image</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Vídeo</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.movie</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>Audio</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.audio</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>PixPin</string>
@@ -81,6 +117,19 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>@VERSION@</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>CFBundleURLName</key>
+			<string>io.github.1xmanmax.pixpin.enlace</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>pixpinmax</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>@COMPILACION@</string>
 	<key>LSApplicationCategoryType</key>
@@ -89,6 +138,8 @@
 	<string>15.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>PixPin le pregunta al Finder qué ficheros tienes elegidos para dejarlos flotando como pin (comando «Pinear lo elegido en el Finder»).</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_pixpin._tcp</string>
@@ -96,8 +147,6 @@
 		<string>_pixpinrecibe._tcp</string>
 		<string>_pixpinchat._tcp</string>
 	</array>
-	<key>NSAppleEventsUsageDescription</key>
-	<string>PixPin le pregunta al Finder qué ficheros tienes elegidos para dejarlos flotando como pin (comando «Pinear lo elegido en el Finder»).</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
@@ -106,6 +155,94 @@
 	<string>PixPin graba notas de voz para tus proyectos.</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>PixPin captura la zona de la pantalla que eliges para copiarla, dejarla flotando o mandarla a un proyecto.</string>
+	<key>NSServices</key>
+	<array>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>PixPin/Al chat</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>alChat</string>
+			<key>NSPortName</key>
+			<string>PixPin</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>PixPin/Pinear</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>pinear</string>
+			<key>NSPortName</key>
+			<string>PixPin</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>PixPin/Copiar texto (OCR)</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>copiarTexto</string>
+			<key>NSPortName</key>
+			<string>PixPin</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.image</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>PixPin/Enviar al móvil</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>alMovil</string>
+			<key>NSPortName</key>
+			<string>PixPin</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>PixPin/Preguntar al asistente</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>preguntarAlAsistente</string>
+			<key>NSPortName</key>
+			<string>PixPin</string>
+			<key>NSRequiredContext</key>
+			<dict/>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>public.item</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>PixPin pasa tus notas de voz a texto en este Mac, sin enviarlas a internet.</string>
 	<key>NSSupportsAutomaticTermination</key>

@@ -5,8 +5,10 @@
 # ademas:
 #
 # - App Intents en la propia app (`App/Intenciones.swift`): Capturar zona,
-#   Nueva nota en proyecto, Buscar en PixPin y Sincronizar ahora, con sus
-#   frases en espanol para Siri, Atajos y Spotlight;
+#   Nueva nota en proyecto, Buscar en PixPin, Sincronizar ahora y los
+#   pedidos de Windows (Nueva tarea, Nuevo lienzo, Grabar nota de voz,
+#   Abrir proyecto, Mandar al movil), con sus frases en espanol para Siri,
+#   Atajos y Spotlight;
 # - `CompartirPixPin`: la extension de Compartir (mandar a un proyecto
 #   desde cualquier app);
 # - `VistaPreviaPixPin`: la vista previa de Quick Look de `.excalidraw` y

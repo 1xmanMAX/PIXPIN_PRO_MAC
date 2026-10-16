@@ -7,8 +7,9 @@ import SwiftUI
 @main
 struct PixPinApp: App {
     @StateObject private var estado = EstadoApp()
-    /// Abrir planos y modelos 3D desde el Finder.
-    @NSApplicationDelegateAdaptor(DelegadoAbrirFicheros.self) private var delegado
+    /// Abrir ficheros desde el Finder (planos, documentos, imagenes), los
+    /// enlaces `pixpinmax://`, el menu del Dock y los Servicios (C2).
+    @NSApplicationDelegateAdaptor(DelegadoApp.self) private var delegado
 
     var body: some Scene {
         MenuBarExtra {
@@ -241,6 +242,9 @@ final class EstadoApp: ObservableObject {
         // Lo que piden Atajos, Siri y Spotlight (App Intents).
         AccionesApp.compartidas.registrar(almacen: almacen, sincro: sincro,
                                           capturar: { capturador.capturar() })
+        // Lo que piden los enlaces `pixpinmax://`, el Dock y los Servicios
+        // del Finder (C2); lo que llego al abrir la app se hace ahora.
+        HacerPedidos.compartidos.registrar(almacen: almacen, sincro: sincro)
     }
 
     /// Empieza a elegir que grabar o, si ya graba, para.
