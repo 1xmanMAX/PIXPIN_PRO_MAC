@@ -80,8 +80,12 @@ public struct PintorLienzo {
                 ctx.setAlpha(opacidad)
                 ctx.translateBy(x: caja.midX, y: caja.midY)
                 ctx.rotate(by: angulo)
-                let local = CGRect(x: -caja.width / 2, y: -caja.height / 2,
+                var local = CGRect(x: -caja.width / 2, y: -caja.height / 2,
                                    width: caja.width, height: caja.height)
+                // Lo de dentro de un mosaico o una lupa (`TapadoLienzo.swift`)
+                // un pelo mas grande: el borde suavizado dejaba asomar la
+                // banda maciza de debajo como un filo gris.
+                if PintorDeTapados.esTapado(id) { local = local.insetBy(dx: -0.75, dy: -0.75) }
                 if var bitmap = imagen(id) {
                     if let r = recorte, let nat = natural, nat.width > 0, nat.height > 0 {
                         // El recorte viene en las medidas naturales de la foto.

@@ -14,7 +14,7 @@ import Foundation
 /// ensena UN boton por grupo —la herramienta del grupo que este puesta, o la
 /// ultima que se uso— y las demas salen en un desplegable al pulsarlo.
 public enum GrupoHerramientaLienzo: String, CaseIterable {
-    /// Elegir de otras formas: el lazo.
+    /// Elegir de otras formas: el lazo, la bolita y la zona.
     case elegir
     /// Lo que pinta a mano ademas del lapiz: el grafito, el resaltador y el
     /// bote.
@@ -25,17 +25,26 @@ public enum GrupoHerramientaLienzo: String, CaseIterable {
     case arreglar
     /// Lo que nombra cosas del dibujo: el texto, el numerito y el punto.
     case nombrar
+    /// Lo que tapa o senala: pixelar, la lupa, el foco y el laser.
+    case tapar
     case medir
+    /// El marco y la imagen, como en el movil.
+    case marco
+    /// Sacar el dibujo: compartir e imprimir.
+    case sacar
 
     public var titulo: String {
         switch self {
-        case .elegir: return "Elegir"
-        case .trazar: return "Trazar"
+        case .elegir: return "Elegir de otra forma"
+        case .trazar: return "Trazar a mano"
         case .formas: return "Formas"
-        case .flechas: return "Flechas"
-        case .arreglar: return "Arreglar"
-        case .nombrar: return "Nombrar"
+        case .flechas: return "Flechas y líneas"
+        case .arreglar: return "Arreglar lo trazado"
+        case .nombrar: return "Texto y nombres"
+        case .tapar: return "Tapar y señalar"
         case .medir: return "Medir"
+        case .marco: return "Marco e imagen"
+        case .sacar: return "Compartir e imprimir"
         }
     }
 
@@ -57,24 +66,34 @@ public struct HerramientaLienzo: Identifiable, Equatable {
     /// Su grupo; `nil` es que va suelta (la mano, el lapiz y la goma: las de
     /// uso constante).
     public let grupo: GrupoHerramientaLienzo?
+    /// Es una accion de un grupo (meter una imagen, compartir, imprimir) y
+    /// no una herramienta: no queda puesta, se hace y ya (`BotonCaja::Imagen`
+    /// o `Compartir` dentro de un `GrupoBarra` de Windows).
+    public let accion: Bool
 
     init(_ id: String, _ titulo: String, _ icono: IconoLienzo, tecla: Character? = nil,
-         grupo: GrupoHerramientaLienzo? = nil) {
+         grupo: GrupoHerramientaLienzo? = nil, accion: Bool = false) {
         self.id = id
         self.titulo = titulo
         self.icono = icono
         self.tecla = tecla
         self.grupo = grupo
+        self.accion = accion
     }
 
     public static func == (a: HerramientaLienzo, b: HerramientaLienzo) -> Bool { a.id == b.id }
 
-    /// El catalogo, en el orden de los desplegables de Windows. Las letras
-    /// M L R T B A E G P son las de Windows (`tecla_a_herramienta`); S O D X
-    /// W N, las de Excalidraw que alli no se usan.
+    /// El catalogo, en el orden de los desplegables de Windows
+    /// (`GrupoBarra::miembros`), con las acciones de los grupos. Las letras
+    /// M L R T B A E G P F Q C Z J son las de Windows
+    /// (`tecla_a_herramienta`); S O D X W N, las de Excalidraw que alli no
+    /// se usan.
     public static let todas: [HerramientaLienzo] = [
         .init("seleccion", "Seleccionar", .selection, tecla: "m"),
         .init("lazo", "Lazo", .lasso, tecla: "s", grupo: .elegir),
+        // La bolita, junto al lazo: las dos eligen sin marquesina.
+        .init("bolita", "Bolita", .selectAll, grupo: .elegir),
+        .init("zona", "Zona (copia recortada)", .crop, tecla: "z", grupo: .elegir),
         .init("lapiz", "Lápiz", .freedraw, tecla: "l"),
         .init("grafito", "Grafito", .grafito, tecla: "p", grupo: .trazar),
         .init("resaltador", "Resaltador", .penMode, tecla: "r", grupo: .trazar),
@@ -89,14 +108,31 @@ public struct HerramientaLienzo: Identifiable, Equatable {
         .init("flecha_codos", "Flecha de codos", .elbowArrow, grupo: .flechas),
         .init("recortar", "Recortar", .cut, tecla: "x", grupo: .arreglar),
         .init("extender", "Extender", .arrowRight, tecla: "w", grupo: .arreglar),
+        // Soldar vertices: la chincheta de Excalidraw, que es un clavo.
+        .init("nudo", "Soldar vértices", .pin, grupo: .arreglar),
+        .init("copiar_estilo", "Copiar estilo", .eyeDropper, grupo: .arreglar),
         .init("texto", "Texto", .text, tecla: "t", grupo: .nombrar),
         .init("serie", "Numerito", .abacus, grupo: .nombrar),
         .init("punto", "Punto", .dots, tecla: "n", grupo: .nombrar),
+        // El ojo cerrado: lo que un mosaico hace es dejar de ensenar.
+        .init("mosaico", "Pixelar (mosaico)", .eyeClosed, grupo: .tapar),
+        .init("lupa", "Lupa", .search, tecla: "q", grupo: .tapar),
+        .init("foco", "Foco", .presentation, tecla: "f", grupo: .tapar),
+        .init("laser", "Puntero láser", .laserPointer, tecla: "j", grupo: .tapar),
         .init("cota", "Cota", .lineEditor, tecla: "a", grupo: .medir),
         .init("escalar", "Calibrar escala", .resize, tecla: "e", grupo: .medir),
         .init("escala_grafica", "Escala gráfica", .grid, tecla: "g", grupo: .medir),
+        // «C» de marCo: la «F» de «frame» ya la usa el foco.
+        .init("marco", "Marco", .marco, tecla: "c", grupo: .marco),
+        .init("imagen", "Imagen", .image, grupo: .marco, accion: true),
         .init("borrador", "Goma", .eraser, tecla: "b"),
+        .init("compartir", "Compartir…", .shareIos, grupo: .sacar, accion: true),
+        .init("imprimir", "Imprimir… (⌘P)", .impresora, grupo: .sacar, accion: true),
     ]
+
+    /// Solo las herramientas (lo que se puede dejar puesto), sin las
+    /// acciones de los grupos.
+    public static let herramientas: [HerramientaLienzo] = todas.filter { !$0.accion }
 
     public static func con(id: String) -> HerramientaLienzo? {
         todas.first { $0.id == id }
@@ -105,7 +141,7 @@ public struct HerramientaLienzo: Identifiable, Equatable {
     /// La que elige la letra `c` (da igual mayuscula o minuscula).
     public static func deTecla(_ c: Character) -> HerramientaLienzo? {
         let c = Character(c.lowercased())
-        return todas.first { $0.tecla == c }
+        return herramientas.first { $0.tecla == c }
     }
 
     /// Las que trazan a mano: solo con ellas hay gesto de pararse.
@@ -113,42 +149,45 @@ public struct HerramientaLienzo: Identifiable, Equatable {
 
     /// Las que no dibujan nada nuevo: con ellas puestas y nada elegido, el
     /// panel de estilo sobra (Excalidraw lo esconde igual).
-    static let sinEstilo: Set<String> = ["seleccion", "lazo", "borrador", "escalar", "recortar", "extender"]
+    static let sinEstilo: Set<String> = ["seleccion", "lazo", "bolita", "zona", "borrador", "escalar",
+                                         "recortar", "extender", "nudo", "copiar_estilo", "laser"]
 }
 
 /// Lo que se ve en la barra: herramientas sueltas, grupos y acciones.
 public enum BotonBarraLienzo: Hashable {
     case herramienta(String)
     case grupo(GrupoHerramientaLienzo)
-    /// Meter una imagen de un fichero (el `Imagen` de Windows).
-    case imagen
+    /// **Las figuras** (el `Figuras` de Windows): la biblioteca y las de
+    /// fabrica —la tabla en blanco, la grafica de una funcion—.
+    case figuras
     case deshacer
     case rehacer
     /// Cerrar el lienzo (el `Salir` de Windows; se guarda solo).
     case salir
 
-    /// **La barra agrupada** (`BARRA_AGRUPADA` de Windows) con lo que el Mac
-    /// sabe hacer: elegir, lo que pinta, las formas, las flechas, lo que
-    /// arregla, lo que nombra, lo que mide, la imagen y la goma; y al final
-    /// las acciones.
+    /// **La barra agrupada** (`BARRA_AGRUPADA` de Windows): elegir, lo que
+    /// pinta, las formas, las flechas, lo que arregla, lo que nombra, lo que
+    /// tapa, lo que mide, las figuras, el marco y la goma; y al final lo que
+    /// saca el dibujo y las acciones. El `Atravesar` de Windows es solo del
+    /// anotador de pantalla viva: aqui no sale.
     public static let barra: [BotonBarraLienzo] = [
         .herramienta("seleccion"), .grupo(.elegir),
         .herramienta("lapiz"), .grupo(.trazar), .grupo(.formas), .grupo(.flechas), .grupo(.arreglar),
         .grupo(.nombrar),
-        .grupo(.medir), .imagen, .herramienta("borrador"),
-        .deshacer, .rehacer, .salir,
+        .grupo(.tapar), .grupo(.medir), .figuras, .grupo(.marco), .herramienta("borrador"),
+        .grupo(.sacar), .deshacer, .rehacer, .salir,
     ]
 
     /// **La seccion** (`caja_herramientas::grupo` de Windows): entre dos
-    /// secciones va un separador. Elegir; lo que dibuja; lo que mide, mete o
-    /// borra; y las acciones.
+    /// secciones va un separador. Elegir; lo que dibuja; lo que tapa, mide,
+    /// enmarca o borra; y lo que saca el dibujo con las acciones.
     public var seccion: Int {
         switch self {
         case .herramienta("seleccion"), .grupo(.elegir): return 0
         case .herramienta("lapiz"), .grupo(.trazar), .grupo(.formas), .grupo(.flechas), .grupo(.arreglar),
              .grupo(.nombrar): return 1
-        case .grupo(.medir), .imagen, .herramienta("borrador"): return 2
-        case .deshacer, .rehacer, .salir: return 3
+        case .grupo(.tapar), .grupo(.medir), .grupo(.marco), .figuras, .herramienta("borrador"): return 2
+        case .grupo(.sacar), .deshacer, .rehacer, .salir: return 3
         case .herramienta: return 1
         }
     }
@@ -156,6 +195,32 @@ public enum BotonBarraLienzo: Hashable {
     /// Si entre este y el siguiente va un separador.
     static func corte(tras i: Int) -> Bool {
         i + 1 < barra.count && barra[i].seccion != barra[i + 1].seccion
+    }
+
+    /// **Lo que mide a lo ancho una fila** con esos botones
+    /// (`ancho_de_fila` de Windows): los botones, sus huecos, el relleno de
+    /// la isla y cada separador con sus margenes.
+    static func anchoDeFila(_ botones: ArraySlice<BotonBarraLienzo>) -> CGFloat {
+        let n = CGFloat(botones.count)
+        let b = Array(botones)
+        let cortes = CGFloat(zip(b, b.dropFirst()).filter { $0.seccion != $1.seccion }.count)
+        return 2 * MedidasBarraLienzo.relleno + n * MedidasBarraLienzo.lado
+            + max(0, n - 1) * MedidasBarraLienzo.hueco
+            + cortes * (MedidasBarraLienzo.separador + MedidasBarraLienzo.margenSeparador + MedidasBarraLienzo.hueco)
+    }
+
+    /// **Donde partir la barra en dos filas** si en una no cabe en `ancho`
+    /// (`corte_para` de Windows): por el separador de seccion que deja las
+    /// dos filas mas parejas. `barra.count` si cabe en una.
+    static func cortePara(ancho: CGFloat) -> Int {
+        let n = barra.count
+        if anchoDeFila(barra[...]) <= ancho { return n }
+        return (1..<n)
+            .filter { barra[$0 - 1].seccion != barra[$0].seccion }
+            .min { a, b in
+                max(anchoDeFila(barra[..<a]), anchoDeFila(barra[a...]))
+                    < max(anchoDeFila(barra[..<b]), anchoDeFila(barra[b...]))
+            } ?? n
     }
 }
 
@@ -165,6 +230,13 @@ public enum BotonBarraLienzo: Hashable {
 @MainActor
 public enum GruposBarraLienzo {
     private static var recordadas: [GrupoHerramientaLienzo: String] = [:]
+
+    /// Se uso una accion desde el desplegable (imprimir, la imagen): las
+    /// herramientas se recuerdan solas al quedar puestas (`cara`); las
+    /// acciones no quedan puestas y si deben quedar de cara (`grupos::usado`).
+    public static func usado(_ id: String) {
+        if let h = HerramientaLienzo.con(id: id), let g = h.grupo { recordadas[g] = id }
+    }
 
     /// Para las pruebas: olvidarlo todo.
     static func olvidar() { recordadas = [:] }
@@ -192,11 +264,12 @@ public enum GruposBarraLienzo {
 
     /// **El clic en un grupo**: coge su cara si no estaba puesta Y ensena las
     /// hermanas en el mismo clic. Pulsar el grupo ya abierto lo cierra, y uno
-    /// de una sola herramienta no se abre.
+    /// de una sola herramienta no se abre. La cara de un grupo de acciones
+    /// (compartir, imprimir) no se dispara: imprimir por sorpresa no.
     public static func pulsar(_ g: GrupoHerramientaLienzo, activa: String,
                               desplegado: GrupoHerramientaLienzo?) -> Clic {
         var elegir: String?
-        if let c = cara(g, activa: activa), c.id != activa { elegir = c.id }
+        if let c = cara(g, activa: activa), c.id != activa, !c.accion { elegir = c.id }
         let abierto: GrupoHerramientaLienzo? = desplegado == g || g.miembros.count <= 1 ? nil : g
         return Clic(elegir: elegir, desplegado: abierto)
     }

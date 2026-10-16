@@ -1208,6 +1208,13 @@ public func FfiConverterTypeDocumentoOffice_lower(_ value: DocumentoOffice) -> U
 public protocol EditorLienzoProtocol: AnyObject, Sendable {
     
     /**
+     * **Si lo de encima se mueve solo** (la estela del laser, que se apaga
+     * sola): mientras diga que si, Swift repinta a cada fotograma aunque la
+     * version no cambie.
+     */
+    func animando()  -> Bool
+    
+    /**
      * Borra lo elegido, en un paso. `false` si no habia nada elegido.
      */
     func borrarSeleccion()  -> Bool
@@ -1432,6 +1439,48 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
     func estilo()  -> EstiloLienzo
     
     /**
+     * **Las hojas que salen** al exportar, compartir o imprimir `que`. Vacio
+     * si no hay nada (un lienzo en blanco, nada elegido).
+     */
+    func hojasParaExportar(que: QueExportar)  -> [HojaExportada]
+    
+    /**
+     * **El papel de fondo** del lienzo (un pin, una foto o una pagina de
+     * PDF, `fondo_lienzo` de Windows): mide `ancho` x `alto` en el mundo
+     * desde (0, 0) y entra en lo exportado; `png` es su imagen para el SVG.
+     * Con `ancho` o `alto` a 0 se quita.
+     */
+    func ponerPapel(ancho: Float, alto: Float, png: Data?) 
+    
+    /**
+     * **Cada hoja de `que` como documento SVG** (el que escribe el motor,
+     * el mismo de Windows y del movil), con las fotos dentro. Sin
+     * `transparente`, con el papel del lienzo de fondo.
+     */
+    func svgParaExportar(que: QueExportar, transparente: Bool)  -> [String]
+    
+    /**
+     * **La grafica de una funcion** (una o varias curvas en `formulas`, una
+     * por renglon, en funcion de `x`), con sus ejes y su ecuacion, en la
+     * ventana `x_desde..x_hasta` x `y_desde..y_hasta` a `escala` pixeles la
+     * unidad; con el pincel de ahora, centrada en `(centro_x, centro_y)`.
+     */
+    func estamparGrafica(formulas: [String], xDesde: Double, xHasta: Double, yDesde: Double, yHasta: Double, escala: Double, centroX: Float, centroY: Float) throws  -> Bool
+    
+    /**
+     * **El instrumento de graficar** con `ejes` ejes: 1 la recta de
+     * funciones, 2 el plano y 3 el espacio xyz.
+     */
+    func estamparInstrumento(ejes: UInt8, centroX: Float, centroY: Float)  -> Bool
+    
+    /**
+     * **Una tabla dibujada** con estas `celdas` (filas de textos; en blanco
+     * tambien: una tabla en blanco es donde escribir), la primera fila de
+     * cabecera si `cabecera`, con la letra del pincel.
+     */
+    func estamparTabla(celdas: [[String]], cabecera: Bool, centroX: Float, centroY: Float)  -> Bool
+    
+    /**
      * **Pega una imagen** (⌘V o soltarla): `png` son los bytes de un PNG
      * (Swift lo codifica con ImageIO, con el lado mayor como mucho
      * [`LADO_MAXIMO`]); entra centrada en `(centro_x, centro_y)` del mundo
@@ -1441,6 +1490,24 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
      * `id_objeto` y el fichero de donde pintarla hasta que se guarde.
      */
     func pegarImagen(png: Data, centroX: Float, centroY: Float, anchoVista: Float, altoVista: Float) throws  -> ImagenDelLienzo
+    
+    /**
+     * **La copia de una zona** (F8, `figuras::poner_copia_de_zona` de
+     * Windows): `png` es la foto que Swift saco de la caja `(x0, y0, x1,
+     * y1)` que pidio [`crate::editor::PeticionLienzo::Zona`], ya recortada
+     * en redondo. Entra del tamano de la caja, corrida
+     * `zona::CORRIMIENTO_PX` de pantalla (a `zoom`) y elegida, con el grupo
+     * que la reconoce como copia de zona. La Zona se queda en la mano: se
+     * pueden sacar varias seguidas.
+     */
+    func ponerCopiaDeZona(png: Data, x0: Float, y0: Float, x1: Float, y1: Float, zoom: Float) throws  -> ImagenDelLienzo
+    
+    /**
+     * **Lo que ensena dentro un mosaico o una lupa** cuyo `id_objeto` salio
+     * en el plano de la vista (ver la doc del modulo). `None` si ese
+     * `id_objeto` es de una foto de verdad o el elemento ya no esta.
+     */
+    func contenidoDeTapado(idObjeto: UInt64)  -> ContenidoTapado?
     
 }
 /**
@@ -1513,6 +1580,20 @@ public static func deFichero(ruta: String, crear: Bool)throws  -> EditorLienzo  
 }
     
 
+    
+    /**
+     * **Si lo de encima se mueve solo** (la estela del laser, que se apaga
+     * sola): mientras diga que si, Swift repinta a cada fotograma aunque la
+     * version no cambie.
+     */
+open func animando() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_animando(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
     
     /**
      * Borra lo elegido, en un paso. `false` si no habia nada elegido.
@@ -2006,6 +2087,110 @@ open func estilo() -> EstiloLienzo  {
 }
     
     /**
+     * **Las hojas que salen** al exportar, compartir o imprimir `que`. Vacio
+     * si no hay nada (un lienzo en blanco, nada elegido).
+     */
+open func hojasParaExportar(que: QueExportar) -> [HojaExportada]  {
+    return try!  FfiConverterSequenceTypeHojaExportada.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_hojas_para_exportar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeQueExportar_lower(que),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El papel de fondo** del lienzo (un pin, una foto o una pagina de
+     * PDF, `fondo_lienzo` de Windows): mide `ancho` x `alto` en el mundo
+     * desde (0, 0) y entra en lo exportado; `png` es su imagen para el SVG.
+     * Con `ancho` o `alto` a 0 se quita.
+     */
+open func ponerPapel(ancho: Float, alto: Float, png: Data?)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_poner_papel(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(ancho),
+        FfiConverterFloat.lower(alto),
+        FfiConverterOptionData.lower(png),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Cada hoja de `que` como documento SVG** (el que escribe el motor,
+     * el mismo de Windows y del movil), con las fotos dentro. Sin
+     * `transparente`, con el papel del lienzo de fondo.
+     */
+open func svgParaExportar(que: QueExportar, transparente: Bool) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_svg_para_exportar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeQueExportar_lower(que),
+        FfiConverterBool.lower(transparente),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La grafica de una funcion** (una o varias curvas en `formulas`, una
+     * por renglon, en funcion de `x`), con sus ejes y su ecuacion, en la
+     * ventana `x_desde..x_hasta` x `y_desde..y_hasta` a `escala` pixeles la
+     * unidad; con el pincel de ahora, centrada en `(centro_x, centro_y)`.
+     */
+open func estamparGrafica(formulas: [String], xDesde: Double, xHasta: Double, yDesde: Double, yHasta: Double, escala: Double, centroX: Float, centroY: Float)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_estampar_grafica(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(formulas),
+        FfiConverterDouble.lower(xDesde),
+        FfiConverterDouble.lower(xHasta),
+        FfiConverterDouble.lower(yDesde),
+        FfiConverterDouble.lower(yHasta),
+        FfiConverterDouble.lower(escala),
+        FfiConverterFloat.lower(centroX),
+        FfiConverterFloat.lower(centroY),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El instrumento de graficar** con `ejes` ejes: 1 la recta de
+     * funciones, 2 el plano y 3 el espacio xyz.
+     */
+open func estamparInstrumento(ejes: UInt8, centroX: Float, centroY: Float) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_estampar_instrumento(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt8.lower(ejes),
+        FfiConverterFloat.lower(centroX),
+        FfiConverterFloat.lower(centroY),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Una tabla dibujada** con estas `celdas` (filas de textos; en blanco
+     * tambien: una tabla en blanco es donde escribir), la primera fila de
+     * cabecera si `cabecera`, con la letra del pincel.
+     */
+open func estamparTabla(celdas: [[String]], cabecera: Bool, centroX: Float, centroY: Float) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_estampar_tabla(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceSequenceString.lower(celdas),
+        FfiConverterBool.lower(cabecera),
+        FfiConverterFloat.lower(centroX),
+        FfiConverterFloat.lower(centroY),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Pega una imagen** (⌘V o soltarla): `png` son los bytes de un PNG
      * (Swift lo codifica con ImageIO, con el lado mayor como mucho
      * [`LADO_MAXIMO`]); entra centrada en `(centro_x, centro_y)` del mundo
@@ -2024,6 +2209,45 @@ open func pegarImagen(png: Data, centroX: Float, centroY: Float, anchoVista: Flo
         FfiConverterFloat.lower(centroY),
         FfiConverterFloat.lower(anchoVista),
         FfiConverterFloat.lower(altoVista),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La copia de una zona** (F8, `figuras::poner_copia_de_zona` de
+     * Windows): `png` es la foto que Swift saco de la caja `(x0, y0, x1,
+     * y1)` que pidio [`crate::editor::PeticionLienzo::Zona`], ya recortada
+     * en redondo. Entra del tamano de la caja, corrida
+     * `zona::CORRIMIENTO_PX` de pantalla (a `zoom`) y elegida, con el grupo
+     * que la reconoce como copia de zona. La Zona se queda en la mano: se
+     * pueden sacar varias seguidas.
+     */
+open func ponerCopiaDeZona(png: Data, x0: Float, y0: Float, x1: Float, y1: Float, zoom: Float)throws  -> ImagenDelLienzo  {
+    return try  FfiConverterTypeImagenDelLienzo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_poner_copia_de_zona(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(png),
+        FfiConverterFloat.lower(x0),
+        FfiConverterFloat.lower(y0),
+        FfiConverterFloat.lower(x1),
+        FfiConverterFloat.lower(y1),
+        FfiConverterFloat.lower(zoom),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo que ensena dentro un mosaico o una lupa** cuyo `id_objeto` salio
+     * en el plano de la vista (ver la doc del modulo). `None` si ese
+     * `id_objeto` es de una foto de verdad o el elemento ya no esta.
+     */
+open func contenidoDeTapado(idObjeto: UInt64) -> ContenidoTapado?  {
+    return try!  FfiConverterOptionTypeContenidoTapado.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_contenido_de_tapado(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(idObjeto),uniffiCallStatus
     )
 })
 }
@@ -3731,6 +3955,45 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func guardarAjustesPdf(nuevos: AjustesPdf) throws 
     
     /**
+     * **Apunta donde esta** el aparato `id` (lo que da la sonda de un
+     * aparato visto en Bonjour, o la direccion nueva de [`donde_esta`]).
+     */
+    func apuntarDireccion(id: String, host: String, puerto: UInt16) throws  -> Bool
+    
+    /**
+     * Las direcciones recordadas (`sincro/direcciones.txt`).
+     */
+    func direccionesRecordadas()  -> [DireccionRecordada]
+    
+    /**
+     * **Los miembros del grupo menos este**, por nombre, con su direccion
+     * recordada y la ultima vez que se sincronizo con cada uno. Sin grupo,
+     * ninguno.
+     */
+    func miembrosDelGrupo() throws  -> [MiembroGrupo]
+    
+    /**
+     * **Renombra este aparato** (`Disco.renombrar`): tambien en su ficha
+     * de miembro, que es lo que ven los demas en la siguiente vuelta. Sin
+     * blancos alrededor y con el tope del movil (40); vacio no vale.
+     */
+    func renombrarAparato(nombre: String) throws  -> InfoAparato
+    
+    /**
+     * **Sale del grupo** (`Disco.salirDelGrupo`): sin codigo, sin miembros
+     * y sin letra, y se olvida lo acordado con los demas (`sincro/base/`).
+     * No se borra ningun chat. Si vuelve a unirse, la primera vez
+     * preguntara por lo que haya cambiado en los dos lados.
+     */
+    func salirDelGrupo() throws  -> InfoAparato
+    
+    /**
+     * **La sonda `PING`/`PONG`** a una direccion escrita o recordada.
+     * Bloquea hasta unos 3 s como mucho.
+     */
+    func sondearDireccion(host: String, puerto: UInt16)  -> Bool
+    
+    /**
      * **Busca en todo**: primero los chats por su nombre, luego los
      * mensajes y tareas de cada chat (el chat mas reciente primero y,
      * dentro, el mensaje mas nuevo primero) y al final los momentos del
@@ -3879,6 +4142,39 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func sincronizarConPersona(host: String, puerto: UInt16, id: String?, chats: [String]) throws  -> ResumenPersona
     
     /**
+     * **Las copias de seguridad de todos los chats**, la mas nueva primero
+     * (`Copias.todas`). Se guardan las 30 ultimas de cada uno.
+     */
+    func copiasDeSeguridad()  -> [CopiaDeSeguridad]
+    
+    /**
+     * **Los proyectos de la papelera**, el borrado mas reciente primero.
+     */
+    func proyectosBorrados()  -> [ProyectoBorrado]
+    
+    /**
+     * **Recupera un proyecto de la papelera** por el nombre de su carpeta
+     * ([`ProyectoBorrado::carpeta`]): vuelve a la lista entero y deja de
+     * estar borrado para sincronizar (se quita su lapida). Devuelve su
+     * nombre. Sin dialogo, como en el movil: recuperar no pisa ni borra.
+     */
+    func recuperarProyecto(carpeta: String) throws  -> String
+    
+    /**
+     * **«Recuperar todos»**: cuantos volvieron de cuantos habia.
+     */
+    func recuperarTodos()  -> Recuperados
+    
+    /**
+     * **Vuelve a la copia `id` del chat `chat`** (`Copias.restaurar`):
+     * antes guarda como esta ahora (asi se deshace), pone los archivos y los
+     * mensajes de entonces y **conserva los lienzos de despues**. Devuelve
+     * el nombre del proyecto. Una copia que ya no esta (la lista se releyo)
+     * no restaura otra cualquiera: da `NoExiste`.
+     */
+    func volverACopia(chat: String, id: String) throws  -> String
+    
+    /**
      * **Abre la tinta de la hoja `pagina`** (desde 0) de `documento` para
      * verla y anotarla, en las unidades de la hoja (ver la doc del modulo).
      * `alto`: el de la hoja en esas unidades (`1400 * alto / ancho` de la
@@ -3932,10 +4228,53 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func editarLienzo(chat: String, dibujo: String) throws  -> EditorLienzo
     
     /**
+     * **Estampa la figura `id`** en `editor`, centrada en `(centro_x,
+     * centro_y)` y elegida.
+     */
+    func estamparFigura(editor: EditorLienzo, id: String, centroX: Float, centroY: Float) throws  -> Bool
+    
+    /**
+     * **Las figuras guardadas**, las nuevas arriba.
+     */
+    func figurasGuardadas() throws  -> [FiguraDeBiblioteca]
+    
+    /**
+     * **Guarda lo elegido en `editor` como figura** con ese nombre (la del
+     * mismo nombre se sustituye), arriba de la lista. `false` si no hay
+     * nada elegido.
+     */
+    func guardarFigura(editor: EditorLienzo, nombre: String) throws  -> Bool
+    
+    /**
+     * Quita la figura `id` de la biblioteca.
+     */
+    func quitarFigura(id: String) throws  -> Bool
+    
+    /**
+     * Si el ultimo lienzo se dejo a pantalla completa (`None`: nunca se
+     * toco).
+     */
+    func lienzoPantallaCompleta()  -> Bool?
+    
+    /**
+     * Apunta como se dejo el lienzo, sin tocar lo demas del estado. Si no
+     * cambio, no escribe.
+     */
+    func recordarLienzoPantallaCompleta(si: Bool) throws 
+    
+    /**
      * **Abre la puerta para enviar** `rutas` con un codigo nuevo de seis
-     * cifras, en un puerto que da el sistema (IPv6 con IPv4 dentro).
+     * cifras, en un puerto que da el sistema (IPv6 con IPv4 dentro). Un
+     * `.excalidraw` sale como lienzo; lo demas, como archivo.
      */
     func abrirEnvio(rutas: [String]) throws  -> PuertaEnvio
+    
+    /**
+     * **Abre la puerta para enviar un proyecto entero** de la lista (su
+     * ficha), empaquetado como `.pixpin`: al otro lado entra en su lista de
+     * proyectos, o pone al dia el mismo si ya lo tenia.
+     */
+    func abrirEnvioDeProyecto(ficha: String) throws  -> PuertaEnvio
     
     /**
      * Lo que esta delante, como lo dejo [`Nucleo::poner_al_frente`].
@@ -3955,7 +4294,8 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * **Espera para recibir** («Recibir por Wi-Fi»): un codigo nuevo de
      * seis cifras y un puerto; quien envia teclea el codigo (o lo ve en el
      * QR) y llama. Se atiende desde un hilo de Swift con
-     * [`PuertaRecibir::atender`].
+     * [`PuertaRecibir::atender`]; con [`PuertaRecibir::preguntar_con`] se
+     * pregunta antes de aceptar.
      */
     func esperarEnvios() throws  -> PuertaRecibir
     
@@ -3966,6 +4306,11 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func mandarAQuienEspera(host: String, puerto: UInt16, codigo: String, rutas: [String]) throws  -> FinEnvio
     
     /**
+     * **Manda un proyecto entero a quien espera para recibir**.
+     */
+    func mandarProyectoAQuienEspera(host: String, puerto: UInt16, codigo: String, ficha: String) throws  -> FinEnvio
+    
+    /**
      * **Lo que esta delante ahora** (lo llama Swift al abrir o cerrar un
      * chat o un lienzo): a donde va un archivo suelto que llegue.
      */
@@ -3973,10 +4318,19 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     
     /**
      * **Recibe de quien envia y espera** en `host:puerto` con su `codigo`:
-     * trae lo que ofrece y lo pone en su sitio (proyectos a la lista, lo
-     * demas a «Mensajes guardados»). Teclear el codigo es aceptar.
+     * trae lo que ofrece y lo pone en su sitio (proyectos a la lista,
+     * lienzos a su proyecto, lo demas a «Mensajes guardados»). Teclear el
+     * codigo es aceptar; lo que ya se tiene se pone al dia.
      */
     func recibirEnvio(host: String, puerto: UInt16, codigo: String) throws  -> [RecibidoEnvio]
+    
+    /**
+     * Lo mismo, **preguntando antes de aceptar** (`Oferta` de
+     * `RecibirActivity` del movil): `decidir` ve lo que se ofrece y que de
+     * eso ya se tiene, y contesta que crear como nuevo (o `None`: «No,
+     * gracias»). `None` si se dijo que no.
+     */
+    func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, decidir: DecidirOferta) throws  -> [RecibidoEnvio]?
     
     /**
      * **Borra capturas**: a la papelera de PixPin (`papelera/capturas/`),
@@ -4574,6 +4928,93 @@ open func guardarAjustesPdf(nuevos: AjustesPdf)throws   {try rustCallWithError(F
 }
     
     /**
+     * **Apunta donde esta** el aparato `id` (lo que da la sonda de un
+     * aparato visto en Bonjour, o la direccion nueva de [`donde_esta`]).
+     */
+open func apuntarDireccion(id: String, host: String, puerto: UInt16)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_apuntar_direccion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Las direcciones recordadas (`sincro/direcciones.txt`).
+     */
+open func direccionesRecordadas() -> [DireccionRecordada]  {
+    return try!  FfiConverterSequenceTypeDireccionRecordada.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_direcciones_recordadas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los miembros del grupo menos este**, por nombre, con su direccion
+     * recordada y la ultima vez que se sincronizo con cada uno. Sin grupo,
+     * ninguno.
+     */
+open func miembrosDelGrupo()throws  -> [MiembroGrupo]  {
+    return try  FfiConverterSequenceTypeMiembroGrupo.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_miembros_del_grupo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Renombra este aparato** (`Disco.renombrar`): tambien en su ficha
+     * de miembro, que es lo que ven los demas en la siguiente vuelta. Sin
+     * blancos alrededor y con el tope del movil (40); vacio no vale.
+     */
+open func renombrarAparato(nombre: String)throws  -> InfoAparato  {
+    return try  FfiConverterTypeInfoAparato_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_renombrar_aparato(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Sale del grupo** (`Disco.salirDelGrupo`): sin codigo, sin miembros
+     * y sin letra, y se olvida lo acordado con los demas (`sincro/base/`).
+     * No se borra ningun chat. Si vuelve a unirse, la primera vez
+     * preguntara por lo que haya cambiado en los dos lados.
+     */
+open func salirDelGrupo()throws  -> InfoAparato  {
+    return try  FfiConverterTypeInfoAparato_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_salir_del_grupo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La sonda `PING`/`PONG`** a una direccion escrita o recordada.
+     * Bloquea hasta unos 3 s como mucho.
+     */
+open func sondearDireccion(host: String, puerto: UInt16) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_sondear_direccion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Busca en todo**: primero los chats por su nombre, luego los
      * mensajes y tareas de cada chat (el chat mas reciente primero y,
      * dentro, el mensaje mas nuevo primero) y al final los momentos del
@@ -4902,6 +5343,77 @@ open func sincronizarConPersona(host: String, puerto: UInt16, id: String?, chats
 }
     
     /**
+     * **Las copias de seguridad de todos los chats**, la mas nueva primero
+     * (`Copias.todas`). Se guardan las 30 ultimas de cada uno.
+     */
+open func copiasDeSeguridad() -> [CopiaDeSeguridad]  {
+    return try!  FfiConverterSequenceTypeCopiaDeSeguridad.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_copias_de_seguridad(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los proyectos de la papelera**, el borrado mas reciente primero.
+     */
+open func proyectosBorrados() -> [ProyectoBorrado]  {
+    return try!  FfiConverterSequenceTypeProyectoBorrado.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_proyectos_borrados(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Recupera un proyecto de la papelera** por el nombre de su carpeta
+     * ([`ProyectoBorrado::carpeta`]): vuelve a la lista entero y deja de
+     * estar borrado para sincronizar (se quita su lapida). Devuelve su
+     * nombre. Sin dialogo, como en el movil: recuperar no pisa ni borra.
+     */
+open func recuperarProyecto(carpeta: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_recuperar_proyecto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Recuperar todos»**: cuantos volvieron de cuantos habia.
+     */
+open func recuperarTodos() -> Recuperados  {
+    return try!  FfiConverterTypeRecuperados_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_recuperar_todos(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Vuelve a la copia `id` del chat `chat`** (`Copias.restaurar`):
+     * antes guarda como esta ahora (asi se deshace), pone los archivos y los
+     * mensajes de entonces y **conserva los lienzos de despues**. Devuelve
+     * el nombre del proyecto. Una copia que ya no esta (la lista se releyo)
+     * no restaura otra cualquiera: da `NoExiste`.
+     */
+open func volverACopia(chat: String, id: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_volver_a_copia(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Abre la tinta de la hoja `pagina`** (desde 0) de `documento` para
      * verla y anotarla, en las unidades de la hoja (ver la doc del modulo).
      * `alto`: el de la hoja en esas unidades (`1400 * alto / ancho` de la
@@ -5017,8 +5529,93 @@ open func editarLienzo(chat: String, dibujo: String)throws  -> EditorLienzo  {
 }
     
     /**
+     * **Estampa la figura `id`** en `editor`, centrada en `(centro_x,
+     * centro_y)` y elegida.
+     */
+open func estamparFigura(editor: EditorLienzo, id: String, centroX: Float, centroY: Float)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_estampar_figura(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeEditorLienzo_lower(editor),
+        FfiConverterString.lower(id),
+        FfiConverterFloat.lower(centroX),
+        FfiConverterFloat.lower(centroY),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las figuras guardadas**, las nuevas arriba.
+     */
+open func figurasGuardadas()throws  -> [FiguraDeBiblioteca]  {
+    return try  FfiConverterSequenceTypeFiguraDeBiblioteca.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_figuras_guardadas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Guarda lo elegido en `editor` como figura** con ese nombre (la del
+     * mismo nombre se sustituye), arriba de la lista. `false` si no hay
+     * nada elegido.
+     */
+open func guardarFigura(editor: EditorLienzo, nombre: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_guardar_figura(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeEditorLienzo_lower(editor),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Quita la figura `id` de la biblioteca.
+     */
+open func quitarFigura(id: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_quitar_figura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si el ultimo lienzo se dejo a pantalla completa (`None`: nunca se
+     * toco).
+     */
+open func lienzoPantallaCompleta() -> Bool?  {
+    return try!  FfiConverterOptionBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_lienzo_pantalla_completa(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Apunta como se dejo el lienzo, sin tocar lo demas del estado. Si no
+     * cambio, no escribe.
+     */
+open func recordarLienzoPantallaCompleta(si: Bool)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_recordar_lienzo_pantalla_completa(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(si),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * **Abre la puerta para enviar** `rutas` con un codigo nuevo de seis
-     * cifras, en un puerto que da el sistema (IPv6 con IPv4 dentro).
+     * cifras, en un puerto que da el sistema (IPv6 con IPv4 dentro). Un
+     * `.excalidraw` sale como lienzo; lo demas, como archivo.
      */
 open func abrirEnvio(rutas: [String])throws  -> PuertaEnvio  {
     return try  FfiConverterTypePuertaEnvio_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -5026,6 +5623,21 @@ open func abrirEnvio(rutas: [String])throws  -> PuertaEnvio  {
     uniffi_pixpin_nucleo_fn_method_nucleo_abrir_envio(
             self.uniffiCloneHandle(),
         FfiConverterSequenceString.lower(rutas),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Abre la puerta para enviar un proyecto entero** de la lista (su
+     * ficha), empaquetado como `.pixpin`: al otro lado entra en su lista de
+     * proyectos, o pone al dia el mismo si ya lo tenia.
+     */
+open func abrirEnvioDeProyecto(ficha: String)throws  -> PuertaEnvio  {
+    return try  FfiConverterTypePuertaEnvio_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_abrir_envio_de_proyecto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ficha),uniffiCallStatus
     )
 })
 }
@@ -5065,7 +5677,8 @@ open func enviarAAparato(host: String, puerto: UInt16, rutas: [String])throws  -
      * **Espera para recibir** («Recibir por Wi-Fi»): un codigo nuevo de
      * seis cifras y un puerto; quien envia teclea el codigo (o lo ve en el
      * QR) y llama. Se atiende desde un hilo de Swift con
-     * [`PuertaRecibir::atender`].
+     * [`PuertaRecibir::atender`]; con [`PuertaRecibir::preguntar_con`] se
+     * pregunta antes de aceptar.
      */
 open func esperarEnvios()throws  -> PuertaRecibir  {
     return try  FfiConverterTypePuertaRecibir_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -5094,6 +5707,22 @@ open func mandarAQuienEspera(host: String, puerto: UInt16, codigo: String, rutas
 }
     
     /**
+     * **Manda un proyecto entero a quien espera para recibir**.
+     */
+open func mandarProyectoAQuienEspera(host: String, puerto: UInt16, codigo: String, ficha: String)throws  -> FinEnvio  {
+    return try  FfiConverterTypeFinEnvio_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_mandar_proyecto_a_quien_espera(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),
+        FfiConverterString.lower(codigo),
+        FfiConverterString.lower(ficha),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Lo que esta delante ahora** (lo llama Swift al abrir o cerrar un
      * chat o un lienzo): a donde va un archivo suelto que llegue.
      */
@@ -5108,8 +5737,9 @@ open func ponerAlFrente(frente: FrenteMac)  {try! rustCall() {
     
     /**
      * **Recibe de quien envia y espera** en `host:puerto` con su `codigo`:
-     * trae lo que ofrece y lo pone en su sitio (proyectos a la lista, lo
-     * demas a «Mensajes guardados»). Teclear el codigo es aceptar.
+     * trae lo que ofrece y lo pone en su sitio (proyectos a la lista,
+     * lienzos a su proyecto, lo demas a «Mensajes guardados»). Teclear el
+     * codigo es aceptar; lo que ya se tiene se pone al dia.
      */
 open func recibirEnvio(host: String, puerto: UInt16, codigo: String)throws  -> [RecibidoEnvio]  {
     return try  FfiConverterSequenceTypeRecibidoEnvio.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -5119,6 +5749,25 @@ open func recibirEnvio(host: String, puerto: UInt16, codigo: String)throws  -> [
         FfiConverterString.lower(host),
         FfiConverterUInt16.lower(puerto),
         FfiConverterString.lower(codigo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo mismo, **preguntando antes de aceptar** (`Oferta` de
+     * `RecibirActivity` del movil): `decidir` ve lo que se ofrece y que de
+     * eso ya se tiene, y contesta que crear como nuevo (o `None`: «No,
+     * gracias»). `None` si se dijo que no.
+     */
+open func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, decidir: DecidirOferta)throws  -> [RecibidoEnvio]?  {
+    return try  FfiConverterOptionSequenceTypeRecibidoEnvio.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_recibir_envio_preguntando(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),
+        FfiConverterString.lower(codigo),
+        FfiConverterCallbackInterfaceDecidirOferta_lower(decidir),uniffiCallStatus
     )
 })
 }
@@ -6862,6 +7511,11 @@ public protocol PuertaRecibirProtocol: AnyObject, Sendable {
     
     func codigo()  -> String
     
+    /**
+     * **Pregunta antes de aceptar** cada oferta que llegue a esta puerta.
+     */
+    func preguntarCon(decidir: DecidirOferta) 
+    
     func puerto()  -> UInt16
     
     /**
@@ -6967,6 +7621,18 @@ open func codigo() -> String  {
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * **Pregunta antes de aceptar** cada oferta que llegue a esta puerta.
+     */
+open func preguntarCon(decidir: DecidirOferta)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_puertarecibir_preguntar_con(
+            self.uniffiCloneHandle(),
+        FfiConverterCallbackInterfaceDecidirOferta_lower(decidir),uniffiCallStatus
+    )
+}
 }
     
 open func puerto() -> UInt16  {
@@ -9208,6 +9874,330 @@ public func FfiConverterTypeColorEstilo_lower(_ value: ColorEstilo) -> RustBuffe
 
 
 /**
+ * **Lo de dentro de un mosaico o de una lupa**, para pintarlo en un mapa.
+ *
+ * La imagen cubre la caja `(x, y, ancho, alto)` del mundo. Dentro, un
+ * punto `q` del dibujo cae en `centro + (q - foco) * aumento`, con
+ * `centro` el de la caja (en el mosaico, `foco` es ese mismo centro y
+ * `aumento` 1). `contorno` es el recorte (x, y, x, y... del mundo; vacio en
+ * el mosaico) y `grano` el lado del cuadro del pixelado en unidades del
+ * mundo (0 en la lupa).
+ */
+public struct ContenidoTapado: Equatable, Hashable {
+    public var plano: LienzoPlano
+    public var x: Float
+    public var y: Float
+    public var ancho: Float
+    public var alto: Float
+    public var focoX: Float
+    public var focoY: Float
+    public var aumento: Float
+    public var contorno: [Float]
+    public var grano: Float
+    /**
+     * `mosaicBlur` del movil: con el puesto, mancha en vez de cuadros.
+     */
+    public var desenfoque: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(plano: LienzoPlano, x: Float, y: Float, ancho: Float, alto: Float, focoX: Float, focoY: Float, aumento: Float, contorno: [Float], grano: Float, 
+        /**
+         * `mosaicBlur` del movil: con el puesto, mancha en vez de cuadros.
+         */desenfoque: Bool) {
+        self.plano = plano
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+        self.focoX = focoX
+        self.focoY = focoY
+        self.aumento = aumento
+        self.contorno = contorno
+        self.grano = grano
+        self.desenfoque = desenfoque
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ContenidoTapado: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeContenidoTapado: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContenidoTapado {
+        return
+            try ContenidoTapado(
+                plano: FfiConverterTypeLienzoPlano.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf), 
+                focoX: FfiConverterFloat.read(from: &buf), 
+                focoY: FfiConverterFloat.read(from: &buf), 
+                aumento: FfiConverterFloat.read(from: &buf), 
+                contorno: FfiConverterSequenceFloat.read(from: &buf), 
+                grano: FfiConverterFloat.read(from: &buf), 
+                desenfoque: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ContenidoTapado, into buf: inout [UInt8]) {
+        FfiConverterTypeLienzoPlano.write(value.plano, into: &buf)
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+        FfiConverterFloat.write(value.focoX, into: &buf)
+        FfiConverterFloat.write(value.focoY, into: &buf)
+        FfiConverterFloat.write(value.aumento, into: &buf)
+        FfiConverterSequenceFloat.write(value.contorno, into: &buf)
+        FfiConverterFloat.write(value.grano, into: &buf)
+        FfiConverterBool.write(value.desenfoque, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContenidoTapado_lift(_ buf: RustBuffer) throws -> ContenidoTapado {
+    return try FfiConverterTypeContenidoTapado.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeContenidoTapado_lower(_ value: ContenidoTapado) -> RustBuffer {
+    return FfiConverterTypeContenidoTapado.lower(value)
+}
+
+
+/**
+ * Una copia de seguridad de un chat, la mas nueva primero en la lista.
+ */
+public struct CopiaDeSeguridad: Equatable, Hashable {
+    /**
+     * Su id dentro de su chat; con `chat` dice cual es.
+     */
+    public var id: String
+    /**
+     * El chat de sincronizar del que es.
+     */
+    public var chat: String
+    /**
+     * Cuando se hizo, en milisegundos UTC.
+     */
+    public var cuando: Int64
+    /**
+     * Por que se hizo («Antes de sincronizar con Tableta»).
+     */
+    public var motivo: String
+    /**
+     * El nombre del proyecto entonces.
+     */
+    public var nombre: String
+    public var hojas: UInt32
+    public var mensajes: UInt32
+    /**
+     * Si algun archivo (el PDF de mas de 40 MB) se quedo sin copiar: de
+     * ese no se puede volver atras.
+     */
+    public var sinGrandes: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Su id dentro de su chat; con `chat` dice cual es.
+         */id: String, 
+        /**
+         * El chat de sincronizar del que es.
+         */chat: String, 
+        /**
+         * Cuando se hizo, en milisegundos UTC.
+         */cuando: Int64, 
+        /**
+         * Por que se hizo («Antes de sincronizar con Tableta»).
+         */motivo: String, 
+        /**
+         * El nombre del proyecto entonces.
+         */nombre: String, hojas: UInt32, mensajes: UInt32, 
+        /**
+         * Si algun archivo (el PDF de mas de 40 MB) se quedo sin copiar: de
+         * ese no se puede volver atras.
+         */sinGrandes: Bool) {
+        self.id = id
+        self.chat = chat
+        self.cuando = cuando
+        self.motivo = motivo
+        self.nombre = nombre
+        self.hojas = hojas
+        self.mensajes = mensajes
+        self.sinGrandes = sinGrandes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CopiaDeSeguridad: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCopiaDeSeguridad: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CopiaDeSeguridad {
+        return
+            try CopiaDeSeguridad(
+                id: FfiConverterString.read(from: &buf), 
+                chat: FfiConverterString.read(from: &buf), 
+                cuando: FfiConverterInt64.read(from: &buf), 
+                motivo: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                hojas: FfiConverterUInt32.read(from: &buf), 
+                mensajes: FfiConverterUInt32.read(from: &buf), 
+                sinGrandes: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CopiaDeSeguridad, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterInt64.write(value.cuando, into: &buf)
+        FfiConverterString.write(value.motivo, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterUInt32.write(value.hojas, into: &buf)
+        FfiConverterUInt32.write(value.mensajes, into: &buf)
+        FfiConverterBool.write(value.sinGrandes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCopiaDeSeguridad_lift(_ buf: RustBuffer) throws -> CopiaDeSeguridad {
+    return try FfiConverterTypeCopiaDeSeguridad.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCopiaDeSeguridad_lower(_ value: CopiaDeSeguridad) -> RustBuffer {
+    return FfiConverterTypeCopiaDeSeguridad.lower(value)
+}
+
+
+/**
+ * Una cosa de lo que se ofrece, para decidir antes de aceptar.
+ */
+public struct CosaOfrecida: Equatable, Hashable {
+    /**
+     * Su sena entre envios: con ella se contesta «crear como nuevo».
+     */
+    public var identidad: String
+    /**
+     * `archivo`, `proyecto` o `lienzo`.
+     */
+    public var tipo: String
+    public var nombre: String
+    public var bytes: Int64
+    /**
+     * De que proyecto es (un lienzo).
+     */
+    public var proyectoNombre: String?
+    /**
+     * **Lo que aqui ya es esa cosa** (los tres codigos), por su nombre:
+     * entonces se elige «Actualizar el que tengo» o «Crear como nuevo».
+     */
+    public var yaTienes: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Su sena entre envios: con ella se contesta «crear como nuevo».
+         */identidad: String, 
+        /**
+         * `archivo`, `proyecto` o `lienzo`.
+         */tipo: String, nombre: String, bytes: Int64, 
+        /**
+         * De que proyecto es (un lienzo).
+         */proyectoNombre: String?, 
+        /**
+         * **Lo que aqui ya es esa cosa** (los tres codigos), por su nombre:
+         * entonces se elige «Actualizar el que tengo» o «Crear como nuevo».
+         */yaTienes: String?) {
+        self.identidad = identidad
+        self.tipo = tipo
+        self.nombre = nombre
+        self.bytes = bytes
+        self.proyectoNombre = proyectoNombre
+        self.yaTienes = yaTienes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CosaOfrecida: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCosaOfrecida: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CosaOfrecida {
+        return
+            try CosaOfrecida(
+                identidad: FfiConverterString.read(from: &buf), 
+                tipo: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                bytes: FfiConverterInt64.read(from: &buf), 
+                proyectoNombre: FfiConverterOptionString.read(from: &buf), 
+                yaTienes: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CosaOfrecida, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.identidad, into: &buf)
+        FfiConverterString.write(value.tipo, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterInt64.write(value.bytes, into: &buf)
+        FfiConverterOptionString.write(value.proyectoNombre, into: &buf)
+        FfiConverterOptionString.write(value.yaTienes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCosaOfrecida_lift(_ buf: RustBuffer) throws -> CosaOfrecida {
+    return try FfiConverterTypeCosaOfrecida.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCosaOfrecida_lower(_ value: CosaOfrecida) -> RustBuffer {
+    return FfiConverterTypeCosaOfrecida.lower(value)
+}
+
+
+/**
  * Una cota guardada en la capa: sus puntos, en el dibujo.
  */
 public struct CotaPlano: Equatable, Hashable {
@@ -9490,6 +10480,67 @@ public func FfiConverterTypeDiaTimeline_lift(_ buf: RustBuffer) throws -> DiaTim
 #endif
 public func FfiConverterTypeDiaTimeline_lower(_ value: DiaTimeline) -> RustBuffer {
     return FfiConverterTypeDiaTimeline.lower(value)
+}
+
+
+/**
+ * Una direccion recordada de un aparato.
+ */
+public struct DireccionRecordada: Equatable, Hashable {
+    public var id: String
+    public var host: String
+    public var puerto: UInt16
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, host: String, puerto: UInt16) {
+        self.id = id
+        self.host = host
+        self.puerto = puerto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DireccionRecordada: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDireccionRecordada: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DireccionRecordada {
+        return
+            try DireccionRecordada(
+                id: FfiConverterString.read(from: &buf), 
+                host: FfiConverterString.read(from: &buf), 
+                puerto: FfiConverterUInt16.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DireccionRecordada, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.host, into: &buf)
+        FfiConverterUInt16.write(value.puerto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDireccionRecordada_lift(_ buf: RustBuffer) throws -> DireccionRecordada {
+    return try FfiConverterTypeDireccionRecordada.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDireccionRecordada_lower(_ value: DireccionRecordada) -> RustBuffer {
+    return FfiConverterTypeDireccionRecordada.lower(value)
 }
 
 
@@ -10481,6 +11532,63 @@ public func FfiConverterTypeFichaLeccion_lower(_ value: FichaLeccion) -> RustBuf
 
 
 /**
+ * Una figura de la biblioteca, para el menu.
+ */
+public struct FiguraDeBiblioteca: Equatable, Hashable {
+    public var id: String
+    public var nombre: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, nombre: String) {
+        self.id = id
+        self.nombre = nombre
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FiguraDeBiblioteca: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFiguraDeBiblioteca: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FiguraDeBiblioteca {
+        return
+            try FiguraDeBiblioteca(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FiguraDeBiblioteca, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFiguraDeBiblioteca_lift(_ buf: RustBuffer) throws -> FiguraDeBiblioteca {
+    return try FfiConverterTypeFiguraDeBiblioteca.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFiguraDeBiblioteca_lower(_ value: FiguraDeBiblioteca) -> RustBuffer {
+    return FfiConverterTypeFiguraDeBiblioteca.lower(value)
+}
+
+
+/**
  * Una fila de «¿Que sincronizar?» (`vuelta::Fila`), ya con lo que se lee
  * debajo del nombre en cada pestana.
  */
@@ -11089,6 +12197,80 @@ public func FfiConverterTypeHerramientaUsada_lift(_ buf: RustBuffer) throws -> H
 #endif
 public func FfiConverterTypeHerramientaUsada_lower(_ value: HerramientaUsada) -> RustBuffer {
     return FfiConverterTypeHerramientaUsada.lower(value)
+}
+
+
+/**
+ * Una hoja que sale: su nombre (el del marco, o vacio), su caja en el
+ * mundo y lo que se pinta en ella (en el mundo; Swift recorta a la caja).
+ */
+public struct HojaExportada: Equatable, Hashable {
+    public var nombre: String
+    public var x0: Float
+    public var y0: Float
+    public var x1: Float
+    public var y1: Float
+    public var plano: LienzoPlano
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, x0: Float, y0: Float, x1: Float, y1: Float, plano: LienzoPlano) {
+        self.nombre = nombre
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.plano = plano
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HojaExportada: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHojaExportada: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HojaExportada {
+        return
+            try HojaExportada(
+                nombre: FfiConverterString.read(from: &buf), 
+                x0: FfiConverterFloat.read(from: &buf), 
+                y0: FfiConverterFloat.read(from: &buf), 
+                x1: FfiConverterFloat.read(from: &buf), 
+                y1: FfiConverterFloat.read(from: &buf), 
+                plano: FfiConverterTypeLienzoPlano.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HojaExportada, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterFloat.write(value.x0, into: &buf)
+        FfiConverterFloat.write(value.y0, into: &buf)
+        FfiConverterFloat.write(value.x1, into: &buf)
+        FfiConverterFloat.write(value.y1, into: &buf)
+        FfiConverterTypeLienzoPlano.write(value.plano, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojaExportada_lift(_ buf: RustBuffer) throws -> HojaExportada {
+    return try FfiConverterTypeHojaExportada.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojaExportada_lower(_ value: HojaExportada) -> RustBuffer {
+    return FfiConverterTypeHojaExportada.lower(value)
 }
 
 
@@ -12558,6 +13740,87 @@ public func FfiConverterTypeMetricasLetra_lower(_ value: MetricasLetra) -> RustB
 
 
 /**
+ * Un aparato del grupo (no este), para la lista «Tus aparatos».
+ */
+public struct MiembroGrupo: Equatable, Hashable {
+    public var id: String
+    public var nombre: String
+    public var letra: String?
+    /**
+     * La direccion recordada, si hay.
+     */
+    public var direccion: DireccionRecordada?
+    /**
+     * La ultima vez que se sincronizo con el (ms UTC), 0 si nunca.
+     */
+    public var ultimaVez: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, nombre: String, letra: String?, 
+        /**
+         * La direccion recordada, si hay.
+         */direccion: DireccionRecordada?, 
+        /**
+         * La ultima vez que se sincronizo con el (ms UTC), 0 si nunca.
+         */ultimaVez: Int64) {
+        self.id = id
+        self.nombre = nombre
+        self.letra = letra
+        self.direccion = direccion
+        self.ultimaVez = ultimaVez
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MiembroGrupo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMiembroGrupo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MiembroGrupo {
+        return
+            try MiembroGrupo(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                letra: FfiConverterOptionString.read(from: &buf), 
+                direccion: FfiConverterOptionTypeDireccionRecordada.read(from: &buf), 
+                ultimaVez: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MiembroGrupo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterOptionString.write(value.letra, into: &buf)
+        FfiConverterOptionTypeDireccionRecordada.write(value.direccion, into: &buf)
+        FfiConverterInt64.write(value.ultimaVez, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMiembroGrupo_lift(_ buf: RustBuffer) throws -> MiembroGrupo {
+    return try FfiConverterTypeMiembroGrupo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMiembroGrupo_lower(_ value: MiembroGrupo) -> RustBuffer {
+    return FfiConverterTypeMiembroGrupo.lower(value)
+}
+
+
+/**
  * Un momento, listo para pintar su tarjeta.
  */
 public struct MomentoTimeline: Equatable, Hashable {
@@ -12813,6 +14076,79 @@ public func FfiConverterTypeNoDibujado_lift(_ buf: RustBuffer) throws -> NoDibuj
 #endif
 public func FfiConverterTypeNoDibujado_lower(_ value: NoDibujado) -> RustBuffer {
     return FfiConverterTypeNoDibujado.lower(value)
+}
+
+
+/**
+ * Lo que ofrece quien envia (`Oferta` de `RecibirActivity`).
+ */
+public struct OfertaRecibida: Equatable, Hashable {
+    /**
+     * El nombre de quien envia.
+     */
+    public var de: String
+    /**
+     * Sus cuatro signos (`K7Q2`).
+     */
+    public var deCodigo: String
+    public var cosas: [CosaOfrecida]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El nombre de quien envia.
+         */de: String, 
+        /**
+         * Sus cuatro signos (`K7Q2`).
+         */deCodigo: String, cosas: [CosaOfrecida]) {
+        self.de = de
+        self.deCodigo = deCodigo
+        self.cosas = cosas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OfertaRecibida: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOfertaRecibida: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OfertaRecibida {
+        return
+            try OfertaRecibida(
+                de: FfiConverterString.read(from: &buf), 
+                deCodigo: FfiConverterString.read(from: &buf), 
+                cosas: FfiConverterSequenceTypeCosaOfrecida.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OfertaRecibida, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.de, into: &buf)
+        FfiConverterString.write(value.deCodigo, into: &buf)
+        FfiConverterSequenceTypeCosaOfrecida.write(value.cosas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOfertaRecibida_lift(_ buf: RustBuffer) throws -> OfertaRecibida {
+    return try FfiConverterTypeOfertaRecibida.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOfertaRecibida_lower(_ value: OfertaRecibida) -> RustBuffer {
+    return FfiConverterTypeOfertaRecibida.lower(value)
 }
 
 
@@ -13711,6 +15047,93 @@ public func FfiConverterTypePropuestaLeccion_lower(_ value: PropuestaLeccion) ->
 
 
 /**
+ * Un proyecto en la papelera de PixPin.
+ */
+public struct ProyectoBorrado: Equatable, Hashable {
+    /**
+     * El nombre de su carpeta en la papelera (`<id>-<ms>`): con el se
+     * recupera.
+     */
+    public var carpeta: String
+    public var id: String
+    public var nombre: String
+    public var hojas: UInt32
+    public var mensajes: UInt32
+    /**
+     * Cuando se borro, en milisegundos UTC.
+     */
+    public var borrado: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El nombre de su carpeta en la papelera (`<id>-<ms>`): con el se
+         * recupera.
+         */carpeta: String, id: String, nombre: String, hojas: UInt32, mensajes: UInt32, 
+        /**
+         * Cuando se borro, en milisegundos UTC.
+         */borrado: Int64) {
+        self.carpeta = carpeta
+        self.id = id
+        self.nombre = nombre
+        self.hojas = hojas
+        self.mensajes = mensajes
+        self.borrado = borrado
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProyectoBorrado: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProyectoBorrado: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProyectoBorrado {
+        return
+            try ProyectoBorrado(
+                carpeta: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                hojas: FfiConverterUInt32.read(from: &buf), 
+                mensajes: FfiConverterUInt32.read(from: &buf), 
+                borrado: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProyectoBorrado, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.carpeta, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterUInt32.write(value.hojas, into: &buf)
+        FfiConverterUInt32.write(value.mensajes, into: &buf)
+        FfiConverterInt64.write(value.borrado, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProyectoBorrado_lift(_ buf: RustBuffer) throws -> ProyectoBorrado {
+    return try FfiConverterTypeProyectoBorrado.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProyectoBorrado_lower(_ value: ProyectoBorrado) -> RustBuffer {
+    return FfiConverterTypeProyectoBorrado.lower(value)
+}
+
+
+/**
  * Un punto (o una direccion) del modelo, respecto a su origen.
  */
 public struct Punto3d: Equatable, Hashable {
@@ -13834,12 +15257,15 @@ public func FfiConverterTypePuntoPlano_lower(_ value: PuntoPlano) -> RustBuffer 
 public struct RecibidoEnvio: Equatable, Hashable {
     public var nombre: String
     /**
-     * `proyecto` (nuevo en la lista), `proyecto_al_dia` (encima del que ya
-     * habia, con copia antes) o `guardados` («Mensajes guardados»).
+     * `proyecto` (nuevo en la lista, o un lienzo en su proyecto),
+     * `proyecto_al_dia` (encima del que ya habia, con copia antes),
+     * `guardados` («Mensajes guardados»), `guardados_al_dia` (un archivo
+     * que vuelve, puesto al dia en su burbuja) o `carpeta` (no se entendio:
+     * queda en `recibidos/`).
      */
     public var donde: String
     /**
-     * El id del chat donde quedo.
+     * El id del chat donde quedo (vacio si en la carpeta).
      */
     public var chat: String
 
@@ -13847,11 +15273,14 @@ public struct RecibidoEnvio: Equatable, Hashable {
     // declare one manually.
     public init(nombre: String, 
         /**
-         * `proyecto` (nuevo en la lista), `proyecto_al_dia` (encima del que ya
-         * habia, con copia antes) o `guardados` («Mensajes guardados»).
+         * `proyecto` (nuevo en la lista, o un lienzo en su proyecto),
+         * `proyecto_al_dia` (encima del que ya habia, con copia antes),
+         * `guardados` («Mensajes guardados»), `guardados_al_dia` (un archivo
+         * que vuelve, puesto al dia en su burbuja) o `carpeta` (no se entendio:
+         * queda en `recibidos/`).
          */donde: String, 
         /**
-         * El id del chat donde quedo.
+         * El id del chat donde quedo (vacio si en la carpeta).
          */chat: String) {
         self.nombre = nombre
         self.donde = donde
@@ -13900,6 +15329,63 @@ public func FfiConverterTypeRecibidoEnvio_lift(_ buf: RustBuffer) throws -> Reci
 #endif
 public func FfiConverterTypeRecibidoEnvio_lower(_ value: RecibidoEnvio) -> RustBuffer {
     return FfiConverterTypeRecibidoEnvio.lower(value)
+}
+
+
+/**
+ * Como acabo «Recuperar todos».
+ */
+public struct Recuperados: Equatable, Hashable {
+    public var n: UInt32
+    public var total: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(n: UInt32, total: UInt32) {
+        self.n = n
+        self.total = total
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension Recuperados: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRecuperados: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Recuperados {
+        return
+            try Recuperados(
+                n: FfiConverterUInt32.read(from: &buf), 
+                total: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Recuperados, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.n, into: &buf)
+        FfiConverterUInt32.write(value.total, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecuperados_lift(_ buf: RustBuffer) throws -> Recuperados {
+    return try FfiConverterTypeRecuperados.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRecuperados_lower(_ value: Recuperados) -> RustBuffer {
+    return FfiConverterTypeRecuperados.lower(value)
 }
 
 
@@ -15294,6 +16780,83 @@ public func FfiConverterTypeTramoMd_lift(_ buf: RustBuffer) throws -> TramoMd {
 #endif
 public func FfiConverterTypeTramoMd_lower(_ value: TramoMd) -> RustBuffer {
     return FfiConverterTypeTramoMd.lower(value)
+}
+
+
+/**
+ * Un aparato visto en el anuncio de la red, con lo que importa aqui.
+ */
+public struct VistoEnRed: Equatable, Hashable {
+    /**
+     * El `id` del TXT; puede venir vacio de versiones viejas.
+     */
+    public var id: String
+    /**
+     * El `n` del TXT (su nombre).
+     */
+    public var nombre: String
+    public var host: String
+    public var puerto: UInt16
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El `id` del TXT; puede venir vacio de versiones viejas.
+         */id: String, 
+        /**
+         * El `n` del TXT (su nombre).
+         */nombre: String, host: String, puerto: UInt16) {
+        self.id = id
+        self.nombre = nombre
+        self.host = host
+        self.puerto = puerto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VistoEnRed: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVistoEnRed: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VistoEnRed {
+        return
+            try VistoEnRed(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                host: FfiConverterString.read(from: &buf), 
+                puerto: FfiConverterUInt16.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VistoEnRed, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.host, into: &buf)
+        FfiConverterUInt16.write(value.puerto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistoEnRed_lift(_ buf: RustBuffer) throws -> VistoEnRed {
+    return try FfiConverterTypeVistoEnRed.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistoEnRed_lower(_ value: VistoEnRed) -> RustBuffer {
+    return FfiConverterTypeVistoEnRed.lower(value)
 }
 
 
@@ -16759,6 +18322,96 @@ public func FfiConverterTypeDondeAnota_lower(_ value: DondeAnota) -> RustBuffer 
 
 
 /**
+ * Donde llamar.
+ */
+
+public enum DondeEsta: Equatable, Hashable {
+    
+    /**
+     * La de siempre contesto: se usa sin buscar, que buscar cuesta.
+     */
+    case laDeSiempre
+    /**
+     * La de siempre no contesto y el anuncio lo da en otra: hay que
+     * apuntarla.
+     */
+    case nueva(host: String, puerto: UInt16
+    )
+    /**
+     * Ni contesta ni se anuncia: apagado o fuera de esta Wi-Fi.
+     */
+    case noEsta
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DondeEsta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDondeEsta: FfiConverterRustBuffer {
+    typealias SwiftType = DondeEsta
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DondeEsta {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .laDeSiempre
+        
+        case 2: return .nueva(host: try FfiConverterString.read(from: &buf), puerto: try FfiConverterUInt16.read(from: &buf)
+        )
+        
+        case 3: return .noEsta
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DondeEsta, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .laDeSiempre:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .nueva(host,puerto):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(host, into: &buf)
+            FfiConverterUInt16.write(puerto, into: &buf)
+            
+        
+        case .noEsta:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDondeEsta_lift(_ buf: RustBuffer) throws -> DondeEsta {
+    return try FfiConverterTypeDondeEsta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDondeEsta_lower(_ value: DondeEsta) -> RustBuffer {
+    return FfiConverterTypeDondeEsta.lower(value)
+}
+
+
+
+/**
  * Donde quedo un archivo suelto (`al_lienzo::Donde`).
  */
 
@@ -17450,6 +19103,11 @@ public enum FinRecibir: Equatable, Hashable {
      */
     case recibido(de: String, cosas: [RecibidoEnvio]
     )
+    /**
+     * Se dijo «No, gracias» a lo que ofrecia `de`.
+     */
+    case rechazado(de: String
+    )
     case codigoMalo(intentos: UInt32
     )
     case quemado
@@ -17481,12 +19139,15 @@ public struct FfiConverterTypeFinRecibir: FfiConverterRustBuffer {
         case 2: return .recibido(de: try FfiConverterString.read(from: &buf), cosas: try FfiConverterSequenceTypeRecibidoEnvio.read(from: &buf)
         )
         
-        case 3: return .codigoMalo(intentos: try FfiConverterUInt32.read(from: &buf)
+        case 3: return .rechazado(de: try FfiConverterString.read(from: &buf)
         )
         
-        case 4: return .quemado
+        case 4: return .codigoMalo(intentos: try FfiConverterUInt32.read(from: &buf)
+        )
         
-        case 5: return .fallo(detalle: try FfiConverterString.read(from: &buf)
+        case 5: return .quemado
+        
+        case 6: return .fallo(detalle: try FfiConverterString.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -17507,17 +19168,22 @@ public struct FfiConverterTypeFinRecibir: FfiConverterRustBuffer {
             FfiConverterSequenceTypeRecibidoEnvio.write(cosas, into: &buf)
             
         
-        case let .codigoMalo(intentos):
+        case let .rechazado(de):
             writeInt(&buf, Int32(3))
+            FfiConverterString.write(de, into: &buf)
+            
+        
+        case let .codigoMalo(intentos):
+            writeInt(&buf, Int32(4))
             FfiConverterUInt32.write(intentos, into: &buf)
             
         
         case .quemado:
-            writeInt(&buf, Int32(4))
+            writeInt(&buf, Int32(5))
         
         
         case let .fallo(detalle):
-            writeInt(&buf, Int32(5))
+            writeInt(&buf, Int32(6))
             FfiConverterString.write(detalle, into: &buf)
             
         }
@@ -18172,6 +19838,13 @@ public enum PeticionLienzo: Equatable, Hashable {
          * La unidad de la escala del lienzo; vacia si no se ha calibrado.
          */unidad: String
     )
+    /**
+     * **La foto de una zona** (F8): la caja `(x0, y0, x1, y1)` del mundo
+     * que se acaba de arrastrar con `zona`. Swift pinta lo que hay dentro
+     * y la devuelve con [`EditorLienzo::poner_copia_de_zona`].
+     */
+    case zona(x0: Float, y0: Float, x1: Float, y1: Float
+    )
 
 
 
@@ -18199,6 +19872,9 @@ public struct FfiConverterTypePeticionLienzo: FfiConverterRustBuffer {
         case 2: return .dictarCota(id: try FfiConverterUInt64.read(from: &buf), largo: try FfiConverterFloat.read(from: &buf), grados: try FfiConverterFloat.read(from: &buf), unidad: try FfiConverterString.read(from: &buf)
         )
         
+        case 3: return .zona(x0: try FfiConverterFloat.read(from: &buf), y0: try FfiConverterFloat.read(from: &buf), x1: try FfiConverterFloat.read(from: &buf), y1: try FfiConverterFloat.read(from: &buf)
+        )
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -18219,6 +19895,14 @@ public struct FfiConverterTypePeticionLienzo: FfiConverterRustBuffer {
             FfiConverterFloat.write(grados, into: &buf)
             FfiConverterString.write(unidad, into: &buf)
             
+        
+        case let .zona(x0,y0,x1,y1):
+            writeInt(&buf, Int32(3))
+            FfiConverterFloat.write(x0, into: &buf)
+            FfiConverterFloat.write(y0, into: &buf)
+            FfiConverterFloat.write(x1, into: &buf)
+            FfiConverterFloat.write(y1, into: &buf)
+            
         }
     }
 }
@@ -18236,6 +19920,91 @@ public func FfiConverterTypePeticionLienzo_lift(_ buf: RustBuffer) throws -> Pet
 #endif
 public func FfiConverterTypePeticionLienzo_lower(_ value: PeticionLienzo) -> RustBuffer {
     return FfiConverterTypePeticionLienzo.lower(value)
+}
+
+
+
+/**
+ * Que se saca del lienzo.
+ */
+
+public enum QueExportar: Equatable, Hashable {
+    
+    /**
+     * Todo el lienzo en una hoja.
+     */
+    case todo
+    /**
+     * Solo lo elegido (y lo que encierran los marcos elegidos).
+     */
+    case seleccion
+    /**
+     * Cada marco en su hoja (todo el lienzo si no hay marcos).
+     */
+    case marcos
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension QueExportar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeQueExportar: FfiConverterRustBuffer {
+    typealias SwiftType = QueExportar
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> QueExportar {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .todo
+        
+        case 2: return .seleccion
+        
+        case 3: return .marcos
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: QueExportar, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .todo:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .seleccion:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .marcos:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQueExportar_lift(_ buf: RustBuffer) throws -> QueExportar {
+    return try FfiConverterTypeQueExportar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQueExportar_lower(_ value: QueExportar) -> RustBuffer {
+    return FfiConverterTypeQueExportar.lower(value)
 }
 
 
@@ -18652,6 +20421,147 @@ public func FfiConverterCallbackInterfaceAvanceAligerar_lift(_ handle: UInt64) t
 #endif
 public func FfiConverterCallbackInterfaceAvanceAligerar_lower(_ v: AvanceAligerar) -> UInt64 {
     return FfiConverterCallbackInterfaceAvanceAligerar.lower(v)
+}
+
+
+
+
+/**
+ * **Decidir lo que se ofrece** antes de aceptar: devuelve las identidades
+ * que se crean como nuevas (lo demas que ya se tenga se pone al dia), o
+ * `None` para decir «No, gracias». Se llama desde el hilo que recibe, que
+ * se queda esperando lo que tarde el usuario.
+ */
+public protocol DecidirOferta: AnyObject, Sendable {
+    
+    func decidir(oferta: OfertaRecibida)  -> [String]?
+    
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceDecidirOferta {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceDecidirOferta = UniffiVTableCallbackInterfaceDecidirOferta(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterCallbackInterfaceDecidirOferta.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface DecidirOferta: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterCallbackInterfaceDecidirOferta.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface DecidirOferta: handle missing in uniffiClone")
+            }
+        },
+        decidir: { (
+            uniffiHandle: UInt64,
+            oferta: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [String]? in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceDecidirOferta.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.decidir(
+                     oferta: try FfiConverterTypeOfertaRecibida_lift(oferta)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionSequenceString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceDecidirOferta> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceDecidirOferta>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitDecidirOferta() {
+    uniffi_pixpin_nucleo_fn_init_callback_vtable_decidiroferta(UniffiCallbackInterfaceDecidirOferta.vtablePtr)
+}
+
+// FfiConverter protocol for callback interfaces
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterCallbackInterfaceDecidirOferta {
+    fileprivate static let handleMap = UniffiHandleMap<DecidirOferta>()
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+extension FfiConverterCallbackInterfaceDecidirOferta : FfiConverter {
+    typealias SwiftType = DecidirOferta
+    typealias FfiType = UInt64
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lift(_ handle: UInt64) throws -> SwiftType {
+        try handleMap.get(handle: handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lower(_ v: SwiftType) -> UInt64 {
+        return handleMap.insert(obj: v)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(v))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceDecidirOferta_lift(_ handle: UInt64) throws -> DecidirOferta {
+    return try FfiConverterCallbackInterfaceDecidirOferta.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceDecidirOferta_lower(_ v: DecidirOferta) -> UInt64 {
+    return FfiConverterCallbackInterfaceDecidirOferta.lower(v)
 }
 
 
@@ -19128,6 +21038,30 @@ fileprivate struct FfiConverterOptionDouble: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionBool: FfiConverterRustBuffer {
+    typealias SwiftType = Bool?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterBool.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterBool.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
@@ -19360,6 +21294,54 @@ fileprivate struct FfiConverterOptionTypeColorEstilo: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeColorEstilo.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeContenidoTapado: FfiConverterRustBuffer {
+    typealias SwiftType = ContenidoTapado?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeContenidoTapado.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeContenidoTapado.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeDireccionRecordada: FfiConverterRustBuffer {
+    typealias SwiftType = DireccionRecordada?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDireccionRecordada.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDireccionRecordada.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -19696,6 +21678,78 @@ fileprivate struct FfiConverterOptionSequenceFloat: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterSequenceFloat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceString.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceTypeRecibidoEnvio: FfiConverterRustBuffer {
+    typealias SwiftType = [RecibidoEnvio]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceTypeRecibidoEnvio.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceTypeRecibidoEnvio.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionSequenceSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [[String]]?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterSequenceSequenceString.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterSequenceSequenceString.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -20104,6 +22158,56 @@ fileprivate struct FfiConverterSequenceTypeChatCompartidoMac: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCopiaDeSeguridad: FfiConverterRustBuffer {
+    typealias SwiftType = [CopiaDeSeguridad]
+
+    public static func write(_ value: [CopiaDeSeguridad], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCopiaDeSeguridad.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CopiaDeSeguridad] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CopiaDeSeguridad]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCopiaDeSeguridad.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCosaOfrecida: FfiConverterRustBuffer {
+    typealias SwiftType = [CosaOfrecida]
+
+    public static func write(_ value: [CosaOfrecida], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCosaOfrecida.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CosaOfrecida] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CosaOfrecida]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCosaOfrecida.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCotaPlano: FfiConverterRustBuffer {
     typealias SwiftType = [CotaPlano]
 
@@ -20146,6 +22250,31 @@ fileprivate struct FfiConverterSequenceTypeDiaTimeline: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeDiaTimeline.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeDireccionRecordada: FfiConverterRustBuffer {
+    typealias SwiftType = [DireccionRecordada]
+
+    public static func write(_ value: [DireccionRecordada], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeDireccionRecordada.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [DireccionRecordada] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [DireccionRecordada]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeDireccionRecordada.read(from: &buf))
         }
         return seq
     }
@@ -20279,6 +22408,31 @@ fileprivate struct FfiConverterSequenceTypeFichaLeccion: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFiguraDeBiblioteca: FfiConverterRustBuffer {
+    typealias SwiftType = [FiguraDeBiblioteca]
+
+    public static func write(_ value: [FiguraDeBiblioteca], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFiguraDeBiblioteca.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FiguraDeBiblioteca] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FiguraDeBiblioteca]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFiguraDeBiblioteca.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFilaElegir: FfiConverterRustBuffer {
     typealias SwiftType = [FilaElegir]
 
@@ -20371,6 +22525,31 @@ fileprivate struct FfiConverterSequenceTypeHerramientaUsada: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeHerramientaUsada.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeHojaExportada: FfiConverterRustBuffer {
+    typealias SwiftType = [HojaExportada]
+
+    public static func write(_ value: [HojaExportada], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHojaExportada.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HojaExportada] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HojaExportada]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHojaExportada.read(from: &buf))
         }
         return seq
     }
@@ -20529,6 +22708,31 @@ fileprivate struct FfiConverterSequenceTypeMensajeIa: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeMiembroGrupo: FfiConverterRustBuffer {
+    typealias SwiftType = [MiembroGrupo]
+
+    public static func write(_ value: [MiembroGrupo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMiembroGrupo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MiembroGrupo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MiembroGrupo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMiembroGrupo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMomentoTimeline: FfiConverterRustBuffer {
     typealias SwiftType = [MomentoTimeline]
 
@@ -20646,6 +22850,31 @@ fileprivate struct FfiConverterSequenceTypePersonaCompartida: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePersonaCompartida.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeProyectoBorrado: FfiConverterRustBuffer {
+    typealias SwiftType = [ProyectoBorrado]
+
+    public static func write(_ value: [ProyectoBorrado], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProyectoBorrado.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProyectoBorrado] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProyectoBorrado]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProyectoBorrado.read(from: &buf))
         }
         return seq
     }
@@ -20825,6 +23054,56 @@ fileprivate struct FfiConverterSequenceTypeTramoMd: FfiConverterRustBuffer {
         return seq
     }
 }
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVistoEnRed: FfiConverterRustBuffer {
+    typealias SwiftType = [VistoEnRed]
+
+    public static func write(_ value: [VistoEnRed], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVistoEnRed.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VistoEnRed] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VistoEnRed]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVistoEnRed.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [[String]]
+
+    public static func write(_ value: [[String]], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterSequenceString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [[String]] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [[String]]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterSequenceString.read(from: &buf))
+        }
+        return seq
+    }
+}
 /**
  * **Comprime `origen` en `destino`** con el nivel dado. Solo escribe si sale
  * mas pequeno (`escrito`). Bloqueante.
@@ -20863,6 +23142,36 @@ public func nivelParaEntrar(elegido: NivelAligerar) -> NivelAligerar  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_nivel_para_entrar(
         FfiConverterTypeNivelAligerar_lower(elegido),uniffiCallStatus
+    )
+})
+}
+/**
+ * [`donde_esta`] para Swift, que ya sabe si contesto (su sonda) y tiene
+ * la lista de Bonjour a mano: `vistos` solo se mira si no contesto.
+ */
+public func dondeEstaAparato(id: String?, nombre: String, host: String, puerto: UInt16, contesta: Bool, vistos: [VistoEnRed]) -> DondeEsta  {
+    return try!  FfiConverterTypeDondeEsta_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_donde_esta_aparato(
+        FfiConverterOptionString.lower(id),
+        FfiConverterString.lower(nombre),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),
+        FfiConverterBool.lower(contesta),
+        FfiConverterSequenceTypeVistoEnRed.lower(vistos),uniffiCallStatus
+    )
+})
+}
+/**
+ * **«Hace X»** (`haceCuanto` del movil): sin horas exactas, que no hacen
+ * falta para decidir. `cuando` y `ahora` en milisegundos UTC.
+ */
+public func haceCuanto(cuando: Int64, ahora: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_hace_cuanto(
+        FfiConverterInt64.lower(cuando),
+        FfiConverterInt64.lower(ahora),uniffiCallStatus
     )
 })
 }
@@ -21063,6 +23372,36 @@ public func formaRapidaTemblorPx() -> Float  {
     return try!  FfiConverterFloat.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_forma_rapida_temblor_px(uniffiCallStatus
+    )
+})
+}
+/**
+ * **Si una grafica se puede dibujar asi**: `None` si si; el aviso de lo
+ * que falla si no (para el cajetin, mientras se teclea).
+ */
+public func avisoDeGrafica(formulas: [String], xDesde: Double, xHasta: Double, yDesde: Double, yHasta: Double, escala: Double) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_aviso_de_grafica(
+        FfiConverterSequenceString.lower(formulas),
+        FfiConverterDouble.lower(xDesde),
+        FfiConverterDouble.lower(xHasta),
+        FfiConverterDouble.lower(yDesde),
+        FfiConverterDouble.lower(yHasta),
+        FfiConverterDouble.lower(escala),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Las celdas de una tabla pegada** (lo que trae el portapapeles copiando
+ * unas celdas de Excel o de Sheets: renglones y tabuladores). `None` si el
+ * texto no es una tabla.
+ */
+public func celdasDeTexto(texto: String) -> [[String]]?  {
+    return try!  FfiConverterOptionSequenceSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_celdas_de_texto(
+        FfiConverterString.lower(texto),uniffiCallStatus
     )
 })
 }
@@ -21887,6 +24226,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_nivel_para_entrar() != 52655) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_donde_esta_aparato() != 12835) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_hace_cuanto() != 62576) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_catalogo() != 27604) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21933,6 +24278,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_forma_rapida_temblor_px() != 43899) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_aviso_de_grafica() != 11462) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_celdas_de_texto() != 5730) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_codigo_de_envio_legible() != 45463) {
@@ -22169,6 +24520,24 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_ajustes_pdf() != 19958) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_direccion() != 56190) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_direcciones_recordadas() != 41437) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_miembros_del_grupo() != 45628) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_renombrar_aparato() != 28007) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_salir_del_grupo() != 3531) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_sondear_direccion() != 15525) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar() != 14532) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -22232,6 +24601,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sincronizar_con_persona() != 815) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_copias_de_seguridad() != 4577) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_proyectos_borrados() != 41616) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recuperar_proyecto() != 53387) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recuperar_todos() != 63522) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_volver_a_copia() != 12484) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_anotar_hoja() != 37939) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -22253,7 +24637,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_editar_lienzo() != 47881) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_envio() != 37400) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_estampar_figura() != 10777) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_figuras_guardadas() != 8620) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_figura() != 29969) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_quitar_figura() != 59104) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_lienzo_pantalla_completa() != 22669) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recordar_lienzo_pantalla_completa() != 41973) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_envio() != 41877) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_envio_de_proyecto() != 29652) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_al_frente() != 10982) {
@@ -22262,16 +24667,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_enviar_a_aparato() != 54758) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_esperar_envios() != 60314) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_esperar_envios() != 60706) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_mandar_a_quien_espera() != 58196) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_mandar_proyecto_a_quien_espera() != 29264) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_al_frente() != 60487) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recibir_envio() != 225) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recibir_envio() != 48055) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recibir_envio_preguntando() != 28836) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_capturas() != 35273) {
@@ -22442,6 +24853,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_invitacion_texto_del_qr() != 18028) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_animando() != 33995) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_borrar_seleccion() != 24837) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -22547,7 +24961,31 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_estilo() != 48239) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_hojas_para_exportar() != 40205) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_poner_papel() != 64092) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_svg_para_exportar() != 8956) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_estampar_grafica() != 54947) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_estampar_instrumento() != 18181) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_estampar_tabla() != 46784) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_pegar_imagen() != 49698) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_poner_copia_de_zona() != 22129) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_contenido_de_tapado() != 23023) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_puertaenvio_anuncio() != 63203) {
@@ -22587,6 +25025,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_puertarecibir_codigo() != 15221) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_puertarecibir_preguntar_con() != 62004) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_puertarecibir_puerto() != 22308) {
@@ -22808,6 +25249,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_avancealigerar_avance() != 54882) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_decidiroferta_decidir() != 32171) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_medidorletras_avances() != 39083) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -22824,6 +25268,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitLlaveroApp()
     uniffiCallbackInitOyenteIa()
     uniffiCallbackInitAvanceAligerar()
+    uniffiCallbackInitDecidirOferta()
     uniffiCallbackInitElegirSincro()
     uniffiCallbackInitMedidorLetras()
     return InitializationResult.ok

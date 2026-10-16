@@ -265,4 +265,100 @@ extension IconoLienzo {
     static let sloppinessCartoonist = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 20, height: 20), trazos: [
         .init(d: "M2.5 11.936c1.737-.879 8.627-5.346 10.42-5.268 1.795.078-.418 5.138.345 5.736.763.598 3.53-1.789 4.235-2.147M2.929 9.788c1.164-.519 5.47-3.28 6.987-3.114 1.519.165 1 3.827 2.121 4.109 1.122.281 3.839-2.016 4.606-2.42", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
     ])
+
+    // Los de las herramientas que tapan, enmarcan, eligen y sacan el dibujo
+    // (`caja_dibujo::icono` de Windows); el marco y la impresora son de
+    // Tabler Icons, como alli.
+
+    /// `PRESENTATION_ICON`
+    static let presentation = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M3 4l18 0", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M12 16l0 4", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M9 20l6 0", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M8 12l3 -3l2 2l3 -3", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `SEARCH_ICON`
+    static let search = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0", relleno: .nada, trazo: .actual, grosor: 1.5, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M21 21l-6 -6", relleno: .nada, trazo: .actual, grosor: 1.5, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `MARCO`
+    static let marco = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M4 7l16 0M4 17l16 0M7 4l0 16M17 4l0 16", relleno: .nada, trazo: .actual, grosor: 1.75, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `EYE_CLOSED_ICON`
+    static let eyeClosed = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M10.585 10.587a2 2 0 0 0 2.829 2.828", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M3 3l18 18", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `EYE_DROPPER_ICON`
+    static let eyeDropper = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M4 16l11.7 -11.7a1 1 0 0 1 1.4 0l2.6 2.6a1 1 0 0 1 0 1.4l-11.7 11.7h-4v-4z", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M11 7l6 6", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `CROP_ICON`
+    static let crop = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M8 5v10a1 1 0 0 0 1 1h10", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M5 8h10a1 1 0 0 1 1 1v10", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `LASER_POINTER_TOOL_ICON`
+    static let laserPointer = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 20, height: 20), trazos: [
+        .init(d: "m9.644 13.69 7.774-7.773a2.357 2.357 0 0 0-3.334-3.334l-7.773 7.774L8 12l1.643 1.69Z", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 20, ty: 0), mascara: nil),
+        .init(d: "m13.25 3.417 3.333 3.333M10 10l2-2M5 15l3-3M2.156 17.894l1-1M5.453 19.029l-.144-1.407M2.377 11.887l.866 1.118M8.354 17.273l-1.194-.758M.953 14.652l1.408.13", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: CGAffineTransform(a: 0, b: 1, c: -1, d: 0, tx: 20, ty: 0), mascara: nil),
+    ])
+
+    /// `PIN_ICON`
+    static let pin = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M9 4v6l-2 4v2h10v-2l-2 -4v-6", relleno: .nada, trazo: .actual, grosor: 1.5, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M12 16L12 21", relleno: .nada, trazo: .actual, grosor: 1.5, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M8 4L16 4", relleno: .nada, trazo: .actual, grosor: 1.5, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `SELECT_ALL_ICON`
+    static let selectAll = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M8 8m0 1a1 1 0 0 1 1 -1h6a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-6a1 1 0 0 1 -1 -1z", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M12 20v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M16 20v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M8 20v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M4 20v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M4 16v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M4 12v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M4 8v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M4 4v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M8 4v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M12 4v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M16 4v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M20 4v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M20 8v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M20 12v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M20 16v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M20 20v.01", relleno: .nada, trazo: .actual, grosor: 2, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `LIBRARY_ICON`
+    static let library = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M3 19a9 9 0 0 1 9 0a9 9 0 0 1 9 0", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M3 6a9 9 0 0 1 9 0a9 9 0 0 1 9 0", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M3 6L3 19", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M12 6L12 19", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+        .init(d: "M21 6L21 19", relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `IMPRESORA`
+    static let impresora = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M17 17h2a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-14a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h2M17 9v-4a2 2 0 0 0 -2 -2h-6a2 2 0 0 0 -2 2v4M7 15a2 2 0 0 1 2 -2h6a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-6a2 2 0 0 1 -2 -2z", relleno: .nada, trazo: .actual, grosor: 1.75, redondo: true, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
+
+    /// `SHARE_IOS`
+    static let shareIos = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 24, height: 24), trazos: [
+        .init(d: "M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z", relleno: .actual, trazo: .nada, grosor: 1, redondo: false, opacidad: 1.0, parImpar: false, matriz: nil, mascara: nil),
+    ])
 }

@@ -52,6 +52,19 @@ public final class ModeloEditorLienzo: ObservableObject {
     /// El papel es oscuro: la barra va con el tema oscuro de Excalidraw,
     /// como en Windows (`tema_barra`).
     public let papelOscuro: Bool
+    /// El nucleo, para la biblioteca de figuras y recordar la pantalla
+    /// completa (`nil` en un lienzo suelto de las pruebas).
+    public let nucleo: Nucleo?
+    /// El nombre del lienzo, para los ficheros que se exportan.
+    public let titulo: String
+    /// El fondo fijo (un pin, una foto, una pagina de PDF), si lo hay.
+    public let fondo: FondoLienzo?
+    /// Lo que ensenan dentro los mosaicos y las lupas (`TapadoLienzo.swift`).
+    private(set) lazy var tapados: PintorDeTapados = {
+        let t = PintorDeTapados(editor: editor) { [weak self] id in self?.foto(id) }
+        t.fondo = fondo
+        return t
+    }()
 
     /// La vista que pinta (la pone ella al nacer).
     weak var vista: VistaEditorLienzoNS?
@@ -61,10 +74,16 @@ public final class ModeloEditorLienzo: ObservableObject {
     private var guardadoPendiente: DispatchWorkItem?
     private var cambiosVistos: UInt64
 
-    public init(editor: EditorLienzo, referencia: String? = nil, fotos: [UInt64: URL] = [:]) {
+    public init(editor: EditorLienzo, referencia: String? = nil, fotos: [UInt64: URL] = [:],
+                nucleo: Nucleo? = nil, titulo: String = "Lienzo", fondo: FondoLienzo? = nil) {
         self.editor = editor
         self.referencia = referencia
         self.fotos = fotos
+        self.nucleo = nucleo
+        self.titulo = titulo
+        self.fondo = fondo
+        // Entra en lo exportado (su PNG, para el SVG, se pide al exportar).
+        if let fondo { editor.ponerPapel(ancho: Float(fondo.tamano.width), alto: Float(fondo.tamano.height), png: nil) }
         herramienta = editor.herramientaActual()
         cambiosVistos = editor.cambios()
         puedeDeshacer = editor.puedeDeshacer()
@@ -106,6 +125,24 @@ public final class ModeloEditorLienzo: ObservableObject {
     /// Apunta la foto de una imagen recien pegada.
     func anadirFoto(_ id: UInt64, _ url: URL) {
         fotos[id] = url
+    }
+
+    /// El bitmap de una foto del lienzo, si ya esta leido.
+    func foto(_ id: UInt64) -> CGImage? {
+        fotos[id].flatMap { Miniaturas.compartidas.enCache($0, lado: 2048) }
+    }
+
+    /// Las imagenes del pintor: las fotos y lo de dentro de los mosaicos y
+    /// las lupas, a `escala` pixeles por unidad.
+    func imagenes(escala: CGFloat) -> (UInt64) -> CGImage? {
+        let version = editor.version()
+        return { [weak self] id in
+            guard let self else { return nil }
+            if PintorDeTapados.esTapado(id) {
+                return self.tapados.imagen(id, version: version, escala: escala)
+            }
+            return self.foto(id)
+        }
     }
 
     public func deshacer() {
@@ -256,9 +293,22 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         }
     }
 
+    /// El centro de lo que se ve, en el mundo (`centro_de_la_vista`): ahi
+    /// entran las figuras.
+    var centroMundo: CGPoint {
+        CGPoint(x: origen.x + bounds.width / zoom / 2, y: origen.y + bounds.height / zoom / 2)
+    }
+
     /// Lo dibujado entero en la vista (o el origen al 100 % si esta vacio).
     public func encajar() {
-        guard let caja = editor.caja() else {
+        // Con fondo, se mira el fondo entero (`encuadre_inicial`).
+        let conFondo = modelo.fondo.map { f in
+            let c = f.caja.union(editor.caja().map {
+                CGRect(x: CGFloat($0.x0), y: CGFloat($0.y0), width: CGFloat($0.x1 - $0.x0), height: CGFloat($0.y1 - $0.y0))
+            } ?? f.caja)
+            return CajaLienzo(x0: Float(c.minX), y0: Float(c.minY), x1: Float(c.maxX), y1: Float(c.maxY))
+        }
+        guard let caja = conFondo ?? editor.caja() else {
             origen = .zero
             zoom = 1
             needsDisplay = true
@@ -298,10 +348,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         ctx.scaleBy(x: zoom, y: zoom)
         ctx.translateBy(x: -origen.x, y: -origen.y)
         let visible = CGRect(x: origen.x, y: origen.y, width: w / zoom, height: h / zoom)
-        let fotos = modelo.fotos
-        PintorLienzo(lienzo: leido) { id in
-            fotos[id].flatMap { Miniaturas.compartidas.enCache($0, lado: 2048) }
-        }.pintar(en: ctx, limites: visible)
+        if let fondo = modelo.fondo, fondo.caja.intersects(visible) { fondo.pintar(en: ctx) }
+        let escala = zoom * (window?.backingScaleFactor ?? 2)
+        PintorLienzo(lienzo: leido, imagen: modelo.imagenes(escala: escala)).pintar(en: ctx, limites: visible)
         if let raya = rayaDeCalibrar {
             // La raya de calibrar: a trazos, del grosor de un punto de pantalla.
             ctx.setStrokeColor(CGColor(red: 0.20, green: 0.45, blue: 0.90, alpha: 0.95))
@@ -316,6 +365,25 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
             ctx.setLineWidth(3)
             ctx.stroke(bounds.insetBy(dx: 1.5, dy: 1.5))
+        }
+    }
+
+    /// **La estela del laser se apaga sola**: mientras el motor diga que se
+    /// anima, se repinta a cada fotograma aunque la version no cambie.
+    private var reloj60: Timer?
+
+    private func seguirAnimando() {
+        guard reloj60 == nil, editor.animando() else { return }
+        reloj60 = Timer.scheduledTimer(withTimeInterval: 1.0 / 60, repeats: true) { [weak self] t in
+            MainActor.assumeIsolated {
+                guard let self else { return t.invalidate() }
+                self.clave = nil
+                self.needsDisplay = true
+                if !self.editor.animando() {
+                    t.invalidate()
+                    self.reloj60 = nil
+                }
+            }
         }
     }
 
@@ -337,12 +405,15 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         if editor.formaRapida() { needsDisplay = true }
     }
 
-    /// Tras soltar con una herramienta de medir: el cajetin que pida.
+    /// Tras soltar con una herramienta de medir: el cajetin que pida; con
+    /// la zona, su foto.
     private func atenderPeticion() {
-        guard modelo.herramienta == "escalar" || modelo.herramienta == "cota",
+        guard ["escalar", "cota", "zona"].contains(modelo.herramienta),
               let peticion = editor.tomarPeticion() else { return }
         let editor = self.editor
         switch peticion {
+        case let .zona(x0, y0, x1, y1):
+            sacarZona(CGRect(x: CGFloat(x0), y: CGFloat(y0), width: CGFloat(x1 - x0), height: CGFloat(y1 - y0)))
         case let .calibrar(largoPx):
             CajetinMedida.calibrar(unidades: editor.unidadesDeMedida(), en: window) { [weak self] valor, unidad in
                 if editor.calibrar(largoPx: largoPx, valor: valor, unidad: unidad) { self?.trasCambio() }
@@ -383,6 +454,37 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             if v != versionVista { needsDisplay = true }
         } else {
             trasCambio(version: v)
+        }
+        seguirAnimando()
+    }
+
+    /// **La foto de una zona** (F8): lo que hay dentro de `caja` (el papel y
+    /// lo dibujado), a la escala de la foto de Windows (`zona::escala_de_la_foto`:
+    /// el lado mayor a 1600 px, entre 1 y 4 por unidad), recortada en redondo
+    /// y con su filo; entra encima, corrida y elegida.
+    private func sacarZona(_ caja: CGRect) {
+        let k = min(4, max(1, 1600 / max(caja.width, caja.height, 1)))
+        let plano = editor.planoDeVista(x: Float(caja.minX), y: Float(caja.minY), zoom: Float(k),
+                                        anchoPx: Float(caja.width * k), altoPx: Float(caja.height * k))
+        guard let img = PintorDeHojas.imagen(plano, caja: caja, escala: k, transparente: false,
+                                             tapados: modelo.tapados, version: editor.version(),
+                                             fotos: { [weak self] in self?.modelo.foto($0) }),
+              let redonda = PintorDeHojas.enRedondo(img, papelDeNoche: modelo.papelOscuro),
+              let png = PintorDeHojas.png(redonda),
+              let foto = try? editor.ponerCopiaDeZona(png: png, x0: Float(caja.minX), y0: Float(caja.minY),
+                                                      x1: Float(caja.maxX), y1: Float(caja.maxY), zoom: Float(zoom))
+        else {
+            NSSound.beep()
+            return
+        }
+        let url = URL(fileURLWithPath: foto.ruta)
+        modelo.anadirFoto(foto.idObjeto, url)
+        trasCambio()
+        Task { [weak self] in
+            if await Miniaturas.compartidas.cargar(url, lado: 2048) != nil {
+                self?.clave = nil
+                self?.needsDisplay = true
+            }
         }
     }
 
@@ -520,6 +622,26 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         if teclas.isEmpty, let c = event.charactersIgnoringModifiers, let g = OpcionesEstiloLienzo.grosor(tecla: c) {
             modelo.cambiarEstilo(.grosor(grosor: g))
             return
+        }
+        // Sacar el dibujo, como en Windows (Ctrl+P, Ctrl+Mayus+S, E y C).
+        let letra = event.charactersIgnoringModifiers?.lowercased()
+        if teclas == .command, letra == "p" {
+            modelo.imprimir()
+            return
+        }
+        // F11 de Windows: ⌃⌘F, la pantalla completa del Mac (si el menu
+        // Visualizacion no se la llevo antes). Se recuerda para el siguiente.
+        if teclas == [.control, .command], letra == "f" {
+            window?.toggleFullScreen(nil)
+            return
+        }
+        if teclas == [.command, .shift] {
+            switch letra {
+            case "s": modelo.compartir(); return
+            case "e": modelo.exportar(); return
+            case "c": modelo.copiarComoPNG(); return
+            default: break
+            }
         }
         if teclas == .command, event.charactersIgnoringModifiers == "a" {
             editor.seleccionarTodo()
@@ -703,31 +825,46 @@ public struct EditorLienzoView: View {
     public init(modelo: ModeloEditorLienzo) { self.modelo = modelo }
 
     public var body: some View {
-        ZStack(alignment: .top) {
-            LienzoEditable(modelo: modelo)
-            if modelo.desplegado != nil {
-                // Un clic fuera del desplegable lo cierra.
-                Color.black.opacity(0.001)
-                    .onTapGesture { modelo.desplegado = nil }
+        GeometryReader { geo in
+            // Si no cabe en una fila, la barra se parte en dos (`corte_para`
+            // de Windows) y el panel baja con ella.
+            let corte = BotonBarraLienzo.cortePara(ancho: geo.size.width - 2 * MedidasBarraLienzo.distanciaBorde)
+            let filas: CGFloat = corte < BotonBarraLienzo.barra.count ? 2 : 1
+            ZStack(alignment: .top) {
+                LienzoEditable(modelo: modelo)
+                if modelo.desplegado != nil {
+                    // Un clic fuera del desplegable lo cierra.
+                    Color.black.opacity(0.001)
+                        .onTapGesture { modelo.desplegado = nil }
+                }
+                BarraHerramientasLienzo(modelo: modelo, corte: corte)
+                    .padding(.top, MedidasBarraLienzo.distanciaBorde)
+                    .padding(.horizontal, MedidasBarraLienzo.distanciaBorde)
+                if modelo.hayElegidos || !HerramientaLienzo.sinEstilo.contains(modelo.herramienta) {
+                    PanelEstiloLienzo(modelo: modelo)
+                        .padding(.leading, MedidasBarraLienzo.distanciaBorde)
+                        .padding(.top, MedidasBarraLienzo.yPanel
+                                 + (filas - 1) * (MedidasBarraLienzo.lado + MedidasBarraLienzo.relleno))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
+                cuerpo
             }
-            BarraHerramientasLienzo(modelo: modelo)
-                .padding(.top, MedidasBarraLienzo.distanciaBorde)
-                .padding(.horizontal, MedidasBarraLienzo.distanciaBorde)
-            if modelo.hayElegidos || !HerramientaLienzo.sinEstilo.contains(modelo.herramienta) {
-                PanelEstiloLienzo(modelo: modelo)
-                    .padding(.leading, MedidasBarraLienzo.distanciaBorde)
-                    .padding(.top, MedidasBarraLienzo.yPanel)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
+        }
+        .overlayPreferenceValue(AnclasGruposLienzo.self) { anclas in
+            MenuGrupoLienzo(modelo: modelo, anclas: anclas)
+        }
+    }
+
+    @ViewBuilder
+    private var cuerpo: some View {
+        ZStack {
             if let error = modelo.error {
                 Text(error).font(.caption).foregroundStyle(.red).lineLimit(1)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(8)
             }
         }
-        .overlayPreferenceValue(AnclasGruposLienzo.self) { anclas in
-            MenuGrupoLienzo(modelo: modelo, anclas: anclas)
-        }
+        .allowsHitTesting(false)
     }
 }
 
@@ -745,8 +882,11 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
     private var abiertas: [String: Abierta] = [:]
 
     /// Abre el dibujo `referencia` del chat. El fichero se lee fuera del
-    /// hilo principal.
-    public func abrir(referencia: String, en chat: String, titulo: String, almacen: Almacen) {
+    /// hilo principal. Con `fondo`, sobre una imagen o una pagina de PDF
+    /// fija (`abrir_sobre` de Windows: la hoja-pagina de un proyecto, la
+    /// imagen de un pin).
+    public func abrir(referencia: String, en chat: String, titulo: String, almacen: Almacen,
+                      fondo: FuenteFondoLienzo? = nil) {
         let clave = chat + "\u{0}" + referencia
         if let abierta = abiertas[clave] {
             abierta.ventana.makeKeyAndOrderFront(nil)
@@ -767,7 +907,9 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
             }.value
             switch hecho {
             case let .success((editor, fotos)):
-                self.mostrar(ModeloEditorLienzo(editor: editor, referencia: referencia, fotos: fotos),
+                self.mostrar(ModeloEditorLienzo(editor: editor, referencia: referencia, fotos: fotos,
+                                                nucleo: nucleo, titulo: titulo,
+                                                fondo: fondo.flatMap { FondoLienzo($0) }),
                              clave: clave, titulo: titulo)
             case .failure:
                 NSSound.beep()
@@ -784,6 +926,10 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
                                styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                backing: .buffered, defer: false)
         ventana.title = titulo
+        // Lisa como en Windows, donde el lienzo en ventana lleva la barra de
+        // los pines: una franja fina con −, ☐ y ✕ planos (por ella se arrastra)
+        // y el lienzo debajo, sin semaforo ni titulo.
+        VentanaLisa.vestir(ventana)
         ventana.isReleasedWhenClosed = false
         ventana.contentViewController = NSHostingController(rootView: EditorLienzoView(modelo: modelo))
         ventana.setContentSize(NSSize(width: 1000, height: 720))
@@ -791,9 +937,28 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         _ = ventana.setFrameAutosaveName("PixPinLienzo")
         ventana.delegate = self
         ventana.identifier = NSUserInterfaceItemIdentifier(clave)
+        ventana.collectionBehavior.insert(.fullScreenPrimary)
         abiertas[clave] = Abierta(ventana: ventana, modelo: modelo)
         ventana.makeKeyAndOrderFront(nil)
         NSApp.activate()
+        // Como se dejo el ultimo lienzo (F11 de Windows, `modo_ventana`).
+        if modelo.nucleo?.lienzoPantallaCompleta() == true { ventana.toggleFullScreen(nil) }
+    }
+
+    /// F11 (⌃⌘F en el Mac): se apunta para el siguiente lienzo.
+    public func windowDidEnterFullScreen(_ notification: Notification) {
+        recordarModo(notification, pantallaCompleta: true)
+    }
+
+    public func windowDidExitFullScreen(_ notification: Notification) {
+        recordarModo(notification, pantallaCompleta: false)
+    }
+
+    private func recordarModo(_ notification: Notification, pantallaCompleta: Bool) {
+        guard let ventana = notification.object as? NSWindow,
+              let clave = ventana.identifier?.rawValue,
+              let abierta = abiertas[clave] else { return }
+        try? abierta.modelo.nucleo?.recordarLienzoPantallaCompleta(si: pantallaCompleta)
     }
 
     public func windowWillClose(_ notification: Notification) {

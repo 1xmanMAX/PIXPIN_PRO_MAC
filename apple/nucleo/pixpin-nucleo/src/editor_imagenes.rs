@@ -194,6 +194,58 @@ impl EditorLienzo {
             finito(alto_vista, h as f32).max(1.0),
         );
         let (cx, cy) = (finito(centro_x, 0.0), finito(centro_y, 0.0));
+        let hecho = self.meter_png(&png, |id_objeto| {
+            (
+                elemento_imagen(id_objeto, cx - ancho / 2.0, cy - alto / 2.0, ancho, alto),
+                true,
+            )
+        })?;
+        Ok(hecho)
+    }
+
+    /// **La copia de una zona** (F8, `figuras::poner_copia_de_zona` de
+    /// Windows): `png` es la foto que Swift saco de la caja `(x0, y0, x1,
+    /// y1)` que pidio [`crate::editor::PeticionLienzo::Zona`], ya recortada
+    /// en redondo. Entra del tamano de la caja, corrida
+    /// `zona::CORRIMIENTO_PX` de pantalla (a `zoom`) y elegida, con el grupo
+    /// que la reconoce como copia de zona. La Zona se queda en la mano: se
+    /// pueden sacar varias seguidas.
+    pub fn poner_copia_de_zona(
+        &self,
+        png: Vec<u8>,
+        x0: f32,
+        y0: f32,
+        x1: f32,
+        y1: f32,
+        zoom: f32,
+    ) -> Result<ImagenDelLienzo, ErrorNucleo> {
+        if ![x0, y0, x1, y1].iter().all(|v| v.is_finite()) || x1 <= x0 || y1 <= y0 {
+            return Err(ErrorNucleo::Argumento {
+                detalle: "zona vacia".into(),
+            });
+        }
+        medidas_png(&png).ok_or_else(|| ErrorNucleo::Argumento {
+            detalle: "no es un PNG".into(),
+        })?;
+        let corrido = pixpin_motor2d::zona::CORRIMIENTO_PX / zoom.max(0.0001);
+        let grupo = pixpin_motor2d::zona::grupo_nuevo(&self.tomar().escena);
+        self.meter_png(&png, |id_objeto| {
+            let mut e = elemento_imagen(id_objeto, x0 + corrido, y0 + corrido, x1 - x0, y1 - y0);
+            e.grupos.push(grupo.clone());
+            (e, false)
+        })
+    }
+}
+
+impl EditorLienzo {
+    /// Guarda `png` en la carpeta temporal y mete la figura que da
+    /// `figura(id_objeto)` en un paso de deshacer, elegida; el `bool` dice si
+    /// se pasa a la mano para moverla.
+    fn meter_png(
+        &self,
+        png: &[u8],
+        figura: impl FnOnce(u64) -> (Elemento, bool),
+    ) -> Result<ImagenDelLienzo, ErrorNucleo> {
         let mut guarda = self.tomar();
         let st = &mut *guarda;
         if !st.gesto.en_reposo() || st.borrando {
@@ -205,28 +257,27 @@ impl EditorLienzo {
             .imagenes_abiertas()
             .chain(st.pegadas.iter().map(|p| p.id_objeto))
             .collect();
-        let id_objeto = id_nuevo(&png, |id| ya.contains(&id));
+        let id_objeto = id_nuevo(png, |id| ya.contains(&id));
         let carpeta = st
             .temporal
             .get_or_insert_with(carpeta_temporal_nueva)
             .clone();
         std::fs::create_dir_all(&carpeta)?;
         let temporal = carpeta.join(pixpin_motor2d::enlace::id_de_texto(id_objeto));
-        std::fs::write(&temporal, &png)?;
+        std::fs::write(&temporal, png)?;
         st.gesto.cerrar_texto(&mut st.escena);
-        let id = st.escena.anadir(elemento_imagen(
-            id_objeto,
-            cx - ancho / 2.0,
-            cy - alto / 2.0,
-            ancho,
-            alto,
-        ));
+        let (e, a_la_mano) = figura(id_objeto);
+        st.escena.abrir_paso();
+        let id = st.escena.anadir(e);
+        st.escena.cerrar_paso();
         st.pegadas.push(Pegada {
             id_objeto,
             temporal: temporal.clone(),
         });
-        st.gesto
-            .tomar_herramienta(pixpin_motor2d::gesto::Herramienta::Mano);
+        if a_la_mano {
+            st.gesto
+                .tomar_herramienta(pixpin_motor2d::gesto::Herramienta::Mano);
+        }
         st.gesto.seleccion.poner_todos([id]);
         drop(guarda);
         self.subir_cambios();

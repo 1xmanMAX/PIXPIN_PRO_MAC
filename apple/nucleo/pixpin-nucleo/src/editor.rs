@@ -62,6 +62,7 @@ use pixpin_motor2d::pintado::{self, Orden};
 use pixpin_motor2d::texto::TeclaTexto;
 use pixpin_motor2d::vector::Punto2;
 
+use crate::editor_herramientas::ManoHerramientas;
 use crate::editor_imagenes::{self, Pegada};
 use crate::lienzo::{CajaLienzo, ImagenDelLienzo, LienzoPlano, empaquetar};
 use crate::{ErrorNucleo, Nucleo};
@@ -86,6 +87,10 @@ pub enum PeticionLienzo {
         /// La unidad de la escala del lienzo; vacia si no se ha calibrado.
         unidad: String,
     },
+    /// **La foto de una zona** (F8): la caja `(x0, y0, x1, y1)` del mundo
+    /// que se acaba de arrastrar con `zona`. Swift pinta lo que hay dentro
+    /// y la devuelve con [`EditorLienzo::poner_copia_de_zona`].
+    Zona { x0: f32, y0: f32, x1: f32, y1: f32 },
 }
 
 /// Lo que se mueve el cursor sin dejar de estar «quieto» para el gesto de
@@ -149,6 +154,18 @@ fn herramienta_de(nombre: &str) -> Option<Herramienta> {
         "recortar" => Herramienta::Recortar,
         "extender" => Herramienta::Extender,
         "punto" => Herramienta::Punto,
+        // Las que tapan o senalan, enmarcan, eligen y arreglan de la barra
+        // de Windows (`BOTONES_EDITOR`): unas nacen del gesto (el mosaico, el
+        // marco) y las demas las lleva `editor_herramientas`.
+        "mosaico" | "pixelar" => Herramienta::Mosaico,
+        "lupa" => Herramienta::Lupa,
+        "foco" => Herramienta::Foco,
+        "laser" => Herramienta::Laser,
+        "marco" => Herramienta::Marco,
+        "zona" => Herramienta::Zona,
+        "bolita" => Herramienta::Bolita,
+        "nudo" => Herramienta::Nudo,
+        "copiar_estilo" => Herramienta::CopiarEstilo,
         _ => return None,
     })
 }
@@ -178,6 +195,15 @@ fn nombre_de(h: Herramienta) -> &'static str {
         Herramienta::Recortar => "recortar",
         Herramienta::Extender => "extender",
         Herramienta::Punto => "punto",
+        Herramienta::Mosaico => "mosaico",
+        Herramienta::Lupa => "lupa",
+        Herramienta::Foco => "foco",
+        Herramienta::Laser => "laser",
+        Herramienta::Marco => "marco",
+        Herramienta::Zona => "zona",
+        Herramienta::Bolita => "bolita",
+        Herramienta::Nudo => "nudo",
+        Herramienta::CopiarEstilo => "copiar_estilo",
         _ => "otra",
     }
 }
@@ -202,6 +228,13 @@ pub(crate) struct Estado {
     pub(crate) pegadas: Vec<Pegada>,
     /// Su carpeta temporal, creada al pegar la primera.
     pub(crate) temporal: Option<PathBuf>,
+    /// Lo que recuerdan entre avisos la bolita, la zona y las lupas (ver
+    /// `editor_herramientas`).
+    pub(crate) mano: ManoHerramientas,
+    /// El papel de fondo (un pin, una foto, una pagina de PDF) si lo hay:
+    /// `(ancho, alto)` en el mundo desde (0, 0) y su PNG para el SVG (ver
+    /// `editor_exportar`).
+    pub(crate) papel: Option<((f32, f32), Option<Vec<u8>>)>,
 }
 
 /// Lo que se toca al guardar (un cerrojo aparte: guardar no frena el
@@ -301,6 +334,8 @@ impl EditorLienzo {
                 ultimo: Punto2::nuevo(0.0, 0.0),
                 pegadas: Vec::new(),
                 temporal: None,
+                mano: ManoHerramientas::default(),
+                papel: None,
             }),
             disco: Mutex::new(Disco {
                 ultimo: excalidraw::escribir(&abierto),
@@ -487,8 +522,8 @@ fn se_cruzan(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> bool {
 /// **Lo que se pinta encima del dibujo**: el marco de lo elegido, los
 /// tiradores, el cursor del texto, la marquesina, la pista del iman, la
 /// figura a la que se ataria la flecha, el lazo, los angulos en vivo y los
-/// clavos. Es `dibujo::pintar::ordenes_encima` de Windows sin lo que es de
-/// herramientas que aqui no hay (laser, bolita).
+/// clavos; y el rectangulo de la zona, la estela del laser y la bolita. Es
+/// `dibujo::pintar::ordenes_encima` de Windows.
 fn ordenes_encima(gesto: &Gesto, escena: &Escena, zoom: f32) -> Vec<Orden> {
     let escala = 1.0 / zoom.max(1e-6);
     let mut v = Vec::new();
@@ -503,7 +538,10 @@ fn ordenes_encima(gesto: &Gesto, escena: &Escena, zoom: f32) -> Vec<Orden> {
         v.extend(tiradores.ordenes(escala));
     }
     v.extend(gesto.cursor_de_texto(escena, zoom));
-    if let Some((x0, y0, x1, y1)) = gesto.marquesina() {
+    // La zona se pinta como la marquesina (el movil la pinta con su
+    // `selectionBox`).
+    let zona = gesto.zona.map(|(a, b)| pixpin_motor2d::zona::caja(a, b));
+    for (x0, y0, x1, y1) in gesto.marquesina().into_iter().chain(zona) {
         v.push(Orden::Polilinea {
             puntos: vec![
                 Punto2::nuevo(x0, y0),
@@ -539,6 +577,8 @@ fn ordenes_encima(gesto: &Gesto, escena: &Escena, zoom: f32) -> Vec<Orden> {
         escena, gesto, zoom,
     ));
     v.extend(pixpin_motor2d::nudos::ordenes_de_clavos(escena, zoom));
+    v.extend(gesto.laser.ordenes(zoom));
+    v.extend(gesto.bolita.orden(zoom));
     v
 }
 
@@ -663,7 +703,12 @@ impl EditorLienzo {
             st.gesto.seleccion.limpiar();
         }
         st.gesto.lazo = None;
+        st.gesto.zona = None;
         st.pide = None;
+        st.mano.zona_pedida = None;
+        // El cuentagotas empieza de nuevo cada vez que se coge: lo tomado
+        // antes ya no es lo que se quiere copiar.
+        st.gesto.estilo_tomado = None;
         st.gesto.tomar_herramienta(h);
         drop(guarda);
         self.subir_version();
@@ -754,6 +799,22 @@ impl EditorLienzo {
             };
         }
 
+        // La bolita, el cuentagotas, el laser, las varitas, la zona y el
+        // arrastre de lo que mira una lupa (`dibujo::mano` de Windows).
+        if let Some(hecho) = st
+            .mano
+            .atender(fase, p, st.zoom, &mut st.gesto, &mut st.escena)
+        {
+            if hecho.documento {
+                self.subir_cambios();
+            }
+            return if hecho.repintar {
+                self.subir_version()
+            } else {
+                self.version()
+            };
+        }
+
         let ev = match fase {
             FasePuntero::Pulsar => EventoGesto::Pulsar {
                 p,
@@ -771,6 +832,7 @@ impl EditorLienzo {
             FasePuntero::Cancelar => EventoGesto::Escape,
         };
         let r = st.gesto.evento(ev, &mut st.escena, escala);
+        st.mano.tras_el_gesto(fase, &mut st.gesto);
         // El resaltador del lector cubre un renglon (`resaltador_de_renglon`
         // de Windows): se le pone al nacer.
         if self.hoja.is_some()
@@ -992,6 +1054,8 @@ impl EditorLienzo {
                 ',',
                 st.escena.fondo,
             ));
+            // Lo que ensenan dentro el mosaico y la lupa (`editor_tapado`).
+            ordenes.extend(crate::editor_tapado::ordenes_tras(e));
         }
         ordenes.extend(ordenes_encima(&st.gesto, &st.escena, zoom));
         // La cache no crece con lo borrado o deshecho para siempre.
@@ -1026,8 +1090,18 @@ impl EditorLienzo {
     /// si nada. Swift lo mira tras cada soltar con esas herramientas.
     pub fn tomar_peticion(&self) -> Option<PeticionLienzo> {
         let mut st = self.tomar();
+        if let Some((x0, y0, x1, y1)) = st.mano.zona_pedida.take() {
+            return Some(PeticionLienzo::Zona { x0, y0, x1, y1 });
+        }
         let pide = st.pide.take()?;
         Self::peticion_para_swift(&st.escena, pide)
+    }
+
+    /// **Si lo de encima se mueve solo** (la estela del laser, que se apaga
+    /// sola): mientras diga que si, Swift repinta a cada fotograma aunque la
+    /// version no cambie.
+    pub fn animando(&self) -> bool {
+        self.tomar().gesto.laser.vivo()
     }
 
     /// **Calibra**: la raya de `largo_px` (lo que dio

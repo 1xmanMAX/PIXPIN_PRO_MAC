@@ -67,26 +67,26 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | audio | Un reproductor para toda la app: barra, saltos, velocidad | parcial | K/Voz/ReproductorVoz.swift | Velocidad, saltos ±, barra global de «lo que suena» |
 | automatizaciones (cola, encargo, motor) | Disparadores con pasos; cola de encargos | falta | — | Todo; `auto-automatizaciones` llega y no se usa |
 | biblioteca_audio | Música y notas de voz de todos los chats | falta | — | Todo |
-| biblioteca_figuras | Figuras del lienzo (`figuras.json`, viaja) | falta | — | Depende del trabajo del lienzo |
+| biblioteca_figuras | Figuras del lienzo (`figuras.json`, viaja) | parcial | K/Lienzo/FigurasLienzo.swift, N/editor_figuras.rs | Hechos: gráfica, tabla en blanco y pegada, plano/recta/espacio, guardar, estampar y quitar (en el chat «Asistente», con su mensaje `auto-figuras`). Faltan editar una tabla ya dibujada, meter en su celda y las tablas de coordenadas |
 | buscador | Ctrl+F en los lectores, «3 de 12», F3 | falta | K/Documentos/LectorDocumento.swift | `PDFDocument.findString` con siguiente y anterior |
 | buscar_todo | «Buscar en PixPin»: pestañas, recientes, acciones | parcial | K/Buscar/Buscar.swift, N/buscar.rs | Pestañas; recientes; lecciones y capturas; botones por fila; usar `pixpin-lanzador` |
 | cabecera | Barra común de Galería, Lecciones, Tareas y Timeline | no aplica | SwiftUI | — (unificar su aspecto) |
 | caducidad_capturas | Capturas que se borran solas | completo | K/Caducidad/BarrenderoCapturas.swift, N/galeria.rs | — (el aviso «se van en 24 h», con «Conservar» y «Abrir», hecho en C4) |
-| caja_dibujo | Barra de herramientas estilo Excalidraw, la misma en todas partes | parcial | K/Lienzo/* | Lector, pin y captura tienen barras propias. **Lo lleva el agente del lienzo** |
+| caja_dibujo | Barra de herramientas estilo Excalidraw, la misma en todas partes | parcial | K/Lienzo/* | La del lienzo ya es la de Windows (los diez grupos, figuras, dos filas si no cabe). Lector, pin y captura siguen con barras propias |
 | caja_texto | Caja de texto propia | no aplica | NSTextField | — |
 | capa | Anotar sobre la pantalla (viva o congelada, varios monitores) | parcial | K/Captura/Capturador.swift, GestosAlt.swift | Modo vivo, varios monitores, herramientas del lienzo, entrada en el menú |
 | captura2 | Captura v2: modos, medidas, lupa, «Al chat», anotar | completo | K/Captura/* | Falta verla en verde en la CI |
 | centro_bandeja | Panel rico de la bandeja: estado de sincro, buscador, favoritos, últimas capturas | parcial | APP (MenuBarExtra en forma de menú) | El panel entero |
 | cielo | Fondo cósmico | falta | — | Es un adorno |
-| compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | falta | — | Todo |
+| compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | parcial | K/Lienzo/SacarLienzo.swift, N/editor_exportar.rs | Solo el lienzo: exportar PNG, SVG y PDF (todo, lo elegido o cada marco), copiar como PNG, imprimir con «qué imprimir» y compartir con la hoja del Mac. Falta la hoja común (D1), la página web y lo demás |
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
 | croquis3d | Ver los croquis 3D del móvil | falta | K/Planos/VisorModelo3D.swift | Abrir `.croquis.gz` en N/modelos3d.rs |
 | cuenta_atras | Captura con retardo | parcial | K/Captura/CapturaDirecta.swift (`CuentaAtras`, 3 s) | Esc para cancelar; los segundos de `retardo_captura_s` |
 | diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | falta | K/Documentos/LectorDocumento.swift (solo verlo) | Todo |
-| dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | **Lo lleva el agente del lienzo** |
+| dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | Hechas todas las herramientas de la barra (zona, láser, lupa, foco, pixelar, marco, copiar estilo, bolita, soldar vértices: N/editor_herramientas.rs, N/editor_tapado.rs). Faltan copiar y pegar elementos, agrupar y los atajos de §2.5 |
 | dispositivo_perdido | Recuperarse si se pierde la GPU | interno | — | Solo para Metal en Planos, si se quita la GPU |
 | editor | Revisar la grabación antes de guardarla | falta | K/Grabar/GrabadorPantalla.swift (guarda directamente) | Todo |
-| fondo_lienzo | Un pin o una página PDF como fondo del lienzo | parcial | K/Pines/Anotar.swift | Lienzo con fondo (depende del lienzo) |
+| fondo_lienzo | Un pin o una página PDF como fondo del lienzo | parcial | K/Lienzo/FondoLienzo.swift, K/Pines/Anotar.swift | El lienzo ya sabe llevar fondo (imagen o página de PDF a 1400 de ancho, dentro de lupas, zona y lo exportado): `VentanasDeLienzo.abrir(…, fondo:)`. Falta quien lo abra así (la hoja-página del chat, B9; el pin) |
 | foto_anotada | Ver el lienzo que el móvil dibujó sobre una foto | falta | K/Chat/Adjuntos.swift | Leer `lienzos/foto-<id>.excalidraw` y pintarlo encima |
 | fusionar_paginas | Varias páginas de un PDF → un lienzo | falta | — | Todo |
 | galeria_capturas | Galería con buscador (también OCR), grupos por día, teclado, detalle | parcial | K/Galeria/*, N/galeria.rs | Buscador, grupos por día, teclado, «Guardar como», panel de detalle |
@@ -235,8 +235,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Función | Estado Mac |
 |---|---|
 | Base, deshacer, cota y cajetín | completo |
-| modo_ventana (F11) | parcial |
-| Exportar, imprimir y compartir; tapado; figuras y gráficas; hojita; lupas; marcas; presentar; referencia; anotador de pantalla; zona al chat | falta |
+| modo_ventana (F11) | completo (⌃⌘F, se recuerda en `estado.toml`; nunca tocado abre en ventana) |
+| Exportar, imprimir y compartir; tapado; figuras y gráficas; lupas | completo (figuras: parcial, ver `biblioteca_figuras`) |
+| Hojita; marcas; presentar; referencia; anotador de pantalla; zona al chat | falta |
 | congelar, medir | interno |
 
 ### 1.6 Fuera de `apps/pixpin`
@@ -342,20 +343,18 @@ Choques con macOS que hay que esquivar:
 
 ### 2.5 Lienzo
 
-Las letras de herramienta **no coinciden**. Windows usa M L R B A E F Q C P Z J K; Mac usa V P H E M K + R O D A L B X W N; solo coinciden T, G y S. **Esto es cosa del agente del lienzo**: hay que decidir si el Mac se queda con las letras de Excalidraw o con las de Windows.
+Las letras de herramienta son ya las de Windows (M L R T B A E G P F Q C Z J); S O D X W N, las de Excalidraw que allí no se usan.
 
 Lo que falta en el lienzo:
 - ⌘C / ⌘X de elementos, ⌘D, ⌘G / ⇧⌘G y ⇧⌘L.
 - ⌘⌥C / ⌘⌥V (copiar y pegar el estilo).
 - ⇧H / ⇧V (voltear), ⌘] / ⌘[ y ⇧⌘] / ⇧⌘[ (orden).
-- ⌥S (imán), 1 / 2 / 3 y V (plumas).
+- ⌥S (imán) y V (plumas).
 - Espacio + arrastrar.
-- ⇧⌘E (exportar), ⇧⌘C (copiar como PNG), ⌘P, ⇧⌘S.
-- ⌃⌘F en lugar de F11.
 - Marcas: hay que elegir otra tecla que no sea ⌘M, y ⌘1…9 para ir a ellas.
 - ⇧⌘N (hojita), F5 (presentar), ⌥R (solo mirar), y las del anotador de pantalla.
 
-Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen y ⌘ + rueda.
+Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 3, ⇧⌘E (exportar), ⇧⌘C (copiar como PNG), ⌘P, ⇧⌘S y ⌃⌘F (pantalla completa, que se recuerda).
 
 ### 2.6 Lectores (PDF, Word, PPTX, visor)
 
@@ -471,10 +470,10 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | pixpin-docs | `lib.rs`; `formulas.rs` nuevo | Mac por delante (se sacó de `pixpin-notas`); llevarlo a Windows |
 | pixpin-proyecto | `almacen.rs` (NFC), `ubicacion.rs`, `formula*.rs`, `mini.rs` (comentarios), `Cargo.toml` | adaptación. **El NFC de `almacen::nombre_seguro` es un arreglo que Windows también necesita** |
 | pixpin-store | `ajustes.rs`, `comandos.rs`, `idioma.rs`, `regiones.rs` | adaptación (`pixpin_sistema`) |
-| pixpin-store | `estado.rs` (−9 líneas), comentario de `ajustes.rs` | **Mac detrás**: falta `lienzo_pantalla_completa` y `lienzo_ventana` (F11 del lienzo) |
+| pixpin-store | comentario de `ajustes.rs` | `estado.rs` ya igual (16-oct) |
 | pixpin-pdf | `lib.rs`, `aligerar.rs`, `png.rs`, `union.rs`, `Cargo.toml` | adaptación (`cfg(windows)`) |
 | pixpin-pdf | `escribir.rs` (291 líneas solo en Windows), `letra.rs` (289), ejemplos y pruebas | **Mac detrás**: varias letras incrustadas por página y letras de reserva (θ, ≤, emoji) |
-| pixpin-motor2d | `ecuacion.rs` (71), `escena.rs` (87: `juntar_pasos`), `recorte.rs` (157), `lib.rs`; falta `recorte_imagen.rs` | **Mac detrás**. Afecta al lienzo: hay que coordinarlo con el agente del lienzo |
+| pixpin-motor2d | `tests/asignaciones.rs` | Igual que Windows (16-oct). Solo la prueba de asignaciones cuenta por hilo en el Mac (`cargo test` en paralelo) |
 | pixpin-ia | Faltan `anotacion`, `calculo`, `complejidad`, `edicion`, `fisica`, `hoja`, `ojos`, `pizarra`, `problema` y `rotulos`. Muy por detrás: `agente.rs` (324), `acciones.rs` (264), `rapido.rs` (245), `calcar.rs` (488), `lienzo.rs`, `seleccion.rs`, `funciones.rs`, `herramientas.rs`, `ecuacion.rs`, `nube/mod.rs`, `acciones_documentos.rs` | **Mac muy detrás**. Adaptación solo en `nube/claves.rs`, `nube/http.rs`, `servidor.rs`, `descarga.rs` y `puente.rs` (nuevo) |
 | por-adaptar/pixpin-voz | `Cargo.toml` | adaptación |
 | por-adaptar/pixpin-pila, pixpin-aligerar | 0 | iguales |
@@ -517,7 +516,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | A5 | **Copias**: listar y restaurar `copias/`, recuperar proyectos borrados | nuevo N/copias.rs, nuevo K/Sincro/VistaCopias.swift |
 | A6 | **Envío por código completo**: mandar proyectos y lienzos, poner el lienzo suelto en su proyecto, «actualizar o crear», reconocer un archivo que vuelve | N/envio.rs, K/Sincro/EnvioPorCodigo.swift |
 | A7 | **Poner el núcleo al día con Windows (sin el lienzo)**: copiar `pixpin-ia` (los 10 módulos que faltan, sin tocar la parte de `cfg`), `pixpin-pdf` `escribir.rs` y `letra.rs`, `pixpin-store/estado.rs`, `pixpin-lanzador`; pasar `cargo test --workspace`. Avisar a Windows del NFC y de `formulas.rs` | nucleo/pixpin-ia/**, nucleo/pixpin-pdf/src/{escribir,letra}.rs, nucleo/pixpin-store/src/estado.rs, por-adaptar/pixpin-lanzador/** |
-| A7b | `pixpin-motor2d` al día (`recorte_imagen.rs`, `juntar_pasos`, `ecuacion`) | nucleo/pixpin-motor2d/** (**dep. lienzo**: hacerlo cuando termine el agente del lienzo o con él) |
+| A7b | ~~`pixpin-motor2d` al día~~ **hecho** (16-oct) | nucleo/pixpin-motor2d/** |
 
 ### Grupo B: uso diario
 

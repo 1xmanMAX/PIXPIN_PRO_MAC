@@ -129,25 +129,29 @@ final class HerramientasLienzoTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: carpeta) }
         let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("h.excalidraw").path, crear: true)
         let modelo = ModeloEditorLienzo(editor: ed)
-        for h in HerramientaLienzo.todas {
+        for h in HerramientaLienzo.herramientas {
             modelo.elegir(h.id)
             XCTAssertNil(modelo.error, h.id)
             XCTAssertEqual(modelo.herramienta, h.id)
             XCTAssertEqual(ed.herramientaActual(), h.id)
         }
         // Las nuevas estan, cada una en su grupo, y las teclas no se pisan.
-        let ids = Set(HerramientaLienzo.todas.map(\.id))
-        for id in ["lazo", "cota", "escalar", "escala_grafica", "relleno", "recortar", "extender", "punto"] {
+        let ids = Set(HerramientaLienzo.herramientas.map(\.id))
+        for id in ["lazo", "cota", "escalar", "escala_grafica", "relleno", "recortar", "extender", "punto",
+                   "bolita", "zona", "nudo", "copiar_estilo", "mosaico", "lupa", "foco", "laser", "marco"] {
             XCTAssertTrue(ids.contains(id), id)
         }
-        XCTAssertEqual(GrupoHerramientaLienzo.arreglar.miembros.map(\.id), ["recortar", "extender"])
+        XCTAssertEqual(GrupoHerramientaLienzo.arreglar.miembros.map(\.id),
+                       ["recortar", "extender", "nudo", "copiar_estilo"])
+        XCTAssertEqual(GrupoHerramientaLienzo.sacar.miembros.map(\.id), ["compartir", "imprimir"])
+        XCTAssertTrue(GrupoHerramientaLienzo.sacar.miembros.allSatisfy(\.accion))
         XCTAssertEqual(GrupoHerramientaLienzo.medir.miembros.count, 3)
         let teclas = HerramientaLienzo.todas.compactMap(\.tecla)
         XCTAssertEqual(Set(teclas).count, teclas.count)
         // Caso negativo: un nombre que el motor no conoce deja el error.
         modelo.elegir("pincel_magico")
         XCTAssertNotNil(modelo.error)
-        XCTAssertEqual(modelo.herramienta, HerramientaLienzo.todas.last?.id)
+        XCTAssertEqual(modelo.herramienta, HerramientaLienzo.herramientas.last?.id)
     }
 
     @MainActor
@@ -318,13 +322,14 @@ final class BarraHerramientasLienzoTests: XCTestCase {
         let windows: [Character: String] = [
             "m": "seleccion", "l": "lapiz", "r": "resaltador", "t": "texto", "b": "borrador",
             "a": "cota", "e": "escalar", "g": "escala_grafica", "p": "grafito",
+            "f": "foco", "q": "lupa", "c": "marco", "z": "zona", "j": "laser",
         ]
         for (c, id) in windows {
             XCTAssertEqual(HerramientaLienzo.deTecla(c)?.id, id, String(c))
             XCTAssertEqual(HerramientaLienzo.deTecla(Character(c.uppercased()))?.id, id)
         }
         // Caso negativo: una letra sin herramienta no elige nada.
-        XCTAssertNil(HerramientaLienzo.deTecla("q"))
+        XCTAssertNil(HerramientaLienzo.deTecla("k"))
         XCTAssertEqual(OpcionesEstiloLienzo.grosor(tecla: "3").map { "\($0)" }, "grueso")
         XCTAssertNil(OpcionesEstiloLienzo.grosor(tecla: "4"))
     }
@@ -364,10 +369,29 @@ final class BarraHerramientasLienzoTests: XCTestCase {
         XCTAssertEqual(GruposBarraLienzo.cara(.formas, activa: "rombo")?.id, "rombo")
         XCTAssertEqual(GruposBarraLienzo.cara(.formas, activa: "lapiz")?.id, "rombo")
         XCTAssertEqual(GruposBarraLienzo.pulsar(.formas, activa: "lapiz", desplegado: nil).elegir, "rombo")
-        // Caso negativo: un grupo de una sola herramienta no se despliega.
-        r = GruposBarraLienzo.pulsar(.elegir, activa: "lapiz", desplegado: .formas)
-        XCTAssertEqual(r.elegir, "lazo")
-        XCTAssertNil(r.desplegado)
+        // Caso negativo: la cara de un grupo de acciones no se dispara (nada
+        // de imprimir por sorpresa), solo se despliega.
+        r = GruposBarraLienzo.pulsar(.sacar, activa: "lapiz", desplegado: nil)
+        XCTAssertNil(r.elegir)
+        XCTAssertEqual(r.desplegado, .sacar)
+        // Una accion usada se queda de cara de su grupo.
+        GruposBarraLienzo.usado("imprimir")
+        XCTAssertEqual(GruposBarraLienzo.cara(.sacar, activa: "lapiz")?.id, "imprimir")
+    }
+
+    func testSiNoCabeLaBarraSePartePorUnSeparadorEnDosFilasParejas() {
+        let n = BotonBarraLienzo.barra.count
+        let entera = BotonBarraLienzo.anchoDeFila(BotonBarraLienzo.barra[...])
+        // 17 botones, 3 separadores: lo de Windows (36, 4, 4 de relleno, 9 por corte).
+        XCTAssertEqual(entera, 2 * 4 + CGFloat(n) * 36 + CGFloat(n - 1) * 4 + 3 * 9)
+        XCTAssertEqual(BotonBarraLienzo.cortePara(ancho: entera), n, "si cabe, una fila")
+        let corte = BotonBarraLienzo.cortePara(ancho: entera - 1)
+        XCTAssertLessThan(corte, n)
+        XCTAssertNotEqual(BotonBarraLienzo.barra[corte - 1].seccion, BotonBarraLienzo.barra[corte].seccion,
+                          "se parte por un separador")
+        let a = BotonBarraLienzo.anchoDeFila(BotonBarraLienzo.barra[..<corte])
+        let b = BotonBarraLienzo.anchoDeFila(BotonBarraLienzo.barra[corte...])
+        XCTAssertLessThan(max(a, b), entera * 0.7, "las dos filas, parejas")
     }
 
     @MainActor
@@ -438,5 +462,120 @@ final class BarraHerramientasLienzoTests: XCTestCase {
                 }
             }
         }
+    }
+}
+
+/// Las herramientas que lleva quien tiene la escena (la zona, el laser, el
+/// mosaico y la lupa) y sacar el dibujo, por el puente de verdad.
+final class TaparYSacarLienzoTests: XCTestCase {
+    private func trazar(_ ed: EditorLienzo, _ h: String, _ a: (Float, Float), _ b: (Float, Float)) throws {
+        try ed.herramienta(nombre: h)
+        _ = ed.puntero(fase: .pulsar, x: a.0, y: a.1, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .mover, x: b.0, y: b.1, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .soltar, x: b.0, y: b.1, presion: nil, modificadores: 0, zoom: 1)
+    }
+
+    @MainActor
+    func testLaZonaPideSuFotoYLaCopiaEntraElegida() throws {
+        let carpeta = try carpetaTemporal("zona")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("z.excalidraw").path, crear: true)
+        try trazar(ed, "rectangulo", (10, 10), (90, 60))
+        try trazar(ed, "zona", (0, 0), (100, 80))
+        guard case let .zona(x0, y0, x1, y1)? = ed.tomarPeticion() else { return XCTFail("tenia que pedir la foto") }
+        XCTAssertEqual([x0, y0, x1, y1], [0, 0, 100, 80])
+        XCTAssertNil(ed.tomarPeticion(), "se pide una vez")
+        let caja = CGRect(x: 0, y: 0, width: 100, height: 80)
+        let plano = ed.planoDeVista(x: 0, y: 0, zoom: 2, anchoPx: 200, altoPx: 160)
+        let img = try XCTUnwrap(PintorDeHojas.imagen(plano, caja: caja, escala: 2, transparente: false,
+                                                     tapados: nil, version: 0, fotos: { _ in nil }))
+        XCTAssertEqual(img.width, 200)
+        let png = try XCTUnwrap(PintorDeHojas.enRedondo(img, papelDeNoche: false).flatMap(PintorDeHojas.png))
+        _ = try ed.ponerCopiaDeZona(png: png, x0: 0, y0: 0, x1: 100, y1: 80, zoom: 1)
+        XCTAssertEqual(ed.cuantosElementos(), 2)
+        XCTAssertEqual(ed.cuantosElegidos(), 1)
+        XCTAssertEqual(ed.herramientaActual(), "zona", "la zona se queda en la mano")
+        // Caso negativo: un clic suelto no pide nada.
+        try trazar(ed, "zona", (300, 300), (302, 301))
+        XCTAssertNil(ed.tomarPeticion())
+    }
+
+    func testElLaserSeAnimaYNoDejaNada() throws {
+        let carpeta = try carpetaTemporal("laser")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("l.excalidraw").path, crear: true)
+        XCTAssertFalse(ed.animando())
+        try trazar(ed, "laser", (0, 0), (80, 40))
+        XCTAssertTrue(ed.animando(), "la estela se apaga sola")
+        XCTAssertEqual(ed.cuantosElementos(), 0)
+        XCTAssertFalse(ed.puedeDeshacer())
+    }
+
+    @MainActor
+    func testElMosaicoTapaConCuadrosYLaLupaEnsenaAgrandado() throws {
+        let carpeta = try carpetaTemporal("tapar")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("t.excalidraw").path, crear: true)
+        try trazar(ed, "rectangulo", (0, 0), (100, 100))
+        try trazar(ed, "mosaico", (-10, -10), (60, 60))
+        try trazar(ed, "elipse", (300, 0), (400, 100))
+        // La lupa: tocar la elipse con la varita.
+        try ed.herramienta(nombre: "lupa")
+        _ = ed.puntero(fase: .pulsar, x: 350, y: 50, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .soltar, x: 350, y: 50, presion: nil, modificadores: 0, zoom: 1)
+        XCTAssertEqual(ed.herramientaActual(), "seleccion", "hecha la lupa, la mano")
+        let leido = try leerLienzo(ed.planoDeVista(x: -50, y: -50, zoom: 1, anchoPx: 600, altoPx: 300))
+        let tapados: [UInt64] = leido.figuras.compactMap {
+            if case let .imagen(id, _, _, _, _, _) = $0, PintorDeTapados.esTapado(id) { return id }
+            return nil
+        }
+        XCTAssertEqual(tapados.count, 2, "el mosaico y la lupa")
+        let modelo = ModeloEditorLienzo(editor: ed)
+        for id in tapados {
+            let c = try XCTUnwrap(ed.contenidoDeTapado(idObjeto: id))
+            XCTAssertNotNil(PintorDeTapados.pintar(c, escala: 2, fotos: { _ in nil }))
+            XCTAssertNotNil(modelo.tapados.imagen(id, version: ed.version(), escala: 2))
+        }
+        // Caso negativo: el id de una foto no es un tapado.
+        XCTAssertFalse(PintorDeTapados.esTapado(12345))
+        XCTAssertNil(ed.contenidoDeTapado(idObjeto: 12345))
+    }
+
+    @MainActor
+    func testSeExportaEnPngPdfYSvgYCadaMarcoEsUnaHoja() throws {
+        let carpeta = try carpetaTemporal("exportar")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("e.excalidraw").path, crear: true)
+        let modelo = ModeloEditorLienzo(editor: ed, titulo: "Mi/lienzo")
+        XCTAssertTrue(modelo.ficheros(.png, que: .todo, transparente: false).isEmpty, "en blanco no sale nada")
+        try trazar(ed, "rectangulo", (0, 0), (100, 50))
+        try trazar(ed, "marco", (-20, -20), (150, 80))
+        try trazar(ed, "elipse", (400, 400), (450, 450))
+        try trazar(ed, "marco", (380, 380), (480, 480))
+        XCTAssertEqual(ed.hojasParaExportar(que: .marcos).count, 2)
+        let pngs = modelo.ficheros(.png, que: .marcos, transparente: true)
+        XCTAssertEqual(pngs.count, 2)
+        XCTAssertEqual(Array(pngs[0].prefix(4)), [0x89, 0x50, 0x4e, 0x47])
+        let pdf = try XCTUnwrap(modelo.ficheros(.pdf, que: .marcos, transparente: false).first)
+        XCTAssertEqual(String(decoding: pdf.prefix(4), as: UTF8.self), "%PDF")
+        XCTAssertEqual(CGPDFDocument(CGDataProvider(data: pdf as CFData)!)?.numberOfPages, 2)
+        let svg = try XCTUnwrap(modelo.ficheros(.svg, que: .todo, transparente: false).first)
+        XCTAssertTrue(String(decoding: svg, as: UTF8.self).contains("<svg"))
+        XCTAssertEqual(modelo.nombreDeFichero, "Mi-lienzo")
+        let url = URL(fileURLWithPath: "/tmp/a.png")
+        XCTAssertEqual(ModeloEditorLienzo.numerada(url, 1, 3).lastPathComponent, "a-2.png")
+        XCTAssertEqual(ModeloEditorLienzo.numerada(url, 0, 1).lastPathComponent, "a.png")
+    }
+
+    func testLaGraficaYLaTablaEntranPorElPuente() throws {
+        let carpeta = try carpetaTemporal("figuras")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("f.excalidraw").path, crear: true)
+        XCTAssertTrue(try ed.estamparGrafica(formulas: ["x^2"], xDesde: -3, xHasta: 3, yDesde: -1, yHasta: 9,
+                                             escala: 30, centroX: 0, centroY: 0))
+        XCTAssertNotNil(avisoDeGrafica(formulas: ["x^"], xDesde: -3, xHasta: 3, yDesde: -1, yHasta: 9, escala: 30))
+        XCTAssertEqual(celdasDeTexto(texto: "a\tb\n1\t2"), [["a", "b"], ["1", "2"]])
+        XCTAssertTrue(ed.estamparTabla(celdas: [["", ""], ["", ""]], cabecera: true, centroX: 0, centroY: 0))
+        XCTAssertTrue(ed.estamparInstrumento(ejes: 2, centroX: 0, centroY: 0))
     }
 }

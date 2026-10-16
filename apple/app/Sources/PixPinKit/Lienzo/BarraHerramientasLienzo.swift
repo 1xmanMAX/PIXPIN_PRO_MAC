@@ -4,7 +4,9 @@
 // oscuro, fondo lila en la herramienta puesta y al pasar el raton,
 // separadores entre secciones y la letra del atajo en la esquina. Cada
 // grupo ensena su cara y un piquito; al pulsarlo coge la cara y despliega
-// sus hermanas debajo, en otra isla con su nombre y su tecla.
+// sus hermanas debajo, en otra isla con su nombre y su tecla. Si la ventana
+// es estrecha, la barra se parte en dos filas por un separador, como en
+// Windows (`CajaHerramientas::barra_superior`).
 
 import AppKit
 import PixPinCore
@@ -96,10 +98,26 @@ extension ModeloEditorLienzo {
         desplegado = clic.desplegado
     }
 
-    /// Una hermana elegida en el desplegable: se coge y se cierra.
+    /// Una hermana elegida en el desplegable: se coge (o se hace, si es una
+    /// accion, y queda de cara del grupo) y se cierra.
     func elegirDelDesplegable(_ id: String) {
-        elegir(id)
         desplegado = nil
+        guard let h = HerramientaLienzo.con(id: id), h.accion else {
+            elegir(id)
+            return
+        }
+        GruposBarraLienzo.usado(id)
+        hacer(id)
+    }
+
+    /// Las acciones de los grupos.
+    func hacer(_ accion: String) {
+        switch accion {
+        case "imagen": meterImagen()
+        case "compartir": compartir()
+        case "imprimir": imprimir()
+        default: break
+        }
     }
 
     /// El boton de imagen: elegir un fichero y meterlo en el centro.
@@ -122,25 +140,37 @@ extension ModeloEditorLienzo {
     }
 }
 
-/// La barra entera, en su isla.
+/// La barra entera, en su isla: en una fila o, si no cabe, en dos partida
+/// en `corte`.
 struct BarraHerramientasLienzo: View {
     @ObservedObject var modelo: ModeloEditorLienzo
+    var corte = BotonBarraLienzo.barra.count
 
     var body: some View {
         let tema = TemaBarraLienzo.de(modelo)
+        let n = BotonBarraLienzo.barra.count
+        VStack(alignment: .leading, spacing: MedidasBarraLienzo.relleno) {
+            fila(0..<min(corte, n), tema: tema)
+            if corte < n { fila(corte..<n, tema: tema) }
+        }
+        .padding(MedidasBarraLienzo.relleno)
+        .modifier(IslaLienzo(tema: tema))
+        .fixedSize()
+    }
+
+    /// Una fila de la barra. Donde se parte no hay separador: ya separa el
+    /// cambio de fila.
+    private func fila(_ indices: Range<Int>, tema: TemaBarraLienzo) -> some View {
         HStack(spacing: MedidasBarraLienzo.hueco) {
-            ForEach(Array(BotonBarraLienzo.barra.enumerated()), id: \.offset) { i, b in
-                boton(b, tema: tema)
-                if BotonBarraLienzo.corte(tras: i) {
+            ForEach(Array(indices), id: \.self) { i in
+                boton(BotonBarraLienzo.barra[i], tema: tema)
+                if i + 1 < indices.upperBound, BotonBarraLienzo.corte(tras: i) {
                     Rectangle().fill(tema.separador)
                         .frame(width: MedidasBarraLienzo.separador, height: MedidasBarraLienzo.altoSeparador)
                         .padding(.leading, MedidasBarraLienzo.margenSeparador)
                 }
             }
         }
-        .padding(MedidasBarraLienzo.relleno)
-        .modifier(IslaLienzo(tema: tema))
-        .fixedSize()
     }
 
     @ViewBuilder
@@ -163,8 +193,11 @@ struct BarraHerramientasLienzo: View {
                 modelo.pulsarGrupo(g)
             }
             .anchorPreference(key: AnclasGruposLienzo.self, value: .bounds) { [g: $0] }
-        case .imagen:
-            BotonIslaLienzo(icono: .image, tema: tema, ayuda: "Insertar imagen") { modelo.meterImagen() }
+        case .figuras:
+            BotonIslaLienzo(icono: .library, tema: tema, ayuda: "Figuras: gráfica, tabla, plano y las guardadas") {
+                modelo.desplegado = nil
+                modelo.abrirFiguras()
+            }
         case .deshacer:
             BotonIslaLienzo(icono: .undo, tema: tema, apagado: !modelo.puedeDeshacer, ayuda: "Deshacer (⌘Z)") {
                 modelo.deshacer()
