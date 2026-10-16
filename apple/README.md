@@ -42,6 +42,10 @@ cargo run -p pixpin-nucleo --features bindgen --bin uniffi-bindgen -- \
     generate --library target/debug/libpixpin_nucleo.so --language swift --out-dir target/enlaces
 ```
 
+Las pruebas de la app (`app/Tests`) en un Mac sin Xcode (solo Command Line Tools, sin XCTest):
+`apple/herramientas/pruebas-sin-xcode.sh [filtro...]` las corre con un XCTest de bolsillo, sin
+tocar las pruebas ni `app/Package.swift` (la CI sigue con `swift test`).
+
 El xcframework se compila con el perfil `ffi` (el `release` con `panic = "unwind"`): así un
 pánico de Rust llega a Swift como error en vez de cerrar la app.
 
