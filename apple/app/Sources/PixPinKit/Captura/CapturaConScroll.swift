@@ -151,11 +151,23 @@ final class MarcoDeZona {
     private let barra: NSPanel
     /// El destino del boton (el boton no lo retiene).
     private let objetivo: ObjetivoBoton?
+    /// La zona de ahora (cambia si se mueve o se estira el marco).
+    private(set) var zona: ZonaDeGrabacion
+    /// El marco de su pantalla (AppKit) para colocar el borde y la barra.
+    private let pantalla: CGRect
+    private let visible: CGRect
+    /// Avisa de la zona nueva al moverla o estirarla con el raton (solo
+    /// en un marco `ajustable`).
+    var alCambiar: ((ZonaDeGrabacion) -> Void)?
 
-    private init(borde: NSPanel, barra: NSPanel, objetivo: ObjetivoBoton?) {
+    private init(borde: NSPanel, barra: NSPanel, objetivo: ObjetivoBoton?,
+                 zona: ZonaDeGrabacion, pantalla: NSScreen) {
         self.borde = borde
         self.barra = barra
         self.objetivo = objetivo
+        self.zona = zona
+        self.pantalla = pantalla.frame
+        self.visible = pantalla.visibleFrame
     }
 
     /// La zona (puntos de su pantalla, origen arriba) en coordenadas
@@ -181,35 +193,37 @@ final class MarcoDeZona {
     }
 
     /// El marco con `contenido` en su barra (quien lo pone retiene los
-    /// destinos de sus botones, o pasa uno en `objetivo`).
+    /// destinos de sus botones, o pasa uno en `objetivo`). `ajustable`: el
+    /// anillo de alrededor se agarra con el raton para mover y estirar la
+    /// zona (`grabador.rs` de Windows) hasta `fijar()`; el centro sigue
+    /// dejando pasar los clics a la app de debajo.
     static func abrir(zona: ZonaDeGrabacion, rojo: Bool, contenido: NSView,
-                      objetivo: ObjetivoBoton? = nil) -> MarcoDeZona? {
+                      objetivo: ObjetivoBoton? = nil, ajustable: Bool = false) -> MarcoDeZona? {
         guard let pantalla = NSScreen.screens.first(where: { $0.numeroDePantalla == zona.pantalla }) else { return nil }
         let r = marcoGlobal(zona.rect, pantalla: pantalla.frame)
-        let grosor: CGFloat = 3
-        let fuera = r.insetBy(dx: -grosor, dy: -grosor)
+        let margen = ajustable ? MarcoAjustable.margen : MarcoAjustable.grosor
+        let fuera = r.insetBy(dx: -margen, dy: -margen)
 
         let borde = NSPanel(contentRect: fuera, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         borde.isOpaque = false
         borde.backgroundColor = .clear
         borde.hasShadow = false
-        borde.ignoresMouseEvents = true
+        // Ajustable NO se toca `ignoresMouseEvents`: asi el servidor de
+        // ventanas deja pasar los clics por lo transparente (el centro) y
+        // el anillo casi invisible los recibe. Ponerlo en `false` haria
+        // que el marco se tragase los clics de toda la zona.
+        if !ajustable { borde.ignoresMouseEvents = true }
         borde.level = .screenSaver
         borde.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
         borde.isReleasedWhenClosed = false
-        let vista = NSView(frame: NSRect(origin: .zero, size: fuera.size))
-        vista.wantsLayer = true
-        vista.layer?.borderWidth = grosor
-        vista.layer?.borderColor = (rojo ? NSColor.systemRed : NSColor.controlAccentColor).cgColor
+        let vista = VistaMarco(frame: NSRect(origin: .zero, size: fuera.size), margen: margen, ajustable: ajustable)
+        vista.color = rojo ? .systemRed : .controlAccentColor
         borde.contentView = vista
         borde.orderFrontRegardless()
 
         let tam = contenido.fittingSize
-        var origen = CGPoint(x: fuera.maxX - tam.width, y: fuera.minY - tam.height - 6)
-        if origen.y < pantalla.visibleFrame.minY { origen.y = fuera.maxY + 6 }
-        if origen.y + tam.height > pantalla.visibleFrame.maxY { origen.y = fuera.minY + 8 }
-        origen.x = max(pantalla.frame.minX + 8, origen.x)
-        let barra = PanelConTeclado(contentRect: NSRect(origin: origen, size: tam),
+        let barra = PanelConTeclado(contentRect: NSRect(origin: origenBarra(tam: tam, fuera: fuera, pantalla: pantalla.frame,
+                                                                           visible: pantalla.visibleFrame), size: tam),
                                     styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         barra.isOpaque = false
         barra.backgroundColor = .clear
@@ -219,7 +233,44 @@ final class MarcoDeZona {
         barra.contentView = fondo(contenido, tam: tam)
         barra.makeKeyAndOrderFront(nil)
 
-        return MarcoDeZona(borde: borde, barra: barra, objetivo: objetivo)
+        let marco = MarcoDeZona(borde: borde, barra: barra, objetivo: objetivo, zona: zona, pantalla: pantalla)
+        vista.alArrastrar = { [weak marco] asa, inicial, dx, dy in
+            marco?.arrastrar(asa, desde: inicial, dx: dx, dy: dy)
+        }
+        vista.zonaActual = { [weak marco] in marco?.zona.rect ?? .zero }
+        return marco
+    }
+
+    /// Debajo del marco a la derecha; si no cabe, encima; si tampoco,
+    /// dentro arriba.
+    private static func origenBarra(tam: CGSize, fuera: CGRect, pantalla: CGRect, visible: CGRect) -> CGPoint {
+        var origen = CGPoint(x: fuera.maxX - tam.width, y: fuera.minY - tam.height - 6)
+        if origen.y < visible.minY { origen.y = fuera.maxY + 6 }
+        if origen.y + tam.height > visible.maxY { origen.y = fuera.minY + 8 }
+        origen.x = min(max(pantalla.minX + 8, origen.x), pantalla.maxX - tam.width - 8)
+        return origen
+    }
+
+    /// Mueve o estira la zona (el raton en el anillo).
+    private func arrastrar(_ asa: AsaMarco, desde inicial: CGRect, dx: CGFloat, dy: CGFloat) {
+        let nueva = MarcoAjustable.limitar(MarcoAjustable.aplicar(asa, a: inicial, dx: dx, dy: dy),
+                                           a: CGRect(origin: .zero, size: pantalla.size))
+        guard nueva != zona.rect else { return }
+        zona.rect = nueva
+        let fuera = MarcoDeZona.marcoGlobal(nueva, pantalla: pantalla)
+            .insetBy(dx: -MarcoAjustable.margen, dy: -MarcoAjustable.margen)
+        borde.setFrame(fuera, display: true)
+        borde.contentView?.needsDisplay = true
+        barra.setFrameOrigin(MarcoDeZona.origenBarra(tam: barra.frame.size, fuera: fuera, pantalla: pantalla, visible: visible))
+        alCambiar?(zona)
+    }
+
+    /// Deja de moverse: desde aqui el raton atraviesa el marco entero
+    /// (grabando no se cambia la zona).
+    func fijar() {
+        borde.ignoresMouseEvents = true
+        (borde.contentView as? VistaMarco)?.ajustable = false
+        NSCursor.arrow.set()
     }
 
     /// El panel de la barra (para darle el teclado).
@@ -227,7 +278,12 @@ final class MarcoDeZona {
 
     /// Rojo (grabando) o azul (esperando).
     func ponerRojo(_ rojo: Bool) {
-        borde.contentView?.layer?.borderColor = (rojo ? NSColor.systemRed : NSColor.controlAccentColor).cgColor
+        ponerColor(rojo ? .systemRed : .controlAccentColor)
+    }
+
+    /// El color del borde (rojo apagado en pausa).
+    func ponerColor(_ color: NSColor) {
+        (borde.contentView as? VistaMarco)?.color = color
     }
 
     /// Cambia lo de dentro de la barra (y su tamano, sin moverla de su
@@ -260,6 +316,110 @@ final class MarcoDeZona {
         barra.orderOut(nil)
         borde.close()
         barra.close()
+    }
+}
+
+/// El borde del marco, pintado por FUERA de la zona. Ajustable, el anillo
+/// de agarre lleva un relleno casi transparente para recibir el raton (el
+/// centro, transparente del todo, lo deja pasar) y cambia el cursor segun
+/// lo que se agarre.
+final class VistaMarco: NSView {
+    let margen: CGFloat
+    var ajustable: Bool {
+        didSet { needsDisplay = true; window?.invalidateCursorRects(for: self) }
+    }
+    var color: NSColor = .controlAccentColor {
+        didSet { needsDisplay = true }
+    }
+    /// `(asa, zona al empezar, dx, dy)`, con y hacia ABAJO.
+    var alArrastrar: ((AsaMarco, CGRect, CGFloat, CGFloat) -> Void)?
+    var zonaActual: (() -> CGRect)?
+
+    private var agarre: (asa: AsaMarco, raton: CGPoint, zona: CGRect)?
+
+    init(frame: NSRect, margen: CGFloat, ajustable: Bool) {
+        self.margen = margen
+        self.ajustable = ajustable
+        super.init(frame: frame)
+        autoresizingMask = [.width, .height]
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) { fatalError() }
+
+    /// La zona dentro de la vista.
+    private var dentro: NSRect { bounds.insetBy(dx: margen, dy: margen) }
+
+    override func draw(_ dirtyRect: NSRect) {
+        if ajustable {
+            let anillo = NSBezierPath(rect: bounds)
+            anillo.append(NSBezierPath(rect: dentro).reversed)
+            NSColor(white: 0, alpha: 0.012).setFill()
+            anillo.fill()
+        }
+        let g = MarcoAjustable.grosor
+        let linea = NSBezierPath(rect: dentro.insetBy(dx: -g / 2, dy: -g / 2))
+        linea.lineWidth = g
+        color.setStroke()
+        linea.stroke()
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    /// Lo agarrado bajo un punto de la vista (origen abajo).
+    private func asa(en p: NSPoint) -> AsaMarco? {
+        guard ajustable else { return nil }
+        let arriba = CGPoint(x: p.x, y: bounds.height - p.y)
+        let zona = CGRect(x: margen, y: margen, width: bounds.width - 2 * margen, height: bounds.height - 2 * margen)
+        return MarcoAjustable.asa(en: arriba, zona: zona)
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        guard agarre == nil else { return }
+        cursor(asa(en: convert(event.locationInWindow, from: nil))).set()
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        if agarre == nil { NSCursor.arrow.set() }
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        guard let a = asa(en: convert(event.locationInWindow, from: nil)), let zona = zonaActual?() else { return }
+        agarre = (a, NSEvent.mouseLocation, zona)
+        if a == .mover { NSCursor.closedHand.set() }
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard let agarre, ajustable else { return }
+        let ahora = NSEvent.mouseLocation
+        alArrastrar?(agarre.asa, agarre.zona, ahora.x - agarre.raton.x, -(ahora.y - agarre.raton.y))
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        agarre = nil
+        cursor(asa(en: convert(event.locationInWindow, from: nil))).set()
+    }
+
+    private func cursor(_ asa: AsaMarco?) -> NSCursor {
+        switch asa {
+        case nil: .arrow
+        case .mover: .openHand
+        case .norte: .frameResize(position: .top, directions: .all)
+        case .sur: .frameResize(position: .bottom, directions: .all)
+        case .este: .frameResize(position: .right, directions: .all)
+        case .oeste: .frameResize(position: .left, directions: .all)
+        case .norEste: .frameResize(position: .topRight, directions: .all)
+        case .norOeste: .frameResize(position: .topLeft, directions: .all)
+        case .surEste: .frameResize(position: .bottomRight, directions: .all)
+        case .surOeste: .frameResize(position: .bottomLeft, directions: .all)
+        }
     }
 }
 

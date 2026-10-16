@@ -145,14 +145,16 @@ public final class GrabadorGif: ObservableObject {
     /// Esc, que se mira aunque el foco este en la app que se graba, cierra
     /// sin grabar antes de empezar y para (guardando) despues.
     public func empezar(_ zona: ZonaDeGrabacion) async {
-        guard !enSesion, !grabando, flujo == nil else { return }
+        guard !enSesion, !grabando, flujo == nil, !GrabadorPantalla.compartido.enSesion else { return }
         let ajustes = AjustesCaptura.actuales()
         ritmo = AjustesCaptura.ritmoGif(cercaDe: ajustes.gifPorSegundo)
         retardo = ajustes.gifRetardo
         self.zona = zona
         enSesion = true
-        marco = MarcoDeZona.abrir(zona: zona, rojo: false, contenido: barraDeEspera())
+        // El marco se mueve y se estira con el raton hasta grabar (D7).
+        marco = MarcoDeZona.abrir(zona: zona, rojo: false, contenido: barraDeEspera(), ajustable: true)
         guard marco != nil else { return cerrarSesion() }
+        marco?.alCambiar = { [weak self] in self?.zona = $0 }
         vigilarEsc()
     }
 
@@ -277,6 +279,9 @@ public final class GrabadorGif: ObservableObject {
 
     private func arrancar(_ zona: ZonaDeGrabacion) async {
         guard enSesion, !grabando, flujo == nil else { return }
+        // La de ahora: el marco pudo moverse durante la cuenta atras.
+        let zona = self.zona ?? zona
+        marco?.fijar()
         do {
             let contenido = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
             guard let pantalla = contenido.displays.first(where: { $0.displayID == zona.pantalla }) else {

@@ -79,7 +79,12 @@ public enum ComandosApp {
         atajos.poner(.salir) { NSApp.terminate(nil) }
         atajos.poner(.sincronizar) { abrir("sincronizar") }
         atajos.poner(.buscar) { abrir(IdVentana.buscar) }
-        atajos.poner(.grabarPantalla) { grabarOParar() }
+        atajos.poner(.grabarPantalla) {
+            // Con el marco de la grabacion puesto, el mismo atajo empieza
+            // (o se salta la cuenta atras) y luego para (D7).
+            let grabador = GrabadorPantalla.compartido
+            if grabador.enSesion { grabador.alternar() } else { grabarOParar() }
+        }
         // Una region guardada se captura y se copia, sin superposicion.
         atajos.alCapturarRegion = { region in
             let alto = NSScreen.screens.first?.frame.height ?? 0
