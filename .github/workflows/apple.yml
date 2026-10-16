@@ -2,8 +2,9 @@ name: Apple
 
 # PixPin para Mac (apple/): compila el nucleo de Rust como xcframework,
 # compila y prueba la app de Swift en un Mac de verdad y deja la app lista
-# para descargar (Actions > esta ejecucion > Artifacts > PixPin-mac; con
-# sus extensiones, PixPin-mac-extensiones).
+# para descargar (Actions > esta ejecucion > Artifacts >
+# PixPin-mac-extensiones: la app completa). La app sin extensiones
+# (`herramientas/app.sh spm`) sigue sirviendo en un Mac sin XcodeGen.
 on:
   push:
     branches: [main, "ccr-**"]
@@ -39,8 +40,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: apple
-          # El xcframework tarda ~10 min de cero: que se guarde aunque luego
-          # fallen las pruebas de Swift, que es lo que mas se itera.
+          # Si hay que recompilar el nucleo, que lo ya compilado se guarde
+          # aunque luego fallen las pruebas de Swift.
           cache-on-failure: true
       - name: Versiones
         run: |
@@ -48,7 +49,17 @@ jobs:
           xcodebuild -version
           swift --version
           rustup show active-toolchain || true
+      # El nucleo ya compilado se guarda y se reutiliza mientras no cambie
+      # nada de Rust: compilarlo son ~17 de los ~27 minutos, y casi todos los
+      # cambios son de Swift.
+      - name: Nucleo ya compilado (si no cambio)
+        id: nucleo
+        uses: actions/cache/restore@v4
+        with:
+          path: apple/PixPinCore/PixPinCoreFFI.xcframework
+          key: xcframework-ffi-rapido-${{ hashFiles('apple/nucleo/**', 'apple/Cargo.lock', 'apple/Cargo.toml', 'apple/rust-toolchain.toml', 'apple/herramientas/xcframework.sh') }}
       - name: Nucleo de Rust -> PixPinCoreFFI.xcframework
+        if: steps.nucleo.outputs.cache-hit != 'true'
         # Solo el Mac (Apple Silicon e Intel) y con el perfil rapido: la app
         # de iPad/iPhone aun no existe y el LTO grueso de 4 plataformas
         # pasaba de media hora.
@@ -56,7 +67,15 @@ jobs:
           PIXPIN_PERFIL: ffi-rapido
           PIXPIN_OBJETIVOS: aarch64-apple-darwin x86_64-apple-darwin
         run: herramientas/xcframework.sh
+      # Se guarda ya, aunque luego fallen las pruebas de Swift.
+      - name: Guardar el nucleo compilado
+        if: steps.nucleo.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: apple/PixPinCore/PixPinCoreFFI.xcframework
+          key: ${{ steps.nucleo.outputs.cache-primary-key }}
       - name: Los enlaces de Swift versionados siguen al dia
+        if: steps.nucleo.outputs.cache-hit != 'true'
         run: |
           if ! git diff --quiet -- PixPinCore/Sources; then
             echo "::warning::Los enlaces de Swift cambiaron al regenerarlos; hay que versionar PixPinCore/Sources/PixPinCore/pixpin_nucleo.swift"
@@ -65,20 +84,9 @@ jobs:
       - name: Pruebas de la app (swift test)
         working-directory: apple/app
         run: swift test
-      # La app de siempre (SwiftPM): es el artefacto «PixPin-mac» y se sube
-      # antes del montaje con Xcode, para que este aunque aquel falle.
-      - name: Montar PixPin.app (SwiftPM)
-        run: herramientas/app.sh spm
-      - name: Subir la app
-        uses: actions/upload-artifact@v4
-        with:
-          name: PixPin-mac
-          path: apple/app/dist/PixPin-mac.zip
-          if-no-files-found: error
-          retention-days: 30
       # La app con sus extensiones (App Intents, Compartir, Quick Look): las
       # extensiones solo las sabe hacer Xcode, con el proyecto que genera
-      # XcodeGen desde apple/xcode/project.yml. Tiene que pasar tambien.
+      # XcodeGen desde apple/xcode/project.yml.
       - name: XcodeGen
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"

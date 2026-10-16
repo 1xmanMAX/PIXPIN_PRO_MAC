@@ -130,12 +130,13 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
   - [ ] Buscar en todo usa un recorrido propio (`src/buscar.rs`): pasar al de `pixpin-lanzador`
         cuando ese crate compile fuera de Windows.
   - [x] CI: `.github/workflows/apple.yml` (macOS 15, Xcode 16.4) compila el xcframework, pasa
-        `swift test` (190 pruebas, 15-oct) y sube `PixPin.app` universal como artefacto
-        «PixPin-mac» (SwiftPM) y, con XcodeGen, «PixPin-mac-extensiones» (App Intents,
+        `swift test` (190 pruebas, 15-oct) y sube `PixPin.app` universal, con XcodeGen,
+        como artefacto «PixPin-mac-extensiones» (App Intents,
         Compartir y Quick Look, firmadas de dentro afuera). Los binarios van sin simbolos y el
         núcleo (`PixPinCore`, dinámico) va **una sola vez** en `Contents/Frameworks` para la
         app y sus extensiones: 102 MB (42 MB en zip) con todo. La CI abre la app y comprueba
-        que sigue viva a los 6 s.
+        que sigue viva a los 6 s. El núcleo compilado se guarda en la caché de la CI y solo se
+        recompila cuando cambia algo de Rust: con cambios solo de Swift, la CI tarda ~7 min.
 - [ ] Fase 2: app de Mac en SwiftUI/AppKit (`apple/app/`). Hecho y en verde en la CI:
   - [x] Barra de menús, ventana de Proyectos, chat por páginas, notas, crear proyecto.
   - [x] Lector del búfer del lienzo y pintor con Core Graphics.
@@ -233,7 +234,7 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         `~/Library/Application Support/PixPinMax/`) y **vista previa de Quick Look** de
         `.excalidraw` y `.pixpin2d` (el mismo lector y pintor del lienzo). La CI la monta con
         `herramientas/app.sh xcode` (artefacto «PixPin-mac-extensiones»); `app.sh spm` sigue
-        siendo la app sola de SwiftPM (artefacto «PixPin-mac»). Fuera de `apple/app` para
+        siendo la app sola de SwiftPM (en un Mac sin XcodeGen; la CI ya no la sube). Fuera de `apple/app` para
         que el paquete local no contenga al proyecto.
   - [ ] Barrer las capturas caducadas a la Papelera del Mac (`FileManager.trashItem`).
   - [x] Documentos (`app/Sources/PixPinKit/Documentos/`, falta verlo en verde en la CI):
