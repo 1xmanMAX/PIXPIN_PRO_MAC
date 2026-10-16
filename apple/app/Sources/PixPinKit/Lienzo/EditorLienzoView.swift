@@ -501,6 +501,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             modelo.borrarSeleccion()
             return
         case 53: // Esc: suelta lo elegido / lo que iba a medias
+            modelo.desplegado = nil
             reloj.soltar()
             rayaDeCalibrar = nil
             let v = editor.puntero(fase: .cancelar, x: 0, y: 0, presion: nil, modificadores: 0,
