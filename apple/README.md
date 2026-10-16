@@ -161,9 +161,13 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         abiertos»** por colores (⌃2 mostrar/ocultar, cerrar todos con deshacer), **guías azules**
         e imán al soltar, opacidad con Mayús/Opción + rueda, **anotar** (lápiz, flecha,
         rectángulo, texto, marcador; capa o fijado en la foto) y **pines de herramienta**: nota
-        Markdown y las mini-apps tareas, contador, ruleta y gastos (documento de
-        `pixpin_proyecto::mini` por `pixpin-nucleo/src/miniapps.rs`, guardado en un mensaje
-        `MINIAPP` de «Mensajes guardados»). Faltan cronómetro, temporizador y alarma en pin.
+        Markdown y las mini-apps tareas, contador, ruleta, gastos, **cronómetro, temporizador y
+        alarma** (documento de `pixpin_proyecto::mini` por `pixpin-nucleo/src/miniapps.rs` y
+        `mini_tiempos.rs`, guardado en un mensaje `MINIAPP` de «Mensajes guardados»). Los relojes
+        guardan el instante y se calculan con la hora de la pared (bien aunque el Mac duerma);
+        temporizador y alarma avisan con el pin cerrado (`Pines/AvisosMini.swift`: temporizador
+        de pared, ventana flotante con sonido y notificación del sistema `mini:<id>`, reprogramados
+        al arrancar y tras sincronizar, como el vigía de recordatorios de Windows).
   - [x] Adjuntos en el chat: miniaturas con ImageIO y caché con tope, Quick Look, soltar y ⌘V.
   - [x] Sincronizar por la Wi‑Fi (Bonjour) con Windows y Android.
   - [x] Notas de voz (`app/Sources/PixPinKit/Voz/`, en verde en la CI):

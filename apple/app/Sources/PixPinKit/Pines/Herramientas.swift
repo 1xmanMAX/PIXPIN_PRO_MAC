@@ -1,6 +1,7 @@
 // Los pines de herramienta: una nota en Markdown y las mini-apps del movil
-// (tareas, contador, ruleta, gastos), sueltas en el escritorio (lo que en
-// Windows es `pixpin/src/pines/herramienta.rs`).
+// (tareas, contador, ruleta, gastos; los tres relojes en `RelojesPin.swift`),
+// sueltas en el escritorio (lo que en Windows es
+// `pixpin/src/pines/herramienta.rs`).
 //
 // **No hay formato nuevo.** El documento es el mismo texto que viaja por la
 // sincronizacion (`pixpin_proyecto::mini`) y cada toque lo reescribe el
@@ -38,6 +39,9 @@ final class DocumentoMini: ObservableObject {
     private var cola: Task<Void, Never>?
     /// Avisa de que cambio (para el panel de pines abiertos).
     var alCambiar: (() -> Void)?
+    /// El identificador de su aviso (temporizador y alarma): el de Windows y
+    /// el movil (`mini:<id del mensaje>`), o uno suelto si vive en memoria.
+    let idAviso: String
 
     init(miniapp: String, documento: String, nucleo: Nucleo?, chat: String?, mensaje: String?) {
         self.miniapp = miniapp
@@ -46,6 +50,7 @@ final class DocumentoMini: ObservableObject {
         self.chat = chat
         self.mensaje = mensaje
         guardado = documento
+        idAviso = mensaje.map { AvisosMini.prefijo + $0 } ?? "local:\(UUID().uuidString)"
     }
 
     var titulo: String { miniTitulo(documento: documento) }
@@ -79,6 +84,7 @@ final class DocumentoMini: ObservableObject {
         guard nuevo != documento else { return true }
         documento = nuevo
         alCambiar?()
+        AvisosMini.compartido.avisar(de: self)
         guardar(nuevo)
         return true
     }
@@ -107,6 +113,7 @@ final class DocumentoMini: ObservableObject {
                 self.guardado = actual
                 self.documento = actual
                 self.alCambiar?()
+                AvisosMini.compartido.avisar(de: self)
             }
         }
     }
@@ -166,6 +173,9 @@ final class HerramientaPin {
             case "contador": raiz = AnyView(VistaContadorPin(doc: d))
             case "ruleta": raiz = AnyView(VistaRuletaPin(doc: d))
             case "gastos": raiz = AnyView(VistaGastosPin(doc: d))
+            case "cronometro": raiz = AnyView(VistaCronometroPin(doc: d))
+            case "temporizador": raiz = AnyView(VistaTemporizadorPin(doc: d))
+            case "alarma": raiz = AnyView(VistaAlarmaPin(doc: d))
             default: raiz = AnyView(VistaTextoMini(doc: d))
             }
         }
@@ -239,7 +249,7 @@ struct VistaNotaPin: View {
 }
 
 /// La cabecera comun: el titulo de la mini-app.
-private struct CabeceraMini: View {
+struct CabeceraMini: View {
     @ObservedObject var doc: DocumentoMini
     var body: some View {
         Text(doc.titulo.isEmpty ? DocumentoMini.nombre(doc.miniapp) : doc.titulo)

@@ -82,7 +82,8 @@ public final class GestorPines {
         abrir(.herramienta(HerramientaPin(.nota(ModeloNota(texto: texto)))), marco: marco)
     }
 
-    /// Una mini-app nueva (`tareas`, `contador`, `ruleta`, `gastos`...): se
+    /// Una mini-app nueva (`tareas`, `contador`, `ruleta`, `gastos`,
+    /// `cronometro`, `temporizador`, `alarma`): se
     /// crea en «Mensajes guardados» (asi se guarda y viaja al movil) y se
     /// pinea. Sin nucleo, vive solo en memoria.
     public func pinearMiniapp(_ miniapp: String, titulo: String = "") {

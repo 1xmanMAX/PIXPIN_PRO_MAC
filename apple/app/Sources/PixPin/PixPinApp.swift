@@ -140,7 +140,12 @@ final class EstadoApp: ObservableObject {
         atajoCaptura = AtajoDeCaptura { capturador.capturar() }
         ajustes = almacen.map { ModeloAjustes(nucleo: $0.nucleo, sincro: sincro) }
         if let almacen, let sincro {
-            sincro.alTraerCambios = { [weak almacen] in Task { await almacen?.cargarChats() } }
+            sincro.alTraerCambios = { [weak almacen] in
+                Task { await almacen?.cargarChats() }
+                // Un temporizador o una alarma puestos en otro aparato
+                // tambien suenan aqui.
+                AvisosMini.compartido.reprogramar()
+            }
             sincro.arrancar()
         }
         // Lo que se hace con la zona elegida: pinearla o sacar su texto.
@@ -156,6 +161,9 @@ final class EstadoApp: ObservableObject {
         }
         capturador.alPinEnVivo = pinEnVivo
         GestorPines.compartido.nucleo = almacen?.nucleo
+        // Los temporizadores y alarmas de las mini-apps avisan a su hora,
+        // con su pin abierto o no (`AvisosMini`).
+        if let nucleo = almacen?.nucleo { AvisosMini.compartido.vigilar(nucleo: nucleo) }
         GestorPines.compartido.activarAtajoOcultar()
         capturador.alSacarTexto = { imagen in
             Task {
@@ -323,6 +331,9 @@ struct MenuPrincipal: View {
             Button("Contador") { GestorPines.compartido.pinearMiniapp("contador") }
             Button("Ruleta") { GestorPines.compartido.pinearMiniapp("ruleta") }
             Button("Gastos") { GestorPines.compartido.pinearMiniapp("gastos") }
+            Button("Cronómetro") { GestorPines.compartido.pinearMiniapp("cronometro") }
+            Button("Temporizador") { GestorPines.compartido.pinearMiniapp("temporizador") }
+            Button("Alarma") { GestorPines.compartido.pinearMiniapp("alarma") }
         }
         Button("Pines abiertos…") { GestorPines.compartido.mostrarPanelAbiertos() }
         Button("Mostrar u ocultar los pines") { GestorPines.compartido.alternarTodos() }

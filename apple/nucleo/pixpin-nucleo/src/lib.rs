@@ -67,6 +67,7 @@ pub mod hojas;
 pub mod lecciones;
 pub mod lienzo;
 pub mod llavero;
+pub mod mini_tiempos;
 pub mod miniapps;
 pub mod modelos3d;
 pub mod notas;

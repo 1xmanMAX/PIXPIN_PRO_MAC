@@ -3741,6 +3741,17 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func buscar(consulta: String, desde: UInt32, cuantos: UInt32, busqueda: Busqueda?) throws  -> PaginaBusqueda
     
     /**
+     * **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
+     * Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
+     * **la marca de cada uno** para sincronizar (sin ella, la vuelta
+     * siguiente los traeria otra vez del otro aparato) y se borra el
+     * fichero de los que lo llevan (archivo, foto, voz). Un lienzo o una
+     * pagina NO se borran: son hojas del proyecto y otras cosas pueden
+     * apuntar a ellas. Devuelve cuantos se quitaron. Bloqueante.
+     */
+    func borrarMensajes(chat: String, ids: [String]) throws  -> UInt32
+    
+    /**
      * «Mensajes guardados», creandolo si no esta.
      */
     func chatGuardados() throws  -> FichaChat
@@ -4074,6 +4085,17 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * lo que apunta la `referencia` de un mensaje `DIBUJO`).
      */
     func abrirLienzo(chat: String, dibujo: String) throws  -> Lienzo
+    
+    /**
+     * **Los avisos pendientes** de los temporizadores y alarmas de todos los
+     * chats, ordenados por hora: lo que hay que volver a poner al arrancar y
+     * tras sincronizar (un temporizador puesto en el movil llega como texto
+     * de un mensaje y, sin esto, no sonaria en el Mac).
+     *
+     * Solo se leen las lineas que pueden ser uno (llevan su palabra), y un
+     * cuaderno ilegible se salta en vez de tumbar la lista.
+     */
+    func avisosMiniapps(desfaseLocalMs: Int64) throws  -> [AvisoMini]
     
     /**
      * **Crea una mini-app en un chat**: un mensaje `MINIAPP` con su
@@ -4507,6 +4529,26 @@ open func buscar(consulta: String, desde: UInt32, cuantos: UInt32, busqueda: Bus
         FfiConverterUInt32.lower(desde),
         FfiConverterUInt32.lower(cuantos),
         FfiConverterOptionTypeBusqueda.lower(busqueda),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
+     * Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
+     * **la marca de cada uno** para sincronizar (sin ella, la vuelta
+     * siguiente los traeria otra vez del otro aparato) y se borra el
+     * fichero de los que lo llevan (archivo, foto, voz). Un lienzo o una
+     * pagina NO se borran: son hojas del proyecto y otras cosas pueden
+     * apuntar a ellas. Devuelve cuantos se quitaron. Bloqueante.
+     */
+open func borrarMensajes(chat: String, ids: [String])throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_borrar_mensajes(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterSequenceString.lower(ids),uniffiCallStatus
     )
 })
 }
@@ -5250,6 +5292,25 @@ open func abrirLienzo(chat: String, dibujo: String)throws  -> Lienzo  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterString.lower(dibujo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los avisos pendientes** de los temporizadores y alarmas de todos los
+     * chats, ordenados por hora: lo que hay que volver a poner al arrancar y
+     * tras sincronizar (un temporizador puesto en el movil llega como texto
+     * de un mensaje y, sin esto, no sonaria en el Mac).
+     *
+     * Solo se leen las lineas que pueden ser uno (llevan su palabra), y un
+     * cuaderno ilegible se salta en vez de tumbar la lista.
+     */
+open func avisosMiniapps(desfaseLocalMs: Int64)throws  -> [AvisoMini]  {
+    return try  FfiConverterSequenceTypeAvisoMini.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_avisos_miniapps(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseLocalMs),uniffiCallStatus
     )
 })
 }
@@ -6943,6 +7004,77 @@ public func FfiConverterTypeAjustesPdf_lower(_ value: AjustesPdf) -> RustBuffer 
 
 
 /**
+ * Una alarma.
+ */
+public struct AlarmaMini: Equatable, Hashable {
+    public var hora: UInt8
+    public var minuto: UInt8
+    public var activa: Bool
+    /**
+     * `7:05`: la hora sin rellenar y el minuto con dos cifras, como el movil.
+     */
+    public var tablero: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(hora: UInt8, minuto: UInt8, activa: Bool, 
+        /**
+         * `7:05`: la hora sin rellenar y el minuto con dos cifras, como el movil.
+         */tablero: String) {
+        self.hora = hora
+        self.minuto = minuto
+        self.activa = activa
+        self.tablero = tablero
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AlarmaMini: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAlarmaMini: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AlarmaMini {
+        return
+            try AlarmaMini(
+                hora: FfiConverterUInt8.read(from: &buf), 
+                minuto: FfiConverterUInt8.read(from: &buf), 
+                activa: FfiConverterBool.read(from: &buf), 
+                tablero: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AlarmaMini, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.hora, into: &buf)
+        FfiConverterUInt8.write(value.minuto, into: &buf)
+        FfiConverterBool.write(value.activa, into: &buf)
+        FfiConverterString.write(value.tablero, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAlarmaMini_lift(_ buf: RustBuffer) throws -> AlarmaMini {
+    return try FfiConverterTypeAlarmaMini.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAlarmaMini_lower(_ value: AlarmaMini) -> RustBuffer {
+    return FfiConverterTypeAlarmaMini.lower(value)
+}
+
+
+/**
  * El ancho de una columna puesto a mano, en pixeles.
  */
 public struct AnchoColumna: Equatable, Hashable {
@@ -7249,6 +7381,99 @@ public func FfiConverterTypeArchivoLlegado_lift(_ buf: RustBuffer) throws -> Arc
 #endif
 public func FfiConverterTypeArchivoLlegado_lower(_ value: ArchivoLlegado) -> RustBuffer {
     return FfiConverterTypeArchivoLlegado.lower(value)
+}
+
+
+/**
+ * Un aviso pendiente de una mini-app de algun chat.
+ */
+public struct AvisoMini: Equatable, Hashable {
+    /**
+     * `mini:` + el id del mensaje: el identificador del aviso.
+     */
+    public var id: String
+    public var chat: String
+    public var mensaje: String
+    public var miniapp: String
+    /**
+     * Lo que dice el aviso: el titulo del documento, o el nombre del
+     * mensaje si no lleva (vacio si tampoco: Swift pone el de la mini-app).
+     */
+    public var texto: String
+    /**
+     * Cuando, en milisegundos UTC.
+     */
+    public var cuandoMs: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `mini:` + el id del mensaje: el identificador del aviso.
+         */id: String, chat: String, mensaje: String, miniapp: String, 
+        /**
+         * Lo que dice el aviso: el titulo del documento, o el nombre del
+         * mensaje si no lleva (vacio si tampoco: Swift pone el de la mini-app).
+         */texto: String, 
+        /**
+         * Cuando, en milisegundos UTC.
+         */cuandoMs: Int64) {
+        self.id = id
+        self.chat = chat
+        self.mensaje = mensaje
+        self.miniapp = miniapp
+        self.texto = texto
+        self.cuandoMs = cuandoMs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AvisoMini: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAvisoMini: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AvisoMini {
+        return
+            try AvisoMini(
+                id: FfiConverterString.read(from: &buf), 
+                chat: FfiConverterString.read(from: &buf), 
+                mensaje: FfiConverterString.read(from: &buf), 
+                miniapp: FfiConverterString.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf), 
+                cuandoMs: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AvisoMini, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterString.write(value.mensaje, into: &buf)
+        FfiConverterString.write(value.miniapp, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterInt64.write(value.cuandoMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAvisoMini_lift(_ buf: RustBuffer) throws -> AvisoMini {
+    return try FfiConverterTypeAvisoMini.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAvisoMini_lower(_ value: AvisoMini) -> RustBuffer {
+    return FfiConverterTypeAvisoMini.lower(value)
 }
 
 
@@ -8559,6 +8784,101 @@ public func FfiConverterTypeCotaPlano_lift(_ buf: RustBuffer) throws -> CotaPlan
 #endif
 public func FfiConverterTypeCotaPlano_lower(_ value: CotaPlano) -> RustBuffer {
     return FfiConverterTypeCotaPlano.lower(value)
+}
+
+
+/**
+ * Un cronometro mirado en un instante.
+ */
+public struct CronometroMini: Equatable, Hashable {
+    public var corriendo: Bool
+    /**
+     * Lo que lleva en ese instante, en milisegundos.
+     */
+    public var transcurrido: Int64
+    /**
+     * El numero grande, ya escrito (`1:05,3`, `12:04:05`).
+     */
+    public var tablero: String
+    /**
+     * Las vueltas en el orden del documento (la primera, la primera),
+     * ya escritas. El pin las ensena del reves, la ultima arriba.
+     */
+    public var vueltas: [String]
+    /**
+     * Si «Reiniciar» tiene algo que reiniciar.
+     */
+    public var seReinicia: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(corriendo: Bool, 
+        /**
+         * Lo que lleva en ese instante, en milisegundos.
+         */transcurrido: Int64, 
+        /**
+         * El numero grande, ya escrito (`1:05,3`, `12:04:05`).
+         */tablero: String, 
+        /**
+         * Las vueltas en el orden del documento (la primera, la primera),
+         * ya escritas. El pin las ensena del reves, la ultima arriba.
+         */vueltas: [String], 
+        /**
+         * Si «Reiniciar» tiene algo que reiniciar.
+         */seReinicia: Bool) {
+        self.corriendo = corriendo
+        self.transcurrido = transcurrido
+        self.tablero = tablero
+        self.vueltas = vueltas
+        self.seReinicia = seReinicia
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CronometroMini: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCronometroMini: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CronometroMini {
+        return
+            try CronometroMini(
+                corriendo: FfiConverterBool.read(from: &buf), 
+                transcurrido: FfiConverterInt64.read(from: &buf), 
+                tablero: FfiConverterString.read(from: &buf), 
+                vueltas: FfiConverterSequenceString.read(from: &buf), 
+                seReinicia: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CronometroMini, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.corriendo, into: &buf)
+        FfiConverterInt64.write(value.transcurrido, into: &buf)
+        FfiConverterString.write(value.tablero, into: &buf)
+        FfiConverterSequenceString.write(value.vueltas, into: &buf)
+        FfiConverterBool.write(value.seReinicia, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCronometroMini_lift(_ buf: RustBuffer) throws -> CronometroMini {
+    return try FfiConverterTypeCronometroMini.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCronometroMini_lower(_ value: CronometroMini) -> RustBuffer {
+    return FfiConverterTypeCronometroMini.lower(value)
 }
 
 
@@ -10101,6 +10421,63 @@ public func FfiConverterTypeHerramientaUsada_lift(_ buf: RustBuffer) throws -> H
 #endif
 public func FfiConverterTypeHerramientaUsada_lower(_ value: HerramientaUsada) -> RustBuffer {
     return FfiConverterTypeHerramientaUsada.lower(value)
+}
+
+
+/**
+ * Una hora tecleada.
+ */
+public struct HoraMini: Equatable, Hashable {
+    public var hora: UInt8
+    public var minuto: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(hora: UInt8, minuto: UInt8) {
+        self.hora = hora
+        self.minuto = minuto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HoraMini: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHoraMini: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HoraMini {
+        return
+            try HoraMini(
+                hora: FfiConverterUInt8.read(from: &buf), 
+                minuto: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HoraMini, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.hora, into: &buf)
+        FfiConverterUInt8.write(value.minuto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHoraMini_lift(_ buf: RustBuffer) throws -> HoraMini {
+    return try FfiConverterTypeHoraMini.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHoraMini_lower(_ value: HoraMini) -> RustBuffer {
+    return FfiConverterTypeHoraMini.lower(value)
 }
 
 
@@ -13579,6 +13956,109 @@ public func FfiConverterTypeTarea_lower(_ value: Tarea) -> RustBuffer {
 
 
 /**
+ * Un temporizador mirado en un instante.
+ */
+public struct TemporizadorMini: Equatable, Hashable {
+    public var corriendo: Bool
+    /**
+     * Lo que dura, en milisegundos.
+     */
+    public var duracion: Int64
+    /**
+     * Lo que falta (cero si ya paso su hora).
+     */
+    public var restante: Int64
+    /**
+     * Cuando suena, en milisegundos UTC, si esta en marcha.
+     */
+    public var finEn: Int64?
+    /**
+     * La cuenta atras sin decimas (`4:59`).
+     */
+    public var tablero: String
+    /**
+     * Llego a cero estando en marcha: el tablero en rojo.
+     */
+    public var vencido: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(corriendo: Bool, 
+        /**
+         * Lo que dura, en milisegundos.
+         */duracion: Int64, 
+        /**
+         * Lo que falta (cero si ya paso su hora).
+         */restante: Int64, 
+        /**
+         * Cuando suena, en milisegundos UTC, si esta en marcha.
+         */finEn: Int64?, 
+        /**
+         * La cuenta atras sin decimas (`4:59`).
+         */tablero: String, 
+        /**
+         * Llego a cero estando en marcha: el tablero en rojo.
+         */vencido: Bool) {
+        self.corriendo = corriendo
+        self.duracion = duracion
+        self.restante = restante
+        self.finEn = finEn
+        self.tablero = tablero
+        self.vencido = vencido
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TemporizadorMini: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTemporizadorMini: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TemporizadorMini {
+        return
+            try TemporizadorMini(
+                corriendo: FfiConverterBool.read(from: &buf), 
+                duracion: FfiConverterInt64.read(from: &buf), 
+                restante: FfiConverterInt64.read(from: &buf), 
+                finEn: FfiConverterOptionInt64.read(from: &buf), 
+                tablero: FfiConverterString.read(from: &buf), 
+                vencido: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TemporizadorMini, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.corriendo, into: &buf)
+        FfiConverterInt64.write(value.duracion, into: &buf)
+        FfiConverterInt64.write(value.restante, into: &buf)
+        FfiConverterOptionInt64.write(value.finEn, into: &buf)
+        FfiConverterString.write(value.tablero, into: &buf)
+        FfiConverterBool.write(value.vencido, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTemporizadorMini_lift(_ buf: RustBuffer) throws -> TemporizadorMini {
+    return try FfiConverterTypeTemporizadorMini.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTemporizadorMini_lower(_ value: TemporizadorMini) -> RustBuffer {
+    return FfiConverterTypeTemporizadorMini.lower(value)
+}
+
+
+/**
  * Un texto y lo elegido en el.
  */
 public struct TextoElegido: Equatable, Hashable {
@@ -13782,6 +14262,111 @@ public func FfiConverterTypeTramoMd_lower(_ value: TramoMd) -> RustBuffer {
 
 
 /**
+ * Lo que se le hace a una alarma.
+ */
+
+public enum AccionAlarma: Equatable, Hashable {
+    
+    /**
+     * Encenderla o apagarla.
+     */
+    case activar
+    /**
+     * Mover la hora (de las 0 hacia atras se va a las 23).
+     */
+    case horas(horas: Int64
+    )
+    /**
+     * Mover el minuto (sin tocar la hora, como el movil).
+     */
+    case minutos(minutos: Int64
+    )
+    /**
+     * La hora tecleada: se pone y **se enciende**.
+     */
+    case hora(hora: UInt8, minuto: UInt8
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AccionAlarma: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAccionAlarma: FfiConverterRustBuffer {
+    typealias SwiftType = AccionAlarma
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccionAlarma {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .activar
+        
+        case 2: return .horas(horas: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 3: return .minutos(minutos: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 4: return .hora(hora: try FfiConverterUInt8.read(from: &buf), minuto: try FfiConverterUInt8.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AccionAlarma, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .activar:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .horas(horas):
+            writeInt(&buf, Int32(2))
+            FfiConverterInt64.write(horas, into: &buf)
+            
+        
+        case let .minutos(minutos):
+            writeInt(&buf, Int32(3))
+            FfiConverterInt64.write(minutos, into: &buf)
+            
+        
+        case let .hora(hora,minuto):
+            writeInt(&buf, Int32(4))
+            FfiConverterUInt8.write(hora, into: &buf)
+            FfiConverterUInt8.write(minuto, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccionAlarma_lift(_ buf: RustBuffer) throws -> AccionAlarma {
+    return try FfiConverterTypeAccionAlarma.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccionAlarma_lower(_ value: AccionAlarma) -> RustBuffer {
+    return FfiConverterTypeAccionAlarma.lower(value)
+}
+
+
+
+/**
  * Lo que se le hace a un contador.
  */
 
@@ -13866,6 +14451,190 @@ public func FfiConverterTypeAccionContador_lift(_ buf: RustBuffer) throws -> Acc
 #endif
 public func FfiConverterTypeAccionContador_lower(_ value: AccionContador) -> RustBuffer {
     return FfiConverterTypeAccionContador.lower(value)
+}
+
+
+
+/**
+ * Lo que se le hace a un cronometro.
+ */
+
+public enum AccionCronometro: Equatable, Hashable {
+    
+    /**
+     * El boton grande.
+     */
+    case arrancarOParar
+    case vuelta
+    case reiniciar
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AccionCronometro: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAccionCronometro: FfiConverterRustBuffer {
+    typealias SwiftType = AccionCronometro
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccionCronometro {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .arrancarOParar
+        
+        case 2: return .vuelta
+        
+        case 3: return .reiniciar
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AccionCronometro, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .arrancarOParar:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .vuelta:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .reiniciar:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccionCronometro_lift(_ buf: RustBuffer) throws -> AccionCronometro {
+    return try FfiConverterTypeAccionCronometro.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccionCronometro_lower(_ value: AccionCronometro) -> RustBuffer {
+    return FfiConverterTypeAccionCronometro.lower(value)
+}
+
+
+
+/**
+ * Lo que se le hace a un temporizador.
+ */
+
+public enum AccionTemporizador: Equatable, Hashable {
+    
+    /**
+     * El boton grande.
+     */
+    case arrancarOParar
+    /**
+     * Sumar o restar minutos a lo que dura. En marcha no hace nada.
+     */
+    case minutos(minutos: Int64
+    )
+    /**
+     * Lo que dura, tecleado de una vez. En marcha no hace nada.
+     */
+    case duracion(ms: Int64
+    )
+    /**
+     * Ponerlo en esos minutos y en marcha desde ya, este como este (la
+     * «pegatina de tiempo» de Windows, `arrancar_temporizador`).
+     */
+    case enMarchaCon(minutos: Int64
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AccionTemporizador: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAccionTemporizador: FfiConverterRustBuffer {
+    typealias SwiftType = AccionTemporizador
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccionTemporizador {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .arrancarOParar
+        
+        case 2: return .minutos(minutos: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 3: return .duracion(ms: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        case 4: return .enMarchaCon(minutos: try FfiConverterInt64.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AccionTemporizador, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .arrancarOParar:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .minutos(minutos):
+            writeInt(&buf, Int32(2))
+            FfiConverterInt64.write(minutos, into: &buf)
+            
+        
+        case let .duracion(ms):
+            writeInt(&buf, Int32(3))
+            FfiConverterInt64.write(ms, into: &buf)
+            
+        
+        case let .enMarchaCon(minutos):
+            writeInt(&buf, Int32(4))
+            FfiConverterInt64.write(minutos, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccionTemporizador_lift(_ buf: RustBuffer) throws -> AccionTemporizador {
+    return try FfiConverterTypeAccionTemporizador.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAccionTemporizador_lower(_ value: AccionTemporizador) -> RustBuffer {
+    return FfiConverterTypeAccionTemporizador.lower(value)
 }
 
 
@@ -17189,6 +17958,30 @@ fileprivate struct FfiConverterOptionTypeGiroRuleta: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeHoraMini: FfiConverterRustBuffer {
+    typealias SwiftType = HoraMini?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeHoraMini.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeHoraMini.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeInfoElemento3d: FfiConverterRustBuffer {
     typealias SwiftType = InfoElemento3d?
 
@@ -17524,6 +18317,31 @@ fileprivate struct FfiConverterSequenceTypeArchivoLlegado: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeArchivoLlegado.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAvisoMini: FfiConverterRustBuffer {
+    typealias SwiftType = [AvisoMini]
+
+    public static func write(_ value: [AvisoMini], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAvisoMini.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AvisoMini] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AvisoMini]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAvisoMini.read(from: &buf))
         }
         return seq
     }
@@ -18782,6 +19600,117 @@ public func instalarLlavero(llavero: LlaveroApp)throws   {try rustCallWithError(
     )
 }
 }
+public func miniAlarmaCambiar(documento: String, accion: AccionAlarma) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_alarma_cambiar(
+        FfiConverterString.lower(documento),
+        FfiConverterTypeAccionAlarma_lower(accion),uniffiCallStatus
+    )
+})
+}
+public func miniAlarmaLeer(documento: String) -> AlarmaMini  {
+    return try!  FfiConverterTypeAlarmaMini_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_alarma_leer(
+        FfiConverterString.lower(documento),uniffiCallStatus
+    )
+})
+}
+public func miniCronometroCambiar(documento: String, accion: AccionCronometro, ahoraMs: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_cronometro_cambiar(
+        FfiConverterString.lower(documento),
+        FfiConverterTypeAccionCronometro_lower(accion),
+        FfiConverterInt64.lower(ahoraMs),uniffiCallStatus
+    )
+})
+}
+public func miniCronometroLeer(documento: String, ahoraMs: Int64) -> CronometroMini  {
+    return try!  FfiConverterTypeCronometroMini_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_cronometro_leer(
+        FfiConverterString.lower(documento),
+        FfiConverterInt64.lower(ahoraMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * Cuando tiene que avisar esta mini-app, en milisegundos UTC, o nada
+ * (`mini_panel::cuando_avisa` de Windows).
+ *
+ * - Temporizador en marcha: a su `finEn`, si aun no ha pasado (uno que ya
+ * vencio no vuelve a avisar al releerlo).
+ * - Alarma encendida: la proxima vez que el reloj de la pared marque su
+ * hora, hoy o manana. `desfase_local_ms` es lo que hay que sumar a UTC
+ * para tener la hora local.
+ */
+public func miniCuandoAvisa(miniapp: String, documento: String, ahoraMs: Int64, desfaseLocalMs: Int64) -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_cuando_avisa(
+        FfiConverterString.lower(miniapp),
+        FfiConverterString.lower(documento),
+        FfiConverterInt64.lower(ahoraMs),
+        FfiConverterInt64.lower(desfaseLocalMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * Lo que dura un temporizador tecleado, en milisegundos
+ * (`mini_panel::duracion_tecleada` de Windows).
+ *
+ * Un numero solo son **minutos** («7», «2,5»); con dos puntos es `m:ss`
+ * («1:30») y con dos pares `h:mm:ss`. Nada si no es un tiempo (letras,
+ * «1:75», cero): la caja se queda con lo escrito para corregirlo.
+ */
+public func miniDuracionTecleada(texto: String) -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_duracion_tecleada(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * La hora tecleada para una alarma: `7:30`, `730`, `7.30`, `7h30`, `19` (en
+ * punto). Es la lectura de «Elegir la hora» de Windows
+ * (`recordatorios::hora_escrita`): las dos ultimas cifras son los minutos
+ * solo si hay tres o cuatro. Nada si no es una hora de verdad.
+ */
+public func miniHoraTecleada(texto: String) -> HoraMini?  {
+    return try!  FfiConverterOptionTypeHoraMini.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_hora_tecleada(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * El documento tras un toque. Con el temporizador en marcha no se cambia lo
+ * que dura (Windows y el movil apagan esos botones): a mitad de cuenta
+ * nadie sabe si «+5» adelanta el final o lo aplaza.
+ */
+public func miniTemporizadorCambiar(documento: String, accion: AccionTemporizador, ahoraMs: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_temporizador_cambiar(
+        FfiConverterString.lower(documento),
+        FfiConverterTypeAccionTemporizador_lower(accion),
+        FfiConverterInt64.lower(ahoraMs),uniffiCallStatus
+    )
+})
+}
+public func miniTemporizadorLeer(documento: String, ahoraMs: Int64) -> TemporizadorMini  {
+    return try!  FfiConverterTypeTemporizadorMini_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_temporizador_leer(
+        FfiConverterString.lower(documento),
+        FfiConverterInt64.lower(ahoraMs),uniffiCallStatus
+    )
+})
+}
 /**
  * El documento con otro titulo.
  */
@@ -19434,6 +20363,33 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_instalar_llavero() != 25496) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_alarma_cambiar() != 58697) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_alarma_leer() != 43337) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_cronometro_cambiar() != 34767) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_cronometro_leer() != 5235) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_cuando_avisa() != 3967) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_duracion_tecleada() != 27628) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_hora_tecleada() != 13939) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_temporizador_cambiar() != 53807) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_temporizador_leer() != 17732) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_mini_con_titulo() != 50031) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19608,6 +20564,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar() != 14532) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_mensajes() != 49997) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_guardados() != 17735) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -19750,6 +20709,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_lienzo() != 59079) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_avisos_miniapps() != 21666) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_miniapp() != 56274) {
