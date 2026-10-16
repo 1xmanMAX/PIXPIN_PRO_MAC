@@ -1,0 +1,455 @@
+// **El asistente dentro del chat** (E1, `ventana_chat/asistente.rs` de
+// Windows): en el chat fijo «Asistente» todo lo que se escribe es para el;
+// en cualquier otro, `@asistente`. Su respuesta es una NOTA normal del
+// cuaderno con `aparato = "IA"` (la chapa dice `#48·IA`): se guarda, se
+// busca y viaja a Windows y al movil como cualquier otra.
+//
+// - `alEnviar` (lo llama `Almacen` al escribir una nota o adjuntar una
+//   foto): si es para el, el nucleo escribe la respuesta («💭 Pensando…»,
+//   `iaAlEnviar`) y el turno corre en un hilo de GCD (`iaTurnoEnChat`). Lo
+//   que va escribiendo llega por un `OyenteChatIa` (cada ~60 ms como mucho)
+//   y se pinta en su burbuja desde `vivos`; el disco se reescribe cada 2 s y
+//   al acabar.
+// - Lo que borra o envia pregunta en la burbuja con «Sí» y «No»
+//   (`preguntas`); «Parar» en la barra de encima de la caja.
+// - Lo dibujado va a un lienzo del chat (el propio del asistente, el
+//   nombrado con `@lienzo:` o el que esta abierto al frente) y la respuesta
+//   lleva su «Abrir lienzo». Con Apple Intelligence, que no pasa por Rust, la
+//   respuesta se escribe al acabar (`iaResponder`).
+// - Lo que penso, la peticion mejorada y si se renovo el contexto, encima
+//   del texto (`SeccionPensado`), en vivo o del registro de la nota.
+
+import AppKit
+import Foundation
+import PixPinCore
+import SwiftUI
+
+/// Quien ve la respuesta en vivo: el `OyenteChatIa` del nucleo. Rust lo
+/// llama desde el hilo del turno; aqui se pasa al principal.
+final class OyenteChatDelAsistente: OyenteChatIa, @unchecked Sendable {
+    let alVivo: @Sendable (VivoIa) -> Void
+
+    init(alVivo: @escaping @Sendable (VivoIa) -> Void) {
+        self.alVivo = alVivo
+    }
+
+    func vivo(v: VivoIa) {
+        alVivo(v)
+    }
+}
+
+extension MensajeChat {
+    /// Una respuesta del asistente (su chapa es `#48·IA`).
+    var esDelAsistente: Bool { codigoChat?.hasSuffix("·IA") ?? false }
+}
+
+extension PensadoIa {
+    /// Si hay algo que ensenar encima de la respuesta.
+    var algo: Bool {
+        !pensamiento.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !entiendo.isEmpty || reinicio
+    }
+}
+
+@MainActor
+public final class AsistenteEnElChat: ObservableObject {
+    public static let compartido = AsistenteEnElChat()
+
+    /// Lo que se ve de cada respuesta en marcha, por el id de su nota.
+    @Published public private(set) var vivos: [String: VivoIa] = [:]
+    /// La pregunta de «¿seguro?» que espera en la burbuja, por nota.
+    @Published public private(set) var preguntas: [String: ModeloAsistente.Pregunta] = [:]
+    /// Los chats donde esta contestando, con su corte.
+    @Published public private(set) var contestando: [String: CorteIa] = [:]
+    /// Un aviso para la barra del chat (sin motor, ocupado...).
+    @Published public private(set) var aviso: (chat: String, texto: String)?
+
+    /// Lo pensado de las respuestas guardadas (`nil` dentro: no hay).
+    private var pensados: [String: PensadoIa?] = [:]
+    /// El de la ventana del asistente, para los ajustes, el motor y la voz
+    /// (uno por almacen).
+    private var modelo: (almacen: ObjectIdentifier, modelo: ModeloAsistente)?
+
+    /// **Otro que conteste** (las pruebas, sin red ni modelo): recibe el
+    /// chat y lo que nace; sin el, el motor de los ajustes.
+    public static var turnoDePrueba: ((Nucleo, String, InicioIa, OyenteChatIa, AppIa, CorteIa) throws -> FinChatIa)?
+
+    public func ocupado(_ chat: String) -> Bool { contestando[chat] != nil }
+
+    /// «Parar»: el modelo deja de escribir y queda lo que llevaba (y una
+    /// pregunta pendiente cuenta como «no»).
+    public func parar(_ chat: String) {
+        contestando[chat]?.cancelar()
+        for (nota, v) in vivos where v.pregunta != nil {
+            responder(nota: nota, si: false)
+        }
+    }
+
+    /// «Sí» o «No» en la tarjeta de la burbuja.
+    public func responder(nota: String, si: Bool) {
+        guard let p = preguntas.removeValue(forKey: nota) else { return }
+        p.responder(si)
+    }
+
+    public func quitarAviso() { aviso = nil }
+
+    private func avisar(_ texto: String, en chat: String) {
+        aviso = (chat, texto)
+        let ahora = texto
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+            MainActor.assumeIsolated {
+                if self?.aviso?.texto == ahora { self?.aviso = nil }
+            }
+        }
+    }
+
+    private func modelo(_ almacen: Almacen) -> ModeloAsistente {
+        if let m = modelo, m.almacen == ObjectIdentifier(almacen) { return m.modelo }
+        let m = ModeloAsistente(almacen: almacen)
+        modelo = (ObjectIdentifier(almacen), m)
+        return m
+    }
+
+    // MARK: Al enviar
+
+    /// Si lo recien escrito en `chat` es para el asistente, contesta.
+    /// Devuelve los turnos lanzados (las pruebas los esperan).
+    @discardableResult
+    func alEnviar(_ nuevos: [MensajeChat], chat: String, almacen: Almacen) -> [Task<Void, Never>] {
+        let suyo = almacen.chats.first { $0.id == chat }?.esAsistente ?? false
+        var lanzados: [Task<Void, Never>] = []
+        for m in nuevos where !m.esDelAsistente && (m.clase == "NOTA" || m.clase == "IMAGEN") {
+            guard suyo || iaMencionaAlAsistente(texto: m.texto) else { continue }
+            if ocupado(chat) {
+                avisar("El asistente aún está contestando: espera o pulsa Parar.", en: chat)
+                continue
+            }
+            // Ocupado desde ya: dos preguntas seguidas no lanzan dos turnos.
+            let corte = CorteIa.nuevo()
+            contestando[chat] = corte
+            lanzados.append(Task { await lanzar(m, chat: chat, almacen: almacen, corte: corte) })
+        }
+        return lanzados
+    }
+
+    private func lanzar(_ m: MensajeChat, chat: String, almacen: Almacen, corte: CorteIa) async {
+        let nucleo = almacen.nucleo
+        defer { if contestando[chat] === corte { contestando[chat] = nil } }
+        let modelo = self.modelo(almacen)
+        let motor: ModeloAsistente.Motor
+        if AsistenteEnElChat.turnoDePrueba != nil {
+            motor = .descargado("prueba")
+        } else {
+            motor = await modelo.comprobarMotor()
+        }
+        // Sin motor no nace ninguna burbuja: lo dice la barra (Windows).
+        switch motor {
+        case .ninguno:
+            avisar(ModeloAsistente.textoSinMotor, en: chat)
+            return
+        case let .nube(nombre, conClave) where !conClave:
+            avisar("Falta la clave de \(nombre): pégala en Ajustes → Asistente.", en: chat)
+            return
+        default: break
+        }
+        let pregunta = m.id
+        let inicio: InicioIa?
+        do {
+            inicio = try await Task.detached(priority: .userInitiated) {
+                try nucleo.iaAlEnviar(chat: chat, mensaje: pregunta)
+            }.value
+        } catch {
+            avisar("El asistente no pudo contestar: \(error)", en: chat)
+            return
+        }
+        guard let inicio else { return }
+        let nota = inicio.respuesta.id
+        almacen.anadir([inicio.respuesta], en: chat)
+        if case .apple = motor {
+            await conApple(inicio, pregunta: m, chat: chat, almacen: almacen)
+            return
+        }
+        let manos = ManosDelAsistente(nucleo: nucleo, corte: corte) { [weak self] texto, responder in
+            guard let self else { return responder(false) }
+            self.preguntas[nota] = ModeloAsistente.Pregunta(texto: texto, responder: responder)
+        }
+        let oyente = OyenteChatDelAsistente { v in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    let s = AsistenteEnElChat.compartido
+                    if !v.acabado { s.vivos[v.nota] = v }
+                    // Lo dibujado en un lienzo abierto: que se repinte.
+                    VentanasDeLienzo.compartidas.alCambiarDesdeFuera()
+                }
+            }
+        }
+        let ajustes = modelo.ajustes()
+        let desfase = Int64(TimeZone.current.secondsFromGMT()) * 1000
+        let deprueba = AsistenteEnElChat.turnoDePrueba
+        let r: Result<FinChatIa, Error> = await withCheckedContinuation { c in
+            DispatchQueue.global(qos: .utility).async {
+                c.resume(returning: Result {
+                    if let deprueba { return try deprueba(nucleo, chat, inicio, oyente, manos, corte) }
+                    return try iaTurnoEnChat(ajustes: ajustes, nucleo: nucleo, chat: chat, inicio: inicio,
+                                             desfaseMs: desfase, app: manos, oyente: oyente, corte: corte)
+                })
+            }
+        }
+        vivos[nota] = nil
+        preguntas[nota] = nil
+        pensados[nota] = nil
+        switch r {
+        case let .success(fin):
+            await acabar(fin.respuesta, chat: chat, almacen: almacen)
+            if let ref = fin.abrirLienzo {
+                VentanasDeLienzo.compartidas.abrir(referencia: ref, en: chat, titulo: "Lienzo del asistente",
+                                                  almacen: almacen)
+            }
+            if modelo.leerRespuestas { modelo.leerEnVoz(.init(delUsuario: false, texto: fin.respuesta.texto)) }
+        case let .failure(e):
+            avisar("El asistente no pudo contestar: \(ModeloAjustes.texto(de: e))", en: chat)
+            await almacen.abrir(chat: chat)
+        }
+    }
+
+    /// La respuesta acabada en lo cargado; y lo que nacio con ella (su
+    /// lienzo, lo leido) se ve releyendo la ultima pagina.
+    private func acabar(_ respuesta: MensajeChat, chat: String, almacen: Almacen) async {
+        almacen.sustituir(respuesta, en: chat)
+        if !almacen.quedanPosteriores(chat: chat) { await almacen.abrir(chat: chat) }
+        await almacen.cargarChats()
+    }
+
+    /// **Con Apple Intelligence** (no pasa por Rust): la respuesta entera y,
+    /// si dibujo, su lienzo.
+    private func conApple(_ inicio: InicioIa, pregunta m: MensajeChat, chat: String, almacen: Almacen) async {
+        let nucleo = almacen.nucleo
+        let historial = (almacen.mensajes[chat] ?? [])
+            .filter { $0.clase == "NOTA" && $0.id != m.id && $0.id != inicio.respuesta.id && !$0.texto.isEmpty }
+            .suffix(ModeloAsistente.historialMaximo)
+            .map { MensajeIa(delUsuario: !$0.esDelAsistente, texto: $0.texto) }
+        let suyo = almacen.chats.first { $0.id == chat }?.esAsistente ?? false
+        var pedido = m.texto
+        if !suyo, let i = pedido.range(of: "@asistente", options: .caseInsensitive) {
+            pedido.removeSubrange(i)
+        }
+        pedido = pedido.trimmingCharacters(in: .whitespacesAndNewlines)
+        var texto: String
+        var lienzo: String?
+        do {
+            if let r = try await preguntarAApple(pedido.isEmpty ? "Hola" : pedido, historial: Array(historial)) {
+                texto = r.texto
+                lienzo = r.lienzo
+            } else {
+                texto = ModeloAsistente.textoSinMotor
+            }
+        } catch {
+            texto = "⚠️ " + ModeloAjustes.texto(de: error)
+        }
+        let nota = inicio.respuesta.id
+        let hecho = try? await Task.detached(priority: .userInitiated) {
+            try nucleo.iaResponder(chat: chat, nota: nota, texto: texto, lienzo: lienzo)
+        }.value
+        if let hecho { await acabar(hecho, chat: chat, almacen: almacen) }
+    }
+
+    // MARK: Lo pensado
+
+    /// Lo pensado de una respuesta guardada (del disco la primera vez).
+    func pensado(nota: String, chat: String, nucleo: Nucleo) async -> PensadoIa? {
+        if let p = pensados[nota] { return p }
+        let p = await Task.detached(priority: .utility) { nucleo.iaPensado(chat: chat, nota: nota) }.value
+        pensados[nota] = .some(p)
+        return p
+    }
+}
+
+// MARK: - La burbuja
+
+/// **El texto de una respuesta del asistente**: lo pensado encima, el texto
+/// (en vivo mientras contesta) y la tarjeta de «¿seguro?» debajo.
+struct NotaDelAsistente: View {
+    let mensaje: MensajeChat
+    let chat: String
+    let almacen: Almacen
+    @ObservedObject private var ia = AsistenteEnElChat.compartido
+    @State private var guardado: PensadoIa?
+    @Environment(\.agujaDelChat) private var aguja
+    @Environment(\.escalaChat) private var escala
+
+    private var vivo: VivoIa? { ia.vivos[mensaje.id] }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4 * escala) {
+            if let p = vivo?.pensado ?? guardado, p.algo {
+                SeccionPensado(pensado: p, nota: mensaje.id)
+            }
+            Text(textoResaltado(vivo?.texto ?? mensaje.texto, aguja: aguja)).textSelection(.enabled)
+                .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))
+            if let p = ia.preguntas[mensaje.id] {
+                TarjetaConfirmar(pregunta: p.texto) { si in ia.responder(nota: mensaje.id, si: si) }
+            }
+        }
+        .task(id: mensaje.texto) {
+            guard vivo == nil else { return }
+            guardado = await ia.pensado(nota: mensaje.id, chat: chat, nucleo: almacen.nucleo)
+        }
+    }
+}
+
+/// **Lo que penso, encima de la respuesta** (`ventana_chat/pensado.rs`):
+/// «Pensando…» abierto mientras piensa; al acabar, «Pensó 12 s» plegado; la
+/// peticion mejorada («📝 …») y «Contexto renovado» si el turno empezo con
+/// la conversacion reiniciada.
+struct SeccionPensado: View {
+    let pensado: PensadoIa
+    let nota: String
+    @State private var abierto = false
+    @Environment(\.escalaChat) private var escala
+
+    /// Mientras llega se ensena solo el final (lo que se esta leyendo).
+    private static let enVivoLetras = 700
+
+    private var cabecera: String {
+        if pensado.pensando { return "Pensando…" }
+        if let s = pensado.segundos { return "Pensó \(max(1, Int(s.rounded()))) s" }
+        return "Lo pensado"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3 * escala) {
+            if !pensado.pensamiento.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Button {
+                    abierto.toggle()
+                } label: {
+                    Label(cabecera, systemImage: (abierto || pensado.pensando) ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 12 * escala, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                if abierto || pensado.pensando {
+                    Text(pensado.pensando ? String(pensado.pensamiento.suffix(SeccionPensado.enVivoLetras))
+                                          : pensado.pensamiento)
+                        .font(.system(size: 12 * escala))
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                        .padding(.leading, 8 * escala)
+                        .overlay(alignment: .leading) {
+                            Rectangle().fill(.tertiary).frame(width: 2)
+                        }
+                }
+            }
+            if !pensado.entiendo.isEmpty {
+                Text("📝 " + pensado.entiendo)
+                    .font(.system(size: 12 * escala))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(abierto ? nil : 1)
+                    .help(pensado.hare.isEmpty ? pensado.entiendo : pensado.entiendo + "\n" + pensado.hare)
+            }
+            if pensado.reinicio {
+                Label("Contexto renovado", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 11 * escala))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+}
+
+/// **La tarjeta de «¿seguro?» dentro de la burbuja**: lo que va a hacer y
+/// «Sí» (con borde rojo: borra o envia) y «No» (lo de por omision).
+struct TarjetaConfirmar: View {
+    let pregunta: String
+    let contestar: (Bool) -> Void
+    @Environment(\.escalaChat) private var escala
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 8 * escala) {
+            Text("⚠️ " + pregunta)
+                .font(.system(size: 13 * escala))
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 8 * escala) {
+                Button("Sí") { contestar(true) }
+                    .buttonStyle(.bordered)
+                    .tint(.red)
+                Button("No") { contestar(false) }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.cancelAction)
+            }
+            .controlSize(.small)
+        }
+        .padding(10 * escala)
+        .frame(minWidth: 260 * escala)
+        .background(Color.red.opacity(0.10), in: RoundedRectangle(cornerRadius: 10 * escala))
+    }
+}
+
+// MARK: - La barra de encima de la caja
+
+/// **Encima de la caja de escribir**: «Contestando… Parar» mientras el
+/// asistente contesta en este chat, su aviso, y la lista de `@` mientras se
+/// escribe una mencion (el asistente fuera de su chat y los lienzos y hojas
+/// de la conversacion).
+struct BarraDelAsistente: View {
+    let chat: String
+    @Binding var borrador: String
+    let almacen: Almacen
+    @ObservedObject private var ia = AsistenteEnElChat.compartido
+    @State private var opciones: [OpcionMencionIa] = []
+    @Environment(\.escalaChat) private var f
+
+    /// Lo escrito tras el `@` que se esta escribiendo al final, si lo hay.
+    private var escrito: String? { iaConsultaDeMencion(antes: borrador) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4 * f) {
+            if let a = ia.aviso, a.chat == chat {
+                HStack(alignment: .top) {
+                    Text(a.texto).font(.system(size: 12 * f)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button { ia.quitarAviso() } label: { Image(systemName: "xmark") }
+                        .buttonStyle(.plain).foregroundStyle(.secondary)
+                }
+            }
+            if ia.ocupado(chat) {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("El asistente está contestando…").font(.system(size: 12 * f)).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Parar") { ia.parar(chat) }
+                        .controlSize(.small)
+                        .keyboardShortcut(".", modifiers: .command)
+                }
+            }
+            if escrito != nil, !opciones.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6 * f) {
+                        ForEach(opciones, id: \.mencion) { o in
+                            Button(o.rotulo) { poner(o) }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 14 * f)
+        .task(id: escrito) {
+            guard let escrito else {
+                opciones = []
+                return
+            }
+            let nucleo = almacen.nucleo
+            let chat = self.chat
+            opciones = await Task.detached(priority: .userInitiated) {
+                nucleo.iaOpcionesMencion(chat: chat, escrito: escrito)
+            }.value
+        }
+    }
+
+    /// Escribe la opcion elegida en lugar de lo escrito desde el `@`.
+    private func poner(_ o: OpcionMencionIa) {
+        guard let escrito, let arroba = borrador.lastIndex(of: "@") else { return }
+        _ = escrito
+        borrador = String(borrador[..<arroba]) + o.mencion + " "
+        opciones = []
+    }
+}

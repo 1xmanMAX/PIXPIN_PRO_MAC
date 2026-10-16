@@ -86,7 +86,11 @@ public struct VentanaProyectos: View {
             ventana.ventana = v
             VentanaLisa.vestirEntera(v)
         })
-        .task { await almacen.cargarChats() }
+        .task {
+            await almacen.cargarChats()
+            // El chat «Asistente», fijo detras de «Mensajes guardados» (E1).
+            await almacen.asegurarAsistente()
+        }
         .onChange(of: elegido) { _, visible in almacen.aligerar(visible: visible) }
         .onDisappear { almacen.nadaAlFrente() }
         .onReceive(peticion.$chat) { pedido in
@@ -257,6 +261,9 @@ public struct VistaChat: View {
             }
             // Lo que suena, encima de la caja de escribir (D3).
             BarraReproductor().padding(.horizontal, 10).padding(.top, 4)
+            // El asistente: «Parar», su aviso y la lista de `@` (E1).
+            BarraDelAsistente(chat: chat, borrador: $borrador, almacen: almacen)
+                .environment(\.escalaChat, f)
             IslaDeEscribir(borrador: $borrador, chat: chat, almacen: almacen, foco: focoCaja,
                            enviar: enviar, escaparVacio: escaparVacio, adjuntar: adjuntar)
                 .environment(\.escalaChat, f)
@@ -508,7 +515,14 @@ public struct VistaChat: View {
         // Contestando a un mensaje (Responder, R): la nota lleva `respondeA`.
         let respondeA = menu.respondiendo
         menu.respondiendo = nil
-        Task { await almacen.escribir(nota: texto, en: chat, respondeA: respondeA) }
+        let almacen = self.almacen
+        let chat = self.chat
+        Task {
+            // Si era para el asistente (su chat, o `@asistente`), contesta.
+            if let m = await almacen.escribir(nota: texto, en: chat, respondeA: respondeA) {
+                AsistenteEnElChat.compartido.alEnviar([m], chat: chat, almacen: almacen)
+            }
+        }
     }
 }
 
@@ -530,6 +544,8 @@ struct Burbuja: View {
                 CitaDeMensaje(citado: citado, irA: irACita)
             }
             switch mensaje.clase {
+            case "NOTA" where mensaje.esDelAsistente:
+                NotaDelAsistente(mensaje: mensaje, chat: chat, almacen: almacen)
             case "NOTA":
                 Text(textoResaltado(mensaje.texto, aguja: aguja)).textSelection(.enabled)
                     .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))

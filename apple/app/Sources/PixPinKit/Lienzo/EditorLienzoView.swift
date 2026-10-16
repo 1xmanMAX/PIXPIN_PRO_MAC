@@ -987,9 +987,26 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         guard let ventana = notification.object as? NSWindow,
               let clave = ventana.identifier?.rawValue,
               let abierta = abiertas[clave] else { return }
+        // El asistente ya no dibuja aqui (E1).
+        abierta.modelo.editor.cerrado()
         // El editor lo retiene la tarea de guardar hasta que termine; la
         // vista y el modelo se sueltan con la ventana.
         abierta.modelo.guardarAlCerrar()
         abiertas[clave] = nil
+    }
+
+    /// Al frente: lo que dibuje el asistente viene a este lienzo (E1).
+    public func windowDidBecomeKey(_ notification: Notification) {
+        guard let ventana = notification.object as? NSWindow,
+              let clave = ventana.identifier?.rawValue,
+              let abierta = abiertas[clave] else { return }
+        abierta.modelo.editor.alFrente()
+    }
+
+    /// **El asistente toco un lienzo abierto** (desde su hilo, con el
+    /// cerrojo de la escena): cada ventana mira su version y, si cambio,
+    /// repinta y programa el guardado como tras un gesto.
+    public func alCambiarDesdeFuera() {
+        for abierta in abiertas.values { abierta.modelo.vista?.trasCambio() }
     }
 }

@@ -44,11 +44,27 @@ public final class Almacen: ObservableObject {
     /// y pequenas; se sueltan al aligerar.
     private var rutas: [String: URL] = [:]
     private var vigiaMemoria: DispatchSourceMemoryPressure?
+    /// Si ya se miro que el chat «Asistente» existe.
+    private var asistenteAsegurado = false
 
     public init(raiz: URL = carpetaDeDatos(), nombreDelAparato: String = Host.current().localizedName ?? "Mac") throws {
         try FileManager.default.createDirectory(at: raiz, withIntermediateDirectories: true)
         nucleo = try Nucleo.abrir(raiz: raiz.path, nombreDelAparato: nombreDelAparato)
         vigilarMemoria()
+    }
+
+    /// **El chat «Asistente» existe siempre**, como «Mensajes guardados»
+    /// (Windows lo crea al abrir la ventana de los chats). Una vez.
+    public func asegurarAsistente() async {
+        guard !asistenteAsegurado else { return }
+        asistenteAsegurado = true
+        let nucleo = self.nucleo
+        let nuevo = await Task.detached(priority: .utility) { () -> Bool in
+            let antes = (try? nucleo.chats().contains { $0.esAsistente }) ?? true
+            _ = try? nucleo.chatAsistente()
+            return !antes
+        }.value
+        if nuevo { await cargarChats() }
     }
 
     /// Relee la lista de chats.
@@ -219,6 +235,8 @@ public final class Almacen: ObservableObject {
         }.value
         anadir(hechos, en: chat)
         error = fallo
+        // Una foto al chat «Asistente» (o con `@asistente`) se contesta.
+        AsistenteEnElChat.compartido.alEnviar(hechos, chat: chat, almacen: self)
         // Los PDF se aligeran despues, en segundo plano (si esta encendido).
         for m in hechos where (m.nombre as NSString).pathExtension.lowercased() == "pdf" {
             if let r = m.ruta, let u = await url(deRuta: r, en: chat) {
@@ -260,6 +278,7 @@ public final class Almacen: ObservableObject {
         case let .success(m):
             anadir([m], en: chat)
             error = nil
+            AsistenteEnElChat.compartido.alEnviar([m], chat: chat, almacen: self)
             return m
         case let .failure(e):
             error = "\(e)"
