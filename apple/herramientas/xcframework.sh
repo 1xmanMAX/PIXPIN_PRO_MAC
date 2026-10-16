@@ -91,7 +91,38 @@ rm -rf "$XCF"
 BIBLIOTECAS=(-library "$SALIDA/macos/$LIB" -headers "$CABECERAS")
 if tiene aarch64-apple-ios; then BIBLIOTECAS+=(-library "$SALIDA/ios/$LIB" -headers "$CABECERAS"); fi
 if tiene aarch64-apple-ios-sim; then BIBLIOTECAS+=(-library "$SALIDA/ios-sim/$LIB" -headers "$CABECERAS"); fi
-xcodebuild -create-xcframework "${BIBLIOTECAS[@]}" -output "$XCF"
+if xcodebuild -version >/dev/null 2>&1; then
+    xcodebuild -create-xcframework "${BIBLIOTECAS[@]}" -output "$XCF"
+elif [[ "${OBJETIVOS[*]}" == *ios* ]]; then
+    echo "Sin Xcode solo se puede montar el del Mac: PIXPIN_OBJETIVOS=\"aarch64-apple-darwin x86_64-apple-darwin\"" >&2
+    exit 1
+else
+    # Solo las herramientas de linea de comandos (sin Xcode): el
+    # xcframework del Mac se monta a mano, igual que lo dejaria xcodebuild.
+    echo "    (sin Xcode: montado a mano)"
+    ID=macos-arm64_x86_64
+    ARQS=""
+    for a in $(lipo -archs "$SALIDA/macos/$LIB"); do ARQS+="<string>$a</string>"; done
+    mkdir -p "$XCF/$ID"
+    cp "$SALIDA/macos/$LIB" "$XCF/$ID/"
+    cp -R "$CABECERAS" "$XCF/$ID/Headers"
+    cat > "$XCF/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>AvailableLibraries</key><array><dict>
+<key>BinaryPath</key><string>$LIB</string>
+<key>HeadersPath</key><string>Headers</string>
+<key>LibraryIdentifier</key><string>$ID</string>
+<key>LibraryPath</key><string>$LIB</string>
+<key>SupportedArchitectures</key><array>$ARQS</array>
+<key>SupportedPlatform</key><string>macos</string>
+</dict></array>
+<key>CFBundlePackageType</key><string>XFWK</string>
+<key>XCFrameworkFormatVersion</key><string>1.0</string>
+</dict></plist>
+PLIST
+fi
 
 echo "==> Listo: $XCF"
 du -sh "$XCF"/*/ 2>/dev/null || true

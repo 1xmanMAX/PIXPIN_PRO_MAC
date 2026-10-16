@@ -4038,7 +4038,8 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     
     /**
      * Si el mensaje es una hoja de calculo que se abre con
-     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla).
+     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla). Un Excel lo es
+     * solo si trae hojas viejas del movil sin pasar a mensajes.
      */
     func esHojaDeCalculo(chat: String, mensaje: String)  -> Bool
     
@@ -5179,7 +5180,8 @@ open func crearTabla(chat: String, nombre: String)throws  -> MensajeChat  {
     
     /**
      * Si el mensaje es una hoja de calculo que se abre con
-     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla).
+     * [`Nucleo::abrir_hoja_de_calculo`] (sin leer su tabla). Un Excel lo es
+     * solo si trae hojas viejas del movil sin pasar a mensajes.
      */
 open func esHojaDeCalculo(chat: String, mensaje: String) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
@@ -20687,7 +20689,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_tabla() != 57188) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_es_hoja_de_calculo() != 47628) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_es_hoja_de_calculo() != 39310) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_leccion() != 16221) {
