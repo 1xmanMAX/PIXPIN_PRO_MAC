@@ -32,6 +32,9 @@ enum CosaCompartida {
     case ficheros(titulo: String, [URL])
     /// Una imagen sin fichero (la captura de un pin).
     case imagen(titulo: String, CGImage)
+    /// Ya preparado por quien lo comparte, con sus formatos propios (un
+    /// plano: HTML, PDF, PNG y DXF; `exportable` de Windows).
+    case preparado(PreparadoCompartir)
 }
 
 /// Una pagina de lo que se comparte: su fila en la hoja y como se pinta.

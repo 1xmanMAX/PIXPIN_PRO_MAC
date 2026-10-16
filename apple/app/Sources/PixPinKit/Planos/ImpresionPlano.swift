@@ -10,13 +10,16 @@
 // 7 en negro y lo muy claro oscurecido, como en el fondo claro del visor.
 
 import AppKit
+import CoreText
 import Metal
 import PixPinCore
 
 @MainActor
 enum ImpresionPlano {
-    /// Imprime `region` (un marco para imprimir o lo que se ve) del plano.
-    static func imprimir(_ d: PlanoEnTarjeta, visibles: Set<UInt32>, region: CajaPlano, titulo: String, ventana: NSWindow?) {
+    /// Imprime `region` (un marco para imprimir o lo que se ve) del plano,
+    /// con las cotas y lo anotado de `encima` (como Windows: `ParaImprimir`).
+    static func imprimir(_ d: PlanoEnTarjeta, visibles: Set<UInt32>, region: CajaPlano, titulo: String,
+                         encima: EncimaPapel? = nil, ventana: NSWindow?) {
         guard region.x1 > region.x0, region.y1 > region.y0,
               let info = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
         info.orientation = (region.x1 - region.x0) >= (region.y1 - region.y0) ? .landscape : .portrait
@@ -26,6 +29,7 @@ enum ImpresionPlano {
         info.isVerticallyCentered = true
         let tam = info.imageablePageBounds.size
         let vista = VistaImpresionPlano(frame: NSRect(origin: .zero, size: tam), datos: d, visibles: visibles, region: region)
+        vista.encima = encima
         let op = NSPrintOperation(view: vista, printInfo: info)
         op.jobTitle = titulo
         op.showsPrintPanel = true
@@ -38,11 +42,102 @@ enum ImpresionPlano {
     }
 }
 
+/// **Lo que va encima del plano en papel**: las cotas (naranja, con su
+/// medida en cada tramo) y lo anotado con el lapiz (la capa del motor del
+/// lienzo, en su sitio por su encaje).
+struct EncimaPapel {
+    var cotas: [CotaPlano] = []
+    /// El texto de una medida, con la unidad del plano.
+    var medida: (Double) -> String = { String(format: "%.3f", $0) }
+    var tinta: LienzoLeido?
+    var encaje: EncajePlano?
+}
+
+/// **El plano en papel**, en cualquier `CGContext` (la impresora, un PDF,
+/// una imagen): los buferes que ya estan en la tarjeta, en vectores.
+enum PapelPlano {
+    /// Pinta `region` del plano centrada y sin deformar en `destino` (Y hacia
+    /// arriba, en puntos de papel), con lo de `encima`. El fondo no se pinta.
+    static func pintar(_ datos: PlanoEnTarjeta, visibles: Set<UInt32>, region r: CajaPlano, encima: EncimaPapel?,
+                       en ctx: CGContext, destino: CGRect) {
+        let w = r.x1 - r.x0, h = r.y1 - r.y0
+        guard w > 0, h > 0, destino.width > 0, destino.height > 0 else { return }
+        // Puntos de papel por unidad del dibujo, el plano centrado.
+        let k = min(Double(destino.width) / w, Double(destino.height) / h)
+        let dx = Double(destino.minX) + (Double(destino.width) - w * k) / 2
+        let dy = Double(destino.minY) + (Double(destino.height) - h * k) / 2
+        ctx.saveGState()
+        defer { ctx.restoreGState() }
+        ctx.clip(to: CGRect(x: dx, y: dy, width: w * k, height: h * k))
+        ctx.setLineCap(.round)
+        ctx.setLineJoin(.round)
+        for g in datos.grupos where visibles.contains(g.ficha.indice) {
+            let o = (g.ficha.origenX, g.ficha.origenY)
+            ctx.saveGState()
+            ctx.translateBy(x: dx + (o.0 - r.x0) * k, y: dy + (o.1 - r.y0) * k)
+            ctx.scaleBy(x: k, y: k)
+            let caja = CajaF(x0: Float(r.x0 - o.0), y0: Float(r.y0 - o.1), x1: Float(r.x1 - o.0), y1: Float(r.y1 - o.1))
+            // Lo que en papel mide menos de un cuarto de punto no se ve.
+            let minimo = Float(0.25 / k)
+            // El grosor de la capa (centesimas de mm) en puntos; el normal, fino.
+            let grosor = g.ficha.grosor > 0 ? Double(g.ficha.grosor) * 0.028346 : 0.25
+            PintorPapel(ctx: ctx, grupo: g, caja: caja, minimo: minimo, ancho: max(grosor, 0.1) / k).pintar()
+            ctx.restoreGState()
+        }
+        guard let encima else { return }
+        let aPapel = { (p: PuntoPlano) in CGPoint(x: dx + (p.x - r.x0) * k, y: dy + (p.y - r.y0) * k) }
+        // Lo anotado: x = cero_x + x_capa * u, y = cero_y - y_capa * u.
+        if let tinta = encima.tinta, let e = encima.encaje, e.u > 0 {
+            let a = e.u * k
+            let t = CGAffineTransform(a: a, b: 0, c: 0, d: -a,
+                                      tx: dx + (e.ceroX - r.x0) * k, ty: dy + (e.ceroY - r.y0) * k)
+            ctx.saveGState()
+            ctx.concatenate(t)
+            PintorLienzo(lienzo: tinta).pintar(en: ctx, limites: destino.applying(t.inverted()))
+            ctx.restoreGState()
+        }
+        // Las cotas, en naranja con su medida (del tamano del papel, sin escala).
+        let naranja = CGColor(srgbRed: 0.88, green: 0.42, blue: 0, alpha: 1)
+        for c in encima.cotas where c.puntos.count >= 2 {
+            let q = c.puntos.map(aPapel)
+            ctx.setStrokeColor(naranja)
+            ctx.setLineWidth(0.8)
+            ctx.addLines(between: q)
+            ctx.strokePath()
+            var total = 0.0
+            for (i, par) in zip(c.puntos, c.puntos.dropFirst()).enumerated() {
+                let d = hypot(par.1.x - par.0.x, par.1.y - par.0.y)
+                total += d
+                texto(encima.medida(d), en: CGPoint(x: (q[i].x + q[i + 1].x) / 2 + 2, y: (q[i].y + q[i + 1].y) / 2 + 2),
+                      color: naranja, ctx: ctx)
+            }
+            if c.puntos.count > 2, let u = q.last {
+                texto("Total \(encima.medida(total))", en: CGPoint(x: u.x + 4, y: u.y - 9), color: naranja, ctx: ctx)
+            }
+        }
+    }
+
+    /// Un texto pequeno con Core Text (vale en cualquier contexto).
+    private static func texto(_ t: String, en p: CGPoint, color: CGColor, ctx: CGContext) {
+        let atributos: [NSAttributedString.Key: Any] = [
+            NSAttributedString.Key(kCTFontAttributeName as String): CTFontCreateWithName("Helvetica" as CFString, 7, nil),
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): color,
+        ]
+        let linea = CTLineCreateWithAttributedString(NSAttributedString(string: t, attributes: atributos))
+        ctx.saveGState()
+        ctx.textMatrix = .identity
+        ctx.textPosition = p
+        CTLineDraw(linea, ctx)
+        ctx.restoreGState()
+    }
+}
+
 /// Lo que se manda a la impresora.
 final class VistaImpresionPlano: NSView {
     let datos: PlanoEnTarjeta
     let visibles: Set<UInt32>
     let region: CajaPlano
+    var encima: EncimaPapel?
 
     init(frame: NSRect, datos: PlanoEnTarjeta, visibles: Set<UInt32>, region: CajaPlano) {
         self.datos = datos
@@ -60,28 +155,7 @@ final class VistaImpresionPlano: NSView {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         ctx.setFillColor(CGColor(gray: 1, alpha: 1))
         ctx.fill(bounds)
-        let r = region
-        let w = r.x1 - r.x0, h = r.y1 - r.y0
-        guard w > 0, h > 0 else { return }
-        // Puntos de papel por unidad del dibujo, el plano centrado.
-        let k = min(Double(bounds.width) / w, Double(bounds.height) / h)
-        let dx = (Double(bounds.width) - w * k) / 2, dy = (Double(bounds.height) - h * k) / 2
-        ctx.clip(to: CGRect(x: dx, y: dy, width: w * k, height: h * k))
-        ctx.setLineCap(.round)
-        ctx.setLineJoin(.round)
-        for g in datos.grupos where visibles.contains(g.ficha.indice) {
-            let o = (g.ficha.origenX, g.ficha.origenY)
-            ctx.saveGState()
-            ctx.translateBy(x: dx + (o.0 - r.x0) * k, y: dy + (o.1 - r.y0) * k)
-            ctx.scaleBy(x: k, y: k)
-            let caja = CajaF(x0: Float(r.x0 - o.0), y0: Float(r.y0 - o.1), x1: Float(r.x1 - o.0), y1: Float(r.y1 - o.1))
-            // Lo que en papel mide menos de un cuarto de punto no se ve.
-            let minimo = Float(0.25 / k)
-            // El grosor de la capa (centesimas de mm) en puntos; el normal, fino.
-            let grosor = g.ficha.grosor > 0 ? Double(g.ficha.grosor) * 0.028346 : 0.25
-            PintorPapel(ctx: ctx, grupo: g, caja: caja, minimo: minimo, ancho: max(grosor, 0.1) / k).pintar()
-            ctx.restoreGState()
-        }
+        PapelPlano.pintar(datos, visibles: visibles, region: region, encima: encima, en: ctx, destino: bounds)
     }
 }
 

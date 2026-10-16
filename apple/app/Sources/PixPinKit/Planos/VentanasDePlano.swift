@@ -73,7 +73,8 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
     public func abrirModelo(_ url: URL, titulo: String) {
         let clave = "3d|" + url.path
         if traerAlFrente(clave) { return }
-        let visor = VisorModelo3D(ruta: url.path, titulo: titulo)
+        let visor = VisorModelo3D(ruta: url.path, titulo: titulo, nucleo: nucleo)
+        visor.original = url
         mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo)
         visor.cargar()
     }
@@ -86,6 +87,8 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         let visor = VisorModelo3D(clave: clave, titulo: titulo) {
             try nucleo.abrirCroquis(chat: chat, referencia: referencia)
         }
+        // Al exportar, el `.croquis.gz` va como «Original».
+        visor.original = nucleo.croquisDelChat(chat: chat, referencia: referencia).map { URL(fileURLWithPath: $0) }
         mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo)
         visor.cargar()
     }

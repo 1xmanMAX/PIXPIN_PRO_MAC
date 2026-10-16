@@ -37,6 +37,8 @@ enum PrepararCompartir {
             let p = PreparadoCompartir(titulo: titulo)
             p.anadir(PiezasCompartir.foto(img, clave: "imagen", nombre: titulo))
             return p
+        case let .preparado(p):
+            return p
         }
     }
 

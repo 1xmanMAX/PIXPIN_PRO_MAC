@@ -244,6 +244,19 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     public var teclaPrevia: ((NSEvent) -> Bool)?
     static let zoomMinimo: CGFloat = 0.05
     static let zoomMaximo: CGFloat = 30
+    /// **La camara la lleva otra vista** (el visor de planos: su capa de
+    /// tinta encima del plano). La rueda, pellizcar y el boton del medio van
+    /// a esa vista, que mueve las dos y pone esta con `ponerCamara`.
+    public weak var camaraDeFuera: NSView?
+
+    /// Pone la camara (quien la lleva de fuera): `origen` en la esquina de
+    /// arriba a la izquierda y `zoom` puntos por unidad del mundo.
+    public func ponerCamara(origen: CGPoint, zoom: CGFloat) {
+        guard origen != self.origen || zoom != self.zoom, zoom.isFinite, zoom > 0 else { return }
+        self.origen = origen
+        self.zoom = zoom
+        needsDisplay = true
+    }
 
     /// Lo ultimo pedido a Rust y con que se pidio: si nada cambio, se pinta
     /// esto sin cruzar el puente.
@@ -571,6 +584,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     // Arrastrar con el boton del medio: mover la vista.
     override public func otherMouseDragged(with event: NSEvent) {
+        if let fuera = camaraDeFuera { return fuera.otherMouseDragged(with: event) }
         desplazar(dx: event.deltaX, dy: event.deltaY)
     }
 
@@ -595,6 +609,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     }
 
     override public func scrollWheel(with event: NSEvent) {
+        if let fuera = camaraDeFuera { return fuera.scrollWheel(with: event) }
         let foco = convert(event.locationInWindow, from: nil)
         if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) {
             // Cmd o Ctrl + rueda: acercar, como en Windows.
@@ -610,10 +625,12 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     }
 
     override public func magnify(with event: NSEvent) {
+        if let fuera = camaraDeFuera { return fuera.magnify(with: event) }
         acercar(1 + event.magnification, en: convert(event.locationInWindow, from: nil))
     }
 
     override public func smartMagnify(with event: NSEvent) {
+        if let fuera = camaraDeFuera { return fuera.smartMagnify(with: event) }
         // Doble toque con dos dedos: encajar el dibujo o volver al 100 %.
         if abs(zoom - 1) < 0.01 {
             encajar()

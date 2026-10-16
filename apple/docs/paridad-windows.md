@@ -18,9 +18,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 42 |
-| parcial | 57 |
-| falta | 57 |
+| completo | 47 |
+| parcial | 55 |
+| falta | 54 |
 | no aplica | 6 |
 | interno | 7 |
 
@@ -79,7 +79,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | cielo | Fondo cósmico | falta | — | Es un adorno |
 | compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | parcial | K/Compartir/*, N/compartir.rs, K/Lienzo/SacarLienzo.swift | Hecho (D1): la hoja común con las reglas de Windows (formatos de una página que se esconden, «Qué incluir», el peso de verdad), HTML (la página del móvil, con el `.excalidraw` dentro), PDF, PNG, JPG, SVG, Original(es), Editable, `.pixpin` y Texto; de mensajes (dibujo y cada marco, foto, PDF solo, voz, nota), lo elegido, proyectos, pines y ficheros; salidas Compartir (a la Salida), Más… (la hoja del Mac), Guardar como… y Copiar. Falta: el PDF anotado y la web de un documento que se lee (`pdf_anotado`, `documento_web`), las páginas de un Word o un libro, tablas que calculan, Word de una nota, enlace y wifi, lo pixelado tapado en un dibujo del chat, y engancharla en los lectores (`Documentos/*`: `HojaCompartir.abrir(.documento(url), …)`) |
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
-| croquis3d | Ver los croquis 3D del móvil | completo | K/Chat/BurbujasQueLlegan.swift, K/Planos/VisorModelo3D.swift, N/modelos3d.rs | Hecho (B9): burbuja `CROQUIS` («aún no ha llegado» si falta su `.croquis.gz`), doble clic al visor 3D con sus fotos, su fondo, su tema y su encuadre de fábrica. Solo se ve, como en Windows. Faltan sus vistas guardadas (1–9) y exportarlo (las del visor, E2) |
+| croquis3d | Ver los croquis 3D del móvil | completo | K/Chat/BurbujasQueLlegan.swift, K/Planos/VisorModelo3D.swift, N/modelos3d.rs | Hecho (B9): burbuja `CROQUIS` («aún no ha llegado» si falta su `.croquis.gz`), doble clic al visor 3D con sus fotos, su fondo, su tema y su encuadre de fábrica. Solo se ve, como en Windows. Sus vistas guardadas con 1–9 (y en el menú «Vistas») y ⌘E exporta lo que se ve con el `.croquis.gz` como original (E2) |
 | cuenta_atras | Captura con retardo | completo | K/Captura/CuentaAtras.swift, K/Captura/AjustesCaptura.swift | — (Esc la para aunque el foco este en otra app; los segundos de `retardo_captura_s`) |
 | diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | parcial | K/Documentos/Diapositivas.swift, N/diapositivas.rs | Hecho (D9): pase a pantalla completa con la pastilla, teclas de PowerPoint, clic por tercios, rueda, B/. negro, N notas abajo, T transiciones (las capas de Rust), pase solo (`advTm`), videos y audios, y la vista del orador en la otra pantalla; lo abren el botón y F5 del lector, el pin de Office y el menú de la burbuja. Faltan PPTX → proyecto y `.ppt`/`.odp` (Windows los pasa por PowerPoint); doble clic en la burbuja sigue abriendo el pin (en Windows presenta) |
 | dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | Hechas todas las herramientas de la barra (zona, láser, lupa, foco, pixelar, marco, copiar estilo, bolita, soldar vértices: N/editor_herramientas.rs, N/editor_tapado.rs). Faltan copiar y pegar elementos, agrupar y los atajos de §2.5 |
@@ -116,7 +116,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | medir_fotogramas | Medir fotogramas | interno | — | No hace falta (Instruments) |
 | mini_panel | Mini-apps: tareas, contador, ruleta, gastos, relojes | completo | K/Pines/Herramientas.swift, RelojesPin.swift, N/miniapps.rs | Su teclado (F2, Supr, «25»+↩) |
 | miniaturas | Fotos del proyecto en el panel de información | falta | — | Todo |
-| modelo_bim | IFC, Revit, LandXML en 3D | parcial | K/Planos/VisorModelo3D.swift, N/modelos3d.rs | Vistas guardadas, caché; probarlo en un Mac real |
+| modelo_bim | IFC, Revit, LandXML en 3D | completo | K/Planos/VisorModelo3D.swift, N/modelos3d.rs | Hecho (E2): la caché `cache/bim/<clave>.px3d` de Windows (16), las teclas de Windows y ⌘E (la foto de la vista y el original). Las vistas 1–9 son las de un croquis (un IFC no tiene, como en Windows). Se lee en el mismo proceso, no en uno aparte; probar IFC grandes en un Mac real |
 | navegacion | Cámara del lienzo | parcial | K/Lienzo/EditorLienzoView.swift | Espacio + arrastrar (lo lleva el agente del lienzo) |
 | notas_md (editor, guardar) | Editor de notas Markdown | completo | K/Documentos/EditorNotaWeb.swift, N/notas/web.rs | — (D4: la misma página de Windows, `lector-md.html`, en un `WKWebView`: formato vivo, barra flotante, menú `/`, tablas, fórmulas, casillas, letra y tamaño en `vista-de-notas.txt`, copia `.md`, Word, compartir, lo de fuera al día; el editor de AppKit queda como «anterior»; un `.md` del chat o del Finder se abre aquí) |
 | notas_md/adjuntos | Fotos dentro de la nota | completo | N/notas/adjuntos.rs, K/Documentos/EditorNotaWeb.swift | — (elegir, pegar o soltar fotos, documentos y audios; se copian a `notas/` como `pixpin:files/…` y viajan; la página los pide por `pixpin-nota://`) |
@@ -126,7 +126,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | notas_md/lector_web | Modo lector de la nota | completo | K/Documentos/EditorNotaWeb.swift, N/notas/web.rs | — (es el editor que se abre, D4) |
 | notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | completo | K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift | Sin permiso del sistema, lo urgente sale en una ventanita de la app con los mismos botones |
 | orden | Línea de órdenes y `pixpinmax://` | parcial | K/Pedidos/{Pedido,Verbos,Enlaces}.swift | C2: `CFBundleURLTypes` (`pixpinmax`) y la tabla de verbos de `orden.rs` entera (mismos nombres, alias y campos; `pixpin://atajo/…` de Android también, y `pixpinmax:pedido?json=`); la lista blanca (`seguridad`), el cuadro de confirmar con «No» por defecto, lo prohibido (rutas de red: `//…`, `/net`, `/Network`, `smb:`, `file:`, relativas) y la firma HMAC-SHA256 (`enlaces.clave` en la carpeta de datos). El Mac no reclama `pixpin://` (es también del PixPin de DepthPixel). Falta la línea de órdenes (`pixpinmax <verbo>` en Terminal): `Verbos.deArgumentos` ya la entiende, falta el ejecutable |
-| oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Documentos/TonoLector.swift, N/documentos/lector.rs | Hecho en el lector (luna/sol en su barra, `lectores_oscuros` del estado, la tinta se adapta). Faltan el pin de Office, la hoja de cálculo y los visores de planos |
+| oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Documentos/TonoLector.swift, N/documentos/lector.rs | Hecho en el lector (luna/sol en su barra, `lectores_oscuros` del estado, la tinta se adapta) y en el visor de planos (E2: luna/sol y B, el mismo `lectores_oscuros`; el 3D cambia el suyo con B, como Windows). Faltan el pin de Office y la hoja de cálculo |
 | overlay | Overlay de captura | completo | K/Captura/* | — (B8: ⌘A, flechas, Espacio en vivo, ⇧ HEX/RGB, ⇧⌘S, ⌫, cuentagotas; la barra de acciones de Windows) |
 | panel_dibujo | Panel de estilo del lienzo | parcial | K/Lienzo/BarraEstiloLienzo.swift | **Lo lleva el agente del lienzo** |
 | pdf_del_proyecto | Rehacer un PDF roto desde `pdfLimpio` | falta | — | Todo |
@@ -145,11 +145,11 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | pines/panel | Panel de anotar | completo | K/Pines/Anotar.swift | — |
 | pines/pizarra | Pines pizarra y hoja | falta | — | Todo |
 | pines/herramienta, sacar | Mini-app en un pin; sacarla escribiendo su nombre | parcial | K/Pines/Herramientas.swift | Sacarla por la palabra |
-| plano_cad (visor) | DWG/DXF como pin | parcial | K/Planos/VisorPlano.swift, N/planos.rs | Caché `.pxcad`; probarlo en un Mac real |
-| plano_cad/anotar | Anotar el plano a mano | falta | — | Depende del lienzo |
-| plano_cad/exportar | Exportar el plano | falta | — | Todo |
+| plano_cad (visor) | DWG/DXF como pin | completo | K/Planos/VisorPlano.swift, N/planos.rs, N/planos/cache.rs | Hecho (E2): la caché `cache/cad/<clave>-l1[-huella].pxcad` (24, la clave y la huella de letras de Windows; guarda el plano por capas), las letras del plano (L: las que faltan, añadir y quitar las de `fuentes-shx`, se relee con ellas), siempre encima (T) y todas sus teclas. Diferencias: se lee en el mismo proceso (Windows usa uno aparte por si un DWG roto lo tumba) y las letras del usuario aún no viajan (`letras_que_viajan`) |
+| plano_cad/anotar | Anotar el plano a mano | completo | K/Planos/AnotarPlano.swift, N/planos/anotar.rs | Hecho (E2): A o el lápiz de la barra pone el lienzo de verdad encima (su barra, su panel y sus teclas) con la cámara del plano, en la capa `anot-<uid>` (viaja) o la de la caché, con su `.hoja` detrás. ⎋ sin nada elegido termina. Diferencia: la capa se edita en las unidades de su fichero (Windows la lleva en memoria en las de la letra del plano); una capa nueva queda igual |
+| plano_cad/exportar | Exportar el plano | completo | K/Planos/ExportarPlano.swift, N/planos/exportar.rs | Hecho (E2): ⌘E abre la hoja común con HTML (la página de Windows, `pixpin_cad::web`, con las capas como se ven), PDF en vectores (una hoja por marco, A3), PNG y JPG (3200 px), DXF de un DWG y el original; las cotas y lo anotado van encima (también al imprimir) |
 | plano_cad/imprimir | Imprimir | completo | K/Planos/ImpresionPlano.swift | — |
-| plano_cad/textos | Buscar en los textos del plano | falta | — | Todo |
+| plano_cad/textos | Buscar en los textos del plano | completo | K/Planos/VisorPlano.swift (⌘F), N/planos/textos.rs | Hecho (E2): los textos con su sitio en `cache/cad/<clave>-textos.json` (el JSON de Windows), sin mirar mayúsculas, tildes ni puntos, los más grandes antes; ⌘F los busca y lleva a cada uno con una marca. Que el asistente abra el plano en un texto (`abrir_en`) es de E1 |
 | pronunciar | Practicar la pronunciación | falta | — | Todo |
 | punto_de_proyecto | Punto verde o rojo en la burbuja | completo | K/Chat/BurbujasQueLlegan.swift, N/burbujas.rs | Hecho (B9): `MensajeChat.punto` (las señas de los `proyecto.json`, en caché por fechas), junto a la hora |
 | recibir | Recibir del móvil con QR; lienzo suelto | completo | K/Sincro/EnvioPorCodigo.swift, N/envio.rs, N/recepcion.rs, N/lienzo_suelto.rs | — |
@@ -401,8 +401,8 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 | Galería | flechas, Espacio, Intro, Supr, Ctrl+C/S/A/Z, Esc, escribir busca | flechas, Inicio/Fin, Espacio, ↩, ⌫, ⌘C/S/A/Z, ⌘F, ⌘Y, Esc, escribir busca | completo |
 | Hoja de cálculo (editar) | Ctrl+N/B, Ctrl+K/I, Ctrl+S/U, Ctrl+5, Ctrl+Mayús+L/E/R, F2, Ctrl+Z/Y/C/X/V | ⌘B/I/U, ⌘5 (y ⇧⌘X), ⇧⌘L/E/R, F2, ⌘Z/⇧⌘Z/⌘Y, ⌘C/X/V, ⌫, ⇧+flechas (⌘N, ⌘K y ⌘S no: son de macOS) | completo |
 | Visor de hoja | Ctrl+flechas, Ctrl+Intro, Ctrl+RePág/AvPág, Ctrl+Inicio/Fin, zoom, F11 | en el editor: ⌘flechas, ⌃⇟ / ⌃⇞ y ⌥⌘→ / ⌥⌘← (hojas), ⌘A; faltan Ctrl+Intro (enlace), zoom y F11 | parcial |
-| Plano CAD | Esc, Supr, Ctrl+P, Ctrl+E, I, A, L, F, B, M, T, 3, +/−, flechas | ⎋, ↩, ⌫, F, M, +/−, ⌘P | parcial |
-| Modelo 3D | F, B, C, I, L, A, P, T, 1–9, +/−, flechas | ⎋, flechas, F, +/− | parcial |
+| Plano CAD | Esc, Supr, Ctrl+P, Ctrl+E, I, A, L, F, B, M, T, 3, +/−, flechas | ⎋ (por capas; si no, cierra), ↩, ⌫ (punto o marco), Supr (fn ⌫), ⌘P, ⌘E, ⌘F, I, A, L, F o Inicio, B, M, T, 3, +/−, flechas | completo |
+| Modelo 3D | F, B, C, I, L, A, P, T, 1–9, +/−, flechas | ⎋ (aislado, elegido, cierra), F o Inicio, B, C, I, L, A, P, T, 1–9, +/−, flechas, ⌘E | completo |
 | Diapositivas y presentar | → ↓ AvPág Intro Espacio / ← ↑ RePág Retroceso P, Inicio/Fin, B o «.», N, T, J L R E M, Esc | las mismas (⇟ ⇞ ↩ ⌫ ↖ ↘), ⇧Espacio atrás, ⌘W/⌘. salir | parcial (faltan J L R E M) |
 | Telepronter | Esc, Espacio, Intro, ←→, ↑↓, + / −, RePág/AvPág | — | falta |
 | Pronunciar | Espacio mantenido, R, Ctrl+G, ←→, + / −, Esc | — | falta |
@@ -563,7 +563,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | # | Tanda | Ficheros |
 |---|---|---|
 | E1 | Asistente, parte 2: en el chat (y que viaje), recetas, «ojos», hoja→lienzo, anotar documentos, editar el lienzo abierto, figuras guardadas, acciones sobre documentos y del chat (**después de A7 y D6; dep. lienzo**) | K/Asistente/*, K/Vistas.swift |
-| E2 | Planos: anotar a mano (**dep. lienzo**), exportar, buscar textos, caché `.pxcad`, vistas 3D guardadas | K/Planos/*, N/planos.rs, N/modelos3d.rs (**no a la vez que B9** en modelos3d.rs) |
+| E2 ✅ | ~~**Planos**~~ **hecho** (16-oct): anotar a mano con el lienzo, exportar (HTML, PDF, PNG, JPG, DXF), buscar en los textos (⌘F), caché `.pxcad` y la de los modelos, letras del plano, luna/sol, vistas 3D guardadas y exportar la vista, y todas las teclas de los dos visores. Quedan: leer en un proceso aparte, que las letras viajen y probarlo con planos y modelos grandes en un Mac real | K/Planos/*, N/planos.rs, N/planos/*, N/modelos3d.rs |
 | E3 ✅ | **Anotar la pantalla** (hecho, 16-oct): viva y congelada sobre todas las pantallas con las herramientas del lienzo, pastilla, clic a través (Espacio, ⌘ mantenido, ⌥ + doble clic central), limpiar con deshacer, copiar, y al salir a «Mensajes guardados» con su lienzo editable (puesto al día si se guardó antes). Quedan la lupa viva y meter las imágenes pegadas en la foto | K/Captura/Capturador.swift, nuevo K/Captura/AnotadorPantalla.swift, nuevo N/anotador_al_chat.rs, K/Lienzo/EditorLienzoView.swift (`origenFijo`, `papelTransparente`) |
 | E4 | Centro de la barra de menús (panel rico) y grupos de ventanas (**dep. ventanas**) | APP, nuevo K/Bandeja/* |
 | E5 | Telepronter, Pronunciar, conversación por turnos y llamada secreta (**después de A4**) | nuevo K/VozVentanas/* |

@@ -15,7 +15,14 @@
 //
 // Tambien ensena los croquis 3D del movil (`croquis3d.rs` de Windows, B9):
 // llegan del chat ya hechos triangulos (`Nucleo.abrirCroquis`) y traen su
-// fondo, su tema y desde donde se miran (`ExtrasCroquis`). Solo se ven.
+// fondo, su tema y desde donde se miran (`ExtrasCroquis`). Solo se ven. Sus
+// vistas guardadas en el movil van con las teclas 1 a 9 (E2).
+//
+// Las teclas, las de Windows (`ventana3d.rs`): ⎋ (suelta lo aislado o lo
+// elegido; si no, cierra), F o Inicio todo, B fondo claro u oscuro, C caja
+// de seccion, I aislar, L el panel, A aristas, P planta, T siempre encima,
+// 1–9 las vistas guardadas, + y −, las flechas giran y ⌘E exporta la vista
+// (una foto de lo que se ve, con el original).
 
 import AppKit
 import Metal
@@ -83,16 +90,33 @@ public final class VisorModelo3D: ObservableObject {
     @Published public var conCorte = false { didSet { vista?.repintar() } }
     /// La caja de seccion: minimo y maximo de cada eje, de 0 a 1.
     @Published public var corte: [Double] = [0, 0, 0, 1, 1, 1] { didSet { vista?.repintar() } }
+    /// El fondo elegido con B (`nil`: el del croquis o el del sistema).
+    @Published public private(set) var claro: Bool?
+    /// El panel (niveles, categorias, lo elegido): L.
+    @Published public var verPanel = true
+    /// Siempre encima (T).
+    @Published public private(set) var siempreEncima = false
+    /// Las vistas guardadas del croquis (1 a 9).
+    @Published public private(set) var vistas: [String] = []
+    /// El fichero que va como «Original» al exportar (el modelo, o el
+    /// `.croquis.gz` del chat).
+    public var original: URL?
     public let titulo: String
     public let ruta: String
     /// Quien lee el modelo (fuera del hilo principal).
     private let abrir: @Sendable () throws -> Modelo3dApple
     weak var vista: VistaModeloMetal?
 
-    public init(ruta: String, titulo: String) {
+    /// Con `nucleo`, el modelo leido queda en su cache (`cache/bim`, como
+    /// Windows): la segunda vez se abre casi al momento.
+    public init(ruta: String, titulo: String, nucleo: Nucleo? = nil) {
         self.ruta = ruta
         self.titulo = titulo
-        abrir = { try Modelo3dApple.abrir(ruta: ruta) }
+        if let nucleo {
+            abrir = { try nucleo.abrirModelo(ruta: ruta) }
+        } else {
+            abrir = { try Modelo3dApple.abrir(ruta: ruta) }
+        }
     }
 
     /// **Un croquis 3D del movil**: `abrir` lo lee del chat
@@ -101,6 +125,48 @@ public final class VisorModelo3D: ObservableObject {
         ruta = clave
         self.titulo = titulo
         self.abrir = abrir
+    }
+
+    // MARK: Ordenes (las teclas de Windows)
+
+    /// B: el fondo claro u oscuro.
+    public func alternarTema(actual: Bool) {
+        claro = !actual
+        vista?.repintar()
+    }
+
+    /// T: la ventana siempre encima (o no).
+    public func alternarEncima() {
+        siempreEncima.toggle()
+        vista?.window?.level = siempreEncima ? .floating : .normal
+    }
+
+    /// ⎋: suelta lo aislado; si no, lo elegido; si no, cierra.
+    public func escape() {
+        if filtro.aislado != nil {
+            aislar()
+        } else if elegido != nil {
+            elegir(nil)
+        } else {
+            vista?.window?.performClose(nil)
+        }
+    }
+
+    /// 1–9: la vista guardada `i` (desde 0).
+    public func irAVista(_ i: Int) { vista?.irAVista(i) }
+
+    /// ⌘E: **exporta lo que se ve** (una foto de la ventana, como Windows,
+    /// que pinta con la tarjeta) con el original.
+    public func exportar() {
+        guard datos != nil, let v = vista else { return NSSound.beep() }
+        let titulo = self.titulo, original = self.original
+        v.foto { img in
+            let p = PreparadoCompartir(titulo: titulo)
+            if let img { p.anadir(PiezasCompartir.foto(img, clave: "vista", nombre: titulo)) }
+            if let original { PrepararCompartir.anadirOriginales(p, [original]) }
+            guard img != nil || original != nil else { return NSSound.beep() }
+            HojaCompartir.abrir(.preparado(p), almacen: nil)
+        }
     }
 
     public func cargar() {
@@ -119,6 +185,7 @@ public final class VisorModelo3D: ObservableObject {
                 self.datos = d
                 self.niveles = d.modelo.niveles()
                 self.categorias = d.modelo.categorias()
+                self.vistas = d.modelo.vistasGuardadas()
                 self.vista?.alLlegarElModelo()
             case let .failure(e):
                 self.error = "No se pudo abrir el modelo: \(e)"
@@ -206,6 +273,8 @@ public final class VistaModeloMetal: MTKView {
         sampleCount = muestras
         isPaused = true
         enableSetNeedsDisplay = true
+        // Para leer lo pintado al exportar la vista.
+        framebufferOnly = false
         visor.vista = self
     }
 
@@ -224,8 +293,37 @@ public final class VistaModeloMetal: MTKView {
     private var alto: UInt32 { UInt32(max(drawableSize.height, 1)) }
     /// Claro u oscuro: el del croquis si lo dice (su fondo deja ver su
     /// tinta); si no, el del sistema.
-    private var claro: Bool {
-        visor.datos?.croquis?.claro ?? (effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) != .darkAqua)
+    var claro: Bool {
+        visor.claro ?? visor.datos?.croquis?.claro ?? (effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) != .darkAqua)
+    }
+
+    /// Lo que se pidio fotografiar (⌘E): se lee tras el siguiente pintado.
+    private var pedidoDeFoto: ((CGImage?) -> Void)?
+
+    /// **La foto de lo que se ve** (pinta una vez y lee el dibujable).
+    func foto(_ listo: @escaping @MainActor (CGImage?) -> Void) {
+        pedidoDeFoto = { img in MainActor.assumeIsolated { listo(img) } }
+        draw()
+    }
+
+    /// La vista guardada `i` del croquis, como la mira el movil.
+    func irAVista(_ i: Int) {
+        guard i >= 0, let d = visor.datos,
+              let c = d.modelo.camaraDeVista(indice: UInt32(i), ancho: ancho, alto: alto, escala: escala) else {
+            return NSSound.beep()
+        }
+        camara = c
+        encuadrado = true
+        repintar()
+    }
+
+    /// P: la planta (desde arriba), encuadrada.
+    func planta() {
+        guard let d = visor.datos else { return }
+        let caja = visor.cajaDeCorte ?? d.croquis?.encuadre ?? d.resumen.cajaUtil
+        camara = camaraEncuadrarDesde(caja: caja, ancho: ancho, alto: alto, rumbo: -Double.pi / 2, altura: 1.5697)
+        encuadrado = true
+        repintar()
     }
 
     func alLlegarElModelo() {
@@ -309,8 +407,35 @@ public final class VistaModeloMetal: MTKView {
             }
         }
         enc.endEncoding()
+        if let pedido = pedidoDeFoto {
+            pedidoDeFoto = nil
+            leerFoto(dibujable.texture, cb, pedido)
+        }
         cb.present(dibujable)
         cb.commit()
+    }
+
+    /// Copia lo pintado a la memoria y, al terminar la tarjeta, lo da como
+    /// imagen (BGRA, el formato de la vista).
+    private func leerFoto(_ t: MTLTexture, _ cb: MTLCommandBuffer, _ listo: @escaping (CGImage?) -> Void) {
+        let w = t.width, h = t.height, fila = w * 4
+        guard let bufer = motor.dispositivo.makeBuffer(length: fila * h, options: .storageModeShared),
+              let blit = cb.makeBlitCommandEncoder() else { return listo(nil) }
+        blit.copy(from: t, sourceSlice: 0, sourceLevel: 0, sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
+                  sourceSize: MTLSize(width: w, height: h, depth: 1), to: bufer, destinationOffset: 0,
+                  destinationBytesPerRow: fila, destinationBytesPerImage: fila * h)
+        blit.endEncoding()
+        cb.addCompletedHandler { _ in
+            let datos = Data(bytes: bufer.contents(), count: fila * h)
+            let img = CGDataProvider(data: datos as CFData).flatMap {
+                CGImage(width: w, height: h, bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: fila,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                        bitmapInfo: CGBitmapInfo(rawValue: CGBitmapInfo.byteOrder32Little.rawValue
+                            | CGImageAlphaInfo.noneSkipFirst.rawValue),
+                        provider: $0, decode: nil, shouldInterpolate: false, intent: .defaultIntent)
+            }
+            DispatchQueue.main.async { listo(img) }
+        }
     }
 
     private func pintar(_ d: ModeloEnTarjeta, _ vb: MTLBuffer, _ enc: MTLRenderCommandEncoder, claro: Bool) throws {
@@ -461,9 +586,14 @@ public final class VistaModeloMetal: MTKView {
     }
 
     override public func keyDown(with e: NSEvent) {
+        let mods = e.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            .subtracting([.capsLock, .numericPad, .function])
         let letra = e.charactersIgnoringModifiers?.lowercased() ?? ""
+        if mods == .command, letra == "e" { return visor.exportar() }
+        guard mods.isEmpty || mods == .shift else { return super.keyDown(with: e) }
         switch e.keyCode {
-        case 53: visor.elegir(nil)
+        case 53: visor.escape()
+        case 115: encuadrar() // Inicio
         case 123: girarTeclado(0.26, 0)
         case 124: girarTeclado(-0.26, 0)
         case 126: girarTeclado(0, 0.2)
@@ -471,6 +601,14 @@ public final class VistaModeloMetal: MTKView {
         default:
             switch letra {
             case "f": encuadrar()
+            case "b": visor.alternarTema(actual: claro)
+            case "c": visor.conCorte.toggle()
+            case "i": if visor.elegido != nil || visor.filtro.aislado != nil { visor.aislar() }
+            case "l": visor.verPanel.toggle()
+            case "a": visor.aristas.toggle()
+            case "p": planta()
+            case "t": visor.alternarEncima()
+            case "1", "2", "3", "4", "5", "6", "7", "8", "9": irAVista(Int(letra)! - 1)
             case "+", "=": camara = camaraZoom(camara: camara, factor: 1 / 1.4, fijo: camara.objetivo); repintar()
             case "-": camara = camaraZoom(camara: camara, factor: 1.4, fijo: camara.objetivo); repintar()
             default: super.keyDown(with: e)
@@ -498,7 +636,6 @@ struct LienzoMetalModelo: NSViewRepresentable {
 /// categorias, caja de seccion y lo elegido).
 public struct VentanaModeloView: View {
     @ObservedObject var visor: VisorModelo3D
-    @State private var verPanel = true
 
     public init(visor: VisorModelo3D) { self.visor = visor }
 
@@ -507,15 +644,39 @@ public struct VentanaModeloView: View {
             HStack(spacing: 10) {
                 Button { visor.encuadrar() } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
                     .help("Ver el modelo entero (F)")
-                Toggle("Aristas", isOn: $visor.aristas).toggleStyle(.button)
-                Toggle("Caja de sección", isOn: $visor.conCorte).toggleStyle(.button)
+                Toggle("Aristas", isOn: $visor.aristas).toggleStyle(.button).help("Aristas (A)")
+                Toggle("Caja de sección", isOn: $visor.conCorte).toggleStyle(.button).help("Caja de sección (C)")
+                Button { visor.vista.map { visor.alternarTema(actual: $0.claro) } } label: {
+                    Image(systemName: (visor.claro ?? visor.datos?.croquis?.claro ?? false) ? "moon" : "sun.max")
+                }
+                .help("Fondo claro u oscuro (B)")
+                Button { visor.vista?.planta() } label: { Image(systemName: "square.grid.3x3.topleft.filled") }
+                    .help("Planta: desde arriba (P)")
                 Button(visor.filtro.aislado == nil ? "Aislar" : "Ver todo") { visor.aislar() }
                     .disabled(visor.elegido == nil && visor.filtro.aislado == nil)
+                if !visor.vistas.isEmpty {
+                    Menu {
+                        ForEach(Array(visor.vistas.prefix(9).enumerated()), id: \.offset) { i, n in
+                            Button("\(i + 1)  \(n)") { visor.irAVista(i) }
+                        }
+                    } label: { Label("Vistas", systemImage: "camera.viewfinder") }
+                        .fixedSize()
+                        .help("Las vistas guardadas en el móvil (1–9)")
+                }
                 Spacer()
                 if let r = visor.datos?.resumen {
                     Text("\(r.elementos) elementos").foregroundStyle(.secondary).font(.callout)
                 }
-                Toggle(isOn: $verPanel) { Image(systemName: "sidebar.right") }.toggleStyle(.button)
+                Button { visor.exportar() } label: { Image(systemName: "square.and.arrow.up") }
+                    .help("Exportar lo que se ve, con el original (⌘E)")
+                    .keyboardShortcut("e")
+                Toggle(isOn: Binding(get: { visor.siempreEncima }, set: { _ in visor.alternarEncima() })) {
+                    Image(systemName: visor.siempreEncima ? "pin.fill" : "pin")
+                }
+                .toggleStyle(.button)
+                .help("Siempre encima (T)")
+                Toggle(isOn: $visor.verPanel) { Image(systemName: "sidebar.right") }.toggleStyle(.button)
+                    .help("Niveles y categorías (L)")
             }
             .disabled(visor.datos == nil)
             .padding(.horizontal, 10)
@@ -524,7 +685,7 @@ public struct VentanaModeloView: View {
             Divider()
             HStack(spacing: 0) {
                 contenido
-                if verPanel && visor.datos != nil {
+                if visor.verPanel && visor.datos != nil {
                     Divider()
                     panel.frame(width: 260)
                 }
