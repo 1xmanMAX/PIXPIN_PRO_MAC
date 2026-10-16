@@ -98,6 +98,8 @@
 		<string>_pixpinrecibe._tcp</string>
 		<string>_pixpinchat._tcp</string>
 	</array>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>PixPin le pregunta al Finder qué ficheros tienes elegidos para dejarlos flotando como pin (comando «Pinear lo elegido en el Finder»).</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>

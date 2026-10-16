@@ -20,6 +20,27 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 
+/// Para que se abre la captura (los comandos con atajo de Windows): elegir
+/// la zona y luego la barra, o hacer ya algo al elegirla.
+public enum IntencionCaptura: Sendable {
+    /// La de siempre: elegir y luego la barra de acciones.
+    case normal
+    /// Al elegir, copiar (sin barra).
+    case copiar
+    /// Al elegir, pinear.
+    case pinear
+    /// Al elegir, el lapiz en la mano.
+    case anotar
+    /// Modo `T`: al elegir, sacar el texto.
+    case texto
+    /// Modo `S`: captura con scroll.
+    case scroll
+    /// Modo `G`: grabar un GIF.
+    case gif
+    /// Modo `L`: pin en vivo.
+    case enVivo
+}
+
 @MainActor
 public final class Capturador {
     /// Hace un pin con la imagen recortada.
@@ -54,6 +75,8 @@ public final class Capturador {
     /// Abrir con la pantalla entera elegida y el lapiz en la mano (el
     /// anotador de pantalla).
     private var paraAnotar = false
+    /// Lo que se hace al elegir la zona (los comandos con atajo).
+    private var intencion: IntencionCaptura = .normal
     private var paneles: [PanelCaptura] = []
     /// La vista de la pantalla donde esta el raton o donde se empezo.
     private weak var activa: VistaCaptura?
@@ -74,6 +97,15 @@ public final class Capturador {
     /// Con `paraGrabar`, Intro graba la zona en video en vez de copiarla.
     public func capturar(paraGrabar: Bool = false) {
         abrirCaptura(paraGrabar: paraGrabar, paraAnotar: false)
+    }
+
+    /// Abre la captura para algo concreto (un comando con atajo): con su
+    /// modo ya puesto, o haciendolo en cuanto se elige la zona.
+    public func capturar(_ intencion: IntencionCaptura) {
+        guard !abierta else { return }
+        abrirCaptura(paraGrabar: false, paraAnotar: false)
+        guard abierta else { return }
+        self.intencion = intencion
     }
 
     /// El anotador de pantalla: la captura con la pantalla del raton ya
@@ -109,6 +141,7 @@ public final class Capturador {
         proporcion = .libre
         intro = .copiar
         paraAnotar = false
+        intencion = .normal
         for panel in lista {
             vista(de: panel)?.soltar()
             panel.orderOut(nil)
@@ -118,7 +151,13 @@ public final class Capturador {
 
     private func abrir(_ fotos: [FotoDePantalla]) {
         let ventanas = Instantanea.ventanasVisibles()
-        modo = .zona
+        switch intencion {
+        case .texto: modo = alSacarTexto != nil ? .texto : .zona
+        case .scroll: modo = alScroll != nil ? .scroll : .zona
+        case .gif: modo = alGif != nil ? .gif : .zona
+        case .enVivo: modo = alPinEnVivo != nil ? .pinEnVivo : .zona
+        case .normal, .copiar, .pinear, .anotar: modo = .zona
+        }
         paneles = fotos.map { PanelCaptura.abrir(foto: $0, ventanas: ventanas, capturador: self) }
         // La pantalla donde esta el raton es la que recibe el teclado.
         let raton = NSEvent.mouseLocation
@@ -273,6 +312,18 @@ public final class Capturador {
     /// elegir (texto, scroll, GIF, pin en vivo) lo hacen ya.
     func alElegir(en vista: VistaCaptura) {
         vista.actualizarBarraModos()
+        // Los comandos que hacen algo en cuanto se elige.
+        switch intencion {
+        case .copiar where !modo.actuaAlElegir:
+            return accion(.copiar, en: vista)
+        case .pinear where !modo.actuaAlElegir && alPinear != nil:
+            return accion(.pinear, en: vista)
+        case .anotar where !modo.actuaAlElegir:
+            vista.tomar(.lapiz)
+            return
+        default:
+            break
+        }
         guard modo.actuaAlElegir, !paraAnotar else { return }
         switch modo {
         case .texto:

@@ -3,7 +3,7 @@
 // - En `pixpinmax.toml` (el MISMO fichero de Windows, por el nucleo de Rust
 //   `Nucleo.ajustes`/`guardarAjustes`), solo lo que vale en los dos
 //   sistemas: los dias que aguanta una captura y la sincronizacion sola.
-// - En este Mac: el tema (UserDefaults), el atajo (`AtajoDeCaptura`) y
+// - En este Mac: el tema (UserDefaults), los atajos (`GestorAtajos`) y
 //   «Abrir al iniciar sesion» (`SMAppService.mainApp`, que es la verdad: si
 //   el usuario lo quita en Ajustes del Sistema, aqui se ve quitado).
 //

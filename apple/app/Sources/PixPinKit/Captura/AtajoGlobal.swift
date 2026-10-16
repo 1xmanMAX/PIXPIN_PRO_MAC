@@ -16,7 +16,7 @@ private let firmaPixPin: OSType = 0x5078_506E
 public final class AtajoGlobal {
     /// Una tecla (codigo virtual, `kVK_...`) y sus modificadores de Carbon
     /// (`controlKey`, `optionKey`, `cmdKey`, `shiftKey`).
-    public struct Combinacion: Equatable, Sendable {
+    public struct Combinacion: Hashable, Sendable {
         public var tecla: UInt32
         public var modificadores: UInt32
 
@@ -82,6 +82,9 @@ public final class AtajoGlobal {
         guard estado == OSStatus(noErr) else { return nil }
         return ref
     }
+
+    /// Si el sistema lo tiene registrado ahora mismo.
+    public var registrado: Bool { registro != nil }
 
     /// Quita el atajo ya (sin esperar a soltar el objeto).
     public func quitar() {

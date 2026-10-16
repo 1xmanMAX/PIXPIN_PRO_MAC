@@ -45,7 +45,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
    - Faltan buscar (⌘F/⌘G), ir al marcador con ⌘1…9, el negativo, el avance solo y renombrar.
    - Falta escuchar en voz alta (`leer_en_voz`).
    - Falta recargar la tinta si cambia en el disco (`al_dia`).
-9. **Atajos globales configurables.** Solo se puede cambiar el de capturar; los otros 25 comandos del catálogo y las regiones no tienen atajo. Faltan además el esquema `pixpinmax://`, los pedidos y el menú del Dock.
+9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. Faltan «dejar pasar el clic» y «restaurar el último pin» (esperan a los pines), el esquema `pixpinmax://`, los pedidos y el menú del Dock.
 10. **El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**: le faltan 10 módulos. También van detrás `pixpin-motor2d` y las letras de `pixpin-pdf`. Por eso el asistente del Mac no hace lo que hace el de Windows.
 
 ---
@@ -84,7 +84,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | falta | — | Todo |
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
 | croquis3d | Ver los croquis 3D del móvil | falta | K/Planos/VisorModelo3D.swift | Abrir `.croquis.gz` en N/modelos3d.rs |
-| cuenta_atras | Captura con retardo | falta | — | Todo |
+| cuenta_atras | Captura con retardo | parcial | K/Captura/CapturaDirecta.swift (`CuentaAtras`, 3 s) | Esc para cancelar; los segundos de `retardo_captura_s` |
 | diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | falta | K/Documentos/LectorDocumento.swift (solo verlo) | Todo |
 | dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | **Lo lleva el agente del lienzo** |
 | dispositivo_perdido | Recuperarse si se pierde la GPU | interno | — | Solo para Metal en Planos, si se quita la GPU |
@@ -114,7 +114,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Módulo Windows | Función | Estado Mac | Archivo(s) Mac | Qué falta |
 |---|---|---|---|---|
-| main (bandeja) | Menú de la bandeja con 27 comandos | parcial | APP | Faltan: capturar y copiar o anotar, retardo, cuentagotas, pinear selección, anotar pantalla, silenciar atajos, clic a través, ventana encima, restaurar o cerrar pines, recibir del móvil |
+| main (bandeja) | Menú de la bandeja con 27 comandos | parcial | APP, K/Ajustes/ComandosApp.swift | Faltan: clic a través y restaurar el último pin (salen solos cuando los pines los den) |
 | main (arranque) | Restaurar pines, vigía de recordatorios, automatizaciones, línea de órdenes, avisos de caducidad | parcial | APP | Restaurar pines, recordatorios, automatizaciones |
 | marco_de_la_tinta | Migrar la tinta vieja al marco `.hoja` | interno | N/documentos.rs (lee el marco) | Pasada `tras_sincronizar`; solo hace falta con datos viejos |
 | medir_fotogramas | Medir fotogramas | interno | — | No hace falta (Instruments) |
@@ -225,7 +225,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Lienzo (imán, suavizado) | falta | Depende del lienzo |
 | Voz | falta | Segundo idioma, modo |
 | Asistente (modelo, pensar, claves) | falta | Pantalla de claves; el Llavero ya está |
-| Atajos | parcial | Solo el de capturar |
+| Atajos | completo | K/Ajustes/SeccionAtajos.swift (pestaña «Atajos»); UserDefaults, no el TOML (no viaja) |
 | Sincro | parcial | Presencia, «Lo mío manda» |
 | Apps (abrir con, predeterminada) | falta | Todo |
 | Apariencia (Cosmos) | parcial | Cosmos |
@@ -276,8 +276,10 @@ Choques con macOS que hay que esquivar:
 | Ctrl+Alt+X | Capturar zona | ⌃⌥X (se puede cambiar) | completo |
 | Ctrl+2 | Mostrar u ocultar los pines | ⌃2 | completo |
 | — | Grabar pantalla | ⌃⌥R | solo Mac |
-| 25 comandos sin tecla de fábrica, que el usuario puede atar | Capturar y copiar, scroll, anotar, GIF, última región, cuentagotas, pinear, en vivo, portapapeles, selección, retardo, silenciar, clic a través, restaurar o cerrar pines, OCR, ventana encima, chat, ajustes, recibir, sincronizar, buscar, salir | ⌃⌥+tecla | falta (solo se cambia el de capturar) |
-| Atajo por región (Ctrl+Alt+1…) | Capturar una región fija | ⌃⌥1… | falta |
+| 25 comandos sin tecla de fábrica, que el usuario puede atar | Capturar y copiar, scroll, anotar, GIF, última región, cuentagotas, pinear, en vivo, portapapeles, selección, retardo, silenciar, clic a través, restaurar o cerrar pines, OCR, ventana encima, chat, ajustes, recibir, sincronizar, buscar, salir | sin tecla de fábrica; se atan en Ajustes → Atajos (mejor ⌃⌥+tecla) | completo salvo clic a través y restaurar el último pin (esperan a los pines). Cuentagotas = `NSColorSampler`; ventana encima = pin en vivo de la ventana (macOS no deja subir ventanas ajenas); anotar = sobre la foto congelada |
+| Atajo por región (Ctrl+Alt+1…) | Capturar una región fija | ⌃⌥1… (Ajustes → Atajos → Regiones, «Guardar la última zona») | completo |
+| Silenciar atajos · programas ignorados | Soltarlos todos · no actuar delante de una app | menú de la barra y Ajustes · lista de apps en Ajustes | completo (los gestos con ⌥ aún no miran la lista) |
+| Choques | Dos comandos con el mismo atajo | Se rechazan; también los de macOS (⇧⌘3/4/5/6, ⌘+tecla, ⌥⌘H/M/D, ⌃⌘Q/F) y se avisa de ⌃1…9, ⌃F1…F8 y ⌃⌘D | completo |
 | Alt + arrastrar (izquierdo, derecho, central) | Copiar, pinear, pin en vivo | ⌥ + arrastrar | completo (apagado de fábrica; pide Accesibilidad) |
 | Alt + doble clic central | Anotar la pantalla | ⌥ + doble clic central | parcial (abre la captura) |
 | Menú: — | Proyectos, Buscar | ⌥⌘P, ⌥⌘F (solo con el menú) | solo Mac |
@@ -538,7 +540,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 
 | # | Tanda | Ficheros |
 |---|---|---|
-| C1 | **Atajos globales configurables**: el catálogo de `pixpin-store/comandos.rs` entero, regiones, silenciar atajos, programas ignorados; sección «Atajos» con ⌫ para quitar uno | K/Captura/AtajoGlobal.swift, K/Ajustes/AtajoDeCaptura.swift, nuevo K/Ajustes/SeccionAtajos.swift, APP |
+| C1 | ✅ **Atajos globales configurables**: el catálogo de `pixpin-store/comandos.rs` entero, regiones, silenciar atajos, programas ignorados; sección «Atajos» con ⌫ para quitar uno. Hecho (faltan clic a través y restaurar el último pin: los ata el agente de pines con `GestorAtajos.poner`) | K/Captura/AtajoGlobal.swift, K/Ajustes/AtajoDeCaptura.swift, nuevo K/Ajustes/SeccionAtajos.swift, APP |
 | C2 | **Integración con macOS**: esquema `pixpinmax://` con los verbos de `docs/integraciones.md` y la firma, más App Intents (tarea, lienzo, grabar, abrir proyecto, al móvil), menú del Dock, imágenes en `CFBundleDocumentTypes`, Servicios del Finder | nuevo K/Pedidos/{Enlaces,Verbos}.swift, XC/App/Intenciones.swift, XC/project.yml, app/Recursos/Info.plist (**APP: después de C1**) |
 | C3 | **Ajustes que faltan**: idioma, Captura (retardo, color, carpeta, GIF y scroll), Voz, pantalla de claves del asistente, Sincro (presencia, «Lo mío manda»), buscador y restablecer | K/Ajustes/VistaAjustes.swift, K/Ajustes/ModeloAjustes.swift, N/ajustes.rs |
 | C4 | **Notificaciones comunes**: categorías y acciones (`UNNotificationAction`), aviso «se van en 24 h» de la caducidad; que AvisosMini las use | nuevo K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift, K/Caducidad/BarrenderoCapturas.swift (**coordinar con A4**: A4 usa CentroAvisos si ya existe) |

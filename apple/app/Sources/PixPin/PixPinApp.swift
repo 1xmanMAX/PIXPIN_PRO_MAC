@@ -12,7 +12,7 @@ struct PixPinApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            MenuPrincipal(estado: estado, grabador: GrabadorPantalla.compartido)
+            MenuPrincipal(estado: estado, grabador: GrabadorPantalla.compartido, atajos: estado.atajos)
         } label: {
             EtiquetaBarra(grabador: GrabadorPantalla.compartido)
         }
@@ -71,7 +71,7 @@ struct PixPinApp: App {
         Settings {
             Group {
                 if let ajustes = estado.ajustes {
-                    VistaAjustes(modelo: ajustes, atajo: estado.atajoCaptura)
+                    VistaAjustes(modelo: ajustes, atajos: estado.atajos)
                 } else {
                     ContentUnavailableView("No se pudo abrir la carpeta de datos",
                                            systemImage: "exclamationmark.triangle",
@@ -131,9 +131,8 @@ final class EstadoApp: ObservableObject {
     let sincro: Sincronizador?
     /// Capturar una zona (Ctrl+Option+X en todo el Mac).
     let capturador: Capturador
-    private var atajoGrabar: AtajoGlobal?
-    /// El atajo de capturar (se cambia en Ajustes).
-    let atajoCaptura: AtajoDeCaptura
+    /// Los atajos globales de todos los comandos (se cambian en Ajustes).
+    let atajos = GestorAtajos()
     /// Lo de Ajustes (`pixpinmax.toml`, tema, abrir al iniciar sesion).
     let ajustes: ModeloAjustes?
     /// Lleva las capturas caducadas a la Papelera.
@@ -154,7 +153,6 @@ final class EstadoApp: ObservableObject {
         let sincro = almacen.map { Sincronizador(nucleo: $0.nucleo) }
         VentanasDePlano.compartidas.nucleo = almacen?.nucleo
         self.sincro = sincro
-        atajoCaptura = AtajoDeCaptura { capturador.capturar() }
         ajustes = almacen.map { ModeloAjustes(nucleo: $0.nucleo, sincro: sincro) }
         if let almacen, let sincro {
             sincro.alTraerCambios = { [weak almacen] in
@@ -181,7 +179,6 @@ final class EstadoApp: ObservableObject {
         // Los temporizadores y alarmas de las mini-apps avisan a su hora,
         // con su pin abierto o no (`AvisosMini`).
         if let nucleo = almacen?.nucleo { AvisosMini.compartido.vigilar(nucleo: nucleo) }
-        GestorPines.compartido.activarAtajoOcultar()
         capturador.alSacarTexto = { imagen in
             Task {
                 guard let texto = try? await sacarTexto(de: imagen), !texto.isEmpty else {
@@ -221,7 +218,10 @@ final class EstadoApp: ObservableObject {
         let grabador = GrabadorPantalla.compartido
         capturador.alGrabar = { zona in Task { await grabador.empezar(zona) } }
         grabador.alGuardar = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
-        atajoGrabar = AtajoGlobal(.grabar) { EstadoApp.grabarOParar(capturador) }
+        // Los atajos globales: cada comando del catalogo con quien lo hace
+        // (⌃⌥X capturar, ⌃2 los pines, ⌃⌥R grabar y los que ate el usuario).
+        ComandosApp.atar(atajos, capturador: capturador, pinEnVivo: pinEnVivo,
+                         grabarOParar: { EstadoApp.grabarOParar(capturador) })
         if let ajustes {
             // El tema y la sincronizacion sola, como se dejaron.
             ajustes.tema.aplicar()
@@ -278,10 +278,15 @@ struct EtiquetaBarra: View {
 /// otra vez (`DelegadoAbrirFicheros.alReabrir`) y la trae al frente.
 struct AlReabrirSaleProyectos: ViewModifier {
     @Environment(\.openWindow) private var abrirVentana
+    @Environment(\.openSettings) private var abrirAjustes
 
     func body(content: Content) -> some View {
         content.onAppear {
             let abrir = abrirVentana
+            // Los atajos que abren ventanas (Proyectos, Buscar, Ajustes...).
+            ComandosApp.abrirVentana = { abrir(id: $0) }
+            let ajustes = abrirAjustes
+            ComandosApp.abrirAjustes = { ajustes() }
             DelegadoAbrirFicheros.alReabrir = {
                 abrir(id: "proyectos")
                 NSApp.activate()
@@ -294,36 +299,42 @@ struct AlReabrirSaleProyectos: ViewModifier {
 struct MenuPrincipal: View {
     @ObservedObject var estado: EstadoApp
     @ObservedObject var grabador: GrabadorPantalla
+    /// Los atajos globales: el menu ensena los que hay y hace lo mismo.
+    @ObservedObject var atajos: GestorAtajos
     @Environment(\.openWindow) private var abrirVentana
     @Environment(\.openSettings) private var abrirAjustes
 
     var body: some View {
-        Button("Capturar zona") { estado.capturador.capturar() }
-            .keyboardShortcut("x", modifiers: [.control, .option])
-        if grabador.grabando {
-            Button("Detener grabación") { Task { await grabador.parar() } }
-                .keyboardShortcut("r", modifiers: [.control, .option])
-        } else {
-            Button("Grabar pantalla") { EstadoApp.grabarOParar(estado.capturador) }
-                .keyboardShortcut("r", modifiers: [.control, .option])
-        }
+        Button("Capturar zona") { atajos.ejecutar(.capturarRegion) }
+            .atajo(.capturarRegion, atajos)
+        Button("Capturar y anotar") { atajos.ejecutar(.capturarYAnotar) }
+            .atajo(.capturarYAnotar, atajos)
+        Button("Capturar con retardo (3 s)") { atajos.ejecutar(.capturarConRetardo) }
+            .atajo(.capturarConRetardo, atajos)
+        Button("Copiar el texto de una zona") { atajos.ejecutar(.copiarTexto) }
+            .atajo(.copiarTexto, atajos)
+        Button("Anotar la pantalla") { atajos.ejecutar(.anotar) }
+            .atajo(.anotar, atajos)
+        Button("Cuentagotas") { atajos.ejecutar(.cuentagotas) }
+            .atajo(.cuentagotas, atajos)
+        Button("Grabar un GIF") { atajos.ejecutar(.grabarGif) }
+            .atajo(.grabarGif, atajos)
+        Button(grabador.grabando ? "Detener grabación" : "Grabar pantalla") { atajos.ejecutar(.grabarPantalla) }
+            .atajo(.grabarPantalla, atajos)
         Toggle("Grabar con el sonido del sistema", isOn: Binding(
             get: { grabador.conSonido },
             set: { grabador.conSonido = $0 }))
             .disabled(grabador.grabando)
-        Button("Proyectos…") {
-            abrirVentana(id: "proyectos")
-            NSApp.activate()
-        }
-        .keyboardShortcut("p", modifiers: [.command, .option])
-        Button("Sincronizar…") {
-            abrirVentana(id: "sincronizar")
-            NSApp.activate()
-        }
+        Divider()
+        Button("Proyectos…") { atajos.ejecutar(.abrirChat) }
+            .atajo(.abrirChat, atajos, siNo: KeyboardShortcut("p", modifiers: [.command, .option]))
+        Button("Sincronizar…") { atajos.ejecutar(.sincronizar) }
+            .atajo(.sincronizar, atajos)
         if let sincro = estado.sincro {
             MenuEnviarA(sincro: sincro)
         }
-        Button("Enviar y recibir por Wi-Fi…") { abrir("envio") }
+        Button("Enviar y recibir por Wi-Fi…") { atajos.ejecutar(.recibirDelMovil) }
+            .atajo(.recibirDelMovil, atajos)
         Button("Chats compartidos…") { abrir("compartidos") }
         Button("Lecciones…") {
             abrirVentana(id: "lecciones")
@@ -333,15 +344,20 @@ struct MenuPrincipal: View {
             abrirVentana(id: "asistente")
             NSApp.activate()
         }
-        Button("Buscar en PixPin…") { abrir(IdVentana.buscar) }
-            .keyboardShortcut("f", modifiers: [.command, .option])
+        Button("Buscar en PixPin…") { atajos.ejecutar(.buscar) }
+            .atajo(.buscar, atajos, siNo: KeyboardShortcut("f", modifiers: [.command, .option]))
         Button("Galería de capturas…") { abrir(IdVentana.galeria) }
         Button("Timeline…") { abrir(IdVentana.timeline) }
         Button("Tareas…") { abrir(IdVentana.tareas) }
-        Button("Pinear desde el portapapeles") {
-            if !GestorPines.compartido.pinearDesdePortapapeles() { NSSound.beep() }
-        }
-        Button("Pin en vivo (elige la zona y pulsa L)") { estado.capturador.capturar() }
+        Divider()
+        Button("Pinear desde el portapapeles") { atajos.ejecutar(.pinearPortapapeles) }
+            .atajo(.pinearPortapapeles, atajos)
+        Button("Pin en vivo…") { atajos.ejecutar(.pinearEnVivo) }
+            .atajo(.pinearEnVivo, atajos)
+        Button("Pinear lo elegido en el Finder") { atajos.ejecutar(.pinearSeleccion) }
+            .atajo(.pinearSeleccion, atajos)
+        Button("Ventana encima (pin en vivo)") { atajos.ejecutar(.ventanaEncima) }
+            .atajo(.ventanaEncima, atajos)
         Menu("Nuevo pin") {
             Button("Nota") { GestorPines.compartido.pinearNota() }
             Button("Lista de tareas") { GestorPines.compartido.pinearMiniapp("tareas") }
@@ -353,9 +369,23 @@ struct MenuPrincipal: View {
             Button("Alarma") { GestorPines.compartido.pinearMiniapp("alarma") }
         }
         Button("Pines abiertos…") { GestorPines.compartido.mostrarPanelAbiertos() }
-        Button("Mostrar u ocultar los pines") { GestorPines.compartido.alternarTodos() }
-            .keyboardShortcut("2", modifiers: .control)
+        Button("Mostrar u ocultar los pines") { atajos.ejecutar(.alternarPines) }
+            .atajo(.alternarPines, atajos)
+        if atajos.disponible(.restaurarUltimoPin) {
+            Button("Restaurar el último pin") { atajos.ejecutar(.restaurarUltimoPin) }
+                .atajo(.restaurarUltimoPin, atajos)
+        }
+        if atajos.disponible(.alternarPasoDeClics) {
+            Button("Pines: dejar pasar el clic") { atajos.ejecutar(.alternarPasoDeClics) }
+                .atajo(.alternarPasoDeClics, atajos)
+        }
+        Button("Cerrar todos los pines") { atajos.ejecutar(.cerrarTodosLosPines) }
+            .atajo(.cerrarTodosLosPines, atajos)
         Divider()
+        // Siempre en el menu: con los atajos soltados, es la unica vuelta.
+        Toggle("Silenciar los atajos", isOn: Binding(
+            get: { atajos.silenciados },
+            set: { atajos.silenciar($0) }))
         Button("Ajustes…") {
             abrirAjustes()
             NSApp.activate()

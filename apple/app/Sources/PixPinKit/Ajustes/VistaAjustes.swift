@@ -1,20 +1,32 @@
 // La ventana de Ajustes (⌘,), como la de Windows pero con lo que tiene
-// sentido en un Mac: aspecto, atajo de capturar, galeria, carpeta de datos,
-// abrir al iniciar sesion y sincronizar.
+// sentido en un Mac. Dos pestanas: «General» (aspecto, galeria, carpeta de
+// datos, abrir al iniciar sesion y sincronizar) y «Atajos» (todos los
+// comandos, regiones y apps ignoradas: `SeccionAtajos`).
 
 import AppKit
 import SwiftUI
 
 public struct VistaAjustes: View {
     @ObservedObject var modelo: ModeloAjustes
-    @ObservedObject var atajo: AtajoDeCaptura
+    @ObservedObject var atajos: GestorAtajos
 
-    public init(modelo: ModeloAjustes, atajo: AtajoDeCaptura) {
+    public init(modelo: ModeloAjustes, atajos: GestorAtajos) {
         self.modelo = modelo
-        self.atajo = atajo
+        self.atajos = atajos
     }
 
     public var body: some View {
+        TabView {
+            general
+                .tabItem { Label("General", systemImage: "gearshape") }
+            SeccionAtajos(atajos: atajos)
+                .tabItem { Label("Atajos", systemImage: "keyboard") }
+        }
+        .frame(width: 600)
+        .frame(minHeight: 520)
+    }
+
+    private var general: some View {
         Form {
             Section("General") {
                 Picker("Aspecto", selection: $modelo.tema) {
@@ -34,9 +46,8 @@ public struct VistaAjustes: View {
                 }
             }
             Section("Capturar") {
-                LabeledContent("Atajo para capturar una zona") {
-                    GrabadorAtajo(atajo: atajo)
-                }
+                LabeledContent("Atajo para capturar una zona",
+                               value: atajos.enlaces.atajo(de: .capturarRegion)?.descripcion ?? "—")
                 Stepper(value: Binding(
                     get: { modelo.diasCaducidad },
                     set: { modelo.fijar(diasCaducidad: $0) }
@@ -78,86 +89,6 @@ public struct VistaAjustes: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 520)
-        .frame(minHeight: 440)
         .task { if !modelo.cargado { await modelo.cargar() } }
-    }
-}
-
-/// Ensena el atajo y graba uno nuevo: se pulsa «Cambiar» y luego la
-/// combinacion (Esc cancela). Solo escucha mientras graba, y solo en esta
-/// app (`addLocalMonitorForEvents`: no pide el permiso de Accesibilidad).
-struct GrabadorAtajo: View {
-    @ObservedObject var atajo: AtajoDeCaptura
-    @State private var grabando = false
-    @State private var monitor: Any?
-    @State private var aviso: String?
-
-    var body: some View {
-        VStack(alignment: .trailing, spacing: 4) {
-            HStack(spacing: 8) {
-                Text(grabando ? "Pulsa la combinación…" : atajo.combinacion.descripcion)
-                    .font(.body.monospaced())
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(RoundedRectangle(cornerRadius: 5)
-                        .strokeBorder(grabando ? Color.accentColor : Color.secondary.opacity(0.4)))
-                Button(grabando ? "Cancelar" : "Cambiar") {
-                    if grabando { parar() } else { empezar() }
-                }
-                Button("Restablecer") {
-                    parar()
-                    aviso = atajo.restablecer() ? nil : "Ctrl+Option+X lo tiene otra app."
-                }
-                .disabled(atajo.combinacion == .capturar)
-            }
-            if let aviso {
-                Text(aviso).font(.caption).foregroundStyle(.red)
-            } else if !atajo.registrado {
-                Text("El sistema no dejó registrar el atajo.").font(.caption).foregroundStyle(.red)
-            }
-        }
-        .onDisappear { parar() }
-    }
-
-    private func empezar() {
-        aviso = nil
-        grabando = true
-        monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { evento in
-            // Solo valores (no el `NSEvent`) cruzan al actor principal.
-            let codigo = evento.keyCode
-            let flags = evento.modifierFlags
-            let comido = MainActor.assumeIsolated { () -> Bool in
-                manejar(codigo: codigo, flags: flags)
-            }
-            return comido ? nil : evento
-        }
-    }
-
-    /// Lo que hace una tecla mientras se graba. `true`: se la come.
-    private func manejar(codigo: UInt16, flags: NSEvent.ModifierFlags) -> Bool {
-        guard grabando else { return false }
-        if codigo == 53 { // Esc
-            parar()
-            return true
-        }
-        let nueva = AtajoGlobal.Combinacion(
-            tecla: UInt32(codigo),
-            modificadores: AtajoGlobal.Combinacion.modificadores(de: flags)
-        )
-        guard AtajoDeCaptura.vale(nueva) else {
-            aviso = "Usa Control, Option o Comando con la tecla."
-            return true
-        }
-        if !atajo.cambiar(a: nueva) {
-            aviso = "\(nueva.descripcion) lo tiene otra app o el sistema."
-        }
-        parar()
-        return true
-    }
-
-    private func parar() {
-        grabando = false
-        if let monitor { NSEvent.removeMonitor(monitor) }
-        monitor = nil
     }
 }

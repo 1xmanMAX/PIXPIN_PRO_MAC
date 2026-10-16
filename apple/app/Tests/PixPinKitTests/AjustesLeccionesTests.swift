@@ -1,7 +1,6 @@
 // Ajustes, lecciones y asistente con el puente de verdad (el nucleo de Rust
 // enlazado), cada prueba en su carpeta temporal.
 
-import Carbon.HIToolbox
 import Foundation
 import PixPinCore
 @testable import PixPinKit
@@ -52,27 +51,6 @@ final class AjustesTests: XCTestCase {
         XCTAssertEqual(try nucleo.ajustes().diasCaducidad, 3)
         modelo.tema = .oscuro
         XCTAssertEqual(Tema.guardado(defaults), .oscuro)
-    }
-
-    func testElAtajoSeEnsenaYSeValida() {
-        XCTAssertEqual(AtajoGlobal.Combinacion.capturar.descripcion, "⌃⌥X")
-        let m = AtajoGlobal.Combinacion.modificadores(de: [.command, .shift])
-        XCTAssertEqual(m, UInt32(cmdKey | shiftKey))
-        XCTAssertEqual(AtajoGlobal.Combinacion(tecla: UInt32(kVK_ANSI_5), modificadores: m).descripcion, "⇧⌘5")
-        XCTAssertTrue(AtajoDeCaptura.vale(.capturar))
-        XCTAssertFalse(AtajoDeCaptura.vale(AtajoGlobal.Combinacion(tecla: UInt32(kVK_ANSI_A), modificadores: UInt32(shiftKey))))
-    }
-
-    @MainActor
-    func testElAtajoSeGuardaEnUserDefaults() throws {
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: "pixpin-pruebas-\(UUID().uuidString)"))
-        let atajo = AtajoDeCaptura(defaults: defaults, registrar: false) {}
-        XCTAssertEqual(atajo.combinacion, .capturar)
-        let nueva = AtajoGlobal.Combinacion(tecla: UInt32(kVK_ANSI_S), modificadores: UInt32(cmdKey | shiftKey))
-        XCTAssertTrue(atajo.cambiar(a: nueva))
-        XCTAssertEqual(AtajoDeCaptura(defaults: defaults, registrar: false) {}.combinacion, nueva)
-        XCTAssertTrue(atajo.restablecer())
-        XCTAssertEqual(AtajoDeCaptura(defaults: defaults, registrar: false) {}.combinacion, .capturar)
     }
 }
 

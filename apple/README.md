@@ -202,10 +202,19 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         relleno, grosor, linea; `editor_estilo.rs`), la ventanita del metodo de entrada en el
         cursor del texto y **lapidas** (`isDeleted`) para lo nacido, guardado y borrado, para
         que la fusion de `pixpin-sincro` no lo resucite.
-  - [x] Ajustes (⌘,; `app/Sources/PixPinKit/Ajustes/`): tema, atajo de capturar (se graba y
-        se vuelve a registrar en Carbon; UserDefaults), dias de la galeria y sincronizacion
-        sola (en `pixpinmax.toml`, como Windows), carpeta de datos y «Abrir al iniciar sesion»
-        (`SMAppService.mainApp`).
+  - [x] Ajustes (⌘,; `app/Sources/PixPinKit/Ajustes/`): pestana General (tema, dias de la
+        galeria y sincronizacion sola en `pixpinmax.toml`, como Windows, carpeta de datos y
+        «Abrir al iniciar sesion» con `SMAppService.mainApp`) y pestana **Atajos**.
+  - [x] Atajos globales (C1; `Ajustes/Atajos.swift`, `GestorAtajos.swift`,
+        `SeccionAtajos.swift`, `ComandosApp.swift`): el catalogo entero de Windows
+        (`pixpin-store/comandos.rs`, mismos nombres) mas «grabar la pantalla»; de fabrica
+        solo ⌃⌥X, ⌃2 y ⌃⌥R. Se graban en Ajustes (⌫ quita, Esc cancela; mientras se graba se
+        sueltan todos), se rechazan los de macOS (⇧⌘3/4/5, ⌘+tecla, ⌃⌘Q…) y los repetidos, y
+        se avisa de los dudosos (⌃1…9). Regiones guardadas con su atajo (copian sin
+        superposicion), silenciar todos y apps delante de las cuales no actuan. En
+        UserDefaults con la forma de `[comandos]`, `[[regiones]]` e `ignorar_programas` (el
+        TOML no viaja). El menu de la barra ensena el atajo de cada comando. Faltan «dejar
+        pasar el clic» y «restaurar el ultimo pin» (esperan a los pines: `atajos.poner`).
   - [x] Lecciones (`Lecciones/`): lista por paginas, buscar, etiquetas (propuestas ✨),
         repaso y borrar, guardadas como en Windows y Android (`.leccion` + mensaje `ARCHIVO`).
   - [ ] Planos y BIM (`Planos/`, a falta de probarlo en un Mac de verdad): visor de DWG/DXF en
