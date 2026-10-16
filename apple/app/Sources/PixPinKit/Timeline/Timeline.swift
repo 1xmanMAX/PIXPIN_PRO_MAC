@@ -1,36 +1,78 @@
-// El timeline: a la izquierda «Hoy» (las ultimas 24 horas) y los dias con
-// momentos, el mas nuevo arriba; a la derecha, los momentos del dia elegido
-// como una linea de tiempo. Lo que se lee es `timeline/momentos.jsonl`, el
-// mismo fichero de Windows, por el nucleo de Rust (`pixpin_timeline`).
+// El timeline, como `timeline/ventana.rs` de Windows (B5): apuntar lo que
+// pasa, minuto a minuto, escribiendo, con la voz o con una foto, y verlo
+// como una linea de tiempo vertical.
 //
-// Rendimiento (§4bis del plan): los dias y los momentos llegan por paginas
-// (la siguiente al llegar al final de la lista, `LazyVStack`), fuera del
+// Arriba, la barra comun (`Cabecera`): el buscador y las pestanas «Hoy»,
+// «Momentos», «Calendario» y «Lecciones», y «Exportar». Dentro:
+//
+// - **Hoy**: las ultimas 24 horas y abajo, como en un chat, la caja para
+//   apuntar (↩ apunta, ⇧↩ parte el renglon, ⌘V pega texto o una imagen,
+//   ↑ con la caja vacia corrige el ultimo, el microfono dicta).
+// - **Momentos**: el archivo de lo mandado a «Momentos», dia a dia.
+// - **Calendario** («Estado» en el codigo de Windows): una tarjeta por mes
+//   con el circulo de cada dia; clic abre el dia y ⌘clic lo elige para
+//   exportar varios juntos.
+// - **Lecciones**: las lecciones aprendidas (la misma vista que su ventana).
+// - **Un dia**, abierto encima de la pestana, y **la busqueda**, encima de
+//   todo: los resultados de todo el timeline.
+// - **El detalle** de un momento: la foto entera sobre negro; ←/→ pasan de
+//   foto y ↑/↓ de momento.
+//
+// Lo que se lee y se escribe es `timeline/momentos.jsonl`, el mismo fichero
+// de Windows, por el nucleo de Rust (`timeline.rs`): aqui no se decide nada
+// del formato.
+//
+// Rendimiento (§4bis del plan): los momentos llegan por paginas, fuera del
 // hilo principal; las fotos son miniaturas de ImageIO de la cache comun.
 
 import AppKit
 import Foundation
 import PixPinCore
-import QuickLook
 import SwiftUI
 
 @MainActor
 public final class ModeloTimeline: ObservableObject {
-    /// Que se ve: todos los momentos o solo los mandados a «Momentos».
+    /// Las pestanas de la barra (⌘1…4).
+    public enum Pestana: Int, CaseIterable, Identifiable, Sendable {
+        case hoy = 1, momentos, estado, lecciones
+        public var id: Int { rawValue }
+
+        public var rotulo: String {
+            switch self {
+            case .hoy: "Hoy"
+            case .momentos: "Momentos"
+            case .estado: "Calendario"
+            case .lecciones: "Lecciones"
+            }
+        }
+    }
+
+    /// Que se ve: todos los momentos o solo los mandados a «Momentos» (la
+    /// lista de dias, `dias`).
     public enum Filtro: String, CaseIterable, Identifiable {
         case todo = "Todo"
         case momentos = "Momentos"
         public var id: String { rawValue }
     }
 
-    /// Lo elegido en la lista de la izquierda.
+    /// Los momentos de la linea: «Hoy» o un dia.
     public enum Eleccion: Hashable, Sendable {
         case hoy
         case dia(String)
     }
 
+    /// Lo que ocupa el contenido, por prioridad: lo buscado tapa el dia
+    /// abierto, y el dia abierto tapa la pestana (`Modo` de Windows).
+    public enum Modo: Equatable {
+        case pestana(Pestana)
+        case dia(String)
+        case buscar
+    }
+
     public nonisolated static let tamPaginaDias: UInt32 = 60
     public nonisolated static let tamPaginaMomentos: UInt32 = 80
 
+    @Published public var pestana: Pestana = .hoy
     @Published public var filtro: Filtro = .todo
     @Published public private(set) var dias: [DiaTimeline] = []
     @Published public private(set) var totalDias: UInt64 = 0
@@ -39,12 +81,31 @@ public final class ModeloTimeline: ObservableObject {
     @Published public private(set) var error: String?
     @Published public private(set) var eleccion: Eleccion = .hoy
 
-    private let nucleo: Nucleo
-    /// Sube con cada cambio de dia: una pagina que llega tarde de un dia que
-    /// ya no se ve no pisa la del nuevo.
+    /// Lo escrito en el buscador de arriba y lo encontrado.
+    @Published public var consulta = ""
+    @Published public private(set) var encontrados: [MomentoTimeline] = []
+    /// «Momentos» y «Calendario».
+    @Published public private(set) var archivo: [DiaArchivo] = []
+    @Published public private(set) var totalArchivo: UInt64 = 0
+    @Published public private(set) var meses: [MesEstado] = []
+    /// Los dias elegidos con ⌘clic en «Calendario» para exportar.
+    @Published public var elegidos: Set<String> = []
+
+    /// La caja de apuntar.
+    @Published public var texto = ""
+    @Published public private(set) var pegadas: [FotoNueva] = []
+    /// El momento que se esta corrigiendo en la caja.
+    @Published public private(set) var corrigiendo: MomentoTimeline?
+    /// El aviso de abajo («Apuntado», «Momento borrado»…) y si se deshace.
+    @Published public private(set) var aviso: String?
+    @Published public private(set) var deshacer: String?
+
+    let nucleo: Nucleo
     private var generacion = 0
     private var cargandoDias = false
     private var cargandoMomentos = false
+    private var tareaBuscar: Task<Void, Never>?
+    private var tareaAviso: Task<Void, Never>?
 
     public init(nucleo: Nucleo) {
         self.nucleo = nucleo
@@ -52,11 +113,29 @@ public final class ModeloTimeline: ObservableObject {
 
     public var quedanDias: Bool { UInt64(dias.count) < totalDias }
     public var quedanMomentos: Bool { UInt64(momentos.count) < totalMomentos }
+    public var quedaArchivo: Bool { UInt64(archivo.count) < totalArchivo }
 
-    /// Relee los dias (desde el principio) y lo elegido.
+    public var buscando: Bool { !consulta.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    public var modo: Modo {
+        // En «Lecciones» el buscador busca en ellas.
+        if buscando, pestana != .lecciones { return .buscar }
+        if case let .dia(iso) = eleccion { return .dia(iso) }
+        return .pestana(pestana)
+    }
+
+    // MARK: Leer
+
+    /// Relee lo que se ve: los dias, la linea, la pestana y lo buscado.
     public func recargar() async {
         await cargarDias(desde: 0, sustituir: true)
-        await elegir(eleccion)
+        await recargarLinea()
+        switch pestana {
+        case .momentos: await cargarArchivo(desde: 0, sustituir: true)
+        case .estado: await cargarEstado()
+        case .hoy, .lecciones: break
+        }
+        if buscando { await buscar() }
     }
 
     public func cargarMasDias() async {
@@ -84,31 +163,55 @@ public final class ModeloTimeline: ObservableObject {
         }
     }
 
-    /// Ensena «Hoy» o un dia, desde su primer momento.
+    /// Ensena «Hoy» o un dia (abierto encima de la pestana), desde su
+    /// primer momento.
     public func elegir(_ e: Eleccion) async {
         eleccion = e
+        await recargarLinea()
+    }
+
+    /// Cierra el dia abierto y vuelve a la pestana.
+    public func volverDelDia() async {
+        await elegir(.hoy)
+    }
+
+    private func recargarLinea() async {
         generacion += 1
         cargandoMomentos = false
-        momentos = []
-        totalMomentos = 0
-        await cargarMomentos(desde: 0)
+        let mia = generacion
+        let p = await pagina(desde: 0)
+        guard mia == generacion else { return }
+        aplicar(p, sustituir: true)
     }
 
     public func cargarMasMomentos() async {
-        guard quedanMomentos else { return }
-        await cargarMomentos(desde: UInt64(momentos.count))
-    }
-
-    private func cargarMomentos(desde: UInt64) async {
-        guard !cargandoMomentos else { return }
+        guard quedanMomentos, !cargandoMomentos else { return }
         cargandoMomentos = true
         let mia = generacion
+        let p = await pagina(desde: UInt64(momentos.count))
+        guard mia == generacion else { return }
+        cargandoMomentos = false
+        aplicar(p, sustituir: false)
+    }
+
+    private func aplicar(_ r: Result<PaginaMomentos, Error>, sustituir: Bool) {
+        switch r {
+        case let .success(p):
+            momentos = sustituir ? p.momentos : momentos + p.momentos
+            totalMomentos = p.total
+            error = nil
+        case let .failure(e):
+            error = "\(e)"
+        }
+    }
+
+    private func pagina(desde: UInt64) async -> Result<PaginaMomentos, Error> {
         let nucleo = self.nucleo
         let solo = filtro == .momentos
         let desfase = desfaseLocalMs()
         let eleccion = self.eleccion
-        let resultado = await Task.detached(priority: .userInitiated) { () -> Result<PaginaMomentos, Error> in
-            Result<PaginaMomentos, Error>(catching: { () throws -> PaginaMomentos in
+        return await Task.detached(priority: .userInitiated) { () -> Result<PaginaMomentos, Error> in
+            Result {
                 switch eleccion {
                 case .hoy:
                     return try nucleo.timelineUltimas24h(desfaseMs: desfase, desde: desde,
@@ -121,18 +224,297 @@ public final class ModeloTimeline: ObservableObject {
                                                        soloEnMomentos: solo, desde: desde,
                                                        cuantos: ModeloTimeline.tamPaginaMomentos)
                 }
-            })
+            }
         }.value
-        guard mia == generacion else { return }
-        cargandoMomentos = false
-        switch resultado {
-        case let .success(p):
-            momentos.append(contentsOf: p.momentos)
-            totalMomentos = p.total
-            error = nil
-        case let .failure(e):
-            error = "\(e)"
+    }
+
+    /// «Momentos»: los dias del archivo, por paginas.
+    public func cargarArchivo(desde: UInt64 = 0, sustituir: Bool = true) async {
+        let nucleo = self.nucleo
+        let desfase = desfaseLocalMs()
+        do {
+            let p = try await Task.detached(priority: .userInitiated) {
+                try nucleo.timelineArchivo(desfaseMs: desfase, desde: desde,
+                                           cuantos: ModeloTimeline.tamPaginaDias)
+            }.value
+            archivo = sustituir ? p.dias : archivo + p.dias
+            totalArchivo = p.total
+        } catch {
+            self.error = "\(error)"
         }
+    }
+
+    public func cargarMasArchivo() async {
+        guard quedaArchivo else { return }
+        await cargarArchivo(desde: UInt64(archivo.count), sustituir: false)
+    }
+
+    /// «Calendario»: las tarjetas de los meses.
+    public func cargarEstado() async {
+        let nucleo = self.nucleo
+        let desfase = desfaseLocalMs()
+        do {
+            meses = try await Task.detached(priority: .userInitiated) {
+                try nucleo.timelineEstado(desfaseMs: desfase)
+            }.value
+        } catch {
+            self.error = "\(error)"
+        }
+    }
+
+    /// Cambia de pestana tal cual: sin la busqueda ni el dia que tapaban lo
+    /// de debajo. Los dias elegidos solo valen en «Calendario».
+    public func cambiar(a p: Pestana) async {
+        if p != pestana { consulta = "" }
+        pestana = p
+        if p != .estado { elegidos = [] }
+        if case .dia = eleccion { await elegir(.hoy) }
+        await recargar()
+    }
+
+    /// Lo escrito en el buscador, con una espera corta (cada letra cancela
+    /// la busqueda anterior).
+    public func consultaCambiada() {
+        tareaBuscar?.cancel()
+        tareaBuscar = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            await self?.buscar()
+        }
+    }
+
+    public func buscar() async {
+        let q = consulta.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else {
+            encontrados = []
+            return
+        }
+        let nucleo = self.nucleo
+        let desfase = desfaseLocalMs()
+        let hallados = (try? await Task.detached(priority: .userInitiated) {
+            try nucleo.timelineBuscar(consulta: q, desfaseMs: desfase, cuantos: 500)
+        }.value) ?? []
+        guard q == consulta.trimmingCharacters(in: .whitespaces) else { return }
+        encontrados = hallados
+    }
+
+    /// Lo que ensena la lista ahora (el orden que siguen las flechas del
+    /// detalle).
+    public var visibles: [MomentoTimeline] {
+        switch modo {
+        case .buscar: return encontrados
+        case .dia: return momentos
+        case .pestana(.hoy): return momentos
+        case .pestana(.momentos): return archivo.flatMap(\.momentos)
+        case .pestana: return []
+        }
+    }
+
+    // MARK: Apuntar
+
+    /// Intro: apunta lo de la caja (con la voz dictada que esperaba, si la
+    /// hay), o guarda la correccion. Devuelve si se hizo algo.
+    @discardableResult
+    public func enviar(audio: NotaGrabada? = nil) async -> Bool {
+        let escrito = texto.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let c = corrigiendo {
+            let nucleo = self.nucleo
+            let desfase = desfaseLocalMs()
+            do {
+                _ = try await Task.detached(priority: .userInitiated) {
+                    try nucleo.timelineCorregir(id: c.id, texto: escrito, desfaseMs: desfase)
+                }.value
+                texto = ""
+                corrigiendo = nil
+                avisar("Corregido")
+                await recargar()
+                return true
+            } catch {
+                avisar(ModeloTimeline.esArgumento(error) ? "Escribe algo para el título" : "No se pudo guardar el timeline")
+                return false
+            }
+        }
+        guard !escrito.isEmpty || !pegadas.isEmpty || audio != nil else { return false }
+        let fotos = pegadas
+        if await apuntar(texto: escrito, fotos: fotos, audio: audio) {
+            texto = ""
+            pegadas = []
+            return true
+        }
+        return false
+    }
+
+    /// Apunta un momento nuevo y vuelve a «Hoy» (para verlo).
+    @discardableResult
+    public func apuntar(texto: String, fotos: [FotoNueva], audio: NotaGrabada?, dicho: String? = nil,
+                        cuando: Int64? = nil) async -> Bool {
+        let nucleo = self.nucleo
+        let desfase = desfaseLocalMs()
+        let ruta = audio?.url.path
+        let ms = audio?.duracionMs ?? 0
+        do {
+            _ = try await Task.detached(priority: .userInitiated) {
+                try nucleo.timelineApuntar(texto: texto, fotos: fotos, audio: ruta, duracionMs: ms,
+                                           dicho: dicho, cuando: cuando, desfaseMs: desfase)
+            }.value
+            consulta = ""
+            if pestana != .hoy || eleccion != .hoy {
+                pestana = .hoy
+                eleccion = .hoy
+            }
+            await recargar()
+            return true
+        } catch {
+            avisar("No se pudo guardar el timeline")
+            self.error = "\(error)"
+            return false
+        }
+    }
+
+    /// Una foto a la caja: elegida (se copia) o pegada (un temporal, se
+    /// mueve al apuntar).
+    public func anadirFoto(_ url: URL, temporal: Bool) {
+        pegadas.append(FotoNueva(ruta: url.path, temporal: temporal))
+    }
+
+    public func quitarPegada(_ i: Int) {
+        guard pegadas.indices.contains(i) else { return }
+        let p = pegadas.remove(at: i)
+        if p.temporal { try? FileManager.default.removeItem(atPath: p.ruta) }
+    }
+
+    /// Vacia la caja (y deja de corregir).
+    public func vaciarCaja() {
+        texto = ""
+        for p in pegadas where p.temporal { try? FileManager.default.removeItem(atPath: p.ruta) }
+        pegadas = []
+        corrigiendo = nil
+    }
+
+    /// Pone un momento en la caja para corregirlo (se corrige en la caja de
+    /// «Hoy», que es la unica).
+    public func corregir(_ m: MomentoTimeline) async {
+        vaciarCaja()
+        texto = m.descripcion.isEmpty ? m.titulo : "\(m.titulo)\n\(m.descripcion)"
+        corrigiendo = m
+        if modo != .pestana(.hoy) {
+            consulta = ""
+            pestana = .hoy
+            await elegir(.hoy)
+        }
+    }
+
+    /// ↑ con la caja vacia: corrige el ultimo, como en Telegram.
+    public func corregirElUltimo() async {
+        guard texto.isEmpty, corrigiendo == nil, let ultimo = momentos.last else { return }
+        await corregir(ultimo)
+    }
+
+    // MARK: Cambiar uno
+
+    public func borrar(_ m: MomentoTimeline) async {
+        let nucleo = self.nucleo
+        do {
+            let linea = try await Task.detached(priority: .userInitiated) {
+                try nucleo.timelineBorrar(id: m.id)
+            }.value
+            if corrigiendo?.id == m.id { vaciarCaja() }
+            avisar("Momento borrado", deshacer: linea)
+            await recargar()
+        } catch {
+            self.error = "\(error)"
+        }
+    }
+
+    /// ⌘Z mientras dura el aviso del borrado.
+    public func deshacerBorrado() async {
+        guard let linea = deshacer else { return }
+        let nucleo = self.nucleo
+        deshacer = nil
+        aviso = nil
+        try? await Task.detached(priority: .userInitiated) { try nucleo.timelineDevolver(linea: linea) }.value
+        await recargar()
+    }
+
+    /// Lo manda a «Momentos», o lo saca.
+    public func alternarMomentos(_ m: MomentoTimeline) async {
+        let nucleo = self.nucleo
+        do {
+            let dentro = try await Task.detached(priority: .userInitiated) {
+                try nucleo.timelineAMomentos(id: m.id)
+            }.value
+            avisar(dentro ? "Mandado a Momentos" : "Quitado de Momentos")
+            await recargar()
+        } catch {
+            self.error = "\(error)"
+        }
+    }
+
+    /// La bombilla: lo hace leccion, o lo desmarca (la leccion se queda).
+    public func alternarLeccion(_ m: MomentoTimeline) async {
+        let nucleo = self.nucleo
+        do {
+            let l = try await Task.detached(priority: .userInitiated) {
+                try nucleo.timelineLeccion(id: m.id)
+            }.value
+            avisar(l != nil ? "💡 Hecha lección: está en «Lecciones»"
+                : "Ya no está marcado. La lección sigue en «Lecciones».")
+            await recargar()
+        } catch {
+            avisar("No se pudo guardar la lección")
+        }
+    }
+
+    // MARK: Exportar
+
+    /// Lo que se exporta segun lo que se ve: lo buscado, el dia abierto, en
+    /// «Momentos» y «Calendario» los dias elegidos (o sin eleccion, los del
+    /// mes de hoy que tienen algo) y, si no, las ultimas 24 horas.
+    public func queExportar() -> ExportarTimeline {
+        switch modo {
+        case .buscar:
+            return .buscar(consulta: consulta)
+        case let .dia(iso):
+            return .dias(isos: [iso])
+        case .pestana(.momentos), .pestana(.estado):
+            if pestana == .estado, !elegidos.isEmpty { return .dias(isos: elegidos.sorted()) }
+            let mes = meses.first
+            let isos = mes?.dias.filter { $0.cuantos > 0 }.map(\.iso) ?? []
+            return isos.isEmpty ? .ultimas24h : .dias(isos: isos)
+        case .pestana:
+            return .ultimas24h
+        }
+    }
+
+    /// La pagina de lo que se ve (HTML con todo dentro).
+    public func paginaParaExportar() async throws -> PaginaTimeline {
+        if pestana == .estado, meses.isEmpty { await cargarEstado() }
+        let que = queExportar()
+        let nucleo = self.nucleo
+        let desfase = desfaseLocalMs()
+        return try await Task.detached(priority: .userInitiated) {
+            try nucleo.timelineExportar(que: que, desfaseMs: desfase)
+        }.value
+    }
+
+    // MARK: Avisos
+
+    /// El aviso de abajo, unos segundos (con «Deshacer», un poco mas).
+    public func avisar(_ t: String, deshacer linea: String? = nil) {
+        aviso = t
+        deshacer = linea
+        tareaAviso?.cancel()
+        tareaAviso = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(linea == nil ? 2.5 : 6))
+            guard !Task.isCancelled else { return }
+            self?.aviso = nil
+            self?.deshacer = nil
+        }
+    }
+
+    nonisolated static func esArgumento(_ e: Error) -> Bool {
+        if case .Argumento = e as? ErrorNucleo { return true }
+        return false
     }
 
     /// `AAAA-MM-DD` en sus tres numeros.
@@ -141,77 +523,13 @@ public final class ModeloTimeline: ObservableObject {
         guard p.count == 3, let a = Int32(p[0]), let m = UInt8(p[1]), let d = UInt8(p[2]) else { return nil }
         return (a, m, d)
     }
-}
 
-// MARK: - La ventana
-
-public struct VentanaTimeline: View {
-    @StateObject private var modelo: ModeloTimeline
-
-    public init(almacen: Almacen) {
-        _modelo = StateObject(wrappedValue: ModeloTimeline(nucleo: almacen.nucleo))
+    /// «jueves, 15 de octubre de 2026» de un `AAAA-MM-DD`.
+    nonisolated static func rotulo(iso: String) -> String {
+        guard let (a, m, d) = partes(iso) else { return iso }
+        return rotulo(DiaTimeline(anio: a, mes: m, dia: d, iso: iso, cuantos: 0))
     }
 
-    public var body: some View {
-        VStack(spacing: 0) {
-            // La barra comun de Windows (`Cabecera`): lo que se ve y releer.
-            Cabecera("Timeline", subtitulo: subtitulo) {
-                SegmentosCabecera(ModeloTimeline.Filtro.allCases.map { ($0, $0.rawValue) },
-                                  eleccion: $modelo.filtro)
-                BotonCabecera(icono: "arrow.clockwise", ayuda: "Releer (⌘R)") { Task { await modelo.recargar() } }
-                    .keyboardShortcut("r")
-            }
-            dividida
-        }
-        .ventanaConCabecera()
-        .onChange(of: modelo.filtro) { _, _ in Task { await modelo.recargar() } }
-        .task { await modelo.recargar() }
-    }
-
-    /// «Hoy · 4 momentos» o el dia elegido.
-    private var subtitulo: String {
-        let cuando: String
-        switch modelo.eleccion {
-        case .hoy: cuando = "Hoy"
-        case let .dia(iso):
-            cuando = modelo.dias.first(where: { $0.iso == iso }).map(ModeloTimeline.rotulo) ?? iso
-        }
-        let n = modelo.totalMomentos
-        return "\(cuando) · \(n == 1 ? "1 momento" : "\(n) momentos")"
-    }
-
-    private var dividida: some View {
-        NavigationSplitView {
-            List(selection: Binding<ModeloTimeline.Eleccion?>(
-                get: { modelo.eleccion },
-                set: { nueva in
-                    if let nueva { Task { await modelo.elegir(nueva) } }
-                })) {
-                Label("Hoy", systemImage: "sun.max").tag(ModeloTimeline.Eleccion.hoy)
-                Section("Días") {
-                    ForEach(modelo.dias, id: \.iso) { d in
-                        HStack {
-                            Text(ModeloTimeline.rotulo(d))
-                            Spacer()
-                            Text(String(d.cuantos)).foregroundStyle(.secondary).monospacedDigit()
-                        }
-                        .tag(ModeloTimeline.Eleccion.dia(d.iso))
-                    }
-                    if modelo.quedanDias {
-                        ProgressView().frame(maxWidth: .infinity)
-                            .task { await modelo.cargarMasDias() }
-                    }
-                }
-            }
-            .navigationSplitViewColumnWidth(min: 200, ideal: 240)
-        } detail: {
-            LineaDeMomentos(modelo: modelo)
-        }
-        .toolbar(removing: .sidebarToggle)
-    }
-}
-
-extension ModeloTimeline {
     /// «jueves, 15 de octubre de 2026» en el idioma del sistema.
     nonisolated static func rotulo(_ d: DiaTimeline) -> String {
         var c = DateComponents()
@@ -222,99 +540,10 @@ extension ModeloTimeline {
         guard let f = Calendar.current.date(from: c) else { return d.iso }
         return f.formatted(.dateTime.weekday(.wide).day().month(.wide).year())
     }
-}
 
-/// Los momentos de lo elegido, como una linea de tiempo vertical.
-struct LineaDeMomentos: View {
-    @ObservedObject var modelo: ModeloTimeline
-    @State private var vistaRapida: URL?
-
-    var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(modelo.momentos, id: \.id) { m in
-                    TarjetaMomento(momento: m, vistaRapida: $vistaRapida)
-                }
-                if modelo.quedanMomentos {
-                    ProgressView().frame(maxWidth: .infinity).padding()
-                        .task { await modelo.cargarMasMomentos() }
-                }
-            }
-            .padding()
-        }
-        .overlay {
-            if modelo.momentos.isEmpty, !modelo.quedanMomentos {
-                ContentUnavailableView("Nada apuntado",
-                                       systemImage: "clock",
-                                       description: Text("Los momentos que apuntas en PixPin aparecen aquí, minuto a minuto."))
-            }
-        }
-        .overlay(alignment: .bottom) {
-            if let e = modelo.error {
-                Text(e).font(.caption).padding(6)
-                    .background(.red.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
-                    .padding()
-            }
-        }
-        .quickLookPreview($vistaRapida)
-    }
-}
-
-/// Un momento: la hora y un punto en la linea, el titulo, lo contado, sus
-/// fotos y su audio.
-struct TarjetaMomento: View {
-    let momento: MomentoTimeline
-    @Binding var vistaRapida: URL?
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(spacing: 4) {
-                Text(momento.hora).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                Circle().fill(momento.enMomentos ? Color.orange : Color.accentColor).frame(width: 9, height: 9)
-                Rectangle().fill(.quaternary).frame(width: 2).frame(maxHeight: .infinity)
-            }
-            .frame(width: 44)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Text(momento.titulo.isEmpty ? "Sin título" : momento.titulo).font(.headline)
-                    if momento.leccion != nil {
-                        Image(systemName: "lightbulb.fill").foregroundStyle(.yellow).help("Lección aprendida")
-                    }
-                    if momento.enMomentos {
-                        Image(systemName: "star.fill").foregroundStyle(.orange).help("En Momentos")
-                    }
-                }
-                if !momento.descripcion.isEmpty {
-                    Text(momento.descripcion).textSelection(.enabled)
-                }
-                if !momento.fotos.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        LazyHStack(spacing: 6) {
-                            ForEach(momento.fotos, id: \.self) { ruta in
-                                let url = URL(fileURLWithPath: ruta)
-                                MiniaturaVista(url: url, lado: 140)
-                                    .onTapGesture { vistaRapida = url }
-                            }
-                        }
-                    }
-                }
-                if let audio = momento.audio {
-                    Button {
-                        vistaRapida = URL(fileURLWithPath: audio)
-                    } label: {
-                        Label(momento.duracionMs > 0 ? TarjetaMomento.duracion(momento.duracionMs) : "Audio",
-                              systemImage: "play.circle")
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
-            .padding(.bottom, 16)
-            Spacer(minLength: 0)
-        }
-    }
-
-    nonisolated static func duracion(_ ms: Int64) -> String {
-        let s = Int(ms / 1000)
-        return String(format: "%d:%02d", s / 60, s % 60)
+    /// El dia (`AAAA-MM-DD`, en el huso de aqui) de un momento.
+    nonisolated static func iso(de ms: Int64) -> String {
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: fechaDe(ms: ms))
+        return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 }

@@ -34,9 +34,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 4. ~~**Los pines no se guardan ni se restauran** entre arranques.~~ Hecho (B1): el mismo `almacen/indice.json` que Windows, filtros, giros, negativo, modo texto, tamaños 1–3, flechas y ⌘T.
    - Quedan las marcas de texto guardadas (resaltar, subrayar) y su ⌘Z.
 5. **El menú del mensaje del chat** ya es el de Windows (B2): etiquetas, responder, copiar, pinear, describir, reenviar, compartir, recordar, hacer lección, renombrar, fijar, abrir con, guardar del buzón y ver comentarios, con sus letras. Faltan anotar encima de una foto, exportar e imprimir un lienzo, unir PDF y la letra de una voz. La caja de escribir ya es la isla de Windows, con su hoja del clip, la lupa (⌘F) y la escala (⌘+ / ⌘− / ⌘0) (B3).
-6. **Tareas y Timeline casi de solo lectura.**
+6. **Tareas casi de solo lectura.**
    - Tareas: falta buscar, mover, editar, y borrar con deshacer.
-   - Timeline: no se puede apuntar nada.
+   - ~~Timeline: no se puede apuntar nada.~~ Hecho (B5).
 7. **Compartir y exportar común**: PDF, PNG, SVG y web, más la ventanita «Salida». No existe.
 8. ~~**Lectores sin búsqueda.**~~ Hecho (B7): buscar (⌘F, ⌘G / ⇧⌘G, F3), ⌘1…9 y el riel de marcadores, M con su cifra, N negativo, luna/sol oscuro, D avance solo, G ajustes, F2 renombrar, ⌘P, ⇧⌘S, F5 presentar y la tinta al día con el disco (`al_dia`).
    - Falta escuchar en voz alta (`leer_en_voz`, D2).
@@ -87,7 +87,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | fondo_lienzo | Un pin o una página PDF como fondo del lienzo | parcial | K/Lienzo/FondoLienzo.swift, K/Pines/Anotar.swift | El lienzo ya sabe llevar fondo (imagen o página de PDF a 1400 de ancho, dentro de lupas, zona y lo exportado): `VentanasDeLienzo.abrir(…, fondo:)`. Falta quien lo abra así (la hoja-página del chat, B9; el pin) |
 | foto_anotada | Ver el lienzo que el móvil dibujó sobre una foto | falta | K/Chat/Adjuntos.swift | Leer `lienzos/foto-<id>.excalidraw` y pintarlo encima |
 | fusionar_paginas | Varias páginas de un PDF → un lienzo | falta | — | Todo |
-| galeria_capturas | Galería con buscador (también OCR), grupos por día, teclado, detalle | parcial | K/Galeria/*, N/galeria.rs | Buscador, grupos por día, teclado, «Guardar como», panel de detalle |
+| galeria_capturas | Galería con buscador (también OCR), grupos por día, teclado, detalle | completo | K/Galeria/*, N/galeria.rs | Hecho (B6): buscador en la barra (nombre, fecha y el texto de dentro leído con Vision en `cache/galeria/`), grupos por día con «Elegir todo el día», chapa por colores, elegir varias con su barra, el menú de Windows (pinear, copiar, compartir, «Guardar como…», mostrar en el Finder, conservar, 7 días más, borrar con deshacer) más «Mandar a un proyecto» y «Anotar en un lienzo», y las teclas. El panel de detalle lo quitó Windows el 5-oct |
 | gif | GIF en dos fases: marco y luego barra | parcial | K/Captura/GrabadorGif.swift | Hecho (B8): marco azul con el ritmo (−/+, `[gif]`), ↩ empieza y para, Esc global, retardo con cuenta atrás. Falta mover y estirar el marco antes de grabar, y pausar |
 | grabador | Grabación en dos fases | parcial | K/Grabar/* | Marco ajustable antes de grabar |
 | grupos_ventanas | Guardar y reabrir grupos de ventanas | falta | — | Todo |
@@ -174,8 +174,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | tareas/rejilla, tarjetas, emoticonos | Vista de tarjetas y etiquetas | falta | — | Todo |
 | teleprompter | Telepronter | falta | — | Todo |
 | tema_cosmos | Tema Cosmos | falta | — | Es un adorno |
-| timeline (ventana) | Hoy, Momentos, Estado, Lecciones; apuntar | parcial | K/Timeline/Timeline.swift, N/timeline.rs | Es de solo lectura: no se apunta |
-| timeline/dictar, exportar, tarjetas, estado_mes, compartir | Dictar; exportar a HTML o PDF; vista por mes | falta | — | Todo |
+| timeline (ventana) | Hoy, Momentos, Estado, Lecciones; apuntar | completo | K/Timeline/*, N/timeline.rs | Hecho (B5): apuntar texto, fotos (elegir, pegar, soltar) y voz; corregir (↑), borrar con deshacer, a «Momentos», la bombilla de lección; buscar en todo; el detalle con sus flechas, pinear y anotar en un lienzo |
+| timeline/dictar, exportar, tarjetas, estado_mes, compartir | Dictar; exportar a HTML o PDF; vista por mes | parcial | K/Timeline/DictadoTimeline.swift, K/Timeline/PestanasTimeline.swift, N/timeline.rs | Hechos: dictar (Speech en el aparato, con su audio), «Momentos», «Calendario» con ⌘clic para elegir días, exportar lo que se ve a HTML o PDF (WebKit), compartir una tarjeta como imagen o página. Falta la hoja común de exportar (D1) y el `.pixpin` de lo exportado. Las fotos y la voz de un momento no pasan a su lección |
 | turno_pesado | Un trabajo pesado cada vez | interno | — | Solo si llega Whisper |
 | v2/ | Aviso con Deshacer, pista, pegar | interno | SwiftUI | Un aviso «Deshacer» común |
 | ventanita | Base de las ventanitas de voz | interno | — | Hará falta con el telepronter y Pronunciar |
@@ -393,9 +393,9 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 |---|---|---|---|
 | Buscar en PixPin | ↑↓, RePág/AvPág, Tab (pestañas), →, Intro, Ctrl+Intro, Alt+Intro, Supr, Ctrl+C/V/Z, Esc | ↑↓ nativo | parcial |
 | Tareas | Ctrl+F, Ctrl+L, Ctrl+T, F2, Supr, Tab, Espacio, Intro, Ctrl+Z, Ctrl+V, Esc | ↩, ⌘R | parcial |
-| Timeline | Ctrl+1…4, Ctrl+F, Ctrl+M (en Mac, otra tecla), Ctrl+Z, Intro, Ctrl+V, ↑ corrige | ⌘R | parcial |
+| Timeline | Ctrl+1…4, Ctrl+F, Ctrl+M (en Mac, otra tecla), Ctrl+Z, Intro, Ctrl+V, ↑ corrige | ⌘1…4, ⌘F, ⌘⇧M, ⌘Z, ↩ / ⇧↩, ⌘V (imagen), ↑, Esc por capas; en el detalle ←/→ y ↑/↓ | completo |
 | Lecciones (ficha) | Esc guarda, Ctrl+Intro, Ctrl+E, Tab | ⌘S | parcial |
-| Galería | flechas, Espacio, Intro, Supr, Ctrl+C/S/A/Z, Esc, escribir busca | ⌘Y, ⌘Z, ⌫ | parcial |
+| Galería | flechas, Espacio, Intro, Supr, Ctrl+C/S/A/Z, Esc, escribir busca | flechas, Inicio/Fin, Espacio, ↩, ⌫, ⌘C/S/A/Z, ⌘F, ⌘Y, Esc, escribir busca | completo |
 | Hoja de cálculo (editar) | Ctrl+N/B, Ctrl+K/I, Ctrl+S/U, Ctrl+5, Ctrl+Mayús+L/E/R, F2, Ctrl+Z/Y/C/X/V | ⌘B/I/U, ⌫ (⌘N, ⌘K y ⌘S no: son de macOS) | parcial |
 | Visor de hoja | Ctrl+flechas, Ctrl+Intro, Ctrl+RePág/AvPág, Ctrl+Inicio/Fin, zoom, F11 | flechas, ⇥ | parcial |
 | Plano CAD | Esc, Supr, Ctrl+P, Ctrl+E, I, A, L, F, B, M, T, 3, +/−, flechas | ⎋, ↩, ⌫, F, M, +/−, ⌘P | parcial |
@@ -525,8 +525,8 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | B2 | ✅ **Menú del mensaje** (hecho): etiquetas, Responder, Copiar, Pinear, Describir, Reenviar, Compartir, Fijar, Renombrar, Hacer lección, Recordar, Abrir con, Guardar esto, Ver comentarios; letras R, ⌘C, P, E, N, T, F, L, F2. Queda Anotar encima (dep. lienzo), Exportar/Imprimir un lienzo (D1), Unir PDF, Letra | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs (`cambiar_mensaje`, `reenviar_mensajes`), N/lecciones.rs (`leccion_de_mensaje`) |
 | B3 | ✅ **Caja del chat y la hoja «+»** (hecho; quedan las 5 entradas apagadas de la hoja y la escala de la lista): ⇧↩ para el salto de línea, Esc limpia, hoja «+» con todas las entradas, buscar dentro del chat (⌘F), escala ⌘+ / − / 0 | K/Vistas.swift, K/Chat/CajaEscribir.swift, K/Chat/HojaAdjuntar.swift, K/Chat/BuscarEnChat.swift, K/Chat/EscalaChat.swift |
 | B4 | **Tareas editables**: buscar, «Mover a…», borrar con deshacer, F2 para editar, pegar imágenes, ver y poner `⏰`, teclado | K/Tareas/Tareas.swift, N/tareas.rs (**después de A4** o junto a él en `⏰`) |
-| B5 | **Timeline editable**: apuntar texto, foto y voz; pestañas ⌘1…4; ↑ corrige el último; buscar | K/Timeline/Timeline.swift, N/timeline.rs |
-| B6 | **Galería completa**: buscador (también OCR con Vision), grupos por día, teclado, «Guardar como», panel de detalle | K/Galeria/Galeria.swift, K/Galeria/Comun.swift, N/galeria.rs |
+| B5 | ~~**Timeline editable**~~ Hecho: apuntar texto, foto y voz; pestañas ⌘1…4; ↑ corrige el último; buscar; «Momentos», «Calendario», lecciones; exportar HTML/PDF | K/Timeline/*, N/timeline.rs |
+| B6 | ~~**Galería completa**~~ Hecho: buscador (también OCR con Vision), grupos por día, elegir varias, teclado, «Guardar como», mandar a un proyecto, anotar en un lienzo | K/Galeria/*, N/galeria.rs |
 | B7 | ~~**Lectores, parte 1**~~ **hecho**: buscar (⌘F, ⌘G / ⇧⌘G), ⌘1…9 para ir al marcador, N negativo, D avance solo, ⌘P imprimir, F2 renombrar, `al_dia` (recargar la tinta) | K/Documentos/LectorDocumento.swift, nuevo K/Documentos/BuscadorLector.swift, N/documentos.rs |
 | B8 ✅ | **Captura que falta** (hecho; queda mover el marco del GIF): ⌘A, flechas y Espacio, ⇧ HEX/RGB, ⇧⌘S, ⌫ de la anotación, captura con retardo (cuenta atrás), cuentagotas suelto, ↩ y Esc del GIF | K/Captura/Capturador.swift, K/Captura/VistaCaptura.swift, K/Captura/AnotacionCaptura.swift, K/Captura/GrabadorGif.swift, nuevo K/Captura/CuentaAtras.swift |
 | B9 | **Datos que llegan y no se ven**: foto anotada del móvil en la burbuja, croquis 3D, fotos de las lecciones, punto de proyecto, PAGINA y PROYECTO con su burbuja | K/Chat/Adjuntos.swift, N/modelos3d.rs, K/Lecciones/VistaLecciones.swift (usa `PintorLienzo.swift` sin cambiarlo) |

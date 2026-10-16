@@ -1,12 +1,17 @@
-// La galeria de capturas: las de `capturas/`, la mas nueva primero, con los
-// dias que les quedan, y conservar, «7 dias mas», borrar (con deshacer) y
-// Vista Rapida. Lo que decide (caducidad, papelera, mandar al chat) es del
-// nucleo de Rust, con los mismos ficheros que Windows (`galeria.rs`).
+// La galeria de capturas, como `galeria_capturas.rs` de Windows (la v2,
+// B6): las de `capturas/`, la mas nueva primero y agrupadas por dia, con
+// los dias que les quedan; un buscador que tambien encuentra el texto de
+// dentro (leido con Vision en segundo plano, `LectorTextoGaleria`); elegir
+// varias con su barra; y en el clic derecho pinear, copiar, compartir,
+// «Guardar como…», mandar a un proyecto, anotar en un lienzo, mostrar en el
+// Finder, conservar, «7 dias mas» y borrar (con deshacer). Lo que decide
+// (caducidad, papelera, conservar, buscar) es del nucleo de Rust, con los
+// mismos ficheros que Windows (`galeria.rs`).
 //
 // Rendimiento (§4bis del plan):
-// - la lista llega por paginas (`tamPagina`) y la rejilla es perezosa
-//   (`LazyVGrid`): solo existen las celdas que se ven, y la pagina
-//   siguiente se pide al llegar al final;
+// - la lista llega por paginas (`tamPagina`) y la rejilla es perezosa: solo
+//   existen las celdas que se ven, y la pagina siguiente se pide al llegar
+//   al final;
 // - las miniaturas son de ImageIO, reducidas al leer y en la cache con tope
 //   de toda la app (`Miniaturas.compartidas`), fuera del hilo principal;
 // - la carpeta la vigila el sistema (`VigiaCarpeta`): sin sondear.
@@ -14,7 +19,6 @@
 import AppKit
 import Foundation
 import PixPinCore
-import QuickLook
 import SwiftUI
 
 /// Los dias que aguanta una captura (el ajuste «dias hasta borrar» de
@@ -35,15 +39,23 @@ public final class ModeloGaleria: ObservableObject {
     public nonisolated static let tamPagina: UInt32 = 120
 
     @Published public private(set) var capturas: [CapturaGaleria] = []
+    /// Cuantas hay (con algo buscado, cuantas encajan).
     @Published public private(set) var total: UInt64 = 0
+    /// Cuantas hay en la carpeta, se busque o no (el subtitulo).
+    @Published public private(set) var enLaCarpeta: UInt64 = 0
     @Published public private(set) var error: String?
     /// Lo ultimo que se borro, para «Deshacer».
     @Published public private(set) var ultimoBorrado: [CapturaBorrada] = []
     @Published public private(set) var aviso: String?
+    /// Lo escrito en el buscador.
+    @Published public var consulta = ""
 
     public let almacen: Almacen
     private var cargando = false
     private var vigia: VigiaCarpeta?
+    private var tareaBuscar: Task<Void, Never>?
+    private var tareaAviso: Task<Void, Never>?
+    private var lector: LectorTextoGaleria?
     /// Los dias del ajuste; las pruebas lo fijan.
     var dias: () -> Int64 = { AjusteCaducidad.dias }
 
@@ -55,18 +67,31 @@ public final class ModeloGaleria: ObservableObject {
 
     public var quedanMas: Bool { UInt64(capturas.count) < total }
 
-    /// Empieza a vigilar `capturas/` (al abrir la ventana).
+    /// Empieza a vigilar `capturas/` y a leer el texto de las capturas (al
+    /// abrir la ventana).
     public func vigilar() {
         guard vigia == nil else { return }
         let carpeta = URL(fileURLWithPath: nucleo.carpetaCapturas(), isDirectory: true)
         try? FileManager.default.createDirectory(at: carpeta, withIntermediateDirectories: true)
         vigia = VigiaCarpeta(carpeta) { [weak self] in
-            Task { await self?.recargar() }
+            Task {
+                await self?.recargar()
+                self?.lector?.despertar()
+            }
         }
+        let lector = LectorTextoGaleria(nucleo: nucleo) { [weak self] in
+            // Lo recien leido puede encajar con lo buscado.
+            guard let self, !self.consulta.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+            Task { await self.recargar() }
+        }
+        self.lector = lector
+        lector.despertar()
     }
 
     public func dejarDeVigilar() {
         vigia = nil
+        lector?.parar()
+        lector = nil
     }
 
     /// Relee desde el principio lo que ya estaba cargado (al menos una
@@ -82,6 +107,16 @@ public final class ModeloGaleria: ObservableObject {
         await cargar(desde: UInt64(capturas.count), cuantos: ModeloGaleria.tamPagina, sustituir: false)
     }
 
+    /// Lo escrito cambio: se busca tras una espera corta, desde arriba.
+    public func consultaCambiada() {
+        tareaBuscar?.cancel()
+        tareaBuscar = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled, let self else { return }
+            await self.cargar(desde: 0, cuantos: ModeloGaleria.tamPagina, sustituir: true)
+        }
+    }
+
     private func cargar(desde: UInt64, cuantos: UInt32, sustituir: Bool) async {
         guard !cargando else { return }
         cargando = true
@@ -89,16 +124,26 @@ public final class ModeloGaleria: ObservableObject {
         let nucleo = self.nucleo
         let dias = self.dias()
         let desfase = desfaseLocalMs()
+        let q = consulta.trimmingCharacters(in: .whitespaces)
         do {
-            let pagina = try await Task.detached(priority: .userInitiated) {
-                try nucleo.galeria(desde: desde, cuantos: cuantos, dias: dias, desfaseMs: desfase)
+            let (pagina, todas) = try await Task.detached(priority: .userInitiated) { () -> (PaginaGaleria, UInt64) in
+                if q.isEmpty {
+                    let p = try nucleo.galeria(desde: desde, cuantos: cuantos, dias: dias, desfaseMs: desfase)
+                    return (p, p.total)
+                }
+                let p = try nucleo.galeriaBuscar(consulta: q, desde: desde, cuantos: cuantos, dias: dias,
+                                                 desfaseMs: desfase)
+                return (p, try nucleo.galeria(desde: 0, cuantos: 0, dias: dias, desfaseMs: desfase).total)
             }.value
+            // Si lo buscado cambio mientras tanto, esto ya no vale.
+            guard q == consulta.trimmingCharacters(in: .whitespaces) else { return }
             if sustituir {
                 capturas = pagina.capturas
             } else {
                 capturas.append(contentsOf: pagina.capturas)
             }
             total = pagina.total
+            enLaCarpeta = todas
             error = nil
         } catch {
             self.error = "\(error)"
@@ -110,7 +155,7 @@ public final class ModeloGaleria: ObservableObject {
         let nucleo = self.nucleo
         let pendientes = nombres.filter { n in capturas.first { $0.nombre == n }?.conservada != true }
         guard !pendientes.isEmpty else {
-            if !nombres.isEmpty { aviso = "Ya estaban conservadas" }
+            if !nombres.isEmpty { avisar("Ya estaban conservadas") }
             return
         }
         let fallo = await Task.detached(priority: .userInitiated) { () -> String? in
@@ -121,13 +166,15 @@ public final class ModeloGaleria: ObservableObject {
             return fallo
         }.value
         error = fallo
-        aviso = fallo == nil ? (pendientes.count == 1 ? "Conservada en Mensajes guardados"
-            : "\(pendientes.count) conservadas en Mensajes guardados") : nil
+        if fallo == nil {
+            avisar(pendientes.count == 1 ? "Conservada: está en Mensajes guardados y ya no se borra"
+                : "\(pendientes.count) conservadas: están en Mensajes guardados")
+        }
         NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
         await recargar()
     }
 
-    /// «Dar 7 dias mas».
+    /// «Dar 7 dias mas» a las que aun se van.
     public func prorrogar(_ nombres: [String]) async {
         let nucleo = self.nucleo
         let dias = self.dias()
@@ -139,7 +186,7 @@ public final class ModeloGaleria: ObservableObject {
             return fallo
         }.value
         error = fallo
-        if fallo == nil { aviso = "7 días más" }
+        if fallo == nil { avisar("Siete días más: se borrará más tarde") }
         await recargar()
     }
 
@@ -155,7 +202,8 @@ public final class ModeloGaleria: ObservableObject {
         case let .success(borradas):
             ultimoBorrado = borradas
             error = nil
-            aviso = borradas.count == 1 ? "Borrada" : "\(borradas.count) borradas"
+            avisar(borradas.count == 1 ? "Llevada a la papelera de PixPin"
+                : "\(borradas.count) llevadas a la papelera de PixPin", largo: true)
         case let .failure(e):
             error = "\(e)"
         }
@@ -171,269 +219,68 @@ public final class ModeloGaleria: ObservableObject {
         let vueltas = await Task.detached(priority: .userInitiated) {
             (try? nucleo.devolverCapturas(borradas: borradas)) ?? 0
         }.value
-        aviso = vueltas == 0 ? "No se pudo deshacer" : nil
+        avisar(vueltas == 0 ? "No se pudo deshacer" : vueltas == 1 ? "Recuperada" : "\(vueltas) recuperadas")
         await recargar()
     }
 
     public func url(de c: CapturaGaleria) -> URL {
         URL(fileURLWithPath: c.ruta)
     }
-}
 
-// MARK: - La ventana
-
-public struct VentanaGaleria: View {
-    @StateObject private var modelo: ModeloGaleria
-    @State private var elegidas: Set<String> = []
-    @State private var vistaRapida: URL?
-
-    private let columnas = [GridItem(.adaptive(minimum: 170, maximum: 260), spacing: 10)]
-
-    public init(almacen: Almacen) {
-        _modelo = StateObject(wrappedValue: ModeloGaleria(almacen: almacen))
-    }
-
-    public var body: some View {
-        VStack(spacing: 0) {
-            // La barra comun de Windows (`Cabecera`): titulo, cuantas hay y
-            // los botones de la galeria.
-            Cabecera("Capturas", subtitulo: subtitulo) { barra }
-            rejilla
-        }
-        .ventanaConCabecera()
-        .frame(minWidth: 560, minHeight: 420)
-    }
-
-    private var rejilla: some View {
-        ScrollView {
-            LazyVGrid(columns: columnas, spacing: 10) {
-                ForEach(modelo.capturas, id: \.nombre) { c in
-                    CeldaCaptura(captura: c, elegida: elegidas.contains(c.nombre))
-                        .onTapGesture(count: 2) { vistaRapida = modelo.url(de: c) }
-                        .onTapGesture { elegir(c.nombre) }
-                        .contextMenu { menu(para: c) }
-                        .onDrag {
-                            NSItemProvider(contentsOf: modelo.url(de: c)) ?? NSItemProvider()
-                        }
-                }
-                if modelo.quedanMas {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, minHeight: 60)
-                        .task { await modelo.cargarMas() }
-                }
-            }
-            .padding(12)
-        }
-        .overlay {
-            if modelo.capturas.isEmpty, modelo.total == 0 {
-                ContentUnavailableView("Sin capturas",
-                                       systemImage: "photo.on.rectangle.angled",
-                                       description: Text(verbatim: "Las capturas guardadas aparecen aquí y se borran solas a los \(AjusteCaducidad.dias) días, salvo las que conservas."))
-            }
-        }
-        .overlay(alignment: .bottom) { pie }
-        .quickLookPreview($vistaRapida, in: modelo.capturas.map { modelo.url(de: $0) })
-        .onDeleteCommand { borrar(Array(elegidas)) }
-        .task {
-            await modelo.recargar()
-            modelo.vigilar()
-        }
-        .onDisappear { modelo.dejarDeVigilar() }
-    }
-
-    /// «25 · duran 7 días», como el subtitulo de Windows.
-    private var subtitulo: String {
-        let cuantas = modelo.total == 1 ? "1 captura" : "\(modelo.total) capturas"
-        let dias = AjusteCaducidad.dias
-        return dias > 0 ? "\(cuantas) · duran \(dias) días" : cuantas
-    }
-
-    /// Los botones de la galeria, en la barra de arriba. Los de lo elegido
-    /// solo salen con algo elegido; los de siempre, siempre.
-    @ViewBuilder
-    private var barra: some View {
-        if !elegidas.isEmpty {
-            BotonCabecera(icono: "eye", ayuda: "Vista rápida (⌘Y)") {
-                if let n = elegidas.first, let c = modelo.capturas.first(where: { $0.nombre == n }) {
-                    vistaRapida = modelo.url(de: c)
-                }
-            }
-            .disabled(elegidas.count != 1)
-            .keyboardShortcut("y")
-            BotonCabecera(icono: "pin", ayuda: "Conservar") { conservar(Array(elegidas)) }
-            BotonCabecera(icono: "clock.arrow.circlepath", ayuda: "7 días más") { prorrogar(Array(elegidas)) }
-            BotonCabecera(icono: "trash", ayuda: "Borrar") { borrar(Array(elegidas)) }
-        }
-        if !modelo.ultimoBorrado.isEmpty {
-            BotonCabecera(icono: "arrow.uturn.backward", rotulo: "Deshacer", ayuda: "Deshacer (⌘Z)") {
-                Task { await modelo.deshacer() }
-            }
-            .keyboardShortcut("z")
-        }
-        BotonCabecera(icono: "folder", rotulo: "Abrir carpeta") {
-            NSWorkspace.shared.open(URL(fileURLWithPath: modelo.almacen.nucleo.carpetaCapturas(), isDirectory: true))
+    /// El aviso de abajo, unos segundos.
+    public func avisar(_ t: String?, largo: Bool = false) {
+        aviso = t
+        tareaAviso?.cancel()
+        guard t != nil else { return }
+        tareaAviso = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(largo ? 6 : 3))
+            guard !Task.isCancelled else { return }
+            self?.aviso = nil
         }
     }
 
-    @ViewBuilder
-    private var pie: some View {
-        if let texto = modelo.error ?? modelo.aviso {
-            Text(texto)
-                .font(.callout)
-                .padding(.horizontal, 12).padding(.vertical, 6)
-                .background(modelo.error != nil ? AnyShapeStyle(.red.opacity(0.2)) : AnyShapeStyle(.regularMaterial),
-                            in: Capsule())
-                .padding()
-        }
+    // MARK: Los grupos por dia
+
+    /// Un dia de la rejilla: sus capturas, la mas nueva primero.
+    public struct Grupo: Identifiable, Equatable {
+        /// `AAAA-MM-DD` en el huso de aqui.
+        public let id: String
+        public let fecha: Date
+        public let capturas: [CapturaGaleria]
     }
 
-    @ViewBuilder
-    private func menu(para c: CapturaGaleria) -> some View {
-        let nombres = elegidas.contains(c.nombre) ? Array(elegidas) : [c.nombre]
-        Button("Vista rápida") { vistaRapida = modelo.url(de: c) }
-        Button("Abrir") { NSWorkspace.shared.open(modelo.url(de: c)) }
-        Button("Mostrar en el Finder") { NSWorkspace.shared.activateFileViewerSelecting([modelo.url(de: c)]) }
-        Button("Copiar") { copiar(c) }
-        Button("Pinear") {
-            if !GestorPines.compartido.pinear(fichero: modelo.url(de: c)) { NSSound.beep() }
-        }
-        Divider()
-        Button("Conservar") { conservar(nombres) }
-            .disabled(nombres.count == 1 && c.conservada)
-        Button("Dar 7 días más") { prorrogar(nombres) }
-            .disabled(nombres.count == 1 && c.seVa == nil)
-        Divider()
-        Button("Borrar", role: .destructive) { borrar(nombres) }
+    /// Lo cargado, cortado por dias (`logica::disponer` de Windows).
+    public var grupos: [Grupo] {
+        ModeloGaleria.agrupar(capturas)
     }
 
-    private func elegir(_ nombre: String) {
-        if NSEvent.modifierFlags.contains(.command) {
-            if elegidas.contains(nombre) { elegidas.remove(nombre) } else { elegidas.insert(nombre) }
-        } else {
-            elegidas = [nombre]
-        }
-    }
-
-    private func copiar(_ c: CapturaGaleria) {
-        let url = modelo.url(de: c)
-        let tablero = NSPasteboard.general
-        tablero.clearContents()
-        var objetos: [NSPasteboardWriting] = [url as NSURL]
-        if !c.esVideo, let imagen = NSImage(contentsOf: url) {
-            objetos.insert(imagen, at: 0)
-        }
-        tablero.writeObjects(objetos)
-    }
-
-    private func conservar(_ nombres: [String]) {
-        Task { await modelo.conservar(nombres) }
-    }
-
-    private func prorrogar(_ nombres: [String]) {
-        Task { await modelo.prorrogar(nombres) }
-    }
-
-    private func borrar(_ nombres: [String]) {
-        guard !nombres.isEmpty else { return }
-        elegidas.subtract(nombres)
-        Task { await modelo.borrar(nombres) }
-    }
-}
-
-/// Una captura en la rejilla: su miniatura, la chapita de los dias que le
-/// quedan (roja) o de conservada (verde), y el marco si esta elegida.
-struct CeldaCaptura: View {
-    let captura: CapturaGaleria
-    let elegida: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            MiniaturaCaptura(url: URL(fileURLWithPath: captura.ruta), esVideo: captura.esVideo)
-                .frame(height: 130)
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .overlay(alignment: .topTrailing) { InsigniaCaducidad(captura: captura).padding(6) }
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8)
-                        .strokeBorder(elegida ? Color.accentColor : .clear, lineWidth: 3)
-                }
-            Text(fechaDe(ms: captura.cuando), format: .dateTime.day().month().hour().minute())
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-        .contentShape(Rectangle())
-        .help(captura.nombre)
-    }
-}
-
-/// Los dias que le quedan: «hoy», «1», «6»... en rojo; o un pin verde si
-/// esta conservada. Nada si la caducidad esta apagada.
-struct InsigniaCaducidad: View {
-    let captura: CapturaGaleria
-
-    var body: some View {
-        if captura.conservada {
-            Image(systemName: "pin.fill")
-                .font(.caption2.bold())
-                .padding(5)
-                .background(.green, in: Circle())
-                .foregroundStyle(.white)
-                .help("Conservada: no se borra")
-        } else if let d = captura.diasQueQuedan {
-            Text(d <= 0 ? "hoy" : "\(d)")
-                .font(.caption2.bold())
-                .padding(.horizontal, 6).padding(.vertical, 2)
-                .background(.red, in: Capsule())
-                .foregroundStyle(.white)
-                .help(InsigniaCaducidad.pista(dias: d))
-        }
-    }
-
-    static func pista(dias d: Int64) -> String {
-        switch d {
-        case ..<1: return "Se borra hoy. Clic derecho para conservarla o darle 7 días más."
-        case 1: return "Se borra mañana. Clic derecho para conservarla o darle 7 días más."
-        default: return "Se borra en \(d) días. Clic derecho para conservarla o darle 7 días más."
-        }
-    }
-}
-
-/// La miniatura de una captura (ImageIO, reducida al leer, en la cache de
-/// toda la app). Un video lleva un icono: no se decodifica.
-struct MiniaturaCaptura: View {
-    let url: URL
-    let esVideo: Bool
-    /// Lado mayor en pixeles: la celda mide hasta ~260 puntos a 2x.
-    static let lado = 400
-    @State private var imagen: CGImage?
-    @State private var falta = false
-
-    var body: some View {
-        ZStack {
-            Rectangle().fill(.quaternary)
-            if let imagen {
-                Image(decorative: imagen, scale: 2)
-                    .resizable()
-                    .interpolation(.medium)
-                    .scaledToFill()
-            } else if esVideo {
-                Image(systemName: "film").font(.largeTitle).foregroundStyle(.secondary)
-            } else if falta {
-                Image(systemName: "photo.badge.exclamationmark").foregroundStyle(.secondary)
+    nonisolated static func agrupar(_ v: [CapturaGaleria], calendario: Calendar = .current) -> [Grupo] {
+        var out: [Grupo] = []
+        var actual: (String, Date, [CapturaGaleria])?
+        for c in v {
+            let f = fechaDe(ms: c.cuando)
+            let k = calendario.dateComponents([.year, .month, .day], from: f)
+            let id = String(format: "%04d-%02d-%02d", k.year ?? 0, k.month ?? 0, k.day ?? 0)
+            if actual?.0 == id {
+                actual?.2.append(c)
             } else {
-                ProgressView().controlSize(.small)
+                if let a = actual { out.append(Grupo(id: a.0, fecha: a.1, capturas: a.2)) }
+                actual = (id, f, [c])
             }
         }
-        .clipped()
-        .task(id: url) {
-            guard !esVideo else { return }
-            if let hecha = Miniaturas.compartidas.enCache(url, lado: MiniaturaCaptura.lado) {
-                imagen = hecha
-                return
-            }
-            let leida = await Miniaturas.compartidas.cargar(url, lado: MiniaturaCaptura.lado)
-            imagen = leida
-            falta = leida == nil
+        if let a = actual { out.append(Grupo(id: a.0, fecha: a.1, capturas: a.2)) }
+        return out
+    }
+
+    /// «Hoy · jueves 15 oct», «Ayer · …» o «lunes 12 oct».
+    nonisolated static func rotulo(_ fecha: Date, ahora: Date = Date(), calendario: Calendar = .current) -> String {
+        let dia = fecha.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))
+        if calendario.isDate(fecha, inSameDayAs: ahora) { return "Hoy · \(dia)" }
+        if let ayer = calendario.date(byAdding: .day, value: -1, to: ahora),
+           calendario.isDate(fecha, inSameDayAs: ayer) { return "Ayer · \(dia)" }
+        if !calendario.isDate(fecha, equalTo: ahora, toGranularity: .year) {
+            return fecha.formatted(.dateTime.weekday(.wide).day().month(.abbreviated).year())
         }
+        return dia
     }
 }
