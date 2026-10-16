@@ -487,6 +487,22 @@ fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterInt8: FfiConverterPrimitive {
+    typealias FfiType = Int8
+    typealias SwiftType = Int8
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int8 {
+        return try lift(readInt(&buf))
+    }
+
+    public static func write(_ value: Int8, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterUInt16: FfiConverterPrimitive {
     typealias FfiType = UInt16
     typealias SwiftType = UInt16
@@ -991,6 +1007,27 @@ public func FfiConverterTypeCorteIa_lower(_ value: CorteIa) -> UInt64 {
 public protocol DocumentoOfficeProtocol: AnyObject, Sendable {
     
     /**
+     * Los bytes de un video o un audio incrustado (`MedioDiapositiva::parte`).
+     */
+    func bytesDeMedio(parte: String)  -> Data?
+    
+    /**
+     * Los videos y audios de la diapositiva `n`.
+     */
+    func medios(n: UInt32)  -> [MedioDiapositiva]
+    
+    /**
+     * Las notas del orador de la diapositiva `n` (desde 0), un parrafo por
+     * linea. `None` si no tiene, si estan vacias o si no es un PowerPoint.
+     */
+    func notas(n: UInt32)  -> String?
+    
+    /**
+     * La transicion con la que entra la diapositiva `n`, si tiene.
+     */
+    func transicion(n: UInt32)  -> TransicionDiapositiva?
+    
+    /**
      * Si es un PowerPoint (cada diapositiva, una hoja).
      */
     func esPresentacion()  -> Bool
@@ -1087,6 +1124,59 @@ public static func abrir(ruta: String, medidor: MedidorLetras)throws  -> Documen
 }
     
 
+    
+    /**
+     * Los bytes de un video o un audio incrustado (`MedioDiapositiva::parte`).
+     */
+open func bytesDeMedio(parte: String) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_documentooffice_bytes_de_medio(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(parte),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Los videos y audios de la diapositiva `n`.
+     */
+open func medios(n: UInt32) -> [MedioDiapositiva]  {
+    return try!  FfiConverterSequenceTypeMedioDiapositiva.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_documentooffice_medios(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(n),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Las notas del orador de la diapositiva `n` (desde 0), un parrafo por
+     * linea. `None` si no tiene, si estan vacias o si no es un PowerPoint.
+     */
+open func notas(n: UInt32) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_documentooffice_notas(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(n),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La transicion con la que entra la diapositiva `n`, si tiene.
+     */
+open func transicion(n: UInt32) -> TransicionDiapositiva?  {
+    return try!  FfiConverterOptionTypeTransicionDiapositiva.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_documentooffice_transicion(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(n),uniffiCallStatus
+    )
+})
+}
     
     /**
      * Si es un PowerPoint (cada diapositiva, una hoja).
@@ -10809,6 +10899,74 @@ public func FfiConverterTypeCamara3d_lower(_ value: Camara3d) -> RustBuffer {
 
 
 /**
+ * Una capa de un fotograma de transicion: el trozo `origen` de la fuente
+ * en `destino`, con su opacidad. En fracciones de la diapositiva (0..1:
+ * izquierda, arriba, derecha, abajo; la Y hacia abajo). Se pintan en orden
+ * sobre negro, recortadas a la diapositiva.
+ */
+public struct CapaDiapositiva: Equatable, Hashable {
+    public var fuente: FuenteCapa
+    public var origen: [Float]
+    public var destino: [Float]
+    public var alfa: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(fuente: FuenteCapa, origen: [Float], destino: [Float], alfa: Float) {
+        self.fuente = fuente
+        self.origen = origen
+        self.destino = destino
+        self.alfa = alfa
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CapaDiapositiva: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCapaDiapositiva: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CapaDiapositiva {
+        return
+            try CapaDiapositiva(
+                fuente: FfiConverterTypeFuenteCapa.read(from: &buf), 
+                origen: FfiConverterSequenceFloat.read(from: &buf), 
+                destino: FfiConverterSequenceFloat.read(from: &buf), 
+                alfa: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CapaDiapositiva, into buf: inout [UInt8]) {
+        FfiConverterTypeFuenteCapa.write(value.fuente, into: &buf)
+        FfiConverterSequenceFloat.write(value.origen, into: &buf)
+        FfiConverterSequenceFloat.write(value.destino, into: &buf)
+        FfiConverterFloat.write(value.alfa, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapaDiapositiva_lift(_ buf: RustBuffer) throws -> CapaDiapositiva {
+    return try FfiConverterTypeCapaDiapositiva.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapaDiapositiva_lower(_ value: CapaDiapositiva) -> RustBuffer {
+    return FfiConverterTypeCapaDiapositiva.lower(value)
+}
+
+
+/**
  * Una capa del plano.
  */
 public struct CapaPlano: Equatable, Hashable {
@@ -16050,6 +16208,85 @@ public func FfiConverterTypeMarcaDocumento_lower(_ value: MarcaDocumento) -> Rus
 
 
 /**
+ * Un video o un audio de una diapositiva, con su caja en puntos.
+ */
+public struct MedioDiapositiva: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var ancho: Float
+    public var alto: Float
+    /**
+     * La parte del paquete con el fichero (`None` si es un enlace a fuera).
+     */
+    public var parte: String?
+    public var audio: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, ancho: Float, alto: Float, 
+        /**
+         * La parte del paquete con el fichero (`None` si es un enlace a fuera).
+         */parte: String?, audio: Bool) {
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+        self.parte = parte
+        self.audio = audio
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MedioDiapositiva: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMedioDiapositiva: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MedioDiapositiva {
+        return
+            try MedioDiapositiva(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf), 
+                parte: FfiConverterOptionString.read(from: &buf), 
+                audio: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MedioDiapositiva, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+        FfiConverterOptionString.write(value.parte, into: &buf)
+        FfiConverterBool.write(value.audio, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMedioDiapositiva_lift(_ buf: RustBuffer) throws -> MedioDiapositiva {
+    return try FfiConverterTypeMedioDiapositiva.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMedioDiapositiva_lower(_ value: MedioDiapositiva) -> RustBuffer {
+    return FfiConverterTypeMedioDiapositiva.lower(value)
+}
+
+
+/**
  * Un mensaje, con lo que hace falta para pintar su burbuja.
  */
 public struct MensajeChat: Equatable, Hashable {
@@ -20456,6 +20693,89 @@ public func FfiConverterTypeTramoMd_lower(_ value: TramoMd) -> RustBuffer {
 
 
 /**
+ * La transicion con la que entra una diapositiva (`p:transition`).
+ */
+public struct TransicionDiapositiva: Equatable, Hashable {
+    public var efecto: EfectoDiapositiva
+    /**
+     * Lo que dura, en milisegundos (0 si es un corte).
+     */
+    public var ms: UInt32
+    /**
+     * Si pasa sola: tras cuantos milisegundos de verse (`advTm`).
+     */
+    public var avanceMs: UInt32?
+    /**
+     * Si un clic la pasa (`advClick`).
+     */
+    public var avanceClic: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(efecto: EfectoDiapositiva, 
+        /**
+         * Lo que dura, en milisegundos (0 si es un corte).
+         */ms: UInt32, 
+        /**
+         * Si pasa sola: tras cuantos milisegundos de verse (`advTm`).
+         */avanceMs: UInt32?, 
+        /**
+         * Si un clic la pasa (`advClick`).
+         */avanceClic: Bool) {
+        self.efecto = efecto
+        self.ms = ms
+        self.avanceMs = avanceMs
+        self.avanceClic = avanceClic
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TransicionDiapositiva: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTransicionDiapositiva: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TransicionDiapositiva {
+        return
+            try TransicionDiapositiva(
+                efecto: FfiConverterTypeEfectoDiapositiva.read(from: &buf), 
+                ms: FfiConverterUInt32.read(from: &buf), 
+                avanceMs: FfiConverterOptionUInt32.read(from: &buf), 
+                avanceClic: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TransicionDiapositiva, into buf: inout [UInt8]) {
+        FfiConverterTypeEfectoDiapositiva.write(value.efecto, into: &buf)
+        FfiConverterUInt32.write(value.ms, into: &buf)
+        FfiConverterOptionUInt32.write(value.avanceMs, into: &buf)
+        FfiConverterBool.write(value.avanceClic, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransicionDiapositiva_lift(_ buf: RustBuffer) throws -> TransicionDiapositiva {
+    return try FfiConverterTypeTransicionDiapositiva.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTransicionDiapositiva_lower(_ value: TransicionDiapositiva) -> RustBuffer {
+    return FfiConverterTypeTransicionDiapositiva.lower(value)
+}
+
+
+/**
  * Un aparato visto en el anuncio de la red, con lo que importa aqui.
  */
 public struct VistoEnRed: Equatable, Hashable {
@@ -22486,6 +22806,141 @@ public func FfiConverterTypeDondeLlego_lower(_ value: DondeLlego) -> RustBuffer 
 
 
 /**
+ * Como entra una diapositiva (`pixpin_office::pptx::pase::Efecto`). `dx` y
+ * `dy` valen -1, 0 o 1: hacia donde se mueve.
+ */
+
+public enum EfectoDiapositiva: Equatable, Hashable {
+    
+    /**
+     * De golpe (o tras un instante en negro).
+     */
+    case corte(porNegro: Bool
+    )
+    case fundido(porNegro: Bool
+    )
+    /**
+     * La vieja sale y la nueva entra empujandola.
+     */
+    case empuje(dx: Int8, dy: Int8
+    )
+    /**
+     * La nueva aparece en su sitio tras un borde que barre.
+     */
+    case barrido(dx: Int8, dy: Int8
+    )
+    /**
+     * La nueva entra por encima de la vieja.
+     */
+    case cubrir(dx: Int8, dy: Int8
+    )
+    /**
+     * La vieja se va y deja ver la nueva debajo.
+     */
+    case descubrir(dx: Int8, dy: Int8
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EfectoDiapositiva: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEfectoDiapositiva: FfiConverterRustBuffer {
+    typealias SwiftType = EfectoDiapositiva
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EfectoDiapositiva {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .corte(porNegro: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 2: return .fundido(porNegro: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 3: return .empuje(dx: try FfiConverterInt8.read(from: &buf), dy: try FfiConverterInt8.read(from: &buf)
+        )
+        
+        case 4: return .barrido(dx: try FfiConverterInt8.read(from: &buf), dy: try FfiConverterInt8.read(from: &buf)
+        )
+        
+        case 5: return .cubrir(dx: try FfiConverterInt8.read(from: &buf), dy: try FfiConverterInt8.read(from: &buf)
+        )
+        
+        case 6: return .descubrir(dx: try FfiConverterInt8.read(from: &buf), dy: try FfiConverterInt8.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EfectoDiapositiva, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .corte(porNegro):
+            writeInt(&buf, Int32(1))
+            FfiConverterBool.write(porNegro, into: &buf)
+            
+        
+        case let .fundido(porNegro):
+            writeInt(&buf, Int32(2))
+            FfiConverterBool.write(porNegro, into: &buf)
+            
+        
+        case let .empuje(dx,dy):
+            writeInt(&buf, Int32(3))
+            FfiConverterInt8.write(dx, into: &buf)
+            FfiConverterInt8.write(dy, into: &buf)
+            
+        
+        case let .barrido(dx,dy):
+            writeInt(&buf, Int32(4))
+            FfiConverterInt8.write(dx, into: &buf)
+            FfiConverterInt8.write(dy, into: &buf)
+            
+        
+        case let .cubrir(dx,dy):
+            writeInt(&buf, Int32(5))
+            FfiConverterInt8.write(dx, into: &buf)
+            FfiConverterInt8.write(dy, into: &buf)
+            
+        
+        case let .descubrir(dx,dy):
+            writeInt(&buf, Int32(6))
+            FfiConverterInt8.write(dx, into: &buf)
+            FfiConverterInt8.write(dy, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEfectoDiapositiva_lift(_ buf: RustBuffer) throws -> EfectoDiapositiva {
+    return try FfiConverterTypeEfectoDiapositiva.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEfectoDiapositiva_lower(_ value: EfectoDiapositiva) -> RustBuffer {
+    return FfiConverterTypeEfectoDiapositiva.lower(value)
+}
+
+
+
+/**
  * Lo que puede salir mal, tal como lo ve Swift (un `enum` que `throws`).
  *
  * Pocas variantes y con el detalle en texto: Swift decide que ensenar por
@@ -23543,6 +23998,82 @@ public func FfiConverterTypeFrenteMac_lift(_ buf: RustBuffer) throws -> FrenteMa
 #endif
 public func FfiConverterTypeFrenteMac_lower(_ value: FrenteMac) -> RustBuffer {
     return FfiConverterTypeFrenteMac.lower(value)
+}
+
+
+
+/**
+ * De donde sale lo que pinta una capa de un fotograma.
+ */
+
+public enum FuenteCapa: Equatable, Hashable {
+    
+    case vieja
+    case nueva
+    case negro
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FuenteCapa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFuenteCapa: FfiConverterRustBuffer {
+    typealias SwiftType = FuenteCapa
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FuenteCapa {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .vieja
+        
+        case 2: return .nueva
+        
+        case 3: return .negro
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FuenteCapa, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .vieja:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .nueva:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .negro:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFuenteCapa_lift(_ buf: RustBuffer) throws -> FuenteCapa {
+    return try FfiConverterTypeFuenteCapa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFuenteCapa_lower(_ value: FuenteCapa) -> RustBuffer {
+    return FfiConverterTypeFuenteCapa.lower(value)
 }
 
 
@@ -26235,6 +26766,30 @@ fileprivate struct FfiConverterOptionTypeTareaRecordada: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeTransicionDiapositiva: FfiConverterRustBuffer {
+    typealias SwiftType = TransicionDiapositiva?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTransicionDiapositiva.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTransicionDiapositiva.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCirculoDia: FfiConverterRustBuffer {
     typealias SwiftType = CirculoDia?
 
@@ -26645,6 +27200,31 @@ fileprivate struct FfiConverterSequenceTypeCajaPlano: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCajaPlano.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCapaDiapositiva: FfiConverterRustBuffer {
+    typealias SwiftType = [CapaDiapositiva]
+
+    public static func write(_ value: [CapaDiapositiva], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCapaDiapositiva.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CapaDiapositiva] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CapaDiapositiva]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCapaDiapositiva.read(from: &buf))
         }
         return seq
     }
@@ -27503,6 +28083,31 @@ fileprivate struct FfiConverterSequenceTypeMarcaDocumento: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeMedioDiapositiva: FfiConverterRustBuffer {
+    typealias SwiftType = [MedioDiapositiva]
+
+    public static func write(_ value: [MedioDiapositiva], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMedioDiapositiva.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MedioDiapositiva] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MedioDiapositiva]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMedioDiapositiva.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMensajeChat: FfiConverterRustBuffer {
     typealias SwiftType = [MensajeChat]
 
@@ -28301,6 +28906,20 @@ public func paginaWebCompartida(titulo: String, hojas: [HojaParaWeb], excalidraw
         FfiConverterString.lower(titulo),
         FfiConverterSequenceTypeHojaParaWeb.lower(hojas),
         FfiConverterOptionString.lower(excalidraw),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Las capas del fotograma** de `efecto` en `t` (0..1): en 0 solo la
+ * vieja, en 1 solo la nueva. Las de Windows (`pase::capas`), con su
+ * arrancar y frenar suave.
+ */
+public func capasDeTransicion(efecto: EfectoDiapositiva, t: Float) -> [CapaDiapositiva]  {
+    return try!  FfiConverterSequenceTypeCapaDiapositiva.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_capas_de_transicion(
+        FfiConverterTypeEfectoDiapositiva_lower(efecto),
+        FfiConverterFloat.lower(t),uniffiCallStatus
     )
 })
 }
@@ -29380,6 +29999,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_pagina_web_compartida() != 39707) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_capas_de_transicion() != 31797) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ancho_de_hoja() != 58153) {
@@ -30463,6 +31085,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_sesionnota_titulo() != 36375) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_documentooffice_bytes_de_medio() != 40772) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_documentooffice_medios() != 22209) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_documentooffice_notas() != 232) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_documentooffice_transicion() != 48280) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_documentooffice_es_presentacion() != 37611) {

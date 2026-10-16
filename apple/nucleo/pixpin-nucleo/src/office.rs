@@ -516,7 +516,7 @@ impl DocumentoOffice {
 }
 
 impl DocumentoOffice {
-    fn tomar(&self) -> std::sync::MutexGuard<'_, Documento> {
+    pub(crate) fn tomar(&self) -> std::sync::MutexGuard<'_, Documento> {
         self.documento.lock().unwrap_or_else(|e| e.into_inner())
     }
 }

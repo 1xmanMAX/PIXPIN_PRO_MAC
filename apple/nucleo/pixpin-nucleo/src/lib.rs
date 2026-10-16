@@ -59,6 +59,7 @@ pub mod chats;
 pub mod compartir;
 pub mod compartidos;
 pub mod copias;
+pub mod diapositivas;
 pub mod documentos;
 pub mod editor;
 pub mod editor_construir;
