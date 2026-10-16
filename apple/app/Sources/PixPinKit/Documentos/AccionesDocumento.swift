@@ -122,6 +122,7 @@ struct AccionesDeNota: ViewModifier {
         content
             .contextMenu {
                 Button("Editar nota") { EditoresDeNotas.compartidos.abrir(mensaje, en: chat, almacen: almacen) }
+                EntradasDeMensaje()
             }
             .simultaneousGesture(TapGesture(count: 2).onEnded {
                 EditoresDeNotas.compartidos.abrir(mensaje, en: chat, almacen: almacen)

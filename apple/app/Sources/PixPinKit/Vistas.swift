@@ -110,6 +110,8 @@ public struct VistaChat: View {
     @State private var saltos = 0
     /// Se esta viendo una pagina del medio: no se baja solo al final.
     @State private var enSalto = false
+    /// Los mensajes elegidos (⌘-clic o «Elegir varios») para borrarlos.
+    @State private var eleccion = Eleccion()
 
     public var body: some View {
         VStack(spacing: 0) {
@@ -128,6 +130,23 @@ public struct VistaChat: View {
                                             .strokeBorder(Color.accentColor, lineWidth: 2)
                                     }
                                 }
+                                .overlay(alignment: .topTrailing) {
+                                    if eleccion.ids.contains(m.id) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(.white, Color.accentColor)
+                                            .padding(4)
+                                    }
+                                }
+                                .background {
+                                    if eleccion.ids.contains(m.id) {
+                                        RoundedRectangle(cornerRadius: 10).fill(Color.accentColor.opacity(0.18))
+                                    }
+                                }
+                                .simultaneousGesture(TapGesture().onEnded { clic(en: m.id) })
+                                .environment(\.accionesDeMensaje, AccionesDeMensaje(
+                                    marcado: eleccion.ids.contains(m.id),
+                                    marcar: { eleccion.alternar(m.id) },
+                                    borrar: { borrar([m.id]) }))
                                 .id(m.id)
                         }
                         if almacen.quedanPosteriores(chat: chat) {
@@ -148,6 +167,12 @@ public struct VistaChat: View {
                 }
             }
             Divider()
+            if !eleccion.vacia {
+                BarraDeElegidos(cuantos: eleccion.ids.count,
+                                borrar: { borrar(eleccion.enOrden(idsCargados)) },
+                                cancelar: { eleccion.vaciar() })
+                Divider()
+            }
             HStack(alignment: .bottom) {
                 TextField("Escribe una nota", text: $borrador, axis: .vertical)
                     .textFieldStyle(.plain)
@@ -168,6 +193,10 @@ public struct VistaChat: View {
             await almacen.abrir(chat: chat)
         }
         .onReceive(peticion.$salto) { _ in _ = atenderSalto() }
+        // Lo elegido que ya no esta cargado (borrado, otra pagina) se olvida.
+        .onChange(of: almacen.mensajes[chat]?.count) { _, _ in
+            eleccion.quedarse(con: Set(idsCargados))
+        }
         // Soltar ficheros o fotos en el chat los adjunta (se copian).
         .onDrop(of: EntradaDeFicheros.tipos, isTargeted: $soltando) { proveedores in
             MainActor.assumeIsolated {
@@ -226,6 +255,34 @@ public struct VistaChat: View {
         return true
     }
 
+    private var idsCargados: [String] { (almacen.mensajes[chat] ?? []).map(\.id) }
+
+    /// Un clic en una burbuja: ⌘ la elige o la suelta, ⇧ elige el tramo y,
+    /// con alguna elegida, un clic sin teclas tambien la alterna (Windows).
+    private func clic(en id: String) {
+        let teclas = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if teclas.contains(.command) {
+            eleccion.alternar(id)
+        } else if teclas.contains(.shift), !eleccion.vacia {
+            eleccion.tramo(hasta: id, en: idsCargados)
+        } else if !eleccion.vacia {
+            eleccion.alternar(id)
+        }
+    }
+
+    /// Pregunta y borra (`Almacen.borrar`). Si se dice que no, lo elegido
+    /// sigue elegido.
+    private func borrar(_ ids: [String]) {
+        guard !ids.isEmpty, ConfirmarBorrar.preguntar(cuantos: ids.count) else { return }
+        if let d = destacado, ids.contains(d) { destacado = nil }
+        let almacen = self.almacen
+        let chat = self.chat
+        Task {
+            await almacen.borrar(mensajes: ids, en: chat)
+            eleccion.quedarse(con: Set(idsCargados))
+        }
+    }
+
     /// Un lienzo nuevo en este chat, abierto ya para dibujar.
     private func nuevoLienzo() {
         enSalto = false
@@ -282,6 +339,9 @@ struct Burbuja: View {
         }
         .padding(8)
         .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 10))
+        // Las burbujas con menu propio (fichero, nota, voz) llevan estas
+        // entradas en el suyo, que tapa a este.
+        .contextMenu { EntradasDeMensaje() }
     }
 
     static func icono(_ clase: String) -> String {

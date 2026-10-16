@@ -51,6 +51,7 @@ struct BurbujaVoz: View {
             if let url {
                 Button("Mostrar en el Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
             }
+            EntradasDeMensaje()
         }
         .task(id: mensaje.id) {
             guard let ruta = mensaje.ruta else { return }

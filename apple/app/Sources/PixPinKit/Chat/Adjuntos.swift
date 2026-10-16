@@ -47,6 +47,13 @@ struct BurbujaArchivo: View {
     let almacen: Almacen
     @State private var url: URL?
     @State private var icono: NSImage?
+    /// Un Excel con hojas que el movil edito antes del 13-oct-2026 (solo en
+    /// `tablas/libro-*.json`): se abren como tabla y al guardar pasan a
+    /// mensajes, como en Windows (`Nucleo.esHojaDeCalculo`).
+    @State private var hojasDelMovil = false
+
+    /// Las extensiones de un libro de hojas (`importar_hojas::LEGIBLES`).
+    static let libros: Set<String> = ["xlsx", "xlsm", "ods", "csv", "tsv"]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -72,6 +79,14 @@ struct BurbujaArchivo: View {
             .frame(maxWidth: 320, alignment: .leading)
             .contentShape(Rectangle())
             .modifier(AccionesSiHay(url: url, nombre: mensaje.nombre, nucleo: almacen.nucleo))
+            if hojasDelMovil {
+                Button {
+                    HojasDeCalculo.compartidas.abrir(mensaje, en: chat, almacen: almacen)
+                } label: {
+                    Label("Hojas editadas en el móvil", systemImage: "tablecells")
+                }
+                .help("Lo que se editó en el móvil; al guardar pasa al chat como tablas. El archivo no cambia.")
+            }
             // Un PDF que se esta aligerando (o como acabo).
             if let url, TiposDeDocumento.clase(de: url) == .pdf {
                 EstadoAligerado(url: url)
@@ -84,6 +99,15 @@ struct BurbujaArchivo: View {
             }
         }
         .task(id: mensaje.id) {
+            let ext = ((mensaje.nombre.isEmpty ? (mensaje.ruta ?? "") : mensaje.nombre) as NSString)
+                .pathExtension.lowercased()
+            if BurbujaArchivo.libros.contains(ext) {
+                let nucleo = almacen.nucleo
+                let (chat, id) = (chat, mensaje.id)
+                hojasDelMovil = await Task.detached(priority: .utility) {
+                    nucleo.esHojaDeCalculo(chat: chat, mensaje: id)
+                }.value
+            }
             guard let u = await resolver(mensaje, chat, almacen) else { return }
             url = u
             // El icono del Finder del propio fichero (el de su app, o la
@@ -201,6 +225,7 @@ struct AccionesDeFichero: ViewModifier {
                 Button("Vista rápida") { vistaRapida = url }
                 Button("Abrir") { NSWorkspace.shared.open(url) }
                 Button("Mostrar en el Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                EntradasDeMensaje()
             }
             .onDrag {
                 // Un proveedor con el FICHERO (no su URL): quien lo recibe

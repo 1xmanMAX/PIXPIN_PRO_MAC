@@ -253,6 +253,48 @@ public final class Almacen: ObservableObject {
         NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
     }
 
+    /// **Borra mensajes de un chat** (`Nucleo.borrarMensajes`, como Borrar
+    /// en el chat de Windows): se quitan del cuaderno con su marca para que
+    /// la sincronizacion no los traiga otra vez, y el fichero de un archivo,
+    /// una foto o una voz se borra con ellos. Despues se quitan de lo
+    /// cargado y se relee la lista de chats (su ultima linea cambio).
+    /// Devuelve cuantos se quitaron. El disco, fuera del hilo principal.
+    @discardableResult
+    public func borrar(mensajes ids: [String], en chat: String) async -> UInt32 {
+        guard !ids.isEmpty else { return 0 }
+        let nucleo = self.nucleo
+        let hecho = await Task.detached(priority: .userInitiated) { () -> Result<UInt32, Error> in
+            Result { try nucleo.borrarMensajes(chat: chat, ids: ids) }
+        }.value
+        switch hecho {
+        case let .success(n):
+            let quitados = Set(ids)
+            // Las rutas resueltas de los que se fueron ya no llevan a nada.
+            for m in mensajes[chat] ?? [] where quitados.contains(m.id) {
+                if let r = m.ruta { rutas[chat + "\u{0}" + r] = nil }
+            }
+            let antes = mensajes[chat]?.count ?? 0
+            mensajes[chat] = Almacen.sin(quitados, en: mensajes[chat] ?? [])
+            let fuera = UInt64(antes - (mensajes[chat]?.count ?? 0))
+            if let t = totales[chat] {
+                // Lo borrado que no estaba cargado tambien cuenta.
+                totales[chat] = t - min(t, max(fuera, UInt64(n)))
+            }
+            error = nil
+            NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            await cargarChats()
+            return n
+        case let .failure(e):
+            error = "No se pudo borrar: \(e)"
+            return 0
+        }
+    }
+
+    /// Lo cargado sin los mensajes `ids`, en el mismo orden.
+    nonisolated static func sin(_ ids: Set<String>, en lista: [MensajeChat]) -> [MensajeChat] {
+        lista.filter { !ids.contains($0.id) }
+    }
+
     /// Para las extensiones de otros ficheros (voz): dice o borra el error.
     func ponerError(_ texto: String?) {
         error = texto
