@@ -4213,6 +4213,41 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      */
     func lecturaDeDocumento(documento: String)  -> LecturaDocumento
     
+    func guardarLectoresOscuros(oscuros: Bool) throws 
+    
+    /**
+     * Guarda la velocidad sin tocar lo demas que se recuerda.
+     */
+    func guardarPalabrasPorMinuto(ppm: UInt32) throws 
+    
+    /**
+     * **El modo oscuro de los visores** (luna/sol de la barra): uno para
+     * todos, como en Windows (`lectores_oscuros` del estado). `None` es
+     * «nunca se toco»: entonces manda el aspecto del Mac.
+     */
+    func lectoresOscuros()  -> Bool?
+    
+    /**
+     * **El nombre que se ensena** de un documento en el lector: el del
+     * mensaje si es de un chat (el que el usuario le puso alli), el del
+     * fichero si no.
+     */
+    func nombreDeDocumento(documento: String)  -> String
+    
+    /**
+     * **La velocidad de la pagina que sube sola** recordada en este equipo
+     * (`palabras_por_minuto` del estado, como Windows; 230 la de fabrica).
+     */
+    func palabrasPorMinuto()  -> UInt32
+    
+    /**
+     * **Cambia el nombre de un documento desde el lector** (F2): el del
+     * mensaje si es de un chat, el del fichero (con sus hermanos) si es
+     * suelto. `escrito` es lo tecleado; la extension de antes se conserva.
+     * Bloqueante.
+     */
+    func renombrarDocumento(documento: String, escrito: String) throws  -> DocumentoRenombrado
+    
     /**
      * **Un lienzo nuevo en un chat**: el `.excalidraw` vacio en
      * `lienzos/<codigo>.excalidraw` y su mensaje `DIBUJO` al final del
@@ -5552,6 +5587,86 @@ open func lecturaDeDocumento(documento: String) -> LecturaDocumento  {
     uniffi_pixpin_nucleo_fn_method_nucleo_lectura_de_documento(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(documento),uniffiCallStatus
+    )
+})
+}
+    
+open func guardarLectoresOscuros(oscuros: Bool)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_guardar_lectores_oscuros(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(oscuros),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Guarda la velocidad sin tocar lo demas que se recuerda.
+     */
+open func guardarPalabrasPorMinuto(ppm: UInt32)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_guardar_palabras_por_minuto(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(ppm),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **El modo oscuro de los visores** (luna/sol de la barra): uno para
+     * todos, como en Windows (`lectores_oscuros` del estado). `None` es
+     * «nunca se toco»: entonces manda el aspecto del Mac.
+     */
+open func lectoresOscuros() -> Bool?  {
+    return try!  FfiConverterOptionBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_lectores_oscuros(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El nombre que se ensena** de un documento en el lector: el del
+     * mensaje si es de un chat (el que el usuario le puso alli), el del
+     * fichero si no.
+     */
+open func nombreDeDocumento(documento: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nombre_de_documento(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(documento),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La velocidad de la pagina que sube sola** recordada en este equipo
+     * (`palabras_por_minuto` del estado, como Windows; 230 la de fabrica).
+     */
+open func palabrasPorMinuto() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_palabras_por_minuto(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Cambia el nombre de un documento desde el lector** (F2): el del
+     * mensaje si es de un chat, el del fichero (con sus hermanos) si es
+     * suelto. `escrito` es lo tecleado; la extension de antes se conserva.
+     * Bloqueante.
+     */
+open func renombrarDocumento(documento: String, escrito: String)throws  -> DocumentoRenombrado  {
+    return try  FfiConverterTypeDocumentoRenombrado_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_renombrar_documento(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(documento),
+        FfiConverterString.lower(escrito),uniffiCallStatus
     )
 })
 }
@@ -18608,6 +18723,121 @@ public func FfiConverterTypeDesenlaceAligerar_lower(_ value: DesenlaceAligerar) 
 
 
 /**
+ * Lo que paso al cambiar el nombre de un documento desde el lector.
+ */
+
+public enum DocumentoRenombrado: Equatable, Hashable {
+    
+    /**
+     * Lo escrito esta vacio o es el mismo nombre: no se hizo nada.
+     */
+    case sinCambios
+    /**
+     * Cambio el nombre del mensaje del chat; el fichero sigue donde estaba.
+     */
+    case enElChat(nombre: String
+    )
+    /**
+     * Se movio el fichero suelto (y sus hermanos) a `ruta`.
+     */
+    case enDisco(nombre: String, ruta: String
+    )
+    /**
+     * Ya hay un fichero con ese nombre al lado: no se pisa.
+     */
+    case yaExiste(nombre: String
+    )
+    /**
+     * Es del almacen pero de ningun mensaje que se sepa: no se toca.
+     */
+    case noSePuede
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DocumentoRenombrado: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDocumentoRenombrado: FfiConverterRustBuffer {
+    typealias SwiftType = DocumentoRenombrado
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DocumentoRenombrado {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .sinCambios
+        
+        case 2: return .enElChat(nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .enDisco(nombre: try FfiConverterString.read(from: &buf), ruta: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .yaExiste(nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .noSePuede
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DocumentoRenombrado, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .sinCambios:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .enElChat(nombre):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case let .enDisco(nombre,ruta):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(nombre, into: &buf)
+            FfiConverterString.write(ruta, into: &buf)
+            
+        
+        case let .yaExiste(nombre):
+            writeInt(&buf, Int32(4))
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case .noSePuede:
+            writeInt(&buf, Int32(5))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentoRenombrado_lift(_ buf: RustBuffer) throws -> DocumentoRenombrado {
+    return try FfiConverterTypeDocumentoRenombrado.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDocumentoRenombrado_lower(_ value: DocumentoRenombrado) -> RustBuffer {
+    return FfiConverterTypeDocumentoRenombrado.lower(value)
+}
+
+
+
+/**
  * Adonde va lo anotado de un documento.
  */
 
@@ -23783,6 +24013,93 @@ public func espaciosDeHoja(espacios: UInt8) -> [Float]  {
 })
 }
 /**
+ * Las palabras de un texto: lo que hay entre blancos (para la pagina que
+ * sube sola).
+ */
+public func contarPalabras(texto: String) -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_contar_palabras(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Junta la tinta de una hoja** (`mio`, lo de aqui) con la que hay ahora
+ * en el disco (`suyo`), siendo `base` la que se leyo al abrirla (`None`
+ * si no se sabe: entonces se junta todo, que perder algo es peor que tener
+ * de mas). `None` si alguna no se entiende: entonces vale lo de aqui.
+ */
+public func juntarTintaConElDisco(base: String?, mio: String, suyo: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_juntar_tinta_con_el_disco(
+        FfiConverterOptionString.lower(base),
+        FfiConverterString.lower(mio),
+        FfiConverterString.lower(suyo),uniffiCallStatus
+    )
+})
+}
+/**
+ * Un paso mas rapido (`sentido` +1) o mas lento (−1) de la pagina que sube
+ * sola, en palabras por minuto, redondeando al paso y entre el minimo y el
+ * maximo.
+ */
+public func otraVelocidadDeLeer(ppm: UInt32, sentido: Int32) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_otra_velocidad_de_leer(
+        FfiConverterUInt32.lower(ppm),
+        FfiConverterInt32.lower(sentido),uniffiCallStatus
+    )
+})
+}
+/**
+ * **«Terminas en 12 min · a las 18:40»** o «Terminado» (`lector-auto-*` de
+ * Windows): `progreso` de 0 a 1 y `ahora_en_minutos` los de hoy desde las
+ * 00:00 en la hora de este equipo.
+ */
+public func rotuloDeLoQueQueda(palabras: UInt64, progreso: Float, ppm: UInt32, ahoraEnMinutos: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_rotulo_de_lo_que_queda(
+        FfiConverterUInt64.lower(palabras),
+        FfiConverterFloat.lower(progreso),
+        FfiConverterUInt32.lower(ppm),
+        FfiConverterInt64.lower(ahoraEnMinutos),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Un color de la tinta sobre el papel** (`contraste::adaptar` del motor,
+ * lo que hace Windows al pintar la tinta del lector en negativo o en
+ * oscuro): si ya se lee (3:1) se queda; si no, se le cambia la claridad
+ * conservando el tono. Devuelve `[r, g, b, a]` de 0 a 1.
+ */
+public func tintaSobrePapel(color: [Float], papel: [Float]) -> [Float]  {
+    return try!  FfiConverterSequenceFloat.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tinta_sobre_papel(
+        FfiConverterSequenceFloat.lower(color),
+        FfiConverterSequenceFloat.lower(papel),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Cuanto hay que bajar por segundo**, en las unidades de `alto`, para
+ * leer `ppm` palabras por minuto un documento de `palabras` palabras.
+ */
+public func velocidadDeBajar(ppm: UInt32, palabras: UInt64, alto: Float) -> Float  {
+    return try!  FfiConverterFloat.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_velocidad_de_bajar(
+        FfiConverterUInt32.lower(ppm),
+        FfiConverterUInt64.lower(palabras),
+        FfiConverterFloat.lower(alto),uniffiCallStatus
+    )
+})
+}
+/**
  * Lo que se mueve el cursor sin dejar de estar «quieto» para el gesto de
  * pararse (forma rapida), en pixeles de pantalla: el temblor de la mano
  * del movil (`forma_rapida::TEMBLOR_PX`). Swift reprograma su espera solo
@@ -24697,6 +25014,24 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_espacios_de_hoja() != 32145) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_contar_palabras() != 54730) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_juntar_tinta_con_el_disco() != 56636) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_otra_velocidad_de_leer() != 33264) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_rotulo_de_lo_que_queda() != 7890) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tinta_sobre_papel() != 45866) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_velocidad_de_bajar() != 61987) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_forma_rapida_temblor_px() != 43899) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -25049,6 +25384,24 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_lectura_de_documento() != 41757) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_lectores_oscuros() != 8520) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_palabras_por_minuto() != 7268) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_lectores_oscuros() != 3440) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nombre_de_documento() != 8708) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_palabras_por_minuto() != 37946) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_renombrar_documento() != 48419) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_lienzo() != 32607) {

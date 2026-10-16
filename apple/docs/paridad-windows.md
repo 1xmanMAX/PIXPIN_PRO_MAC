@@ -38,10 +38,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
    - Tareas: falta buscar, mover, editar, y borrar con deshacer.
    - Timeline: no se puede apuntar nada.
 7. **Compartir y exportar común**: PDF, PNG, SVG y web, más la ventanita «Salida». No existe.
-8. **Lectores sin búsqueda.**
-   - Faltan buscar (⌘F/⌘G), ir al marcador con ⌘1…9, el negativo, el avance solo y renombrar.
-   - Falta escuchar en voz alta (`leer_en_voz`).
-   - Falta recargar la tinta si cambia en el disco (`al_dia`).
+8. ~~**Lectores sin búsqueda.**~~ Hecho (B7): buscar (⌘F, ⌘G / ⇧⌘G, F3), ⌘1…9 y el riel de marcadores, M con su cifra, N negativo, luna/sol oscuro, D avance solo, G ajustes, F2 renombrar, ⌘P, ⇧⌘S, F5 presentar y la tinta al día con el disco (`al_dia`).
+   - Falta escuchar en voz alta (`leer_en_voz`, D2).
 9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. Faltan el esquema `pixpinmax://`, los pedidos y el menú del Dock.
 10. ~~**El núcleo `pixpin-ia` del Mac va muy por detrás de Windows**.~~ Hecho (A7, 16-oct): `pixpin-ia`, `pixpin-pdf` (letras), `pixpin-store` y `pixpin-motor2d` ya son los de Windows. Lo que falta es la parte de Swift del asistente (D6, E1).
 
@@ -68,7 +66,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | automatizaciones (cola, encargo, motor) | Disparadores con pasos; cola de encargos | falta | — | Todo; `auto-automatizaciones` llega y no se usa |
 | biblioteca_audio | Música y notas de voz de todos los chats | falta | — | Todo |
 | biblioteca_figuras | Figuras del lienzo (`figuras.json`, viaja) | parcial | K/Lienzo/FigurasLienzo.swift, N/editor_figuras.rs | Hechos: gráfica, tabla en blanco y pegada, plano/recta/espacio, guardar, estampar y quitar (en el chat «Asistente», con su mensaje `auto-figuras`). Faltan editar una tabla ya dibujada, meter en su celda y las tablas de coordenadas |
-| buscador | Ctrl+F en los lectores, «3 de 12», F3 | falta | K/Documentos/LectorDocumento.swift | `PDFDocument.findString` con siguiente y anterior |
+| buscador | Ctrl+F en los lectores, «3 de 12», F3 | completo | K/Documentos/BuscadorLector.swift | — (en el visor reflujado, con E7) |
 | buscar_todo | «Buscar en PixPin»: pestañas, recientes, acciones | parcial | K/Buscar/Buscar.swift, N/buscar.rs | Pestañas; recientes; lecciones y capturas; botones por fila; usar `pixpin-lanzador` |
 | cabecera | Barra común de Galería, Lecciones, Tareas y Timeline | no aplica | SwiftUI | — (unificar su aspecto) |
 | caducidad_capturas | Capturas que se borran solas | completo | K/Caducidad/BarrenderoCapturas.swift, N/galeria.rs | — (el aviso «se van en 24 h», con «Conservar» y «Abrir», hecho en C4) |
@@ -82,7 +80,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
 | croquis3d | Ver los croquis 3D del móvil | falta | K/Planos/VisorModelo3D.swift | Abrir `.croquis.gz` en N/modelos3d.rs |
 | cuenta_atras | Captura con retardo | completo | K/Captura/CuentaAtras.swift, K/Captura/AjustesCaptura.swift | — (Esc la para aunque el foco este en otra app; los segundos de `retardo_captura_s`) |
-| diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | falta | K/Documentos/LectorDocumento.swift (solo verlo) | Todo |
+| diapositivas | Presentar un PPTX (orador, notas, negro); PPTX → proyecto | parcial | K/Documentos/LectorDocumento.swift | Hecho F5: a pantalla completa, de hoja en hoja (flechas, espacio) y B en negro. Faltan la vista del orador, las notas y PPTX → proyecto |
 | dibujo/ | Herramientas comunes: construir, grupos, lupa, copiar y pegar | parcial | K/Lienzo/*, N/editor*.rs | Hechas todas las herramientas de la barra (zona, láser, lupa, foco, pixelar, marco, copiar estilo, bolita, soldar vértices: N/editor_herramientas.rs, N/editor_tapado.rs). Faltan copiar y pegar elementos, agrupar y los atajos de §2.5 |
 | dispositivo_perdido | Recuperarse si se pierde la GPU | interno | — | Solo para Metal en Planos, si se quita la GPU |
 | editor | Revisar la grabación antes de guardarla | falta | K/Grabar/GrabadorPantalla.swift (guarda directamente) | Todo |
@@ -97,8 +95,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | imagenes_lienzo | Imágenes pegadas en el lienzo | completo | K/Lienzo/ImagenPegadaLienzo.swift | — |
 | instancia_de_prueba | Instancia aislada para desarrollar | no aplica | — | — |
 | lecciones | Ficha, etiquetas, repaso, dictado, fotos y audios, exportar | parcial | K/Lecciones/*, N/lecciones.rs | Dictado, adjuntos (foto o voz; las del móvil no se ven), exportar |
-| lector | Lo común a los lectores: papel, riel de marcadores | parcial | K/Documentos/LectorDocumento.swift | Riel de marcadores, negativo |
-| lector_pdf | Lector PDF, Word y PPTX | parcial | K/Documentos/LectorDocumento.swift, PintorOffice.swift | Buscar, escuchar, D, N, imprimir, F5, ⌘1…9, `al_dia`, texto de Office |
+| lector | Lo común a los lectores: papel, riel de marcadores | completo | K/Documentos/LectorDocumento.swift, AvanceLector.swift, TonoLector.swift | — (riel a la derecha con ⌘1…9, tira de M con su cifra, negativo) |
+| lector_pdf | Lector PDF, Word y PPTX | parcial | K/Documentos/LectorDocumento.swift, BuscadorLector.swift, AvanceLector.swift, AlDiaLector.swift, N/documentos/lector.rs | Hechos (B7) buscar, D, N, G, imprimir, compartir, F5, ⌘1…9, F2 y `al_dia` (releer y juntar al guardar). Faltan escuchar (D2), «Ver como texto», exportar el PDF anotado (D1) y quitar lo anotado |
 | lector_pdf_proyecto | Dónde va la tinta de un PDF | completo | N/documentos.rs | — |
 | lector_pin | Los lectores como pin | completo | K/Documentos/LectorDocumento.swift | La barra flotante de los pines |
 | lector_tinta | Capa de tinta sin desfase | parcial | N/documentos.rs | Word y EPUB reflujados |
@@ -127,7 +125,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | notas_md/lector_web | Modo lector de la nota | falta | — | Todo |
 | notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | completo | K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift | Sin permiso del sistema, lo urgente sale en una ventanita de la app con los mismos botones |
 | orden | Línea de órdenes y `pixpinmax://` | falta | — | `CFBundleURLTypes` y los verbos |
-| oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Ajustes/ModeloAjustes.swift | Botón en los pines-lector |
+| oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Documentos/TonoLector.swift, N/documentos/lector.rs | Hecho en el lector (luna/sol en su barra, `lectores_oscuros` del estado, la tinta se adapta). Faltan el pin de Office, la hoja de cálculo y los visores de planos |
 | overlay | Overlay de captura | completo | K/Captura/* | — (B8: ⌘A, flechas, Espacio en vivo, ⇧ HEX/RGB, ⇧⌘S, ⌫, cuentagotas; la barra de acciones de Windows) |
 | panel_dibujo | Panel de estilo del lienzo | parcial | K/Lienzo/BarraEstiloLienzo.swift | **Lo lleva el agente del lienzo** |
 | pdf_del_proyecto | Rehacer un PDF roto desde `pdfLimpio` | falta | — | Todo |
@@ -156,7 +154,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | recibir | Recibir del móvil con QR; lienzo suelto | completo | K/Sincro/EnvioPorCodigo.swift, N/envio.rs, N/recepcion.rs, N/lienzo_suelto.rs | — |
 | recibir_de_windows | «Imprimir a PixPin» y Compartir | parcial | XC/Compartir | PDF Services («Guardar en PixPin» del diálogo de imprimir) |
 | recordatorios | «Recuérdame a las 10» y el vigía | completo | N/recordatorios.rs, K/Recordatorios/{Vigia,Avisos}.swift | Sin hilo en Rust: el vigía es de Swift (temporizador de pared + notificación del sistema para la app cerrada). La llamada secreta es E5 |
-| renombrar_doc | F2 para renombrar en el lector | falta | — | Todo |
+| renombrar_doc | F2 para renombrar en el lector | completo | K/Documentos/LectorDocumento.swift, N/documentos/lector.rs | — (el nombre del mensaje si es de un chat; el fichero con sus hermanos si es suelto) |
 | reproductor | Editor de grabaciones | falta | — | Todo |
 | salida | Ventanita «Salida» para arrastrar lo exportado | falta | — | Todo |
 | salto_por_enlace | Abrir el sublienzo de una zona | falta | — | Depende de zona_al_chat (lienzo) |
@@ -361,19 +359,20 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 | Windows | Acción | Mac | Estado |
 |---|---|---|---|
 | Moverse, Ctrl+C | — | nativo de PDFView | completo |
-| Ctrl+rueda, + / −, Ctrl+0 | Zoom | pellizco, ⌘+ / ⌘− | parcial |
+| Ctrl+rueda, + / −, Ctrl+0 | Zoom | pellizco, + / −, ⌘+ / ⌘−, ⌘0 | completo |
 | Ctrl+[ / Ctrl+] | Espacio para anotar | ⌘[ / ⌘] | completo |
 | A, y dentro P R E 1–5 | Anotar | A, P H E | parcial (letras y colores distintos) |
 | Ctrl+Z / Ctrl+Y | Deshacer y rehacer la tinta | ⌘Z / ⇧⌘Z | completo |
 | Ctrl+S | Guardar | se guarda solo | no aplica |
-| M · Ctrl+1…9 | Marcador · ir a él | M · ⌘1…9 | parcial · falta |
-| G D N L I | Ajustes, avance solo, negativo, escuchar, índice | igual | falta |
+| M · Ctrl+1…9 | Marcador (con su cifra) · ir a él | M · ⌘1…9 | completo |
+| G D N L I | Ajustes, avance solo, negativo, escuchar, índice | igual | parcial (G D N hechas; L con D2; I es del visor, E7) |
 | + / −, T, B (visor) | Letra | igual | falta |
 | F11 | Pantalla completa | ⌃⌘F / F11 | completo |
-| Esc en cascada | — | ⎋ | parcial |
-| Ctrl+F, F3 / Mayús+F3 | Buscar | ⌘F, ⌘G / ⇧⌘G | falta |
-| F2 | Renombrar | F2 o ↩ | falta |
-| Ctrl+Mayús+S · Ctrl+P · F5 | Compartir · imprimir · presentar | ⇧⌘S · ⌘P · F5 o ⌘↩ | falta |
+| Esc en cascada | — | ⎋ (cajas, presentar, lo elegido, marcador, avance, anotar, pantalla completa, cerrar) | completo |
+| Ctrl+F, F3 / Mayús+F3 | Buscar | ⌘F, ⌘G / ⇧⌘G, F3 / ⇧F3, ↩ / ⇧↩ | completo |
+| F2 | Renombrar | F2 o un clic en el nombre | completo |
+| Ctrl+Mayús+S · Ctrl+P · F5 | Compartir · imprimir · presentar | ⇧⌘S · ⌘P · F5 | completo |
+| Inicio / Fin · Ctrl+S | Principio y final · guardar | ↖ / ↘ · ⌘S (guarda ya) | completo |
 
 ### 2.7 Notas (Markdown)
 
@@ -528,7 +527,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | B4 | **Tareas editables**: buscar, «Mover a…», borrar con deshacer, F2 para editar, pegar imágenes, ver y poner `⏰`, teclado | K/Tareas/Tareas.swift, N/tareas.rs (**después de A4** o junto a él en `⏰`) |
 | B5 | **Timeline editable**: apuntar texto, foto y voz; pestañas ⌘1…4; ↑ corrige el último; buscar | K/Timeline/Timeline.swift, N/timeline.rs |
 | B6 | **Galería completa**: buscador (también OCR con Vision), grupos por día, teclado, «Guardar como», panel de detalle | K/Galeria/Galeria.swift, K/Galeria/Comun.swift, N/galeria.rs |
-| B7 | **Lectores, parte 1**: buscar (⌘F, ⌘G / ⇧⌘G), ⌘1…9 para ir al marcador, N negativo, D avance solo, ⌘P imprimir, F2 renombrar, `al_dia` (recargar la tinta) | K/Documentos/LectorDocumento.swift, nuevo K/Documentos/BuscadorLector.swift, N/documentos.rs |
+| B7 | ~~**Lectores, parte 1**~~ **hecho**: buscar (⌘F, ⌘G / ⇧⌘G), ⌘1…9 para ir al marcador, N negativo, D avance solo, ⌘P imprimir, F2 renombrar, `al_dia` (recargar la tinta) | K/Documentos/LectorDocumento.swift, nuevo K/Documentos/BuscadorLector.swift, N/documentos.rs |
 | B8 ✅ | **Captura que falta** (hecho; queda mover el marco del GIF): ⌘A, flechas y Espacio, ⇧ HEX/RGB, ⇧⌘S, ⌫ de la anotación, captura con retardo (cuenta atrás), cuentagotas suelto, ↩ y Esc del GIF | K/Captura/Capturador.swift, K/Captura/VistaCaptura.swift, K/Captura/AnotacionCaptura.swift, K/Captura/GrabadorGif.swift, nuevo K/Captura/CuentaAtras.swift |
 | B9 | **Datos que llegan y no se ven**: foto anotada del móvil en la burbuja, croquis 3D, fotos de las lecciones, punto de proyecto, PAGINA y PROYECTO con su burbuja | K/Chat/Adjuntos.swift, N/modelos3d.rs, K/Lecciones/VistaLecciones.swift (usa `PintorLienzo.swift` sin cambiarlo) |
 
