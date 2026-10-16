@@ -73,8 +73,8 @@ final class CajaDelChatTests: XCTestCase {
 
     func testLoQueElMacAunNoHaceSaleMarcado() {
         let faltan = HojaAdjuntar.opciones.filter { !$0.accion.enElMac }.map(\.rotulo)
-        XCTAssertEqual(Set(faltan), ["Conversación", "Página de un proyecto", "Proyecto entero",
-                                     "Teleprónter", "Pronunciar"])
+        // Conversacion, Teleprónter y Pronunciar ya abren sus ventanitas (E5).
+        XCTAssertEqual(Set(faltan), ["Página de un proyecto", "Proyecto entero"])
     }
 
     // MARK: Buscar en el chat

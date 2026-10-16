@@ -139,14 +139,82 @@ pub fn picos_de(m: &Mensaje) -> Vec<i32> {
     acotar_picos(&crudos)
 }
 
+/// El texto con tiempos y su estado para la nota `m`: por turnos, con los
+/// nombres, si es una conversacion; si no, de corrido.
+pub fn texto_de(m: &Mensaje, segmentos: &[SegmentoVoz]) -> (String, &'static str) {
+    let turnos = crate::turnos::de_un_mensaje(m);
+    if turnos.is_empty() {
+        (con_tiempos(segmentos), estado_de(segmentos))
+    } else {
+        crate::turnos::texto_por_turnos(&turnos, segmentos)
+    }
+}
+
 /// El nombre de una nota de voz nueva sin nombre puesto: `voz_<ms>.m4a`,
 /// como `ventana_chat::nombre_de_la_voz(None, ahora)` de Windows.
 pub fn nombre_de_la_voz(ahora_ms: i64) -> String {
     format!("voz_{ahora_ms}.m4a")
 }
 
+/// **Una nota de voz grabada en una ventanita de la voz** (tanda E5): el
+/// telepronter, Pronunciar o la conversacion por turnos. Lo que cada una
+/// sabe ademas del audio va aqui, y se escribe como en Windows
+/// (`teleprompter::aplicar`, `pronunciar::aplicar`, `conversacion::aplicar`).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct GrabacionVoz {
+    /// El `.m4a` grabado; su nombre es el del mensaje (`lectura-<ms>.m4a`,
+    /// `pronunciar-<ms>.m4a`, `conversacion-<ms>.m4a`, como Windows).
+    pub ruta_origen: String,
+    pub duracion_ms: i64,
+    pub picos: Vec<i32>,
+    /// El texto ya sabido (el telepronter: `[m:ss] parrafo`). Nace `bien`
+    /// porque no lo adivino ningun reconocedor.
+    pub texto: Option<String>,
+    /// Quien hablo cuando (la conversacion). Vacio: no es una conversacion.
+    pub turnos: Vec<crate::turnos::TurnoVoz>,
+}
+
+/// Escribe en `m` lo que trae una grabacion de las ventanitas (todo menos
+/// el fichero, que pone quien adjunta).
+pub fn aplicar_grabacion(m: &mut Mensaje, g: &GrabacionVoz) {
+    m.clase = Some(Clase::Voz);
+    m.duracion_ms = g.duracion_ms.max(0);
+    m.resto.insert(
+        "picos".into(),
+        serde_json::Value::from(acotar_picos(&g.picos)),
+    );
+    if let Some(texto) = &g.texto {
+        m.transcripcion = Some(texto.clone());
+        m.resto.insert(
+            "estadoDelTexto".into(),
+            serde_json::Value::String("bien".into()),
+        );
+    }
+    if !g.turnos.is_empty() {
+        m.resto.insert(
+            crate::turnos::CAMPO.into(),
+            crate::turnos::a_json(&g.turnos),
+        );
+    }
+}
+
 #[uniffi::export]
 impl Nucleo {
+    /// **Guarda una nota de las ventanitas de la voz** en un chat: copia el
+    /// `.m4a` con su nombre y escribe su linea con duracion, picos y, si los
+    /// trae, el texto ya sabido o los turnos. Bloqueante. El fichero de
+    /// origen no se toca.
+    pub fn adjuntar_grabacion(
+        &self,
+        chat: String,
+        grabacion: GrabacionVoz,
+    ) -> Result<MensajeChat, ErrorNucleo> {
+        let origen = grabacion.ruta_origen.clone();
+        self.adjuntar_con(chat, origen, None, move |m| {
+            aplicar_grabacion(m, &grabacion)
+        })
+    }
+
     /// **Guarda una nota de voz grabada aqui** en un chat: copia el `.m4a`
     /// de `ruta_origen` dentro del proyecto como `voz_<hora>.m4a` (clase
     /// `VOZ`) y escribe su linea con `duracionMs` y `picos`, como Windows
@@ -185,8 +253,6 @@ impl Nucleo {
         if !fichero.exists() {
             return Err(ErrorNucleo::NoExiste { que: chat });
         }
-        let texto = con_tiempos(&segmentos);
-        let estado = estado_de(&segmentos);
         let mut no_es_voz = false;
         // La cache tomada mientras se reescribe, como al escribir: nadie
         // saca un numero de un indice que esta a punto de cambiar.
@@ -196,6 +262,8 @@ impl Nucleo {
                 no_es_voz = true;
                 return false;
             }
+            // Una conversacion sale con sus nombres (`turnos`, E5).
+            let (texto, estado) = texto_de(m, &segmentos);
             m.transcripcion = Some(texto);
             m.resto.insert(
                 "estadoDelTexto".into(),
@@ -265,6 +333,88 @@ mod pruebas {
         let v = acotar_picos(&muchos);
         assert!(v.len() <= PICOS_GUARDADOS && v.len() > PICOS_GUARDADOS / 2);
         assert_eq!(a_mitad(&[2, 4, 7]), vec![3, 7]);
+    }
+
+    #[test]
+    fn una_lectura_del_telepronter_nace_con_su_texto_y_bien() {
+        let mut m = Mensaje::default();
+        aplicar_grabacion(
+            &mut m,
+            &GrabacionVoz {
+                ruta_origen: "lectura-1.m4a".into(),
+                duracion_ms: 12_500,
+                picos: vec![10, 20_000, 40_000],
+                texto: Some("[0:00] primero\n\n[0:07] segundo".into()),
+                turnos: vec![],
+            },
+        );
+        assert_eq!(m.clase, Some(Clase::Voz));
+        assert_eq!(m.duracion_ms, 12_500);
+        assert_eq!(
+            m.transcripcion.as_deref(),
+            Some("[0:00] primero\n\n[0:07] segundo")
+        );
+        assert_eq!(
+            m.resto.get("estadoDelTexto").and_then(|v| v.as_str()),
+            Some("bien"),
+            "el texto no lo adivino nadie"
+        );
+        assert_eq!(
+            m.resto.get("picos"),
+            Some(&serde_json::json!([10, 20_000, PICO_MAXIMO]))
+        );
+        assert!(m.resto.get("turnos").is_none());
+    }
+
+    #[test]
+    fn una_toma_de_pronunciar_no_trae_texto_y_lo_pone_la_transcripcion() {
+        let mut m = Mensaje::default();
+        aplicar_grabacion(
+            &mut m,
+            &GrabacionVoz {
+                ruta_origen: "pronunciar-1.m4a".into(),
+                duracion_ms: 4_200,
+                picos: vec![1, 2, 3],
+                texto: None,
+                turnos: vec![],
+            },
+        );
+        assert_eq!(m.clase, Some(Clase::Voz));
+        assert_eq!(m.resto.get("picos"), Some(&serde_json::json!([1, 2, 3])));
+        assert!(m.transcripcion.is_none());
+        assert!(m.resto.get("estadoDelTexto").is_none());
+    }
+
+    #[test]
+    fn la_conversacion_se_escribe_con_sus_turnos_y_se_pasa_a_texto_con_nombres() {
+        use crate::turnos::TurnoVoz;
+        let mut m = Mensaje::default();
+        aplicar_grabacion(
+            &mut m,
+            &GrabacionVoz {
+                ruta_origen: "conversacion-1.m4a".into(),
+                duracion_ms: 9_000,
+                picos: vec![],
+                texto: None,
+                turnos: vec![
+                    TurnoVoz::nuevo("Ana", 0, 4_000),
+                    TurnoVoz::nuevo("Luis", 4_000, 9_000),
+                ],
+            },
+        );
+        assert_eq!(
+            m.resto.get("turnos"),
+            Some(&serde_json::json!([
+                {"quien": "Ana", "desdeMs": 0, "hastaMs": 4_000},
+                {"quien": "Luis", "desdeMs": 4_000, "hastaMs": 9_000}
+            ]))
+        );
+        let (texto, estado) = texto_de(&m, &[sg(500, "hola"), sg(5_000, "que tal")]);
+        assert_eq!(texto, "[0:00] **Ana:** hola\n\n[0:05] **Luis:** que tal");
+        assert_eq!(estado, "bien");
+        // Caso negativo: una nota sin turnos sale de corrido.
+        let (llano, _) = texto_de(&Mensaje::default(), &[sg(500, "hola")]);
+        assert_eq!(llano, "[0:00] hola");
     }
 
     #[test]

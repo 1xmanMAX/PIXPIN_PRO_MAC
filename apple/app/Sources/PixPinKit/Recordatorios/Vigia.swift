@@ -240,6 +240,23 @@ public final class Recordatorios {
         enElSistema.remove(r.clave)
         olvidar(r.chat, r.id, tarea: r.tarea != nil)
         guard hechos.insert(Self.marca(r.clave, milisegundos(r.cuando))).inserted else { return }
+        // **Una nota de voz con hora es una llamada secreta** (E5): suena
+        // como una llamada. Lo que vencio hace rato con la app cerrada sale
+        // como el aviso de siempre.
+        if r.tarea == nil, let nucleo, Llamada.aunSuena(r.cuando, ahora: Date()) {
+            Task {
+                let l = await Task.detached(priority: .userInitiated) {
+                    Recordatorios.llamada(de: r, nucleo: nucleo)
+                }.value
+                if let l { Llamada.sonar(l, nucleo: nucleo) } else { self.avisar(r) }
+            }
+            return
+        }
+        avisar(r)
+    }
+
+    /// El aviso de un recordatorio que sono, en la ventanita de la app.
+    private func avisar(_ r: RecordatorioPuesto) {
         let aviso = AvisosRecordatorio.aviso(de: r)
         // Lo que vencio con la app cerrada y el sistema ya enseno no sale
         // otra vez: sigue en el centro de notificaciones con sus botones.

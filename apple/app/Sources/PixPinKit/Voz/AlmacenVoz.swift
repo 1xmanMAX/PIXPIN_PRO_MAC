@@ -49,15 +49,20 @@ extension Almacen {
     }
 
     /// Pasa a texto una nota de voz que ya esta en el chat (la grabada aqui
-    /// al acabar, o una que llego sin texto) y lo guarda. Devuelve si salio.
+    /// al acabar, o una que llego sin texto) y lo guarda. `idioma`: el que
+    /// se practicaba en Pronunciar (`en-US`), que manda. Devuelve si salio.
     @discardableResult
-    public func transcribir(_ m: MensajeChat, en chat: String) async -> Bool {
+    public func transcribir(_ m: MensajeChat, en chat: String, idioma: String? = nil) async -> Bool {
         guard m.clase == "VOZ", let ruta = m.ruta, let url = await url(deRuta: ruta, en: chat) else { return false }
         do {
-            let segmentos = try await TranscriptorVoz.transcribir(url)
+            let segmentos = try await TranscriptorVoz.transcribir(url, idioma: idioma.map(Locale.init(identifier:)))
             return await ponerTranscripcion(segmentos, en: m.id, chat: chat) != nil
         } catch {
-            ponerError(TranscriptorVoz.explicar(error))
+            if idioma != nil, (error as? ErrorVoz) == .sinReconocedor {
+                ponerError("Este Mac no tiene el reconocimiento de voz sin conexión para ese idioma. Actívalo en Ajustes del Sistema > Teclado > Dictado.")
+            } else {
+                ponerError(TranscriptorVoz.explicar(error))
+            }
             return false
         }
     }

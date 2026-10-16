@@ -6027,6 +6027,25 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func abrirLienzo(chat: String, dibujo: String) throws  -> Lienzo
     
     /**
+     * **La llamada secreta del mensaje `mensaje`**, si lo es: una nota de
+     * voz cuyo audio esta en este Mac. `None` si no (sale como un
+     * recordatorio de siempre). Bloqueante (lee el cuaderno).
+     */
+    func llamadaSecreta(chat: String, mensaje: String) throws  -> LlamadaSecreta?
+    
+    /**
+     * Apunta quien llama en la nota `mensaje`; en blanco, lo olvida y vuelve
+     * el nombre de la nota. No viaja (como en el movil).
+     */
+    func ponerQuienLlama(mensaje: String, nombre: String) throws 
+    
+    /**
+     * El nombre apuntado de quien llama en la nota `mensaje`, o `None` si
+     * no se le puso ninguno. Lee un fichero pequeno.
+     */
+    func quienLlama(mensaje: String)  -> String?
+    
+    /**
      * **Los avisos pendientes** de los temporizadores y alarmas de todos los
      * chats, ordenados por hora: lo que hay que volver a poner al arrancar y
      * tras sincronizar (un temporizador puesto en el movil llega como texto
@@ -6378,6 +6397,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * nuevo abajo, como en un chat), por paginas.
      */
     func timelineUltimas24h(desfaseMs: Int64, desde: UInt64, cuantos: UInt32) throws  -> PaginaMomentos
+    
+    /**
+     * **Guarda una nota de las ventanitas de la voz** en un chat: copia el
+     * `.m4a` con su nombre y escribe su linea con duracion, picos y, si los
+     * trae, el texto ya sabido o los turnos. Bloqueante. El fichero de
+     * origen no se toca.
+     */
+    func adjuntarGrabacion(chat: String, grabacion: GrabacionVoz) throws  -> MensajeChat
     
     /**
      * **Guarda una nota de voz grabada aqui** en un chat: copia el `.m4a`
@@ -8542,6 +8569,50 @@ open func abrirLienzo(chat: String, dibujo: String)throws  -> Lienzo  {
 }
     
     /**
+     * **La llamada secreta del mensaje `mensaje`**, si lo es: una nota de
+     * voz cuyo audio esta en este Mac. `None` si no (sale como un
+     * recordatorio de siempre). Bloqueante (lee el cuaderno).
+     */
+open func llamadaSecreta(chat: String, mensaje: String)throws  -> LlamadaSecreta?  {
+    return try  FfiConverterOptionTypeLlamadaSecreta.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_llamada_secreta(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Apunta quien llama en la nota `mensaje`; en blanco, lo olvida y vuelve
+     * el nombre de la nota. No viaja (como en el movil).
+     */
+open func ponerQuienLlama(mensaje: String, nombre: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_quien_llama(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(mensaje),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * El nombre apuntado de quien llama en la nota `mensaje`, o `None` si
+     * no se le puso ninguno. Lee un fichero pequeno.
+     */
+open func quienLlama(mensaje: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_quien_llama(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Los avisos pendientes** de los temporizadores y alarmas de todos los
      * chats, ordenados por hora: lo que hay que volver a poner al arrancar y
      * tras sincronizar (un temporizador puesto en el movil llega como texto
@@ -9301,6 +9372,23 @@ open func timelineUltimas24h(desfaseMs: Int64, desde: UInt64, cuantos: UInt32)th
         FfiConverterInt64.lower(desfaseMs),
         FfiConverterUInt64.lower(desde),
         FfiConverterUInt32.lower(cuantos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Guarda una nota de las ventanitas de la voz** en un chat: copia el
+     * `.m4a` con su nombre y escribe su linea con duracion, picos y, si los
+     * trae, el texto ya sabido o los turnos. Bloqueante. El fichero de
+     * origen no se toca.
+     */
+open func adjuntarGrabacion(chat: String, grabacion: GrabacionVoz)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_adjuntar_grabacion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterTypeGrabacionVoz_lower(grabacion),uniffiCallStatus
     )
 })
 }
@@ -13431,6 +13519,64 @@ public func FfiConverterTypeCamara3d_lift(_ buf: RustBuffer) throws -> Camara3d 
 #endif
 public func FfiConverterTypeCamara3d_lower(_ value: Camara3d) -> RustBuffer {
     return FfiConverterTypeCamara3d.lower(value)
+}
+
+
+/**
+ * Una tecla de la conversacion: desde que milisegundo de la grabacion habla
+ * `quien` (vacio: nadie).
+ */
+public struct CambioDeTurno: Equatable, Hashable {
+    public var ms: Int64
+    public var quien: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, quien: String) {
+        self.ms = ms
+        self.quien = quien
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CambioDeTurno: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCambioDeTurno: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CambioDeTurno {
+        return
+            try CambioDeTurno(
+                ms: FfiConverterInt64.read(from: &buf), 
+                quien: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CambioDeTurno, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.quien, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCambioDeTurno_lift(_ buf: RustBuffer) throws -> CambioDeTurno {
+    return try FfiConverterTypeCambioDeTurno.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCambioDeTurno_lower(_ value: CambioDeTurno) -> RustBuffer {
+    return FfiConverterTypeCambioDeTurno.lower(value)
 }
 
 
@@ -17615,6 +17761,100 @@ public func FfiConverterTypeGiroRuleta_lower(_ value: GiroRuleta) -> RustBuffer 
 
 
 /**
+ * **Una nota de voz grabada en una ventanita de la voz** (tanda E5): el
+ * telepronter, Pronunciar o la conversacion por turnos. Lo que cada una
+ * sabe ademas del audio va aqui, y se escribe como en Windows
+ * (`teleprompter::aplicar`, `pronunciar::aplicar`, `conversacion::aplicar`).
+ */
+public struct GrabacionVoz: Equatable, Hashable {
+    /**
+     * El `.m4a` grabado; su nombre es el del mensaje (`lectura-<ms>.m4a`,
+     * `pronunciar-<ms>.m4a`, `conversacion-<ms>.m4a`, como Windows).
+     */
+    public var rutaOrigen: String
+    public var duracionMs: Int64
+    public var picos: [Int32]
+    /**
+     * El texto ya sabido (el telepronter: `[m:ss] parrafo`). Nace `bien`
+     * porque no lo adivino ningun reconocedor.
+     */
+    public var texto: String?
+    /**
+     * Quien hablo cuando (la conversacion). Vacio: no es una conversacion.
+     */
+    public var turnos: [TurnoVoz]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El `.m4a` grabado; su nombre es el del mensaje (`lectura-<ms>.m4a`,
+         * `pronunciar-<ms>.m4a`, `conversacion-<ms>.m4a`, como Windows).
+         */rutaOrigen: String, duracionMs: Int64, picos: [Int32], 
+        /**
+         * El texto ya sabido (el telepronter: `[m:ss] parrafo`). Nace `bien`
+         * porque no lo adivino ningun reconocedor.
+         */texto: String?, 
+        /**
+         * Quien hablo cuando (la conversacion). Vacio: no es una conversacion.
+         */turnos: [TurnoVoz]) {
+        self.rutaOrigen = rutaOrigen
+        self.duracionMs = duracionMs
+        self.picos = picos
+        self.texto = texto
+        self.turnos = turnos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GrabacionVoz: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGrabacionVoz: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GrabacionVoz {
+        return
+            try GrabacionVoz(
+                rutaOrigen: FfiConverterString.read(from: &buf), 
+                duracionMs: FfiConverterInt64.read(from: &buf), 
+                picos: FfiConverterSequenceInt32.read(from: &buf), 
+                texto: FfiConverterOptionString.read(from: &buf), 
+                turnos: FfiConverterSequenceTypeTurnoVoz.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GrabacionVoz, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.rutaOrigen, into: &buf)
+        FfiConverterInt64.write(value.duracionMs, into: &buf)
+        FfiConverterSequenceInt32.write(value.picos, into: &buf)
+        FfiConverterOptionString.write(value.texto, into: &buf)
+        FfiConverterSequenceTypeTurnoVoz.write(value.turnos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrabacionVoz_lift(_ buf: RustBuffer) throws -> GrabacionVoz {
+    return try FfiConverterTypeGrabacionVoz.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrabacionVoz_lower(_ value: GrabacionVoz) -> RustBuffer {
+    return FfiConverterTypeGrabacionVoz.lower(value)
+}
+
+
+/**
  * Un grupo del plano: lo de una capa con un grosor.
  */
 public struct GrupoPlano: Equatable, Hashable {
@@ -19393,6 +19633,86 @@ public func FfiConverterTypeListaTareas_lift(_ buf: RustBuffer) throws -> ListaT
 #endif
 public func FfiConverterTypeListaTareas_lower(_ value: ListaTareas) -> RustBuffer {
     return FfiConverterTypeListaTareas.lower(value)
+}
+
+
+/**
+ * Una llamada que sonar: el audio, quien «llama» y de que mensaje es (para
+ * volver a llamar mas tarde).
+ */
+public struct LlamadaSecreta: Equatable, Hashable {
+    /**
+     * La ruta absoluta del audio en este Mac.
+     */
+    public var audio: String
+    /**
+     * Quien llama: el nombre apuntado o el de la nota sin extension (vacio
+     * si no tiene; quien pinta pone «Llamada»).
+     */
+    public var nombre: String
+    public var chat: String
+    public var mensaje: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La ruta absoluta del audio en este Mac.
+         */audio: String, 
+        /**
+         * Quien llama: el nombre apuntado o el de la nota sin extension (vacio
+         * si no tiene; quien pinta pone «Llamada»).
+         */nombre: String, chat: String, mensaje: String) {
+        self.audio = audio
+        self.nombre = nombre
+        self.chat = chat
+        self.mensaje = mensaje
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LlamadaSecreta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLlamadaSecreta: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LlamadaSecreta {
+        return
+            try LlamadaSecreta(
+                audio: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                chat: FfiConverterString.read(from: &buf), 
+                mensaje: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LlamadaSecreta, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.audio, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterString.write(value.mensaje, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLlamadaSecreta_lift(_ buf: RustBuffer) throws -> LlamadaSecreta {
+    return try FfiConverterTypeLlamadaSecreta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLlamadaSecreta_lower(_ value: LlamadaSecreta) -> RustBuffer {
+    return FfiConverterTypeLlamadaSecreta.lower(value)
 }
 
 
@@ -25024,6 +25344,67 @@ public func FfiConverterTypeTransicionDiapositiva_lift(_ buf: RustBuffer) throws
 #endif
 public func FfiConverterTypeTransicionDiapositiva_lower(_ value: TransicionDiapositiva) -> RustBuffer {
     return FfiConverterTypeTransicionDiapositiva.lower(value)
+}
+
+
+/**
+ * Un turno: quien hablo y de que milisegundo a cual del audio entero.
+ */
+public struct TurnoVoz: Equatable, Hashable {
+    public var quien: String
+    public var desdeMs: Int64
+    public var hastaMs: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(quien: String, desdeMs: Int64, hastaMs: Int64) {
+        self.quien = quien
+        self.desdeMs = desdeMs
+        self.hastaMs = hastaMs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TurnoVoz: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTurnoVoz: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TurnoVoz {
+        return
+            try TurnoVoz(
+                quien: FfiConverterString.read(from: &buf), 
+                desdeMs: FfiConverterInt64.read(from: &buf), 
+                hastaMs: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TurnoVoz, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.quien, into: &buf)
+        FfiConverterInt64.write(value.desdeMs, into: &buf)
+        FfiConverterInt64.write(value.hastaMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTurnoVoz_lift(_ buf: RustBuffer) throws -> TurnoVoz {
+    return try FfiConverterTypeTurnoVoz.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTurnoVoz_lower(_ value: TurnoVoz) -> RustBuffer {
+    return FfiConverterTypeTurnoVoz.lower(value)
 }
 
 
@@ -31426,6 +31807,30 @@ fileprivate struct FfiConverterOptionTypeLeccionDeMensaje: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeLlamadaSecreta: FfiConverterRustBuffer {
+    typealias SwiftType = LlamadaSecreta?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeLlamadaSecreta.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeLlamadaSecreta.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMensajeChat: FfiConverterRustBuffer {
     typealias SwiftType = MensajeChat?
 
@@ -32151,6 +32556,31 @@ fileprivate struct FfiConverterSequenceTypeCajaPlano: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCajaPlano.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCambioDeTurno: FfiConverterRustBuffer {
+    typealias SwiftType = [CambioDeTurno]
+
+    public static func write(_ value: [CambioDeTurno], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCambioDeTurno.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CambioDeTurno] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CambioDeTurno]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCambioDeTurno.read(from: &buf))
         }
         return seq
     }
@@ -33884,6 +34314,31 @@ fileprivate struct FfiConverterSequenceTypeTramoMd: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeTurnoVoz: FfiConverterRustBuffer {
+    typealias SwiftType = [TurnoVoz]
+
+    public static func write(_ value: [TurnoVoz], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTurnoVoz.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TurnoVoz] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TurnoVoz]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTurnoVoz.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeVistoEnRed: FfiConverterRustBuffer {
     typealias SwiftType = [VistoEnRed]
 
@@ -34776,6 +35231,17 @@ public func hojaFondos() -> [ColorHoja]  {
 })
 }
 /**
+ * «Quien llama» por defecto de una nota: su nombre sin extension.
+ */
+public func nombreDeLlamada(nombre: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nombre_de_llamada(
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+/**
  * Borra la clave del proveedor.
  */
 public func iaBorrarClave(proveedorId: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -35541,6 +36007,19 @@ public func tiemposAuto() -> TiemposAuto  {
     )
 })
 }
+/**
+ * **Los turnos de la conversacion** a partir de sus teclas: lo que Swift
+ * guarda al terminar (sin los ratos de nadie, con el tope de los tropiezos).
+ */
+public func turnosDeLaConversacion(cambios: [CambioDeTurno], finMs: Int64) -> [TurnoVoz]  {
+    return try!  FfiConverterSequenceTypeTurnoVoz.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_turnos_de_la_conversacion(
+        FfiConverterSequenceTypeCambioDeTurno.lower(cambios),
+        FfiConverterInt64.lower(finMs),uniffiCallStatus
+    )
+})
+}
 
 /**
  * Donde quedo una pantalla anotada.
@@ -35936,6 +36415,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_hoja_fondos() != 8002) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_nombre_de_llamada() != 63335) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_borrar_clave() != 36941) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36123,6 +36605,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_tiempos_auto() != 59924) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_turnos_de_la_conversacion() != 47376) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_aparato() != 58843) {
@@ -36521,6 +37006,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_lienzo() != 59079) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_llamada_secreta() != 52465) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_quien_llama() != 19487) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_quien_llama() != 33186) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_avisos_miniapps() != 21666) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -36654,6 +37148,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_ultimas_24h() != 30389) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar_grabacion() != 50132) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar_voz() != 38808) {

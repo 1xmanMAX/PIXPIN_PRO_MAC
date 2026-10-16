@@ -8,8 +8,9 @@
 // las flechas mueven lo elegido, Intro lo hace y Esc limpia el buscador o,
 // vacio, cierra.
 //
-// Las entradas que el Mac aun no tiene (conversacion, teleprónter,
-// pronunciar, pagina y proyecto entero) salen apagadas y, pulsadas, lo dicen.
+// Las entradas que el Mac aun no tiene (pagina y proyecto entero) salen
+// apagadas y, pulsadas, lo dicen. Conversacion, Teleprónter y Pronunciar
+// abren sus ventanitas de la voz (`VozVentanas/`, E5).
 
 import AppKit
 import PixPinCore
@@ -26,7 +27,7 @@ enum AccionAdjuntar: Hashable, Sendable {
     /// Si el Mac ya la hace. Las que no, salen apagadas.
     var enElMac: Bool {
         switch self {
-        case .conversacion, .pagina, .proyecto, .telepronter, .pronunciar: false
+        case .pagina, .proyecto: false
         default: true
         }
     }
@@ -370,7 +371,13 @@ enum AdjuntarEnChat {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { capturador.capturar() }
         case .delMovil:
             abrirVentana("envio")
-        case .conversacion, .pagina, .proyecto, .telepronter, .pronunciar:
+        case .conversacion:
+            VozEnElChat.conversacion(chat: chat, almacen: almacen, avisar: avisar)
+        case .telepronter:
+            VozEnElChat.telepronter(chat: chat, almacen: almacen, avisar: avisar)
+        case .pronunciar:
+            VozEnElChat.pronunciar(chat: chat, almacen: almacen, avisar: avisar)
+        case .pagina, .proyecto:
             let rotulo = HojaAdjuntar.opciones.first { $0.accion == accion }?.rotulo ?? ""
             avisar("«\(rotulo)» aún no está en el Mac")
         }

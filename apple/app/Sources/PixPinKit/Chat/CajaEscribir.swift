@@ -102,6 +102,8 @@ struct IslaDeEscribir: View {
         .padding(.horizontal, MedidasIsla.margenX * f)
         .padding(.top, MedidasIsla.arriba * f)
         .padding(.bottom, MedidasIsla.abajo * f)
+        // Lo escrito, para «Lo escrito en la caja» del telepronter (E5).
+        .onChange(of: borrador, initial: true) { _, t in BorradoresDelChat.poner(t, en: chat) }
     }
 
     /// La pastilla: lo escrito (o el cronometro, grabando) y el clip.

@@ -79,6 +79,7 @@ pub mod hojas;
 pub mod lecciones;
 pub mod lienzo;
 pub mod lienzo_suelto;
+pub mod llamada;
 pub mod llavero;
 pub mod mini_tiempos;
 pub mod miniapps;
@@ -93,6 +94,7 @@ pub mod sincro;
 pub mod sincro_auto;
 pub mod tareas;
 pub mod timeline;
+pub mod turnos;
 pub mod unidades;
 pub mod version;
 pub mod voz;
@@ -124,6 +126,7 @@ pub use lecciones::{
     PropuestaLeccion,
 };
 pub use lienzo::{CajaLienzo, ImagenDelLienzo, Lienzo, LienzoPlano};
+pub use llamada::LlamadaSecreta;
 pub use llavero::LlaveroApp;
 pub use miniapps::{AccionContador, CuentaMini, GastoMini, GiroRuleta, LibroMini, ResumenMini};
 pub use modelos3d::{
@@ -138,7 +141,8 @@ pub use recordatorios::{RecordatorioMac, TareaRecordada};
 pub use sincro::{AnuncioBonjour, Atendido, Escucha, ParTxt, ResumenSincro};
 pub use tareas::{ListaTareas, Tarea};
 pub use timeline::{DiaTimeline, MomentoTimeline, PaginaDias, PaginaMomentos};
-pub use voz::SegmentoVoz;
+pub use turnos::{CambioDeTurno, TurnoVoz};
+pub use voz::{GrabacionVoz, SegmentoVoz};
 
 /// Lo que puede salir mal, tal como lo ve Swift (un `enum` que `throws`).
 ///

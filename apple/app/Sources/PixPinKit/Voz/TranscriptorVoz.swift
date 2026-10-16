@@ -21,7 +21,13 @@ public enum TranscriptorVoz {
 
     /// Un reconocedor que funciona sin internet: el de `es-ES` y si no, el
     /// del sistema. `nil` si ninguno lo hace en el aparato.
-    public static func reconocedorLocal() -> SFSpeechRecognizer? {
+    /// Con `idioma` (el que se practica en Pronunciar) solo vale ese: pasar
+    /// ingles con el reconocedor de espanol daria otra cosa.
+    public static func reconocedorLocal(idioma: Locale? = nil) -> SFSpeechRecognizer? {
+        if let idioma {
+            let r = SFSpeechRecognizer(locale: idioma)
+            return r?.supportsOnDeviceRecognition == true ? r : nil
+        }
         if let r = SFSpeechRecognizer(locale: idiomaPreferido), r.supportsOnDeviceRecognition { return r }
         if let r = SFSpeechRecognizer(), r.supportsOnDeviceRecognition { return r }
         return nil
@@ -54,9 +60,9 @@ public enum TranscriptorVoz {
     /// Transcribe el audio de `url` en el aparato. Lanza si falta permiso o
     /// reconocedor; si no se oye a nadie, devuelve una lista vacia (y la
     /// nota queda con estado `mal`, como en Windows).
-    public static func transcribir(_ url: URL) async throws -> [SegmentoVoz] {
+    public static func transcribir(_ url: URL, idioma: Locale? = nil) async throws -> [SegmentoVoz] {
         guard await autorizar() else { throw ErrorVoz.sinPermisoTranscribir }
-        guard let reconocedor = reconocedorLocal() else { throw ErrorVoz.sinReconocedor }
+        guard let reconocedor = reconocedorLocal(idioma: idioma) else { throw ErrorVoz.sinReconocedor }
         let cola = OperationQueue()
         cola.name = "PixPin transcribir"
         cola.qualityOfService = .utility

@@ -381,6 +381,8 @@ public final class MicrofonoFlotante: ObservableObject {
                 return
             }
             RecordatoriosDeMensajes.programar(chat: chat, id: m.id, texto: HorasDeRecordar.resumen(de: m), cuando: cuando)
+            // Quien llama queda apuntado: el nombre de la nota (E5).
+            QuienLlama.alPonerLaHora(m, nucleo: almacen.nucleo)
             self.fase = .puesta("Te llamará a las \(HorasDeRecordar.legible(cuando, ahora: Date()))")
             self.irseEn(1.6)
         }
