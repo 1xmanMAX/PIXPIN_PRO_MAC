@@ -1,6 +1,13 @@
 //! **Buscar en todo**: los chats por su nombre, los mensajes (notas, nombres
 //! de ficheros, transcripciones), las tareas y los momentos del timeline.
 //!
+//! La ventana «Buscar en PixPin» (D8) usa [`Nucleo::buscar_en_todo`]
+//! (`buscar/todo.rs`), que ademas busca dentro de los documentos
+//! (`buscar/textos.rs`), en el texto leido de las capturas, en las
+//! lecciones, ordena por lo que vale cada coincidencia como el plugin de
+//! Windows (`buscar/puntos.rs`) y recuerda lo reciente
+//! (`buscar/recientes.rs`). [`Nucleo::buscar`] sigue para Atajos y Siri.
+//!
 //! El buscador de Windows (`buscar_todo.rs`) usa el del plugin de Flow
 //! Launcher (`pixpin-lanzador`), que aun no compila fuera de Windows (esta
 //! en `por-adaptar/`). Hasta que pase a `nucleo/`, aqui hay un recorrido
@@ -30,6 +37,13 @@ use pixpin_timeline::buscar::normalizar;
 use crate::chats::{MensajeChat, validar_chat};
 use crate::tareas::{es_lista, nombre_de_lista};
 use crate::{ErrorNucleo, Nucleo};
+
+pub mod puntos;
+pub mod recientes;
+pub mod textos;
+pub mod todo;
+
+pub use todo::{DocumentoSinTexto, OpcionesBusqueda, RecientesBusqueda, ResultadosEnTodo};
 
 /// Lo mas lejos que llega una busqueda (`desde + cuantos`): pasado esto,
 /// hay que afinar la consulta.
@@ -62,20 +76,30 @@ impl Busqueda {
 }
 
 /// Que se encontro.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, uniffi::Enum,
+)]
 pub enum ClaseDeResultado {
     /// Un chat por su nombre.
     Chat,
-    /// Un mensaje de un chat.
+    /// Un mensaje de un chat (una nota, un texto, una mini-app).
     Mensaje,
     /// Una tarea de una lista.
     Tarea,
     /// Un momento del timeline.
     Momento,
+    /// Un fichero de un chat (documento, foto, audio, lienzo u hoja), por
+    /// su nombre o por lo que pone dentro.
+    Fichero,
+    /// Una captura de la galeria, por su nombre, su fecha o su texto.
+    Captura,
+    /// Una leccion aprendida.
+    Leccion,
 }
 
 /// Un resultado.
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[serde(default)]
 pub struct ResultadoBusqueda {
     pub clase: ClaseDeResultado,
     /// El chat (no en los momentos).
@@ -100,6 +124,66 @@ pub struct ResultadoBusqueda {
     pub fragmento: String,
     /// Milisegundos desde 1970.
     pub cuando: i64,
+    /// Lo que lo identifica entre todos (`captura/<nombre>`,
+    /// `mensaje/<chat>/<id>`...), como la `recordKey` de Windows.
+    pub clave: String,
+    /// La ruta absoluta del fichero en este aparato (un fichero, una
+    /// captura, la primera foto de un momento), si se resuelve.
+    pub ruta: Option<String>,
+    /// El id de la leccion.
+    pub leccion: Option<String>,
+    /// Cuanto vale la coincidencia (`puntos::puntuar`); 0 sin consulta.
+    pub puntos: u32,
+    /// Las letras de `titulo` que coinciden, en UTF-16 (`NSString`).
+    pub resaltado: Vec<u32>,
+    /// Se encontro dentro (el texto del documento o el leido de la
+    /// captura), no en el nombre.
+    pub dentro: bool,
+    /// El tamano del fichero o la captura.
+    pub bytes: u64,
+    /// Una captura conservada (no caduca).
+    pub conservada: bool,
+    /// Los dias que le quedan a una captura (0: hoy); `None` si no se va.
+    pub dias_que_quedan: Option<i64>,
+    /// El texto de la tarea tal cual esta en su lista (lo que pide
+    /// [`Nucleo::marcar_tarea`]); vacio en lo demas.
+    pub crudo: String,
+}
+
+impl Default for ResultadoBusqueda {
+    fn default() -> Self {
+        ResultadoBusqueda::de(ClaseDeResultado::Mensaje, "")
+    }
+}
+
+impl ResultadoBusqueda {
+    /// Uno vacio de esa clase con ese titulo (lo demas se rellena luego).
+    pub fn de(clase: ClaseDeResultado, titulo: &str) -> ResultadoBusqueda {
+        ResultadoBusqueda {
+            clase,
+            chat: None,
+            nombre_chat: String::new(),
+            mensaje: None,
+            posicion: None,
+            tarea: None,
+            hecha: false,
+            momento: None,
+            tipo: String::new(),
+            titulo: titulo.to_string(),
+            fragmento: String::new(),
+            cuando: 0,
+            clave: String::new(),
+            ruta: None,
+            leccion: None,
+            puntos: 0,
+            resaltado: Vec::new(),
+            dentro: false,
+            bytes: 0,
+            conservada: false,
+            dias_que_quedan: None,
+            crudo: String::new(),
+        }
+    }
 }
 
 /// Una pagina de resultados.
@@ -237,6 +321,9 @@ fn buscar_en_cuaderno(
                         titulo: titulo.clone(),
                         fragmento: limpio,
                         cuando: m.cuando,
+                        clave: format!("tarea/{}/{}/{i}", ficha.id, m.id),
+                        crudo: t.texto.clone(),
+                        ..ResultadoBusqueda::default()
                     });
                 }
             }
@@ -253,6 +340,7 @@ fn buscar_en_cuaderno(
         }
         let fragmento = trozo(&donde, p);
         let m = MensajeChat::from(m);
+        let clave = format!("mensaje/{}/{}", ficha.id, m.id);
         v.push(ResultadoBusqueda {
             clase: ClaseDeResultado::Mensaje,
             chat: Some(ficha.id.clone()),
@@ -267,9 +355,11 @@ fn buscar_en_cuaderno(
             } else {
                 m.nombre
             },
+            clave,
             tipo: m.clase,
             fragmento,
             cuando: m.cuando,
+            ..ResultadoBusqueda::default()
         });
     }
     // Lo mas nuevo primero (las tareas de una lista, en su orden).
@@ -335,6 +425,8 @@ impl Nucleo {
                     titulo: f.nombre.clone(),
                     fragmento: f.resumen.clone(),
                     cuando: f.tocado,
+                    clave: format!("chat/{}", f.id),
+                    ..ResultadoBusqueda::default()
                 });
             }
         }
@@ -380,6 +472,8 @@ impl Nucleo {
                     titulo: m.titulo.clone(),
                     fragmento: trozo(&m.descripcion, &p),
                     cuando: m.cuando,
+                    clave: format!("momento/{}", m.id),
+                    ..ResultadoBusqueda::default()
                 });
             }
         }

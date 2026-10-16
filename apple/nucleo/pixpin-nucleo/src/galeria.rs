@@ -673,6 +673,18 @@ fn fecha_para_buscar(cuando: i64, ahora: i64, desfase_ms: i64) -> String {
 }
 
 impl Nucleo {
+    /// El texto leido de una captura tal cual (con sus mayusculas y
+    /// tildes), para ensenar el trozo donde esta lo buscado en «Buscar en
+    /// todo». Vacio si aun no se leyo.
+    pub(crate) fn texto_leido_de_captura(&self, c: &CapturaGaleria) -> String {
+        let e = Entrada {
+            nombre: c.nombre.clone(),
+            cuando: c.cuando,
+            bytes: c.bytes,
+        };
+        std::fs::read_to_string(ruta_del_texto(self.ruta(), &e)).unwrap_or_default()
+    }
+
     /// El texto leido de una captura, plegado (de la cache de memoria, o del
     /// disco la primera vez). Vacio si aun no se leyo.
     fn texto_de_captura(&self, e: &Entrada) -> String {
