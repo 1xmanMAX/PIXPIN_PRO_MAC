@@ -1,5 +1,7 @@
-// Los mandos de estilo de la barra del lienzo: color del trazo, fondo,
-// relleno, grosor y linea. Es el panel lateral de Windows y Excalidraw: lo
+// **El panel de estilo del lienzo**: color del trazo, fondo, relleno,
+// grosor, linea, trazo a mano y opacidad. Es el panel lateral de Windows
+// (`pixpin-ui/src/panel_lateral.rs`, el de Excalidraw): una isla de 200 a la
+// izquierda, bajo la barra, con sus secciones en el orden de Excalidraw. Lo
 // que se elige queda para lo proximo que se dibuje y, si hay algo elegido,
 // se le aplica en un paso de deshacer (`EditorLienzo.cambiarEstilo`, ver
 // `pixpin-nucleo/src/editor_estilo.rs`). Lo que ensena es `EditorLienzo.estilo`:
@@ -9,16 +11,14 @@ import AppKit
 import PixPinCore
 import SwiftUI
 
-/// Una opcion de un mando: su nombre (que hace de id), su simbolo y su valor.
+/// Una opcion de un mando: su nombre (que hace de id) y su valor.
 public struct OpcionEstiloLienzo<Valor>: Identifiable {
     public let nombre: String
-    public let simbolo: String
     public let valor: Valor
     public var id: String { nombre }
 
-    init(_ nombre: String, _ valor: Valor, simbolo: String = "") {
+    init(_ nombre: String, _ valor: Valor) {
         self.nombre = nombre
-        self.simbolo = simbolo
         self.valor = valor
     }
 }
@@ -39,16 +39,66 @@ public enum OpcionesEstiloLienzo {
     ]
 
     public static let grosores: [OpcionEstiloLienzo<GrosorEstilo>] = [
-        .init("Fino", .fino, simbolo: "minus"), .init("Medio", .medio, simbolo: "equal"),
-        .init("Grueso", .grueso, simbolo: "rectangle.fill"),
+        .init("Fino", .fino), .init("Medio", .medio), .init("Grueso", .grueso),
     ]
+
+    /// 1, 2 y 3: los tres grosores, como las teclas de la pluma de Windows
+    /// (`tecla_a_pluma`).
+    public static func grosor(tecla: String) -> GrosorEstilo? {
+        switch tecla {
+        case "1": return .fino
+        case "2": return .medio
+        case "3": return .grueso
+        default: return nil
+        }
+    }
+
+    /// El trazo a mano de Excalidraw (`roughness`): 0 arquitecto, 1 artista
+    /// y 2 caricaturista.
+    public static let rugosidades: [OpcionEstiloLienzo<Float>] = [
+        .init("Arquitecto", 0), .init("Artista", 1), .init("Caricaturista", 2),
+    ]
+
+    // Los iconos de cada opcion: los de Excalidraw, como el panel de Windows
+    // (`panel_dibujo.rs`).
+    static func icono(_ g: GrosorEstilo) -> IconoLienzo {
+        switch g {
+        case .fino: return .strokeWidthBase
+        case .medio: return .strokeWidthBold
+        case .grueso: return .strokeWidthExtraBold
+        }
+    }
+
+    static func icono(_ l: LineaEstilo) -> IconoLienzo {
+        switch l {
+        case .continua: return .strokeStyleSolid
+        case .discontinua: return .strokeStyleDashed
+        case .punteada: return .strokeStyleDotted
+        }
+    }
+
+    static func icono(_ r: RellenoEstilo) -> IconoLienzo {
+        switch r {
+        case .solido: return .fillSolid
+        case .rayado: return .fillHachure
+        case .cruzado: return .fillCrossHatch
+        case .zigzag: return .fillZigZag
+        case .lineas: return .fillLineas
+        }
+    }
+
+    static func icono(rugosidad r: Float) -> IconoLienzo {
+        r < 0.5 ? .sloppinessArchitect : (r < 1.5 ? .sloppinessArtist : .sloppinessCartoonist)
+    }
 
     public static let lineas: [OpcionEstiloLienzo<LineaEstilo>] = [
         .init("Continua", .continua), .init("Discontinua", .discontinua), .init("Punteada", .punteada),
     ]
 
+    /// En el orden de Excalidraw: rayado, cruzado y solido; y despues los
+    /// dos que Excalidraw no tiene.
     public static let rellenos: [OpcionEstiloLienzo<RellenoEstilo>] = [
-        .init("Sólido", .solido), .init("Rayado", .rayado), .init("Cruzado", .cruzado),
+        .init("Rayado", .rayado), .init("Cruzado", .cruzado), .init("Sólido", .solido),
         .init("Zigzag", .zigzag), .init("Líneas", .lineas),
     ]
 
@@ -97,111 +147,229 @@ public enum OpcionesEstiloLienzo {
     static func mismo(_ a: RellenoEstilo, _ b: RellenoEstilo) -> Bool { "\(a)" == "\(b)" }
 }
 
-/// Un cuadradito de color (o el damero de «transparente»).
+extension IconoLienzo {
+    /// El relleno de lineas, que Excalidraw no tiene: su cuadro con tres
+    /// rayas tumbadas, del mismo trazo que los otros rellenos.
+    static let fillLineas = IconoLienzo(vista: CGRect(x: 0, y: 0, width: 20, height: 20), trazos: [
+        .init(d: "M5.879 2.625h8.242a3.254 3.254 0 0 1 3.254 3.254v8.242a3.254 3.254 0 0 1-3.254 3.254H5.88a3.254 3.254 0 0 1-3.254-3.254V5.88a3.254 3.254 0 0 1 3.254-3.254Z",
+              relleno: .nada, trazo: .actual, grosor: 1.25, redondo: true, opacidad: 1, parImpar: false,
+              matriz: nil, mascara: nil),
+        .init(d: "M2.6 7.2h14.8M2.6 10h14.8M2.6 12.8h14.8", relleno: .nada, trazo: .actual, grosor: 1.25,
+              redondo: true, opacidad: 1, parImpar: false, matriz: nil,
+              mascara: "M5.879 2.625h8.242a3.254 3.254 0 0 1 3.254 3.254v8.242a3.254 3.254 0 0 1-3.254 3.254H5.88a3.254 3.254 0 0 1-3.254-3.254V5.88a3.254 3.254 0 0 1 3.254-3.254Z"),
+    ])
+}
+
+/// Un cuadradito de color (o el damero de «transparente»), de 22 como en
+/// Excalidraw; el elegido lleva el anillo del color de la barra.
 private struct Muestra: View {
     let color: ColorEstilo?
     let elegida: Bool
+    let tema: TemaBarraLienzo
 
     var body: some View {
         ZStack {
             if let color {
-                RoundedRectangle(cornerRadius: 3).fill(OpcionesEstiloLienzo.color(color))
+                RoundedRectangle(cornerRadius: 4).fill(OpcionesEstiloLienzo.color(color))
             } else {
-                RoundedRectangle(cornerRadius: 3).fill(Color.white)
-                Path { p in
-                    p.move(to: CGPoint(x: 2, y: 14))
-                    p.addLine(to: CGPoint(x: 14, y: 2))
-                }.stroke(Color.red, lineWidth: 1.5)
+                Damero().clipShape(RoundedRectangle(cornerRadius: 4))
             }
-            RoundedRectangle(cornerRadius: 3)
-                .stroke(elegida ? Color.accentColor : Color.secondary.opacity(0.5), lineWidth: elegida ? 2 : 0.5)
+            RoundedRectangle(cornerRadius: 4)
+                .strokeBorder(Color.black.opacity(0.12), lineWidth: 1)
         }
-        .frame(width: 16, height: 16)
+        .frame(width: 20, height: 20)
+        .padding(2)
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .strokeBorder(elegida ? tema.menuIconoElegido : Color.clear, lineWidth: 1.5)
+        )
     }
 }
 
-/// Los mandos, en la barra del editor.
-struct BarraEstiloLienzo: View {
+/// El damero de lo transparente.
+private struct Damero: View {
+    var body: some View {
+        Canvas { ctx, tam in
+            ctx.fill(Path(CGRect(origin: .zero, size: tam)), with: .color(.white))
+            let lado: CGFloat = 5
+            var y: CGFloat = 0, fila = 0
+            while y < tam.height {
+                var x: CGFloat = fila % 2 == 0 ? 0 : lado
+                while x < tam.width {
+                    ctx.fill(Path(CGRect(x: x, y: y, width: lado, height: lado)), with: .color(Color(white: 0.85)))
+                    x += lado * 2
+                }
+                y += lado
+                fila += 1
+            }
+        }
+    }
+}
+
+/// Un boton de opcion de 32 (relleno, grosor, linea, trazo a mano).
+private struct BotonOpcion: View {
+    let icono: IconoLienzo
+    let elegida: Bool
+    let tema: TemaBarraLienzo
+    let ayuda: String
+    let accion: () -> Void
+
+    @State private var encima = false
+
+    var body: some View {
+        Button(action: accion) {
+            IconoLienzoVista(icono: icono, lado: 16, color: elegida ? tema.activoIcono : tema.icono)
+                .frame(width: 32, height: 32)
+                .background(elegida ? tema.activoFondo : (encima ? tema.hover : tema.separador.opacity(0.6)),
+                            in: RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(elegida ? tema.menuIconoElegido : Color.clear, lineWidth: 1))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { encima = $0 }
+        .help(ayuda)
+        .accessibilityLabel(ayuda)
+    }
+}
+
+/// El selector de colores del sistema, para «otro color» del trazo o del
+/// fondo: el panel avisa aqui y aqui se manda al modelo.
+@MainActor
+final class SelectorColorLienzo: NSObject {
+    static let compartido = SelectorColorLienzo()
+    private var alCambiar: ((ColorEstilo) -> Void)?
+
+    func abrir(_ actual: ColorEstilo?, alCambiar: @escaping (ColorEstilo) -> Void) {
+        self.alCambiar = nil
+        let panel = NSColorPanel.shared
+        panel.showsAlpha = false
+        if let actual {
+            panel.color = NSColor(srgbRed: CGFloat(actual.r), green: CGFloat(actual.g),
+                                  blue: CGFloat(actual.b), alpha: CGFloat(actual.a))
+        }
+        self.alCambiar = alCambiar
+        panel.setTarget(self)
+        panel.setAction(#selector(cambio(_:)))
+        panel.orderFront(nil)
+    }
+
+    @objc private func cambio(_ panel: NSColorPanel) {
+        guard let c = panel.color.usingColorSpace(.sRGB) else { return }
+        alCambiar?(ColorEstilo(r: Float(c.redComponent), g: Float(c.greenComponent),
+                               b: Float(c.blueComponent), a: 1))
+    }
+}
+
+/// **El panel de estilo**, en su isla de 200 a la izquierda.
+struct PanelEstiloLienzo: View {
     @ObservedObject var modelo: ModeloEditorLienzo
 
     private var estilo: EstiloLienzo { modelo.estilo }
 
     var body: some View {
+        let tema = TemaBarraLienzo.de(modelo)
+        VStack(alignment: .leading, spacing: 12) {
+            seccion("Trazo", tema) {
+                HStack(spacing: 4) {
+                    ForEach(OpcionesEstiloLienzo.trazos) { o in
+                        Button { modelo.cambiarEstilo(.trazo(color: o.valor)) } label: {
+                            Muestra(color: o.valor, elegida: OpcionesEstiloLienzo.igual(estilo.trazo, o.valor),
+                                    tema: tema)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Trazo: \(o.nombre)")
+                    }
+                    otroColor(estilo.trazo, tema: tema, ayuda: "Otro color de trazo") {
+                        modelo.cambiarEstilo(.trazo(color: $0))
+                    }
+                }
+            }
+            seccion("Fondo", tema) {
+                HStack(spacing: 4) {
+                    ForEach(OpcionesEstiloLienzo.fondos) { o in
+                        Button { modelo.cambiarEstilo(.fondo(color: o.valor)) } label: {
+                            Muestra(color: o.valor, elegida: OpcionesEstiloLienzo.igual(estilo.fondo, o.valor),
+                                    tema: tema)
+                        }
+                        .buttonStyle(.plain)
+                        .help("Fondo: \(o.nombre)")
+                    }
+                    otroColor(estilo.fondo, tema: tema, ayuda: "Otro color de fondo") {
+                        modelo.cambiarEstilo(.fondo(color: $0))
+                    }
+                }
+            }
+            // Sin fondo no hay nada que rayar (`con_fondo` de Windows).
+            if estilo.fondo != nil {
+                seccion("Relleno", tema) {
+                    opciones(OpcionesEstiloLienzo.rellenos, tema: tema,
+                             elegida: { OpcionesEstiloLienzo.mismo(estilo.relleno, $0) },
+                             icono: OpcionesEstiloLienzo.icono) { modelo.cambiarEstilo(.relleno(relleno: $0)) }
+                }
+            }
+            seccion("Grosor del trazo", tema) {
+                opciones(OpcionesEstiloLienzo.grosores, tema: tema,
+                         elegida: { OpcionesEstiloLienzo.mismo(estilo.grosor, $0) },
+                         icono: OpcionesEstiloLienzo.icono) { modelo.cambiarEstilo(.grosor(grosor: $0)) }
+            }
+            seccion("Estilo del trazo", tema) {
+                opciones(OpcionesEstiloLienzo.lineas, tema: tema,
+                         elegida: { OpcionesEstiloLienzo.mismo(estilo.linea, $0) },
+                         icono: OpcionesEstiloLienzo.icono) { modelo.cambiarEstilo(.linea(linea: $0)) }
+            }
+            seccion("Trazo a mano", tema) {
+                opciones(OpcionesEstiloLienzo.rugosidades, tema: tema,
+                         elegida: { abs(estilo.rugosidad - $0) < 0.5 },
+                         icono: { OpcionesEstiloLienzo.icono(rugosidad: $0) }) {
+                    modelo.cambiarEstilo(.rugosidad(valor: $0))
+                }
+            }
+            seccion("Opacidad", tema) {
+                Slider(value: Binding(get: { Double(estilo.opacidad) * 100 },
+                                      set: { modelo.cambiarEstilo(.opacidad(valor: Float($0 / 100))) }),
+                       in: 0...100, step: 10)
+                    .controlSize(.small)
+                    .tint(tema.menuIconoElegido)
+            }
+        }
+        .padding(12)
+        .frame(width: 200, alignment: .leading)
+        .modifier(IslaLienzo(tema: tema))
+    }
+
+    private func seccion(_ titulo: String, _ tema: TemaBarraLienzo,
+                         @ViewBuilder _ contenido: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(titulo).font(.system(size: 12)).foregroundStyle(tema.icono.opacity(0.75))
+            contenido()
+        }
+    }
+
+    private func opciones<V>(_ lista: [OpcionEstiloLienzo<V>], tema: TemaBarraLienzo,
+                             elegida: @escaping (V) -> Bool, icono: @escaping (V) -> IconoLienzo,
+                             accion: @escaping (V) -> Void) -> some View {
+        HStack(spacing: 8) {
+            ForEach(lista) { o in
+                BotonOpcion(icono: icono(o.valor), elegida: elegida(o.valor), tema: tema, ayuda: o.nombre) {
+                    accion(o.valor)
+                }
+            }
+        }
+    }
+
+    /// La muestra del color de ahora tras una raya: abre el selector.
+    private func otroColor(_ actual: ColorEstilo?, tema: TemaBarraLienzo, ayuda: String,
+                           _ alCambiar: @escaping (ColorEstilo) -> Void) -> some View {
         HStack(spacing: 4) {
-            ForEach(OpcionesEstiloLienzo.trazos) { o in
-                Button { modelo.cambiarEstilo(.trazo(color: o.valor)) } label: {
-                    Muestra(color: o.valor, elegida: OpcionesEstiloLienzo.igual(estilo.trazo, o.valor))
-                }
-                .buttonStyle(.plain)
-                .help("Trazo: \(o.nombre)")
-            }
-            ColorPicker("", selection: Binding(
-                get: { OpcionesEstiloLienzo.color(estilo.trazo) },
-                set: { nuevo in
-                    if let c = OpcionesEstiloLienzo.estilo(de: nuevo) { modelo.cambiarEstilo(.trazo(color: c)) }
-                }
-            ), supportsOpacity: false)
-            .labelsHidden()
-            .frame(width: 30)
-            .help("Otro color de trazo")
-
-            Menu {
-                ForEach(OpcionesEstiloLienzo.fondos) { o in
-                    Button(o.nombre) { modelo.cambiarEstilo(.fondo(color: o.valor)) }
-                }
-                Divider()
-                ForEach(OpcionesEstiloLienzo.rellenos) { o in
-                    Button {
-                        modelo.cambiarEstilo(.relleno(relleno: o.valor))
-                    } label: {
-                        if OpcionesEstiloLienzo.mismo(estilo.relleno, o.valor) {
-                            Label("Relleno: \(o.nombre)", systemImage: "checkmark")
-                        } else {
-                            Text("Relleno: \(o.nombre)")
-                        }
-                    }
-                }
+            Rectangle().fill(tema.separador).frame(width: 1, height: 20)
+            Button {
+                SelectorColorLienzo.compartido.abrir(actual, alCambiar: alCambiar)
             } label: {
-                Muestra(color: estilo.fondo, elegida: false)
+                Muestra(color: actual, elegida: false, tema: tema)
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Fondo (\(OpcionesEstiloLienzo.nombre(estilo.relleno)))")
-
-            Menu {
-                ForEach(OpcionesEstiloLienzo.grosores) { o in
-                    Button {
-                        modelo.cambiarEstilo(.grosor(grosor: o.valor))
-                    } label: {
-                        Label(o.nombre,
-                              systemImage: OpcionesEstiloLienzo.mismo(estilo.grosor, o.valor) ? "checkmark" : o.simbolo)
-                    }
-                }
-            } label: {
-                Image(systemName: "lineweight")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Grosor: \(OpcionesEstiloLienzo.nombre(estilo.grosor))")
-
-            Menu {
-                ForEach(OpcionesEstiloLienzo.lineas) { o in
-                    Button {
-                        modelo.cambiarEstilo(.linea(linea: o.valor))
-                    } label: {
-                        if OpcionesEstiloLienzo.mismo(estilo.linea, o.valor) {
-                            Label(o.nombre, systemImage: "checkmark")
-                        } else {
-                            Text(o.nombre)
-                        }
-                    }
-                }
-            } label: {
-                Image(systemName: "line.diagonal")
-            }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help("Línea: \(OpcionesEstiloLienzo.nombre(estilo.linea))")
+            .buttonStyle(.plain)
+            .help(ayuda)
         }
     }
 }

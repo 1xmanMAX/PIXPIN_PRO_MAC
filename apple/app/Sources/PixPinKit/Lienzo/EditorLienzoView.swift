@@ -25,60 +25,8 @@ public extension Notification.Name {
     static let pixpinLienzoGuardado = Notification.Name("PixPinLienzoGuardado")
 }
 
-/// En que parte de la barra va una herramienta: las de dibujar a la vista;
-/// las de medir y las cuatro de construir, en su menu (como los grupos de la
-/// barra de Windows, `dibujo::grupos`).
-public enum GrupoHerramientaLienzo: String {
-    case dibujar
-    case medir
-    case construir
-}
-
-/// Las herramientas de la barra: nombre del motor, titulo y simbolo.
-public struct HerramientaLienzo: Identifiable, Equatable {
-    public let id: String
-    public let titulo: String
-    public let simbolo: String
-    /// La tecla que la elige (sin modificadores, fuera de un texto).
-    public let tecla: Character
-    public let grupo: GrupoHerramientaLienzo
-
-    public init(id: String, titulo: String, simbolo: String, tecla: Character,
-                grupo: GrupoHerramientaLienzo = .dibujar) {
-        self.id = id
-        self.titulo = titulo
-        self.simbolo = simbolo
-        self.tecla = tecla
-        self.grupo = grupo
-    }
-
-    public static let todas: [HerramientaLienzo] = [
-        .init(id: "seleccion", titulo: "Seleccionar", simbolo: "cursorarrow", tecla: "v"),
-        .init(id: "lazo", titulo: "Lazo", simbolo: "lasso", tecla: "s"),
-        .init(id: "lapiz", titulo: "Lápiz", simbolo: "pencil.tip", tecla: "p"),
-        .init(id: "resaltador", titulo: "Resaltador", simbolo: "highlighter", tecla: "h"),
-        .init(id: "rectangulo", titulo: "Rectángulo", simbolo: "rectangle", tecla: "r"),
-        .init(id: "elipse", titulo: "Elipse", simbolo: "circle", tecla: "o"),
-        .init(id: "rombo", titulo: "Rombo", simbolo: "diamond", tecla: "d"),
-        .init(id: "flecha", titulo: "Flecha", simbolo: "arrow.up.right", tecla: "a"),
-        .init(id: "linea", titulo: "Línea", simbolo: "line.diagonal", tecla: "l"),
-        .init(id: "texto", titulo: "Texto", simbolo: "textformat", tecla: "t"),
-        .init(id: "borrador", titulo: "Goma", simbolo: "eraser", tecla: "e"),
-        // Medir (`medida` de Windows y Android).
-        .init(id: "cota", titulo: "Cota", simbolo: "ruler", tecla: "m", grupo: .medir),
-        .init(id: "escalar", titulo: "Calibrar escala", simbolo: "pencil.and.ruler", tecla: "k", grupo: .medir),
-        .init(id: "escala_grafica", titulo: "Escala gráfica", simbolo: "squares.below.rectangle", tecla: "g",
-              grupo: .medir),
-        // Las cuatro de construir (`dibujo::construir` de Windows).
-        .init(id: "relleno", titulo: "Bote de relleno", simbolo: "drop.fill", tecla: "b", grupo: .construir),
-        .init(id: "recortar", titulo: "Recortar", simbolo: "scissors", tecla: "x", grupo: .construir),
-        .init(id: "extender", titulo: "Extender", simbolo: "arrow.right.to.line", tecla: "w", grupo: .construir),
-        .init(id: "punto", titulo: "Punto", simbolo: "smallcircle.filled.circle", tecla: "n", grupo: .construir),
-    ]
-
-    /// Las que trazan a mano: solo con ellas hay gesto de pararse.
-    static let aMano: Set<String> = ["lapiz", "resaltador", "grafito"]
-}
+// Las herramientas y la barra: `HerramientasLienzo.swift` y
+// `BarraHerramientasLienzo.swift`.
 
 /// El estado del editor que ve SwiftUI (la barra) y la vista (el lienzo).
 @MainActor
@@ -96,6 +44,14 @@ public final class ModeloEditorLienzo: ObservableObject {
     @Published public private(set) var error: String?
     /// Lo que ensena la barra de estilo (lo elegido, o el «actual»).
     @Published public private(set) var estilo: EstiloLienzo
+    /// Hay algo elegido: el panel de estilo sale aunque la herramienta no
+    /// dibuje (para cambiarle el color a lo elegido).
+    @Published public private(set) var hayElegidos = false
+    /// El grupo de la barra con su desplegable abierto, si hay uno.
+    @Published public var desplegado: GrupoHerramientaLienzo?
+    /// El papel es oscuro: la barra va con el tema oscuro de Excalidraw,
+    /// como en Windows (`tema_barra`).
+    public let papelOscuro: Bool
 
     /// La vista que pinta (la pone ella al nacer).
     weak var vista: VistaEditorLienzoNS?
@@ -113,6 +69,8 @@ public final class ModeloEditorLienzo: ObservableObject {
         cambiosVistos = editor.cambios()
         puedeDeshacer = editor.puedeDeshacer()
         estilo = editor.estilo()
+        let papel = (try? leerLienzo(editor.planoDeVista(x: 0, y: 0, zoom: 1, anchoPx: 1, altoPx: 1)))?.fondo
+        papelOscuro = papel.map { 0.299 * $0.r + 0.587 * $0.g + 0.114 * $0.b < 0.5 } ?? false
     }
 
     public func elegir(_ nombre: String) {
@@ -120,6 +78,7 @@ public final class ModeloEditorLienzo: ObservableObject {
             try editor.herramienta(nombre: nombre)
             herramienta = editor.herramientaActual()
             estilo = editor.estilo()
+            hayElegidos = editor.cuantosElegidos() > 0
             vista?.trasCambio()
         } catch {
             self.error = "\(error)"
@@ -138,6 +97,8 @@ public final class ModeloEditorLienzo: ObservableObject {
     /// (soltar, pegar): la barra vuelve a mirar al editor.
     func refrescarBarra() {
         estilo = editor.estilo()
+        let elegidos = editor.cuantosElegidos() > 0
+        if elegidos != hayElegidos { hayElegidos = elegidos }
         let h = editor.herramientaActual()
         if h != herramienta { herramienta = h }
     }
@@ -428,6 +389,8 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     override public func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
         presionTrackpad = nil
+        // Un clic en el lienzo cierra el desplegable de la barra.
+        if modelo.desplegado != nil { modelo.desplegado = nil }
         mandar(.pulsar, event)
         let enVista = convert(event.locationInWindow, from: nil)
         // El gesto de pararse, solo trazando a mano (una pregunta por trazo).
@@ -548,8 +511,13 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             break
         }
         if teclas.isEmpty, let letra = event.charactersIgnoringModifiers?.lowercased().first,
-           let h = HerramientaLienzo.todas.first(where: { $0.tecla == letra }) {
+           let h = HerramientaLienzo.deTecla(letra) {
             modelo.elegir(h.id)
+            return
+        }
+        // 1, 2 y 3: los tres grosores, como en Windows (`tecla_a_pluma`).
+        if teclas.isEmpty, let c = event.charactersIgnoringModifiers, let g = OpcionesEstiloLienzo.grosor(tecla: c) {
+            modelo.cambiarEstilo(.grosor(grosor: g))
             return
         }
         if teclas == .command, event.charactersIgnoringModifiers == "a" {
@@ -576,6 +544,13 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         }
         let centro = CGPoint(x: origen.x + bounds.width / zoom / 2, y: origen.y + bounds.height / zoom / 2)
         pegar(fuente, en: centro)
+    }
+
+    /// El boton de imagen de la barra: un fichero, en el centro de lo que se
+    /// ve.
+    func meterImagen(desde url: URL) {
+        let centro = CGPoint(x: origen.x + bounds.width / zoom / 2, y: origen.y + bounds.height / zoom / 2)
+        pegar(.fichero(url), en: centro)
     }
 
     /// Convierte a PNG fuera del hilo principal y lo pega centrado en
@@ -718,74 +693,40 @@ struct LienzoEditable: NSViewRepresentable {
     }
 }
 
-/// **El editor del lienzo**: la barra de herramientas arriba y el lienzo.
+/// **El editor del lienzo**, como el de Windows (y Excalidraw): el lienzo
+/// llena la ventana y encima flotan la barra de herramientas, centrada
+/// arriba, y el panel de estilo a la izquierda.
 public struct EditorLienzoView: View {
     @ObservedObject var modelo: ModeloEditorLienzo
 
     public init(modelo: ModeloEditorLienzo) { self.modelo = modelo }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 2) {
-                ForEach(HerramientaLienzo.todas.filter { $0.grupo == .dibujar }) { h in
-                    Button {
-                        modelo.elegir(h.id)
-                    } label: {
-                        Image(systemName: h.simbolo)
-                            .frame(width: 28, height: 24)
-                            .background(modelo.herramienta == h.id ? Color.accentColor.opacity(0.25) : Color.clear,
-                                        in: RoundedRectangle(cornerRadius: 5))
-                    }
-                    .buttonStyle(.plain)
-                    .help("\(h.titulo) (\(String(h.tecla).uppercased()))")
-                }
-                menuDeGrupo(.medir, titulo: "Medir", simbolo: "ruler")
-                menuDeGrupo(.construir, titulo: "Construir", simbolo: "compass.drawing")
-                Divider().frame(height: 20).padding(.horizontal, 6)
-                BarraEstiloLienzo(modelo: modelo)
-                Divider().frame(height: 20).padding(.horizontal, 6)
-                Button(action: modelo.deshacer) { Image(systemName: "arrow.uturn.backward") }
-                    .keyboardShortcut("z", modifiers: .command)
-                    .help("Deshacer (⌘Z)")
-                Button(action: modelo.rehacer) { Image(systemName: "arrow.uturn.forward") }
-                    .keyboardShortcut("z", modifiers: [.command, .shift])
-                    .help("Rehacer (⇧⌘Z)")
-                Spacer()
-                if let error = modelo.error {
-                    Text(error).font(.caption).foregroundStyle(.red).lineLimit(1)
-                }
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 5)
-            .background(.bar)
-            Divider()
+        ZStack(alignment: .top) {
             LienzoEditable(modelo: modelo)
-        }
-    }
-
-    /// Un grupo de la barra en su menu: el boton ensena la herramienta del
-    /// grupo que este puesta (o el simbolo del grupo) y se resalta con ella.
-    @ViewBuilder
-    private func menuDeGrupo(_ grupo: GrupoHerramientaLienzo, titulo: String, simbolo: String) -> some View {
-        let del = HerramientaLienzo.todas.filter { $0.grupo == grupo }
-        let puesta = del.first { $0.id == modelo.herramienta }
-        Menu {
-            ForEach(del) { h in
-                Button {
-                    modelo.elegir(h.id)
-                } label: {
-                    Label("\(h.titulo) (\(String(h.tecla).uppercased()))", systemImage: h.simbolo)
-                }
+            if modelo.desplegado != nil {
+                // Un clic fuera del desplegable lo cierra.
+                Color.black.opacity(0.001)
+                    .onTapGesture { modelo.desplegado = nil }
             }
-        } label: {
-            Image(systemName: puesta?.simbolo ?? simbolo)
+            BarraHerramientasLienzo(modelo: modelo)
+                .padding(.top, MedidasBarraLienzo.distanciaBorde)
+                .padding(.horizontal, MedidasBarraLienzo.distanciaBorde)
+            if modelo.hayElegidos || !HerramientaLienzo.sinEstilo.contains(modelo.herramienta) {
+                PanelEstiloLienzo(modelo: modelo)
+                    .padding(.leading, MedidasBarraLienzo.distanciaBorde)
+                    .padding(.top, MedidasBarraLienzo.yPanel)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            if let error = modelo.error {
+                Text(error).font(.caption).foregroundStyle(.red).lineLimit(1)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(8)
+            }
         }
-        .menuStyle(.borderlessButton)
-        .fixedSize()
-        .padding(.horizontal, 2)
-        .background(puesta != nil ? Color.accentColor.opacity(0.25) : Color.clear,
-                    in: RoundedRectangle(cornerRadius: 5))
-        .help(titulo)
+        .overlayPreferenceValue(AnclasGruposLienzo.self) { anclas in
+            MenuGrupoLienzo(modelo: modelo, anclas: anclas)
+        }
     }
 }
 

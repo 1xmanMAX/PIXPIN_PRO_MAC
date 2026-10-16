@@ -140,9 +140,9 @@ final class HerramientasLienzoTests: XCTestCase {
         for id in ["lazo", "cota", "escalar", "escala_grafica", "relleno", "recortar", "extender", "punto"] {
             XCTAssertTrue(ids.contains(id), id)
         }
-        XCTAssertEqual(HerramientaLienzo.todas.filter { $0.grupo == .construir }.count, 4)
-        XCTAssertEqual(HerramientaLienzo.todas.filter { $0.grupo == .medir }.count, 3)
-        let teclas = HerramientaLienzo.todas.map(\.tecla)
+        XCTAssertEqual(GrupoHerramientaLienzo.arreglar.miembros.map(\.id), ["recortar", "extender"])
+        XCTAssertEqual(GrupoHerramientaLienzo.medir.miembros.count, 3)
+        let teclas = HerramientaLienzo.todas.compactMap(\.tecla)
         XCTAssertEqual(Set(teclas).count, teclas.count)
         // Caso negativo: un nombre que el motor no conoce deja el error.
         modelo.elegir("pincel_magico")
@@ -307,5 +307,136 @@ final class HerramientasLienzoTests: XCTestCase {
         let c = CajaLienzo(x0: 10, y0: 20, x1: 10, y1: 40)
         let v = VistaEditorLienzoNS.aVista(c, origen: CGPoint(x: 5, y: 10), zoom: 2)
         XCTAssertEqual(v, NSRect(x: 10, y: 20, width: 1, height: 40))
+    }
+}
+
+/// La barra como la de Windows: sus grupos, sus letras, la regla del clic y
+/// los iconos de Excalidraw leidos de sus trazados SVG.
+final class BarraHerramientasLienzoTests: XCTestCase {
+    func testLasLetrasSonLasDeWindowsYNoSePisan() {
+        // `tecla_a_herramienta` de Windows, para las que el Mac tiene.
+        let windows: [Character: String] = [
+            "m": "seleccion", "l": "lapiz", "r": "resaltador", "t": "texto", "b": "borrador",
+            "a": "cota", "e": "escalar", "g": "escala_grafica", "p": "grafito",
+        ]
+        for (c, id) in windows {
+            XCTAssertEqual(HerramientaLienzo.deTecla(c)?.id, id, String(c))
+            XCTAssertEqual(HerramientaLienzo.deTecla(Character(c.uppercased()))?.id, id)
+        }
+        // Caso negativo: una letra sin herramienta no elige nada.
+        XCTAssertNil(HerramientaLienzo.deTecla("q"))
+        XCTAssertEqual(OpcionesEstiloLienzo.grosor(tecla: "3").map { "\($0)" }, "grueso")
+        XCTAssertNil(OpcionesEstiloLienzo.grosor(tecla: "4"))
+    }
+
+    func testTodaHerramientaSeAlcanzaDesdeLaBarraYLosSeparadoresVanEntreSecciones() {
+        var alcanzables = Set<String>()
+        for b in BotonBarraLienzo.barra {
+            switch b {
+            case let .herramienta(id): alcanzables.insert(id)
+            case let .grupo(g): g.miembros.forEach { alcanzables.insert($0.id) }
+            default: break
+            }
+        }
+        XCTAssertEqual(alcanzables, Set(HerramientaLienzo.todas.map(\.id)), "ninguna se queda sin boton")
+        // Cada grupo de la barra tiene a alguien dentro.
+        for g in GrupoHerramientaLienzo.allCases { XCTAssertFalse(g.miembros.isEmpty, g.rawValue) }
+        // Elegir | dibujar | medir, imagen y goma | acciones: tres cortes.
+        let cortes = BotonBarraLienzo.barra.indices.filter { BotonBarraLienzo.corte(tras: $0) }
+        XCTAssertEqual(cortes.count, 3)
+        XCTAssertEqual(BotonBarraLienzo.barra.last, .salir)
+        XCTAssertFalse(BotonBarraLienzo.corte(tras: BotonBarraLienzo.barra.count - 1))
+    }
+
+    @MainActor
+    func testPulsarUnGrupoCogeSuCaraDespliegaYRecuerdaLaUltimaUsada() {
+        GruposBarraLienzo.olvidar()
+        defer { GruposBarraLienzo.olvidar() }
+        // De fabrica, la cara de las formas es el rectangulo: se coge y se abre.
+        var r = GruposBarraLienzo.pulsar(.formas, activa: "lapiz", desplegado: nil)
+        XCTAssertEqual(r.elegir, "rectangulo")
+        XCTAssertEqual(r.desplegado, .formas)
+        // Pulsado otra vez, abierto y con lo suyo puesto: se cierra sin mas.
+        r = GruposBarraLienzo.pulsar(.formas, activa: "rectangulo", desplegado: .formas)
+        XCTAssertNil(r.elegir)
+        XCTAssertNil(r.desplegado)
+        // Se usa el rombo: se queda de cara aunque luego se coja el lapiz.
+        XCTAssertEqual(GruposBarraLienzo.cara(.formas, activa: "rombo")?.id, "rombo")
+        XCTAssertEqual(GruposBarraLienzo.cara(.formas, activa: "lapiz")?.id, "rombo")
+        XCTAssertEqual(GruposBarraLienzo.pulsar(.formas, activa: "lapiz", desplegado: nil).elegir, "rombo")
+        // Caso negativo: un grupo de una sola herramienta no se despliega.
+        r = GruposBarraLienzo.pulsar(.elegir, activa: "lapiz", desplegado: .formas)
+        XCTAssertEqual(r.elegir, "lazo")
+        XCTAssertNil(r.desplegado)
+    }
+
+    @MainActor
+    func testElModeloAbreYCierraElDesplegableYElPanelSabeSiHayElegidos() throws {
+        GruposBarraLienzo.olvidar()
+        defer { GruposBarraLienzo.olvidar() }
+        let carpeta = try carpetaTemporal("barra-grupos")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("b.excalidraw").path, crear: true)
+        let modelo = ModeloEditorLienzo(editor: ed)
+        XCTAssertFalse(modelo.papelOscuro, "el papel de fabrica es blanco")
+        modelo.pulsarGrupo(.flechas)
+        XCTAssertEqual(modelo.herramienta, "flecha")
+        XCTAssertEqual(modelo.desplegado, .flechas)
+        modelo.elegirDelDesplegable("flecha_codos")
+        XCTAssertEqual(ed.herramientaActual(), "flecha_codos")
+        XCTAssertNil(modelo.desplegado)
+        // Un rectangulo y elegirlo todo: hay elegidos para el panel.
+        modelo.elegir("rectangulo")
+        _ = ed.puntero(fase: .pulsar, x: 10, y: 10, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .mover, x: 60, y: 60, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .soltar, x: 60, y: 60, presion: nil, modificadores: 0, zoom: 1)
+        modelo.elegir("seleccion")
+        ed.seleccionarTodo()
+        modelo.refrescarBarra()
+        XCTAssertTrue(modelo.hayElegidos)
+        modelo.elegir("lapiz")
+        XCTAssertFalse(modelo.hayElegidos, "coger una que dibuja suelta lo elegido")
+    }
+
+    func testElLectorDeTrazadosSVG() throws {
+        // Numeros pegados, relativas y la recta implicita tras M.
+        let p = try XCTUnwrap(TrayectoSVG.leer("M1 2 3 4l-1.5.5h2v-1z"))
+        XCTAssertEqual(p.boundingBoxOfPath.minX, 1, accuracy: 1e-6)
+        XCTAssertEqual(p.boundingBoxOfPath.maxX, 3.5, accuracy: 1e-6)
+        XCTAssertEqual(p.boundingBoxOfPath.maxY, 4.5, accuracy: 1e-6)
+        // Un circulo de radio 2 con dos arcos (banderas pegadas incluidas).
+        let c = try XCTUnwrap(TrayectoSVG.leer("M5 15m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"))
+        let caja = c.boundingBoxOfPath
+        XCTAssertEqual(caja.midX, 5, accuracy: 0.01)
+        XCTAssertEqual(caja.midY, 15, accuracy: 0.01)
+        XCTAssertEqual(caja.width, 4, accuracy: 0.02)
+        XCTAssertEqual(caja.height, 4, accuracy: 0.02)
+        XCTAssertNotNil(TrayectoSVG.leer("M0 0a2 2 0 105 5"), "banderas pegadas al numero")
+        XCTAssertNotNil(TrayectoSVG.leer("M0 0C1 1 2 2 3 3S5 5 6 6Q7 7 8 8T9 9"))
+        // Casos negativos: basura o numeros sin orden.
+        XCTAssertNil(TrayectoSVG.leer("hola"))
+        XCTAssertNil(TrayectoSVG.leer("1 2 3"))
+        XCTAssertNil(TrayectoSVG.leer(""))
+    }
+
+    func testTodosLosIconosDeLaBarraSeLeen() {
+        var iconos = HerramientaLienzo.todas.map(\.icono)
+        iconos += [.image, .undo, .redo, .close, .fillLineas]
+        iconos += OpcionesEstiloLienzo.rellenos.map { OpcionesEstiloLienzo.icono($0.valor) }
+        iconos += OpcionesEstiloLienzo.grosores.map { OpcionesEstiloLienzo.icono($0.valor) }
+        iconos += OpcionesEstiloLienzo.lineas.map { OpcionesEstiloLienzo.icono($0.valor) }
+        iconos += OpcionesEstiloLienzo.rugosidades.map { OpcionesEstiloLienzo.icono(rugosidad: $0.valor) }
+        for (i, icono) in iconos.enumerated() {
+            XCTAssertFalse(icono.trazos.isEmpty, "icono \(i) sin trazos")
+            for t in icono.trazos {
+                let p = TrayectoSVG.leer(t.d)
+                XCTAssertNotNil(p, "icono \(i): \(t.d)")
+                // Cae dentro (o casi) de su viewBox: se leyo bien.
+                if let caja = p?.boundingBoxOfPath {
+                    XCTAssertTrue(icono.vista.insetBy(dx: -4, dy: -4).contains(caja) || t.mascara != nil,
+                                  "icono \(i) fuera de su caja: \(caja)")
+                }
+            }
+        }
     }
 }
