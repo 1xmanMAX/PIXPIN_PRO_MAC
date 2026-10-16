@@ -259,3 +259,41 @@ fn las_fechas_de_las_tareas_se_leen() {
     assert_eq!(recortar("abc", 5), "abc");
     assert!(recortar("abcdef", 3).starts_with("abc\n"));
 }
+
+#[test]
+fn buscar_en_mis_cosas_encuentra_y_cita_y_la_nube_pide_permiso() {
+    let d = carpeta();
+    let nucleo = Nucleo::abrir(d.display().to_string(), "Mac de pruebas".into()).unwrap();
+    let obra = nucleo.crear_chat("Obra Carretera Sur".into()).unwrap();
+    nucleo
+        .escribir_nota(obra.id.clone(), "El presupuesto de la cuneta es de 4500 soles, aprobado el lunes.".into(), None)
+        .unwrap();
+    let guion = || {
+        MotorGuionado::nuevo(vec![
+            Respuesta::de_llamada(pixpin_ia::documentos::BUSCAR, r#"{"consulta":"presupuesto cuneta"}"#),
+            Respuesta::de_texto("Son 4500 soles [1]."),
+        ])
+    };
+    // El local busca sin preguntar.
+    let manos = Arc::new(Manos::default());
+    let mut ej = EjecutorDelMac::nuevo(Vec::new(), 0).con_app(manos.clone()).con_nucleo(Some(nucleo.clone()));
+    let r = turno_con(&guion(), &entorno(false, false), peticion("¿cuánto era el presupuesto de la cuneta?"), &mut ej, &Apunta::default(), &CorteIa::nuevo()).unwrap();
+    assert!(manos.preguntas.lock().unwrap().is_empty());
+    assert!(r.herramientas.iter().any(|h| h.ok && h.resumen.contains("4500")), "{:?}", r.herramientas);
+    assert_eq!(r.citas.len(), 1, "{:?}", r.citas);
+    let pedido: Value = serde_json::from_str(&r.citas[0].pedido).unwrap();
+    assert_eq!(pedido["accion"], "abrir");
+    assert_eq!(pedido["que"]["tipo"], "mensaje");
+    // La nube pregunta; un no se recuerda y no busca.
+    let mut ej = EjecutorDelMac::nuevo(Vec::new(), 0).con_app(manos.clone()).con_nucleo(Some(nucleo.clone())).en_la_nube(true);
+    let r = turno_con(&guion(), &entorno(true, false), peticion("¿cuánto era el presupuesto de la cuneta?"), &mut ej, &Apunta::default(), &CorteIa::nuevo()).unwrap();
+    assert_eq!(manos.preguntas.lock().unwrap().len(), 1);
+    assert!(r.herramientas.iter().all(|h| !h.ok), "{:?}", r.herramientas);
+    assert!(r.citas.is_empty());
+    assert_eq!(nucleo.ajustes().unwrap().asistente_documentos_a_la_nube, "no");
+    // Ya no se vuelve a preguntar.
+    let mut ej = EjecutorDelMac::nuevo(Vec::new(), 0).con_app(manos.clone()).con_nucleo(Some(nucleo.clone())).en_la_nube(true);
+    turno_con(&guion(), &entorno(true, false), peticion("¿cuánto era el presupuesto de la cuneta?"), &mut ej, &Apunta::default(), &CorteIa::nuevo()).unwrap();
+    assert_eq!(manos.preguntas.lock().unwrap().len(), 1);
+    let _ = std::fs::remove_dir_all(d);
+}

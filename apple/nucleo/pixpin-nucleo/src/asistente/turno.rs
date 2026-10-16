@@ -25,7 +25,10 @@
 //!   las tareas resueltas por su nombre contra las listas de verdad
 //!   (`pixpin_ia::tareas::hacer`) y la pregunta de «¿seguro?» en la burbuja
 //!   ([`AppIa::confirmar`]); leer un PDF o una foto adjunta es Vision o
-//!   PDFKit desde Swift ([`AppIa::leer_texto`]).
+//!   PDFKit desde Swift ([`AppIa::leer_texto`]); `buscar_en_mis_cosas`
+//!   busca en los documentos y chats del usuario ([`documentos`]), con
+//!   permiso si contesta la nube (`documentos_a_la_nube`), y sus citas
+//!   vuelven en [`RespuestaIa::citas`].
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -45,7 +48,8 @@ use pixpin_ia::tareas::{Chat, Fijas, FuenteTareas, VistaLista, VistaTarea};
 use serde_json::Value;
 
 use super::local;
-use super::{CorteIa, HerramientaUsada, LlamaDelUsuario, MensajeIa, OyenteIa, RespuestaIa, Tanda};
+use super::documentos::{self, LectorDelMac};
+use super::{CitaIa, CorteIa, HerramientaUsada, LlamaDelUsuario, MensajeIa, OyenteIa, RespuestaIa, Tanda};
 use crate::{ErrorNucleo, Nucleo};
 
 /// La ventana que se mide con Claude o DeepSeek (la de Windows,
@@ -73,7 +77,8 @@ pub struct AjustesIa {
     pub pensar: Option<bool>,
     pub respaldo_local: bool,
     pub mejor_vista: bool,
-    /// `""` preguntar, `si`, `no` (lo usara `buscar_en_mis_cosas`, E1).
+    /// `""` preguntar, `si`, `no`. `buscar_en_mis_cosas` lo lee (y lo
+    /// guarda al preguntar) de la carpeta de datos; aqui va para saberlo.
     pub documentos_a_la_nube: String,
     /// La carpeta de los modelos bajados.
     pub carpeta_modelos: String,
@@ -200,13 +205,13 @@ pub trait AppIa: Send + Sync {
     fn leer_texto(&self, ruta: String, paginas: Vec<RangoPaginas>) -> Result<String, ErrorNucleo>;
 }
 
-/// Lo que el Mac aun no hace (E1): no se le ofrece a la nube.
+/// Lo que el Mac aun no hace (E1: el lienzo abierto, las figuras, las
+/// acciones sobre documentos y las del chat): no se le ofrece al modelo.
 fn el_mac_lo_hace(nombre: &str) -> bool {
     use pixpin_ia::acciones;
     !(nombre == pixpin_ia::figuras::NOMBRE
         || nombre == pixpin_ia::hoja::NOMBRE
         || nombre == pixpin_ia::anotacion::NOMBRE
-        || nombre == pixpin_ia::documentos::BUSCAR
         || acciones::es_en_el_chat(nombre)
         || pixpin_ia::acciones_documentos::es_de_documentos(nombre)
         || pixpin_ia::edicion::herramientas().iter().any(|h| h.nombre == nombre))
@@ -283,7 +288,8 @@ pub fn ia_turno(
     };
     let mut ejecutor = EjecutorDelMac::nuevo(peticion.adjuntos.clone(), peticion.desfase_ms)
         .con_app(app)
-        .con_nucleo(nucleo);
+        .con_nucleo(nucleo)
+        .en_la_nube(nube);
     turno_con(motor.as_ref(), &entorno, peticion, &mut ejecutor, oyente.as_ref(), &corte)
 }
 
@@ -363,6 +369,7 @@ pub(crate) fn turno_con(
         segundos_pensando: None,
         motor: entorno.nombre.clone(),
         hoja,
+        citas: Vec::new(),
     };
     if corte.cortado() {
         return Ok(vacia(peticion.hoja));
@@ -481,7 +488,18 @@ pub(crate) fn turno_con(
         },
     );
     let lienzo = ejecutor.lienzo();
+    let citas = ejecutor
+        .citas
+        .citadas(&fin.texto)
+        .into_iter()
+        .map(|c| CitaIa {
+            numero: c.numero as u32,
+            titulo: c.titulo(),
+            pedido: c.pedido().to_string(),
+        })
+        .collect();
     Ok(RespuestaIa {
+        citas,
         texto: fin.texto,
         herramientas: recogido.usadas,
         lienzo,
@@ -503,6 +521,10 @@ pub(crate) struct EjecutorDelMac {
     desfase_ms: i64,
     app: Option<Arc<dyn AppIa>>,
     nucleo: Option<Arc<Nucleo>>,
+    /// Si contesta la nube: buscar en los documentos pide permiso.
+    nube: bool,
+    /// Lo citado de los documentos en el turno.
+    pub(crate) citas: pixpin_ia::documentos::Citas,
 }
 
 impl EjecutorDelMac {
@@ -514,7 +536,34 @@ impl EjecutorDelMac {
             desfase_ms,
             app: None,
             nucleo: None,
+            nube: false,
+            citas: Default::default(),
         }
+    }
+
+    pub(crate) fn en_la_nube(mut self, nube: bool) -> EjecutorDelMac {
+        self.nube = nube;
+        self
+    }
+
+    /// **Busca en los documentos del usuario.** Con la nube, solo si lo
+    /// permite (se pregunta la primera vez).
+    fn buscar(&mut self, p: &pixpin_ia::documentos::PeticionBusqueda) -> Result<String, String> {
+        let nucleo = self.nucleo.clone().ok_or("aqui no hay documentos en los que buscar")?;
+        if self.nube {
+            let app = self.app.clone();
+            let confirmar = |q: &str| app.as_ref().is_some_and(|x| x.confirmar(q.to_string()));
+            if !documentos::permiso_nube(Some(&nucleo), &confirmar) {
+                return Err(documentos::SIN_PERMISO_NUBE.into());
+            }
+        }
+        let raiz = nucleo.ruta().to_path_buf();
+        let lector = LectorDelMac {
+            raiz: raiz.clone(),
+            app: self.app.clone(),
+        };
+        let (hallazgos, aviso) = documentos::buscar(&raiz, p, &lector);
+        Ok(self.citas.anadir(&p.consulta, hallazgos, aviso.as_deref()))
     }
 
     pub(crate) fn con_app(mut self, app: Arc<dyn AppIa>) -> EjecutorDelMac {
@@ -645,6 +694,7 @@ impl Ejecutor for EjecutorDelMac {
             Llamada::Calcar(p) => self.calcar(p),
             Llamada::Ocr(p) => self.leer(p),
             Llamada::Ayuda(pregunta) => Ok(pixpin_ia::conocimiento::responder(pregunta)),
+            Llamada::Buscar(p) => self.buscar(p),
             Llamada::App(a) if el_mac_lo_hace(a.herramienta) => self.accion(a),
             otra => Err(format!("{} aun no se puede hacer en PixPin para Mac", otra.nombre())),
         }

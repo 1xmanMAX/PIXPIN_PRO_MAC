@@ -43,6 +43,7 @@ use serde_json::Value;
 
 use crate::ErrorNucleo;
 
+pub mod documentos;
 pub mod local;
 pub mod transporte;
 pub mod turno;
@@ -86,6 +87,20 @@ pub struct RespuestaIa {
     /// La hoja de trabajo de la conversacion, reescrita (JSON), para el
     /// turno siguiente. Vacia si el turno no la lleva.
     pub hoja: String,
+    /// Lo citado de los documentos del usuario (`buscar_en_mis_cosas`): las
+    /// tarjetas que abren el documento.
+    pub citas: Vec<CitaIa>,
+}
+
+/// Una cita de los documentos del usuario.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct CitaIa {
+    /// El `[n]` de la respuesta.
+    pub numero: u32,
+    /// «Tesis.pdf · pág. 12».
+    pub titulo: String,
+    /// El pedido `abrir` del protocolo que lo abre (JSON).
+    pub pedido: String,
 }
 
 impl RespuestaIa {
@@ -99,6 +114,7 @@ impl RespuestaIa {
             segundos_pensando: None,
             motor: motor.into(),
             hoja: String::new(),
+            citas: Vec::new(),
         }
     }
 }
