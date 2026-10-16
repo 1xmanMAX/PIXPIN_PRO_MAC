@@ -4293,6 +4293,405 @@ public func FfiConverterTypeLlaveroApp_lower(_ value: LlaveroApp) -> UInt64 {
 
 
 /**
+ * **Las manos de las automatizaciones en la app**: lo implementa Swift. Se
+ * le llama desde el hilo de la vuelta (nunca el principal) y puede esperar.
+ */
+public protocol ManosAutomatizacion: AnyObject, Sendable {
+    
+    /**
+     * Empieza una (el aviso sale ya, no al acabar: si un paso pregunta, se
+     * ve en el).
+     */
+    func empieza(id: String, nombre: String) 
+    
+    /**
+     * Pregunta al usuario y espera. Sin respuesta es un no.
+     */
+    func confirmar(pregunta: String)  -> Bool
+    
+    /**
+     * Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
+     * llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+     */
+    func pedido(json: String)  -> String?
+    
+    /**
+     * Un turno del asistente sin ventana. `proyecto` es el id del chat
+     * sobre el que se pide; `bloquear`, el disparador (`al_capturar`…): lo
+     * que lo haria saltar no se hace dentro del turno.
+     */
+    func asistente(pedido: String, proyecto: String?, imagenes: [String], bloquear: String)  -> RespuestaPaso
+    
+    /**
+     * Acabo una: lo que paso, para el aviso.
+     */
+    func acabo(informe: InformeAutomatizacion) 
+    
+}
+/**
+ * **Las manos de las automatizaciones en la app**: lo implementa Swift. Se
+ * le llama desde el hilo de la vuelta (nunca el principal) y puede esperar.
+ */
+open class ManosAutomatizacionImpl: ManosAutomatizacion, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_manosautomatizacion(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_manosautomatizacion(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Empieza una (el aviso sale ya, no al acabar: si un paso pregunta, se
+     * ve en el).
+     */
+open func empieza(id: String, nombre: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_manosautomatizacion_empieza(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Pregunta al usuario y espera. Sin respuesta es un no.
+     */
+open func confirmar(pregunta: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_manosautomatizacion_confirmar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(pregunta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
+     * llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+     */
+open func pedido(json: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_manosautomatizacion_pedido(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(json),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Un turno del asistente sin ventana. `proyecto` es el id del chat
+     * sobre el que se pide; `bloquear`, el disparador (`al_capturar`…): lo
+     * que lo haria saltar no se hace dentro del turno.
+     */
+open func asistente(pedido: String, proyecto: String?, imagenes: [String], bloquear: String) -> RespuestaPaso  {
+    return try!  FfiConverterTypeRespuestaPaso_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_manosautomatizacion_asistente(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(pedido),
+        FfiConverterOptionString.lower(proyecto),
+        FfiConverterSequenceString.lower(imagenes),
+        FfiConverterString.lower(bloquear),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Acabo una: lo que paso, para el aviso.
+     */
+open func acabo(informe: InformeAutomatizacion)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_manosautomatizacion_acabo(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeInformeAutomatizacion_lower(informe),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceManosAutomatizacion {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceManosAutomatizacion = UniffiVTableCallbackInterfaceManosAutomatizacion(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterTypeManosAutomatizacion.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface ManosAutomatizacion: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterTypeManosAutomatizacion.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface ManosAutomatizacion: handle missing in uniffiClone")
+            }
+        },
+        empieza: { (
+            uniffiHandle: UInt64,
+            id: RustBuffer,
+            nombre: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeManosAutomatizacion.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.empieza(
+                     id: try FfiConverterString.lift(id),
+                     nombre: try FfiConverterString.lift(nombre)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        confirmar: { (
+            uniffiHandle: UInt64,
+            pregunta: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<Int8>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Bool in
+                guard let uniffiObj = try? FfiConverterTypeManosAutomatizacion.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.confirmar(
+                     pregunta: try FfiConverterString.lift(pregunta)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterBool.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        pedido: { (
+            uniffiHandle: UInt64,
+            json: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String? in
+                guard let uniffiObj = try? FfiConverterTypeManosAutomatizacion.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.pedido(
+                     json: try FfiConverterString.lift(json)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        asistente: { (
+            uniffiHandle: UInt64,
+            pedido: RustBuffer,
+            proyecto: RustBuffer,
+            imagenes: RustBuffer,
+            bloquear: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> RespuestaPaso in
+                guard let uniffiObj = try? FfiConverterTypeManosAutomatizacion.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.asistente(
+                     pedido: try FfiConverterString.lift(pedido),
+                     proyecto: try FfiConverterOptionString.lift(proyecto),
+                     imagenes: try FfiConverterSequenceString.lift(imagenes),
+                     bloquear: try FfiConverterString.lift(bloquear)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterTypeRespuestaPaso_lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        acabo: { (
+            uniffiHandle: UInt64,
+            informe: RustBuffer,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterTypeManosAutomatizacion.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.acabo(
+                     informe: try FfiConverterTypeInformeAutomatizacion_lift(informe)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceManosAutomatizacion> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceManosAutomatizacion>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitManosAutomatizacion() {
+    uniffi_pixpin_nucleo_fn_init_callback_vtable_manosautomatizacion(UniffiCallbackInterfaceManosAutomatizacion.vtablePtr)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeManosAutomatizacion: FfiConverter {
+    fileprivate static let handleMap = UniffiHandleMap<ManosAutomatizacion>()
+
+    typealias FfiType = UInt64
+    typealias SwiftType = ManosAutomatizacion
+
+    public static func lift(_ handle: UInt64) throws -> ManosAutomatizacion {
+        if ((handle & 1) == 0) {
+            // Rust-generated handle, construct a new class that uses the handle to implement the
+            // interface
+            return ManosAutomatizacionImpl(unsafeFromHandle: handle)
+        } else {
+            // Swift-generated handle, get the object from the handle map
+            return try handleMap.remove(handle: handle)
+        }
+    }
+
+    public static func lower(_ value: ManosAutomatizacion) -> UInt64 {
+         if let rustImpl = value as? ManosAutomatizacionImpl {
+             // Rust-implemented object.  Clone the handle and return it
+            return rustImpl.uniffiCloneHandle()
+         } else {
+            // Swift object, generate a new vtable handle and return that.
+            return handleMap.insert(obj: value)
+         }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ManosAutomatizacion {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: ManosAutomatizacion, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeManosAutomatizacion_lift(_ handle: UInt64) throws -> ManosAutomatizacion {
+    return try FfiConverterTypeManosAutomatizacion.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeManosAutomatizacion_lower(_ value: ManosAutomatizacion) -> UInt64 {
+    return FfiConverterTypeManosAutomatizacion.lower(value)
+}
+
+
+
+
+
+
+/**
  * **Un modelo 3D abierto**, listo para Metal.
  */
 public protocol Modelo3dAppleProtocol: AnyObject, Sendable {
@@ -4703,6 +5102,59 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * Bloquea hasta unos 3 s como mucho.
      */
     func sondearDireccion(host: String, puerto: UInt16)  -> Bool
+    
+    /**
+     * Enciende o apaga una. Su nombre, o `None` si no esta.
+     */
+    func automatizacionActivar(id: String, activa: Bool) throws  -> String?
+    
+    /**
+     * Borra una (buena o rota). Su nombre, o `None` si no estaba. No
+     * pregunta: quien lo pide ya pregunto.
+     */
+    func automatizacionBorrar(id: String) throws  -> String?
+    
+    /**
+     * **Crea una desde una receta** (el pedido `automatizacion` con
+     * `operacion: "crear"`, que manda el asistente tras preguntar). Devuelve
+     * su nombre; si no vale, el motivo y no se guarda.
+     */
+    func automatizacionDeReceta(recetaJson: String) throws  -> String
+    
+    /**
+     * **Guarda una del editor**: nueva (sin `id`: nace con este Mac como
+     * su aparato) o cambiada (conserva su aparato, lo que no se entiende y
+     * cuando nacio). Si no vale, el motivo y no se escribe nada. Devuelve
+     * su id.
+     */
+    func automatizacionGuardar(ficha: FichaAutomatizacion) throws  -> String
+    
+    /**
+     * Si la del editor vale: `None`, o el motivo.
+     */
+    func automatizacionRevisar(ficha: FichaAutomatizacion)  -> String?
+    
+    /**
+     * **Las automatizaciones** del chat «Asistente», en su orden (las rotas
+     * tambien, con su motivo). Sin chat «Asistente», ninguna (no se crea
+     * solo por mirar).
+     */
+    func automatizaciones() throws  -> [FichaAutomatizacion]
+    
+    /**
+     * **Una vuelta del motor**: elige lo que corre por `disparo` (las
+     * activas de este Mac con ese disparador; a la hora, las que les toca;
+     * a mano, la pedida), pasa la guardia de bucles y las corre en orden,
+     * diciendoselo a `manos` al empezar y al acabar cada una. Espera: se
+     * llama fuera del hilo principal. Una vuelta a la vez.
+     */
+    func automatizacionesDisparar(disparo: DisparoAutomatizacion, desfaseMs: Int64, manos: ManosAutomatizacion) throws  -> [InformeAutomatizacion]
+    
+    /**
+     * **El historial** de este Mac: las ultimas vueltas, la mas nueva
+     * primero (no viaja).
+     */
+    func automatizacionesHistorial()  -> [VueltaAutomatizacion]
     
     /**
      * **Deja la foto `id` con su lienzo, como el movil**
@@ -6049,6 +6501,124 @@ open func sondearDireccion(host: String, puerto: UInt16) -> Bool  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(host),
         FfiConverterUInt16.lower(puerto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Enciende o apaga una. Su nombre, o `None` si no esta.
+     */
+open func automatizacionActivar(id: String, activa: Bool)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizacion_activar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(activa),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Borra una (buena o rota). Su nombre, o `None` si no estaba. No
+     * pregunta: quien lo pide ya pregunto.
+     */
+open func automatizacionBorrar(id: String)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizacion_borrar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Crea una desde una receta** (el pedido `automatizacion` con
+     * `operacion: "crear"`, que manda el asistente tras preguntar). Devuelve
+     * su nombre; si no vale, el motivo y no se guarda.
+     */
+open func automatizacionDeReceta(recetaJson: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizacion_de_receta(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(recetaJson),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Guarda una del editor**: nueva (sin `id`: nace con este Mac como
+     * su aparato) o cambiada (conserva su aparato, lo que no se entiende y
+     * cuando nacio). Si no vale, el motivo y no se escribe nada. Devuelve
+     * su id.
+     */
+open func automatizacionGuardar(ficha: FichaAutomatizacion)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizacion_guardar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeFichaAutomatizacion_lower(ficha),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si la del editor vale: `None`, o el motivo.
+     */
+open func automatizacionRevisar(ficha: FichaAutomatizacion) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizacion_revisar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeFichaAutomatizacion_lower(ficha),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las automatizaciones** del chat «Asistente», en su orden (las rotas
+     * tambien, con su motivo). Sin chat «Asistente», ninguna (no se crea
+     * solo por mirar).
+     */
+open func automatizaciones()throws  -> [FichaAutomatizacion]  {
+    return try  FfiConverterSequenceTypeFichaAutomatizacion.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizaciones(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Una vuelta del motor**: elige lo que corre por `disparo` (las
+     * activas de este Mac con ese disparador; a la hora, las que les toca;
+     * a mano, la pedida), pasa la guardia de bucles y las corre en orden,
+     * diciendoselo a `manos` al empezar y al acabar cada una. Espera: se
+     * llama fuera del hilo principal. Una vuelta a la vez.
+     */
+open func automatizacionesDisparar(disparo: DisparoAutomatizacion, desfaseMs: Int64, manos: ManosAutomatizacion)throws  -> [InformeAutomatizacion]  {
+    return try  FfiConverterSequenceTypeInformeAutomatizacion.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizaciones_disparar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeDisparoAutomatizacion_lower(disparo),
+        FfiConverterInt64.lower(desfaseMs),
+        FfiConverterTypeManosAutomatizacion_lower(manos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El historial** de este Mac: las ultimas vueltas, la mas nueva
+     * primero (no viaja).
+     */
+open func automatizacionesHistorial() -> [VueltaAutomatizacion]  {
+    return try!  FfiConverterSequenceTypeVueltaAutomatizacion.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_automatizaciones_historial(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -11365,6 +11935,64 @@ public func FfiConverterTypeArchivoLlegado_lower(_ value: ArchivoLlegado) -> Rus
 
 
 /**
+ * Un argumento de un paso de accion, en texto (`valor` es el texto, o el
+ * JSON si no lo era: una lista, un numero).
+ */
+public struct ArgAutomatizacion: Equatable, Hashable {
+    public var nombre: String
+    public var valor: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, valor: String) {
+        self.nombre = nombre
+        self.valor = valor
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ArgAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeArgAutomatizacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ArgAutomatizacion {
+        return
+            try ArgAutomatizacion(
+                nombre: FfiConverterString.read(from: &buf), 
+                valor: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ArgAutomatizacion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.valor, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeArgAutomatizacion_lift(_ buf: RustBuffer) throws -> ArgAutomatizacion {
+    return try FfiConverterTypeArgAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeArgAutomatizacion_lower(_ value: ArgAutomatizacion) -> RustBuffer {
+    return FfiConverterTypeArgAutomatizacion.lower(value)
+}
+
+
+/**
  * Un aviso pendiente de una mini-app de algun chat.
  */
 public struct AvisoMini: Equatable, Hashable {
@@ -14796,6 +15424,147 @@ public func FfiConverterTypeExtrasCroquis_lower(_ value: ExtrasCroquis) -> RustB
 
 
 /**
+ * **Una automatizacion, para la lista y el editor.**
+ */
+public struct FichaAutomatizacion: Equatable, Hashable {
+    /**
+     * Vacio en una nueva (al guardar nace su id).
+     */
+    public var id: String
+    public var nombre: String
+    public var activa: Bool
+    /**
+     * `al_capturar`, `a_la_hora`, `al_sincronizar` o `a_mano`.
+     */
+    public var disparador: String
+    /**
+     * `HH:MM`, en `a_la_hora`.
+     */
+    public var hora: String
+    /**
+     * 1 lunes … 7 domingo; vacio, todos.
+     */
+    public var dias: Data
+    public var pasos: [PasoAutomatizacion]
+    /**
+     * «Al capturar · escribir_en_chat en «Obra» → «Hazle OCR»».
+     */
+    public var detalle: String
+    /**
+     * `None`: corre aqui; si no, el aparato donde corre.
+     */
+    public var otroAparato: String?
+    /**
+     * Si no se entiende, el motivo (solo se puede borrar).
+     */
+    public var rota: String?
+    /**
+     * La ultima vez que corrio aqui (hora local en ms).
+     */
+    public var ultimaVez: Int64?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Vacio en una nueva (al guardar nace su id).
+         */id: String, nombre: String, activa: Bool, 
+        /**
+         * `al_capturar`, `a_la_hora`, `al_sincronizar` o `a_mano`.
+         */disparador: String, 
+        /**
+         * `HH:MM`, en `a_la_hora`.
+         */hora: String, 
+        /**
+         * 1 lunes … 7 domingo; vacio, todos.
+         */dias: Data, pasos: [PasoAutomatizacion], 
+        /**
+         * «Al capturar · escribir_en_chat en «Obra» → «Hazle OCR»».
+         */detalle: String, 
+        /**
+         * `None`: corre aqui; si no, el aparato donde corre.
+         */otroAparato: String?, 
+        /**
+         * Si no se entiende, el motivo (solo se puede borrar).
+         */rota: String?, 
+        /**
+         * La ultima vez que corrio aqui (hora local en ms).
+         */ultimaVez: Int64?) {
+        self.id = id
+        self.nombre = nombre
+        self.activa = activa
+        self.disparador = disparador
+        self.hora = hora
+        self.dias = dias
+        self.pasos = pasos
+        self.detalle = detalle
+        self.otroAparato = otroAparato
+        self.rota = rota
+        self.ultimaVez = ultimaVez
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FichaAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFichaAutomatizacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FichaAutomatizacion {
+        return
+            try FichaAutomatizacion(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                activa: FfiConverterBool.read(from: &buf), 
+                disparador: FfiConverterString.read(from: &buf), 
+                hora: FfiConverterString.read(from: &buf), 
+                dias: FfiConverterData.read(from: &buf), 
+                pasos: FfiConverterSequenceTypePasoAutomatizacion.read(from: &buf), 
+                detalle: FfiConverterString.read(from: &buf), 
+                otroAparato: FfiConverterOptionString.read(from: &buf), 
+                rota: FfiConverterOptionString.read(from: &buf), 
+                ultimaVez: FfiConverterOptionInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FichaAutomatizacion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterBool.write(value.activa, into: &buf)
+        FfiConverterString.write(value.disparador, into: &buf)
+        FfiConverterString.write(value.hora, into: &buf)
+        FfiConverterData.write(value.dias, into: &buf)
+        FfiConverterSequenceTypePasoAutomatizacion.write(value.pasos, into: &buf)
+        FfiConverterString.write(value.detalle, into: &buf)
+        FfiConverterOptionString.write(value.otroAparato, into: &buf)
+        FfiConverterOptionString.write(value.rota, into: &buf)
+        FfiConverterOptionInt64.write(value.ultimaVez, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFichaAutomatizacion_lift(_ buf: RustBuffer) throws -> FichaAutomatizacion {
+    return try FfiConverterTypeFichaAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFichaAutomatizacion_lower(_ value: FichaAutomatizacion) -> RustBuffer {
+    return FfiConverterTypeFichaAutomatizacion.lower(value)
+}
+
+
+/**
  * Un chat en la lista.
  */
 public struct FichaChat: Equatable, Hashable {
@@ -15988,6 +16757,87 @@ public func FfiConverterTypeGrupoPlano_lower(_ value: GrupoPlano) -> RustBuffer 
 
 
 /**
+ * Una accion de la tabla, para elegirla en el editor.
+ */
+public struct HerramientaAutomatizacion: Equatable, Hashable {
+    public var nombre: String
+    public var descripcion: String
+    public var params: [ParamAutomatizacion]
+    /**
+     * Si el pedido entiende `proyecto` (un chat concreto).
+     */
+    public var conProyecto: Bool
+    /**
+     * Si el pedido lleva `imagenes`.
+     */
+    public var conImagenes: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, descripcion: String, params: [ParamAutomatizacion], 
+        /**
+         * Si el pedido entiende `proyecto` (un chat concreto).
+         */conProyecto: Bool, 
+        /**
+         * Si el pedido lleva `imagenes`.
+         */conImagenes: Bool) {
+        self.nombre = nombre
+        self.descripcion = descripcion
+        self.params = params
+        self.conProyecto = conProyecto
+        self.conImagenes = conImagenes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HerramientaAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHerramientaAutomatizacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HerramientaAutomatizacion {
+        return
+            try HerramientaAutomatizacion(
+                nombre: FfiConverterString.read(from: &buf), 
+                descripcion: FfiConverterString.read(from: &buf), 
+                params: FfiConverterSequenceTypeParamAutomatizacion.read(from: &buf), 
+                conProyecto: FfiConverterBool.read(from: &buf), 
+                conImagenes: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HerramientaAutomatizacion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.descripcion, into: &buf)
+        FfiConverterSequenceTypeParamAutomatizacion.write(value.params, into: &buf)
+        FfiConverterBool.write(value.conProyecto, into: &buf)
+        FfiConverterBool.write(value.conImagenes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHerramientaAutomatizacion_lift(_ buf: RustBuffer) throws -> HerramientaAutomatizacion {
+    return try FfiConverterTypeHerramientaAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHerramientaAutomatizacion_lower(_ value: HerramientaAutomatizacion) -> RustBuffer {
+    return FfiConverterTypeHerramientaAutomatizacion.lower(value)
+}
+
+
+/**
  * Una herramienta que se uso en el turno.
  */
 public struct HerramientaUsada: Equatable, Hashable {
@@ -16777,6 +17627,97 @@ public func FfiConverterTypeInfoElemento3d_lift(_ buf: RustBuffer) throws -> Inf
 #endif
 public func FfiConverterTypeInfoElemento3d_lower(_ value: InfoElemento3d) -> RustBuffer {
     return FfiConverterTypeInfoElemento3d.lower(value)
+}
+
+
+/**
+ * Como fue una vuelta.
+ */
+public struct InformeAutomatizacion: Equatable, Hashable {
+    public var id: String
+    public var nombre: String
+    public var bien: Bool
+    /**
+     * En una o dos lineas, para el aviso.
+     */
+    public var resumen: String
+    /**
+     * Cada paso hecho: bien y lo que dijo (el que fallo es el ultimo).
+     */
+    public var pasos: [RespuestaPaso]
+    /**
+     * Si no corrio (la guardia de bucles): por que.
+     */
+    public var saltada: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, nombre: String, bien: Bool, 
+        /**
+         * En una o dos lineas, para el aviso.
+         */resumen: String, 
+        /**
+         * Cada paso hecho: bien y lo que dijo (el que fallo es el ultimo).
+         */pasos: [RespuestaPaso], 
+        /**
+         * Si no corrio (la guardia de bucles): por que.
+         */saltada: String?) {
+        self.id = id
+        self.nombre = nombre
+        self.bien = bien
+        self.resumen = resumen
+        self.pasos = pasos
+        self.saltada = saltada
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension InformeAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeInformeAutomatizacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InformeAutomatizacion {
+        return
+            try InformeAutomatizacion(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                bien: FfiConverterBool.read(from: &buf), 
+                resumen: FfiConverterString.read(from: &buf), 
+                pasos: FfiConverterSequenceTypeRespuestaPaso.read(from: &buf), 
+                saltada: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InformeAutomatizacion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterBool.write(value.bien, into: &buf)
+        FfiConverterString.write(value.resumen, into: &buf)
+        FfiConverterSequenceTypeRespuestaPaso.write(value.pasos, into: &buf)
+        FfiConverterOptionString.write(value.saltada, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInformeAutomatizacion_lift(_ buf: RustBuffer) throws -> InformeAutomatizacion {
+    return try FfiConverterTypeInformeAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeInformeAutomatizacion_lower(_ value: InformeAutomatizacion) -> RustBuffer {
+    return FfiConverterTypeInformeAutomatizacion.lower(value)
 }
 
 
@@ -19456,6 +20397,156 @@ public func FfiConverterTypeParTxt_lower(_ value: ParTxt) -> RustBuffer {
 
 
 /**
+ * Un parametro de una accion, para el editor.
+ */
+public struct ParamAutomatizacion: Equatable, Hashable {
+    public var nombre: String
+    public var descripcion: String
+    public var obligatorio: Bool
+    /**
+     * Las que valen, si es de opciones.
+     */
+    public var opciones: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, descripcion: String, obligatorio: Bool, 
+        /**
+         * Las que valen, si es de opciones.
+         */opciones: [String]) {
+        self.nombre = nombre
+        self.descripcion = descripcion
+        self.obligatorio = obligatorio
+        self.opciones = opciones
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ParamAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeParamAutomatizacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ParamAutomatizacion {
+        return
+            try ParamAutomatizacion(
+                nombre: FfiConverterString.read(from: &buf), 
+                descripcion: FfiConverterString.read(from: &buf), 
+                obligatorio: FfiConverterBool.read(from: &buf), 
+                opciones: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ParamAutomatizacion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.descripcion, into: &buf)
+        FfiConverterBool.write(value.obligatorio, into: &buf)
+        FfiConverterSequenceString.write(value.opciones, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeParamAutomatizacion_lift(_ buf: RustBuffer) throws -> ParamAutomatizacion {
+    return try FfiConverterTypeParamAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeParamAutomatizacion_lower(_ value: ParamAutomatizacion) -> RustBuffer {
+    return FfiConverterTypeParamAutomatizacion.lower(value)
+}
+
+
+/**
+ * Un paso, para el editor.
+ */
+public struct PasoAutomatizacion: Equatable, Hashable {
+    /**
+     * `true`: un pedido al asistente; `false`: una accion de la tabla.
+     */
+    public var esAsistente: Bool
+    public var herramienta: String
+    public var args: [ArgAutomatizacion]
+    public var pedido: String
+    public var proyecto: String?
+    public var imagenes: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `true`: un pedido al asistente; `false`: una accion de la tabla.
+         */esAsistente: Bool, herramienta: String, args: [ArgAutomatizacion], pedido: String, proyecto: String?, imagenes: [String]) {
+        self.esAsistente = esAsistente
+        self.herramienta = herramienta
+        self.args = args
+        self.pedido = pedido
+        self.proyecto = proyecto
+        self.imagenes = imagenes
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PasoAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePasoAutomatizacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PasoAutomatizacion {
+        return
+            try PasoAutomatizacion(
+                esAsistente: FfiConverterBool.read(from: &buf), 
+                herramienta: FfiConverterString.read(from: &buf), 
+                args: FfiConverterSequenceTypeArgAutomatizacion.read(from: &buf), 
+                pedido: FfiConverterString.read(from: &buf), 
+                proyecto: FfiConverterOptionString.read(from: &buf), 
+                imagenes: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PasoAutomatizacion, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.esAsistente, into: &buf)
+        FfiConverterString.write(value.herramienta, into: &buf)
+        FfiConverterSequenceTypeArgAutomatizacion.write(value.args, into: &buf)
+        FfiConverterString.write(value.pedido, into: &buf)
+        FfiConverterOptionString.write(value.proyecto, into: &buf)
+        FfiConverterSequenceString.write(value.imagenes, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasoAutomatizacion_lift(_ buf: RustBuffer) throws -> PasoAutomatizacion {
+    return try FfiConverterTypePasoAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasoAutomatizacion_lower(_ value: PasoAutomatizacion) -> RustBuffer {
+    return FfiConverterTypePasoAutomatizacion.lower(value)
+}
+
+
+/**
  * Lo que queda por leer de los documentos.
  */
 public struct PendientesDeTexto: Equatable, Hashable {
@@ -20625,6 +21716,69 @@ public func FfiConverterTypeRespuestaIa_lift(_ buf: RustBuffer) throws -> Respue
 #endif
 public func FfiConverterTypeRespuestaIa_lower(_ value: RespuestaIa) -> RustBuffer {
     return FfiConverterTypeRespuestaIa.lower(value)
+}
+
+
+/**
+ * Lo que contesto un paso hecho en Swift.
+ */
+public struct RespuestaPaso: Equatable, Hashable {
+    public var bien: Bool
+    /**
+     * La respuesta, o el motivo si fallo.
+     */
+    public var texto: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(bien: Bool, 
+        /**
+         * La respuesta, o el motivo si fallo.
+         */texto: String) {
+        self.bien = bien
+        self.texto = texto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RespuestaPaso: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRespuestaPaso: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RespuestaPaso {
+        return
+            try RespuestaPaso(
+                bien: FfiConverterBool.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RespuestaPaso, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.bien, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRespuestaPaso_lift(_ buf: RustBuffer) throws -> RespuestaPaso {
+    return try FfiConverterTypeRespuestaPaso.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRespuestaPaso_lower(_ value: RespuestaPaso) -> RustBuffer {
+    return FfiConverterTypeRespuestaPaso.lower(value)
 }
 
 
@@ -22448,6 +23602,91 @@ public func FfiConverterTypeVistoEnRed_lower(_ value: VistoEnRed) -> RustBuffer 
 
 
 /**
+ * Una vuelta del historial.
+ */
+public struct VueltaAutomatizacion: Equatable, Hashable {
+    public var id: String
+    public var nombre: String
+    /**
+     * UTC en ms.
+     */
+    public var cuando: Int64
+    /**
+     * Lo que la hizo saltar (`al_capturar`…).
+     */
+    public var disparo: String
+    public var bien: Bool
+    public var resumen: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, nombre: String, 
+        /**
+         * UTC en ms.
+         */cuando: Int64, 
+        /**
+         * Lo que la hizo saltar (`al_capturar`…).
+         */disparo: String, bien: Bool, resumen: String) {
+        self.id = id
+        self.nombre = nombre
+        self.cuando = cuando
+        self.disparo = disparo
+        self.bien = bien
+        self.resumen = resumen
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VueltaAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVueltaAutomatizacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VueltaAutomatizacion {
+        return
+            try VueltaAutomatizacion(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                cuando: FfiConverterInt64.read(from: &buf), 
+                disparo: FfiConverterString.read(from: &buf), 
+                bien: FfiConverterBool.read(from: &buf), 
+                resumen: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VueltaAutomatizacion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterInt64.write(value.cuando, into: &buf)
+        FfiConverterString.write(value.disparo, into: &buf)
+        FfiConverterBool.write(value.bien, into: &buf)
+        FfiConverterString.write(value.resumen, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVueltaAutomatizacion_lift(_ buf: RustBuffer) throws -> VueltaAutomatizacion {
+    return try FfiConverterTypeVueltaAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVueltaAutomatizacion_lower(_ value: VueltaAutomatizacion) -> RustBuffer {
+    return FfiConverterTypeVueltaAutomatizacion.lower(value)
+}
+
+
+/**
  * Lo que se le hace a una alarma.
  */
 
@@ -24021,6 +25260,110 @@ public func FfiConverterTypeDestinoNota_lift(_ buf: RustBuffer) throws -> Destin
 #endif
 public func FfiConverterTypeDestinoNota_lower(_ value: DestinoNota) -> RustBuffer {
     return FfiConverterTypeDestinoNota.lower(value)
+}
+
+
+
+/**
+ * **Lo que hace saltar**, desde Swift.
+ */
+
+public enum DisparoAutomatizacion: Equatable, Hashable {
+    
+    /**
+     * Una captura nueva en la carpeta de capturas.
+     */
+    case captura(ruta: String
+    )
+    /**
+     * Una vuelta de la sincronizacion que trajo algo (lo que dijo).
+     */
+    case sincro(texto: String
+    )
+    /**
+     * Correr esa ya.
+     */
+    case aMano(id: String
+    )
+    /**
+     * Mirar la hora (cada 30 s).
+     */
+    case reloj
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DisparoAutomatizacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDisparoAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = DisparoAutomatizacion
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisparoAutomatizacion {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .captura(ruta: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .sincro(texto: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .aMano(id: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .reloj
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DisparoAutomatizacion, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .captura(ruta):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(ruta, into: &buf)
+            
+        
+        case let .sincro(texto):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(texto, into: &buf)
+            
+        
+        case let .aMano(id):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(id, into: &buf)
+            
+        
+        case .reloj:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisparoAutomatizacion_lift(_ buf: RustBuffer) throws -> DisparoAutomatizacion {
+    return try FfiConverterTypeDisparoAutomatizacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisparoAutomatizacion_lower(_ value: DisparoAutomatizacion) -> RustBuffer {
+    return FfiConverterTypeDisparoAutomatizacion.lower(value)
 }
 
 
@@ -28934,6 +30277,31 @@ fileprivate struct FfiConverterSequenceTypeArchivoLlegado: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeArgAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = [ArgAutomatizacion]
+
+    public static func write(_ value: [ArgAutomatizacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeArgAutomatizacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ArgAutomatizacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ArgAutomatizacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeArgAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeAvisoMini: FfiConverterRustBuffer {
     typealias SwiftType = [AvisoMini]
 
@@ -29534,6 +30902,31 @@ fileprivate struct FfiConverterSequenceTypeEtiquetaContada: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFichaAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = [FichaAutomatizacion]
+
+    public static func write(_ value: [FichaAutomatizacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFichaAutomatizacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FichaAutomatizacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FichaAutomatizacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFichaAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFichaChat: FfiConverterRustBuffer {
     typealias SwiftType = [FichaChat]
 
@@ -29734,6 +31127,31 @@ fileprivate struct FfiConverterSequenceTypeGrupoPlano: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeHerramientaAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = [HerramientaAutomatizacion]
+
+    public static func write(_ value: [HerramientaAutomatizacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeHerramientaAutomatizacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [HerramientaAutomatizacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [HerramientaAutomatizacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeHerramientaAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHerramientaUsada: FfiConverterRustBuffer {
     typealias SwiftType = [HerramientaUsada]
 
@@ -29851,6 +31269,31 @@ fileprivate struct FfiConverterSequenceTypeImagenDelLienzo: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeImagenDelLienzo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeInformeAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = [InformeAutomatizacion]
+
+    public static func write(_ value: [InformeAutomatizacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeInformeAutomatizacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [InformeAutomatizacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [InformeAutomatizacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeInformeAutomatizacion.read(from: &buf))
         }
         return seq
     }
@@ -30184,6 +31627,56 @@ fileprivate struct FfiConverterSequenceTypeParTxt: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeParamAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = [ParamAutomatizacion]
+
+    public static func write(_ value: [ParamAutomatizacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeParamAutomatizacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ParamAutomatizacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ParamAutomatizacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeParamAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePasoAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = [PasoAutomatizacion]
+
+    public static func write(_ value: [PasoAutomatizacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePasoAutomatizacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PasoAutomatizacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PasoAutomatizacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePasoAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePersonaCompartida: FfiConverterRustBuffer {
     typealias SwiftType = [PersonaCompartida]
 
@@ -30334,6 +31827,31 @@ fileprivate struct FfiConverterSequenceTypeRecordatorioMac: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeRespuestaPaso: FfiConverterRustBuffer {
+    typealias SwiftType = [RespuestaPaso]
+
+    public static func write(_ value: [RespuestaPaso], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRespuestaPaso.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RespuestaPaso] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RespuestaPaso]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRespuestaPaso.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeResultadoBusqueda: FfiConverterRustBuffer {
     typealias SwiftType = [ResultadoBusqueda]
 
@@ -30476,6 +31994,31 @@ fileprivate struct FfiConverterSequenceTypeVistoEnRed: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeVistoEnRed.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeVueltaAutomatizacion: FfiConverterRustBuffer {
+    typealias SwiftType = [VueltaAutomatizacion]
+
+    public static func write(_ value: [VueltaAutomatizacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVueltaAutomatizacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VueltaAutomatizacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VueltaAutomatizacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVueltaAutomatizacion.read(from: &buf))
         }
         return seq
     }
@@ -30910,6 +32453,32 @@ public func iaTurno(ajustes: AjustesIa, peticion: PeticionIa, nucleo: Nucleo?, a
         FfiConverterTypeAppIa_lower(app),
         FfiConverterTypeOyenteIa_lower(oyente),
         FfiConverterTypeCorteIa_lower(corte),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Si un pedido no se puede hacer ahora** porque lo pide el asistente
+ * dentro de un paso de una automatizacion de ese disparador (`al_capturar`,
+ * …; `None` si no corre ninguna): el motivo. Lo usa `HacerPedidos`.
+ */
+public func automatizacionBloqueada(disparador: String?, accion: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_automatizacion_bloqueada(
+        FfiConverterOptionString.lower(disparador),
+        FfiConverterString.lower(accion),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Las acciones que se pueden poner en un paso** (la tabla del asistente,
+ * sin crear automatizaciones ni lo que el Mac aun no hace: lo del chat y
+ * los documentos).
+ */
+public func automatizacionHerramientas() -> [HerramientaAutomatizacion]  {
+    return try!  FfiConverterSequenceTypeHerramientaAutomatizacion.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_automatizacion_herramientas(uniffiCallStatus
     )
 })
 }
@@ -32103,6 +33672,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_ia_turno() != 54407) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_automatizacion_bloqueada() != 6849) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_automatizacion_herramientas() != 54389) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_etiqueta_de_invitacion() != 50993) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -32425,6 +34000,30 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sondear_direccion() != 15525) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizacion_activar() != 27883) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizacion_borrar() != 63677) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizacion_de_receta() != 833) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizacion_guardar() != 51576) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizacion_revisar() != 59985) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizaciones() != 40159) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizaciones_disparar() != 26283) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_automatizaciones_historial() != 57468) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_asegurar_lienzo_de_foto() != 21969) {
@@ -32872,6 +34471,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_appia_leer_texto() != 8155) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_empieza() != 29565) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_confirmar() != 26271) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_pedido() != 61689) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_asistente() != 30055) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_acabo() != 14889) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_busqueda_cancelada() != 55563) {
@@ -33393,6 +35007,7 @@ private let initializationResult: InitializationResult = {
 
     uniffiCallbackInitAppIa()
     uniffiCallbackInitLlaveroApp()
+    uniffiCallbackInitManosAutomatizacion()
     uniffiCallbackInitOyenteIa()
     uniffiCallbackInitTransporteApp()
     uniffiCallbackInitAvanceAligerar()

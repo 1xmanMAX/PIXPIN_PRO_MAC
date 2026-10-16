@@ -53,6 +53,7 @@ pub mod ajustes;
 pub mod aligerar;
 pub mod aparatos;
 pub mod asistente;
+pub mod automatizaciones;
 pub mod burbujas;
 pub mod buscar;
 pub mod chats;
