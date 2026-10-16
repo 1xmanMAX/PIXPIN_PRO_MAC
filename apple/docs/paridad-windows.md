@@ -18,9 +18,9 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Estado | Filas |
 |---|---|
-| completo | 30 |
+| completo | 32 |
 | parcial | 55 |
-| falta | 71 |
+| falta | 69 |
 | no aplica | 6 |
 | interno | 7 |
 
@@ -33,11 +33,12 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
    - Hecho también `direcciones.txt` (A3).
 4. ~~**Los pines no se guardan ni se restauran** entre arranques.~~ Hecho (B1): el mismo `almacen/indice.json` que Windows, filtros, giros, negativo, modo texto, tamaños 1–3, flechas y ⌘T.
    - Quedan las marcas de texto guardadas (resaltar, subrayar) y su ⌘Z.
-5. **El menú del mensaje del chat** ya es el de Windows (B2): etiquetas, responder, copiar, pinear, describir, reenviar, compartir, recordar, hacer lección, renombrar, fijar, abrir con, guardar del buzón y ver comentarios, con sus letras. Faltan anotar encima de una foto, exportar e imprimir un lienzo, unir PDF y la letra de una voz. La caja de escribir ya es la isla de Windows, con su hoja del clip, la lupa (⌘F) y la escala (⌘+ / ⌘− / ⌘0) (B3).
+5. **El menú del mensaje del chat** ya es el de Windows (B2): etiquetas, responder, copiar, pinear, describir, reenviar, compartir, recordar, hacer lección, renombrar, fijar, abrir con, guardar del buzón y ver comentarios, con sus letras. Exportar e imprimir un lienzo ya van por la hoja común (D1). Faltan anotar encima de una foto, unir PDF y la letra de una voz. La caja de escribir ya es la isla de Windows, con su hoja del clip, la lupa (⌘F) y la escala (⌘+ / ⌘− / ⌘0) (B3).
 6. **Tareas casi de solo lectura.**
    - Tareas: falta buscar, mover, editar, y borrar con deshacer.
    - ~~Timeline: no se puede apuntar nada.~~ Hecho (B5).
-7. **Compartir y exportar común**: PDF, PNG, SVG y web, más la ventanita «Salida». No existe.
+7. ~~**Compartir y exportar común**~~ Hecho (D1): la hoja de Windows (HTML, PDF, PNG, JPG, SVG, original, editable, `.pixpin`, texto) para mensajes, lo elegido, proyectos y pines, la ventanita «Salida» y «Abrir con…».
+   - Quedan el PDF anotado y la web de un documento que se lee, Word, enlace y wifi.
 8. ~~**Lectores sin búsqueda.**~~ Hecho (B7): buscar (⌘F, ⌘G / ⇧⌘G, F3), ⌘1…9 y el riel de marcadores, M con su cifra, N negativo, luna/sol oscuro, D avance solo, G ajustes, F2 renombrar, ⌘P, ⇧⌘S, F5 presentar y la tinta al día con el disco (`al_dia`).
    - Falta escuchar en voz alta (`leer_en_voz`, D2).
 9. **Atajos globales configurables.** Hecho (C1): los 27 comandos del catálogo, regiones, silenciar y apps ignoradas, en Ajustes → Atajos. «Dejar pasar el clic» y «restaurar el último pin», hechos con B1. Faltan el esquema `pixpinmax://`, los pedidos y el menú del Dock.
@@ -51,7 +52,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 
 | Módulo Windows | Función | Estado Mac | Archivo(s) Mac | Qué falta |
 |---|---|---|---|---|
-| abrir_con | «Abrir con…» (elegir app) en pines, chat, buscador | falta | K/Chat/Adjuntos.swift (solo app por defecto) | Selector de app con `NSWorkspace` y un aviso claro si falla |
+| abrir_con | «Abrir con…» (elegir app) en pines, chat, buscador | completo | K/Compartir/AbrirCon.swift | D1: las apps del formato (la predeterminada primero, con su icono) y «Otra app…»; si falta el archivo lo dice con su nombre. En el chat, el pin y la Salida |
 | abrir_hoja | Abrir una hoja de proyecto por referencia, sin el chat | parcial | K/Almacen.swift | Abrir desde fuera (intents, grupos, pedidos) |
 | abrir_imagen | Doble clic en una imagen → pin rápido | parcial | K/Pines/GestorPines.swift | Las imágenes no están en `CFBundleDocumentTypes` |
 | al_frente | Qué chat o lienzo está delante para recibir «Enviar a» | parcial | K/Sincro/EnviarA.swift, N/envio.rs | El lienzo nunca se apunta como frente (`FrenteMac::Lienzo`) |
@@ -76,7 +77,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | captura2 | Captura v2: modos, medidas, lupa, «Al chat», anotar | completo | K/Captura/* | Falta verla en verde en la CI |
 | centro_bandeja | Panel rico de la bandeja: estado de sincro, buscador, favoritos, últimas capturas | parcial | APP (MenuBarExtra en forma de menú) | El panel entero |
 | cielo | Fondo cósmico | falta | — | Es un adorno |
-| compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | parcial | K/Lienzo/SacarLienzo.swift, N/editor_exportar.rs | Solo el lienzo: exportar PNG, SVG y PDF (todo, lo elegido o cada marco), copiar como PNG, imprimir con «qué imprimir» y compartir con la hoja del Mac. Falta la hoja común (D1), la página web y lo demás |
+| compartir (ventana, pdf, pdf_anotado, word, web, enlace, exportable) | Hoja de compartir: PDF, PNG, SVG, web, Word, enlace; menú Exportar | parcial | K/Compartir/*, N/compartir.rs, K/Lienzo/SacarLienzo.swift | Hecho (D1): la hoja común con las reglas de Windows (formatos de una página que se esconden, «Qué incluir», el peso de verdad), HTML (la página del móvil, con el `.excalidraw` dentro), PDF, PNG, JPG, SVG, Original(es), Editable, `.pixpin` y Texto; de mensajes (dibujo y cada marco, foto, PDF solo, voz, nota), lo elegido, proyectos, pines y ficheros; salidas Compartir (a la Salida), Más… (la hoja del Mac), Guardar como… y Copiar. Falta: el PDF anotado y la web de un documento que se lee (`pdf_anotado`, `documento_web`), las páginas de un Word o un libro, tablas que calculan, Word de una nota, enlace y wifi, lo pixelado tapado en un dibujo del chat, y engancharla en los lectores (`Documentos/*`: `HojaCompartir.abrir(.documento(url), …)`) |
 | conversacion | Grabar una conversación por turnos (teclas 1–9) | falta | K/Voz/* | Todo |
 | croquis3d | Ver los croquis 3D del móvil | falta | K/Planos/VisorModelo3D.swift | Abrir `.croquis.gz` en N/modelos3d.rs |
 | cuenta_atras | Captura con retardo | completo | K/Captura/CuentaAtras.swift, K/Captura/AjustesCaptura.swift | — (Esc la para aunque el foco este en otra app; los segundos de `retardo_captura_s`) |
@@ -156,7 +157,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | recordatorios | «Recuérdame a las 10» y el vigía | completo | N/recordatorios.rs, K/Recordatorios/{Vigia,Avisos}.swift | Sin hilo en Rust: el vigía es de Swift (temporizador de pared + notificación del sistema para la app cerrada). La llamada secreta es E5 |
 | renombrar_doc | F2 para renombrar en el lector | completo | K/Documentos/LectorDocumento.swift, N/documentos/lector.rs | — (el nombre del mensaje si es de un chat; el fichero con sus hermanos si es suelto) |
 | reproductor | Editor de grabaciones | falta | — | Todo |
-| salida | Ventanita «Salida» para arrastrar lo exportado | falta | — | Todo |
+| salida | Ventanita «Salida» para arrastrar lo exportado | completo | K/Compartir/Salida.swift | D1: flotante abajo a la derecha sin robar el foco, una sola que suma arriba, tarjetas con miniatura, tipo y peso, arrastrar una o todas, Copiar, Abrir, Carpeta, Pinear y «Abrir con…»; la usan la hoja y el exportar del lienzo |
 | salto_por_enlace | Abrir el sublienzo de una zona | falta | — | Depende de zona_al_chat (lienzo) |
 | scroll | Captura con scroll | completo | K/Captura/CapturaConScroll.swift | — |
 | sincronizar (pantalla) | Este aparato, tus aparatos, añadir | completo | K/Sincro/VistaSincro.swift, K/Sincro/VistaAparatos.swift, N/aparatos.rs | — |
@@ -200,7 +201,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Enviar fotos con descripción | falta | — | Todo |
 | Caja de soltar flotante | parcial | K/Vistas.swift | Hay soltar sobre el chat |
 | Tarjetas de enlace | falta | — | Todo |
-| Menú del mensaje (menu_v2) | parcial | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs | Hecho (B2): etiquetas ⭐✅⏳💡💰📍, Responder (con la cita en la burbuja y la barra encima de la caja), Copiar, Pinear (fichero o lista de tareas), Añadir/editar descripción, Abrir en el editor de notas, Pasar a texto, Reenviar, Compartir, Recordármelo (horas de Windows y «Elegir la hora…»), Hacer lección (con `deMensaje`), Cambiar el nombre, Fijar arriba (y la barra «Mensaje fijado»), Abrir con…, Aligerar el PDF, Guardar esto, Ver comentarios, Elegir varios, Borrar; la barra de elegidos con Copiar, Compartir, Fijar, Reenviar y Borrar. Falta: Anotar encima y Abrir en lienzo de una foto (**dep. lienzo**, foto anotada), Exportar e Imprimir un lienzo (**D1**), Unir/Devolver al proyecto y «como imágenes» (PDF en el chat), Insertar en nota, Letra, Ver el dibujo entero, Guardar receta (asistente) y la llamada secreta de una voz (**E5**) |
+| Menú del mensaje (menu_v2) | parcial | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs | Hecho (B2): etiquetas ⭐✅⏳💡💰📍, Responder (con la cita en la burbuja y la barra encima de la caja), Copiar, Pinear (fichero o lista de tareas), Añadir/editar descripción, Abrir en el editor de notas, Pasar a texto, Reenviar, Compartir, Recordármelo (horas de Windows y «Elegir la hora…»), Hacer lección (con `deMensaje`), Cambiar el nombre, Fijar arriba (y la barra «Mensaje fijado»), Abrir con… (el común), Exportar… e Imprimir… de un lienzo (la hoja común, D1), Aligerar el PDF, Guardar esto, Ver comentarios, Elegir varios, Borrar; la barra de elegidos con Copiar, Compartir, Fijar, Reenviar y Borrar. Falta: Anotar encima y Abrir en lienzo de una foto (**dep. lienzo**, foto anotada), Unir/Devolver al proyecto y «como imágenes» (PDF en el chat), Insertar en nota, Letra, Ver el dibujo entero, Guardar receta (asistente) y la llamada secreta de una voz (**E5**) |
 | Elegir varios y marcar un tramo | completo | K/Chat/BorrarMensajes.swift | — |
 | Buscar dentro del chat (Ctrl+F) | completo | K/Chat/BuscarEnChat.swift | Hecho (B3): ⌘F con un chat abierto (sin chat, sigue «Buscar en todo»); en todo el chat, no solo lo cargado; filtra las burbujas (texto o lo dicho y nombre del fichero, sin tildes), resalta en las notas, chips de etiqueta, «N resultados · Ver en contexto», ↑/↓ o ⌘G/⇧⌘G entre resultados («3 de 12»), ↩ lo ve en su sitio, Esc apaga |
 | Escala (Ctrl + / − / 0) | parcial | K/Chat/EscalaChat.swift | Hecho (B3): ⌘+ / ⌘− / ⌘0 con los escalones de Windows (75–250 %), su aviso, y se recuerda. Crece el chat (letra, burbujas, fotos, dibujos y la caja); la lista de proyectos y la franja no. Falta la entrada «Escala de la interfaz» del menú de la cabecera (el Mac aún no tiene cabecera del chat) |
@@ -405,7 +406,7 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 | Pronunciar | Espacio mantenido, R, Ctrl+G, ←→, + / −, Esc | — | falta |
 | Conversación | Intro, 1–9, 0, Tab, Esc | — | falta |
 | Editor de la grabación | Espacio, ←→, Intro, Esc | — | falta |
-| Salida | Esc, Ctrl+C, Intro, ↑↓ | — | falta |
+| Salida | Esc, Ctrl+C, Intro, ↑↓ | ⎋, ⌘C, ↩, ↑↓ | completo |
 | Llamada secreta | Intro contesta, Esc cuelga | — | falta |
 | Ajustes | Ctrl+Z; al grabar un atajo, Supr lo quita | ⎋ | parcial |
 
@@ -522,7 +523,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 | # | Tanda | Ficheros |
 |---|---|---|
 | B1 ✅ | **Pines persistentes y sus teclas**: guardar y restaurar al arrancar, «restaurar el último», «cerrar todos» en el menú; 1–3, 5–8, 0, N, R/⇧R, H/V, flechas que mueven, ⌘T clic a través, T y ⇧C del OCR | K/Pines/GestorPines.swift, K/Pines/Pin.swift, K/Pines/BarraPin.swift, nuevo K/Pines/AlmacenPines.swift, APP (menú) |
-| B2 | ✅ **Menú del mensaje** (hecho): etiquetas, Responder, Copiar, Pinear, Describir, Reenviar, Compartir, Fijar, Renombrar, Hacer lección, Recordar, Abrir con, Guardar esto, Ver comentarios; letras R, ⌘C, P, E, N, T, F, L, F2. Queda Anotar encima (dep. lienzo), Exportar/Imprimir un lienzo (D1), Unir PDF, Letra | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs (`cambiar_mensaje`, `reenviar_mensajes`), N/lecciones.rs (`leccion_de_mensaje`) |
+| B2 | ✅ **Menú del mensaje** (hecho): etiquetas, Responder, Copiar, Pinear, Describir, Reenviar, Compartir, Fijar, Renombrar, Hacer lección, Recordar, Abrir con, Guardar esto, Ver comentarios; letras R, ⌘C, P, E, N, T, F, L, F2. Queda Anotar encima (dep. lienzo), Unir PDF, Letra (Exportar/Imprimir un lienzo, hecho en D1) | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs (`cambiar_mensaje`, `reenviar_mensajes`), N/lecciones.rs (`leccion_de_mensaje`) |
 | B3 | ✅ **Caja del chat y la hoja «+»** (hecho; quedan las 5 entradas apagadas de la hoja y la escala de la lista): ⇧↩ para el salto de línea, Esc limpia, hoja «+» con todas las entradas, buscar dentro del chat (⌘F), escala ⌘+ / − / 0 | K/Vistas.swift, K/Chat/CajaEscribir.swift, K/Chat/HojaAdjuntar.swift, K/Chat/BuscarEnChat.swift, K/Chat/EscalaChat.swift |
 | B4 | **Tareas editables**: buscar, «Mover a…», borrar con deshacer, F2 para editar, pegar imágenes, ver y poner `⏰`, teclado | K/Tareas/Tareas.swift, N/tareas.rs (**después de A4** o junto a él en `⏰`) |
 | B5 | ~~**Timeline editable**~~ Hecho: apuntar texto, foto y voz; pestañas ⌘1…4; ↑ corrige el último; buscar; «Momentos», «Calendario», lecciones; exportar HTML/PDF | K/Timeline/*, N/timeline.rs |
@@ -544,7 +545,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 
 | # | Tanda | Ficheros |
 |---|---|---|
-| D1 | **Compartir y exportar común**: hoja (PDF, PNG, JPG, SVG, HTML) con `NSSharingServicePicker`, ventanita «Salida», «Abrir con…»; engancharla al pin, al lector y al chat (el lienzo, **dep. lienzo**) | nuevo K/Compartir/{HojaCompartir,Salida,AbrirCon}.swift, N/compartir.rs (si hace falta `pixpin-pdf`) |
+| D1 | ✅ **Compartir y exportar común** (hecho): la hoja (HTML, PDF, PNG, JPG, SVG, original, editable, `.pixpin`, texto) con la hoja del Mac en «Más…», la ventanita «Salida» y «Abrir con…»; enganchada al chat (mensaje, lo elegido, Exportar/Imprimir de un lienzo), a los proyectos, al pin y al exportar del lienzo. Queda engancharla en los lectores (`Documentos/*`), el PDF anotado y la web de un documento, Word, enlace y wifi | K/Compartir/{Compartible,PreparadoCompartir,PrepararCompartir,HojaCompartir,Salida,AbrirCon}.swift, N/compartir.rs |
 | D2 | **Leer en voz**: `AVSpeechSynthesizer`, resaltar por dónde va, `MPRemoteCommandCenter`, L en el lector | nuevo K/Voz/LeerEnVoz.swift, K/Documentos/LectorDocumento.swift (solo la tecla L, **después de B7**) |
 | D3 | **Audio**: reproductor global (velocidad, ±saltos, barra de lo que suena), biblioteca de audio, micrófono flotante con hora | K/Voz/ReproductorVoz.swift, K/Voz/VistasVoz.swift, nuevo K/Voz/BibliotecaAudio.swift |
 | D4 | **Notas Markdown**: atajos de formato, fotos en la nota, comentarios (`.comentarios.json`, viajan) | K/Documentos/EditorNota.swift, N/notas.rs |
