@@ -269,7 +269,20 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         luego como mucho cada hora con un solo `NSBackgroundActivityScheduler` tolerante; lo
         que se va lo decide Rust con las reglas de Windows (`Nucleo::capturas_caducadas`),
         Swift lo mueve con `FileManager.trashItem` y Rust olvida lo que ya no esta
-        (`olvidar_capturas_ausentes`). El plazo es el de `pixpinmax.toml`.
+        (`olvidar_capturas_ausentes`). El plazo es el de `pixpinmax.toml`. Las que se van
+        en las próximas 24 h se avisan una vez (`capturas_por_avisar`) con «Conservar» y
+        «Abrir» (una) o «Ver la galería» (varias).
+  - [x] Recordatorios (`Recordatorios/`, A4): `recuerdaEn` de los mensajes y `⏰ AAAA-MM-DD
+        HH:MM` de las tareas, los mismos campos que Windows y el móvil; Rust dice qué hay
+        puesto en todos los chats (`Nucleo::recordatorios`) y escribe al sonar
+        (`olvidar_recordatorio`, `volver_a_recordar`, `poner_hora_tarea`,
+        `tachar_tarea_recordada`). El vigía es de Swift: un temporizador de pared al próximo,
+        relee al arrancar, tras sincronizar y al cambiar algo aquí, y deja cada uno también
+        como notificación del sistema para la app cerrada. Al sonar, una ventanita con
+        «Hecha», «+10 min» y «Abrir». La ventana de Tareas enseña y pone el `⏰`.
+  - [x] Avisos comunes (`Avisos/CentroAvisos.swift`, C4): un solo delegado de
+        `UNUserNotificationCenter`, categorías con sus `UNNotificationAction`, permiso pedido
+        sin esperar y, sin él, la ventanita de la app con los mismos botones.
   - [x] Buscar → «Abrir en Proyectos» abre el chat en la pagina del mensaje (centrada en el,
         `Almacen.abrir(chat:en:)`), lo marca y se desplaza hasta el; lo de antes y lo de
         despues se pide al subir o bajar.
