@@ -30,11 +30,16 @@ zip = { version = "2.2", default-features = false, features = ["deflate"] }
 # su motor y se escriben con su escritor de Excalidraw: un solo componente.
 # Es Rust puro (serde), sin ventanas.
 pixpin-motor2d = { path = "../pixpin-motor2d" }
+# Los tiradores del editor (`Tirador`), para escalar con la misma
+# operacion que el raton (`edicion::hacer`). Sin dependencias.
+pixpin-geom = { path = "../pixpin-geom" }
 # Leer la ecuacion en LaTeX o a mano (`formulas::leer`, el de las notas, el
 # mismo que el de Android): asi el lienzo entiende lo mismo que las notas.
-# Antes venia de `pixpin-notas` (el editor con RichEdit, solo Windows); la
-# parte pura vive ahora en `pixpin-docs`, que no anade nada al arbol.
-pixpin-docs = { path = "../pixpin-docs" }
+# En Windows viene de `pixpin-notas` (el editor con RichEdit, solo Windows);
+# aqui la parte pura vive en `pixpin-docs` (`formulas.rs`, copia exacta del
+# de `pixpin-notas`). Se llama `pixpin-notas` para que el codigo sea el
+# mismo que el de Windows (`pixpin_notas::formulas`).
+pixpin-notas = { package = "pixpin-docs", path = "../pixpin-docs" }
 # Leer el SVG de las ilustraciones (`svg.rs`). Ya esta en el arbol por
 # pixpin-bim; no carga DTD ni entidades (nada de bombas de XML).
 roxmltree = "0.20"
@@ -59,11 +64,14 @@ windows = { version = "0.62.2", features = [
 ] }
 
 [dev-dependencies]
+# Solo en pruebas: el PDF de vectores de lo dibujado en el banco y el PNG de
+# las tiras. En Windows el PDF se pasa a pixeles con Windows.Data.Pdf
+# (`pixpin-shell` para el COM del hilo); aqui no hay quien lo pinte (en Apple
+# lo hace PDFKit desde Swift), asi que el banco no guarda las imagenes.
+pixpin-pdf = { path = "../pixpin-pdf" }
+pixpin-codec = { path = "../pixpin-codec" }
 # Solo en pruebas: leer las imagenes de muestra del banco y del calcado.
 image = { version = "0.25.9", default-features = false, features = ["png", "jpeg"] }
-
-# El banco pintaba a PNG lo dibujado con pixpin-pdf + pixpin-shell +
-# pixpin-codec (PDF de vectores -> pixeles de Windows). Esos crates no estan
-# en este espacio de trabajo (y cargo lee los manifiestos de todas las
-# dependencias, tambien las de `cfg(windows)`), asi que aqui el banco no
-# guarda PNG: se hace con la copia de Windows (`crates/pixpin-ia`).
+# El OCR de Windows (`pixpin-ocr`) que la app pega al mensaje de la foto de
+# un problema no esta en este espacio de trabajo: el banco se lo salta (en
+# Apple el OCR es Vision, desde Swift).

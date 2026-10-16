@@ -69,6 +69,10 @@ pub const FUNCION: &str = crate::funciones::NOMBRE;
 pub const ECUACION: &str = crate::ecuacion::NOMBRE;
 pub const CRONOGRAMA: &str = crate::cronograma::NOMBRE;
 pub const FIGURAS: &str = crate::figuras::NOMBRE;
+/// Para estudiantes (14-oct): diagramas de fisica de una tabla de
+/// plantillas y problemas pasados en limpio.
+pub const FISICA: &str = crate::fisica::NOMBRE;
+pub const PROBLEMA: &str = crate::problema::NOMBRE;
 
 /// Cuantos numeros como mucho en los `puntos` de una figura.
 pub const MAX_NUMEROS_PUNTOS: usize = 240;
@@ -79,8 +83,54 @@ pub const MAX_NUMEROS_PUNTOS: usize = 240;
 /// vienen a cuento en cada turno (un 2B se pierde con 30).
 pub fn catalogo() -> Vec<Herramienta> {
     let mut c = catalogo_base();
+    // Editar lo que ya hay en el lienzo (`edicion.rs`, tabla propia).
+    c.extend(crate::edicion::herramientas());
     c.extend(crate::acciones::herramientas());
     c
+}
+
+/// **Lo que la nube sabe de mas** (banco del 15-oct): la tabla y el
+/// paralelogramo de `dibujar_en_lienzo`, y que herramienta va con «pasa en
+/// limpio el problema» y con «haz una tabla». Solo para los motores de la
+/// nube (`agente`, con `catalogo_completo`): el local sigue con el catalogo
+/// de siempre, byte a byte (decision del usuario: al local no se le toca).
+/// Fijo para la misma entrada, que el catalogo es prefijo de la cache.
+pub fn para_la_nube(lista: &mut [Herramienta]) {
+    for h in lista.iter_mut() {
+        let extra = match h.nombre.as_str() {
+            DIBUJAR => {
+                if let Some(t) = h.parametros.pointer_mut("/properties/elementos/items/properties/tipo/enum").and_then(Value::as_array_mut) {
+                    for nuevo in ["paralelogramo", "tabla"] {
+                        if !t.iter().any(|v| v == nuevo) {
+                            t.push(json!(nuevo));
+                        }
+                    }
+                }
+                if let Some(p) = h.parametros.pointer_mut("/properties/elementos/items/properties").and_then(Value::as_object_mut) {
+                    p.insert(
+                        "filas".into(),
+                        json!({"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "description": "tabla: filas de celdas, la primera es la cabecera"}),
+                    );
+                    p.insert("rugosidad".into(), json!({"type": "number", "description": "0 trazo exacto (geometria, planos), 1 a mano"}));
+                }
+                "Tambien: tabla (con «x», «y» y «filas»:[[\"Planeta\",\"UA\"],[\"Mercurio\",\"0.39\"]], la primera fila es la cabecera; es LA forma de hacer una tabla en el lienzo, no una nota) \
+                 y paralelogramo (con «caja»). En un diagrama de flujo: inicio/fin elipse, proceso rectangulo, decision rombo, leer/escribir paralelogramo. \
+                 En geometria, fisica o planos pon «rugosidad»:0 en cada figura (la circunferencia exacta, no a mano), calcula las coordenadas de verdad \
+                 (centro y radio de una inscrita), y cada punto lleva su letra UNA vez: los textos de al lado no la repiten («incentro», no «I incentro»)."
+            }
+            PROBLEMA => {
+                "Es LA herramienta para «pasa en limpio el problema/ejercicio» (no hoja_a_lienzo). El enunciado SIN las formulas; cada formula entera una sola vez en «ecuaciones» \
+                 (LaTeX: \\frac, \\int_a^b, \\sqrt, matrices con \\begin{bmatrix}, sistemas con \\begin{cases}); incognitas en LaTeX; «figura» SOLO si la foto trae un dibujo \
+                 necesario (triangulo, circuito, plano inclinado), nunca para integrales, matrices o ecuaciones."
+            }
+            "nota_nueva" => "Solo si piden una nota o un apunte: una tabla, un diagrama o una grafica van al lienzo.",
+            crate::hoja::NOMBRE => "NO para pasar en limpio o resolver un problema o ejercicio: eso es problema_en_limpio.",
+            _ => continue,
+        };
+        if !h.descripcion.ends_with(extra) {
+            h.descripcion = format!("{} {extra}", h.descripcion.trim_end());
+        }
+    }
 }
 
 /// Las propias del asistente. Las descripciones son cortas a proposito: cada
@@ -163,6 +213,8 @@ pub fn catalogo_base() -> Vec<Herramienta> {
         crate::funciones::herramienta(),
         crate::ecuacion::herramienta(),
         crate::cronograma::herramienta(),
+        crate::fisica::herramienta(),
+        crate::problema::herramienta(),
         crate::figuras::herramienta(),
         Herramienta {
             nombre: OCR.into(),
@@ -235,17 +287,25 @@ pub enum Llamada {
     Ecuacion(crate::ecuacion::Ecuacion),
     /// Un diagrama de Gantt (`cronograma.rs`).
     Cronograma(crate::cronograma::Cronograma),
+    /// Un diagrama de fisica de su plantilla (`fisica.rs`).
+    Fisica(crate::fisica::Diagrama),
+    /// Un problema pasado en limpio (`problema.rs`).
+    Problema(crate::problema::Problema),
     /// Guardar, poner o listar figuras de la biblioteca (`figuras.rs`): la
     /// ejecuta la app, que sabe donde vive la biblioteca y que hay elegido.
     Figuras(crate::figuras::PedidoFiguras),
     /// Buscar en los documentos y chats del usuario: el ejecutor busca en
     /// su indice (`documentos::Indice`) con el alcance del chat.
     Buscar(crate::documentos::PeticionBusqueda),
+    /// Editar lo que ya hay en el lienzo (`edicion.rs`): el ejecutor la manda
+    /// a quien tiene la escena, que la aplica con `edicion::aplicar`.
+    Editar(crate::edicion::Edicion),
 }
 
 impl Llamada {
     pub fn nombre(&self) -> &'static str {
         match self {
+            Llamada::Editar(e) => e.herramienta,
             Llamada::Dibujar(_) => DIBUJAR,
             Llamada::Grafica(_) => GRAFICA,
             Llamada::Ocr(_) => OCR,
@@ -256,6 +316,8 @@ impl Llamada {
             Llamada::Funciones(_) => FUNCION,
             Llamada::Ecuacion(_) => ECUACION,
             Llamada::Cronograma(_) => CRONOGRAMA,
+            Llamada::Fisica(_) => FISICA,
+            Llamada::Problema(_) => PROBLEMA,
             Llamada::Figuras(_) => FIGURAS,
             Llamada::Buscar(_) => crate::documentos::BUSCAR,
         }
@@ -273,6 +335,8 @@ impl Llamada {
                 | Llamada::Funciones(_)
                 | Llamada::Ecuacion(_)
                 | Llamada::Cronograma(_)
+                | Llamada::Fisica(_)
+                | Llamada::Problema(_)
         )
     }
 }
@@ -297,6 +361,41 @@ pub enum TipoFigura {
     /// El instrumento de graficar (`pixpin-axes` y hermanos), con sus puntos
     /// de la tabla de coordenadas.
     Instrumento,
+    /// **Una tabla en el lienzo** (`tabla_dibujada`, la misma de la hoja al
+    /// lienzo): sus celdas van en `texto`, con tabulador entre celdas y salto
+    /// entre filas. Antes no habia y «haz una tabla» acababa en una nota.
+    Tabla,
+}
+
+/// Las filas de una tabla pedida (`filas` como lista de listas, o un texto
+/// con `|` o tabuladores), en el formato de [`TipoFigura::Tabla`].
+fn filas_de_tabla(o: &Map<String, Value>) -> Option<String> {
+    let celda = |v: &Value| match v {
+        Value::String(s) => s.replace(['\t', '\n'], " ").trim().to_string(),
+        Value::Null => String::new(),
+        otro => otro.to_string(),
+    };
+    let filas: Vec<Vec<String>> = match o.get("filas").or(o.get("celdas")).or(o.get("datos")).or(o.get("texto")) {
+        Some(Value::Array(l)) => l
+            .iter()
+            .filter_map(|f| match f {
+                Value::Array(c) => Some(c.iter().map(celda).collect()),
+                Value::String(s) => Some(s.split(['|', '\t']).map(|c| c.trim().to_string()).collect()),
+                _ => None,
+            })
+            .collect(),
+        Some(Value::String(s)) => s
+            .lines()
+            .map(|l| l.trim().trim_matches('|').split(['|', '\t']).map(|c| c.trim().to_string()).collect::<Vec<_>>())
+            .filter(|f: &Vec<String>| !f.iter().all(|c| c.chars().all(|ch| ch == '-' || ch == ':' || ch == ' ')))
+            .collect(),
+        _ => return None,
+    };
+    let filas: Vec<Vec<String>> = filas.into_iter().filter(|f| f.iter().any(|c| !c.is_empty())).collect();
+    if filas.is_empty() {
+        return None;
+    }
+    Some(filas.iter().map(|f| f.join("\t")).collect::<Vec<_>>().join("\n"))
 }
 
 /// Como se pinta una figura, mas alla de sus colores. `None`: lo de
@@ -498,6 +597,8 @@ pub fn validar(cruda: &LlamadaCruda, conocidas: &[Herramienta]) -> Result<Valida
         FUNCION => Llamada::Funciones(crate::funciones::validar(&args, &mut avisos)?),
         ECUACION => Llamada::Ecuacion(crate::ecuacion::validar(&args, &mut avisos)?),
         CRONOGRAMA => Llamada::Cronograma(crate::cronograma::validar(&args, &mut avisos)?),
+        FISICA => Llamada::Fisica(crate::fisica::validar(&args, &mut avisos)?),
+        PROBLEMA => Llamada::Problema(crate::problema::validar(&args, &mut avisos)?),
         FIGURAS => Llamada::Figuras(crate::figuras::validar(&args)?),
         OCR => Llamada::Ocr(validar_ocr(&args)?),
         CALCAR => Llamada::Calcar(validar_calcar(&args)?),
@@ -507,6 +608,9 @@ pub fn validar(cruda: &LlamadaCruda, conocidas: &[Herramienta]) -> Result<Valida
                 .ok_or_else(|| mal("falta «pregunta»"))?,
         ),
         crate::documentos::BUSCAR => Llamada::Buscar(crate::documentos::herramienta::validar(&args)?),
+        otro if crate::edicion::fila(otro).is_some() => {
+            Llamada::Editar(crate::edicion::validar(crate::edicion::fila(otro).unwrap(), &args)?)
+        }
         otro if crate::acciones::por_nombre(otro).is_some() => {
             Llamada::App(crate::acciones::validar(crate::acciones::por_nombre(otro).unwrap(), &args)?)
         }
@@ -558,7 +662,7 @@ fn texto_en(o: &Map<String, Value>, campo: &str) -> Option<String> {
 const COORD: (f64, f64) = (COORDENADA_MINIMA, COORDENADA_MAXIMA);
 const MEDIDA: (f64, f64) = (1.0, COORDENADA_MAXIMA);
 
-fn validar_dibujo(args: &Map<String, Value>, avisos: &mut Vec<String>) -> Result<Vec<Figura>, ErrorHerramienta> {
+pub(crate) fn validar_dibujo(args: &Map<String, Value>, avisos: &mut Vec<String>) -> Result<Vec<Figura>, ErrorHerramienta> {
     let lista = match args.get("elementos") {
         Some(Value::Array(l)) => l,
         // Un solo elemento suelto, sin la lista: se acepta.
@@ -635,6 +739,7 @@ fn validar_figura(
         "poligono" | "polígono" | "polygon" => TipoFigura::Poligono,
         "lapiz" | "lápiz" | "pencil" | "freedraw" | "mano_alzada" | "trazo" | "grafito" | "boceto" => TipoFigura::Lapiz,
         "punto" | "point" => TipoFigura::Punto,
+        "tabla" | "table" | "cuadro" => TipoFigura::Tabla,
         "instrumento" | "plano" | "plano_cartesiano" | "ejes" | "axes" | "recta" | "recta_numerica" | "espacio" => {
             TipoFigura::Instrumento
         }
@@ -644,6 +749,10 @@ fn validar_figura(
         }
         "estrella" | "star" => {
             forma = Some("estrella");
+            TipoFigura::Poligono
+        }
+        "paralelogramo" | "parallelogram" | "romboide" | "entrada" | "salida" => {
+            forma = Some("paralelogramo");
             TipoFigura::Poligono
         }
         otro => {
@@ -712,15 +821,20 @@ fn validar_figura(
     let y2_ = numero_en(o, "y2", &donde, COORD)?;
     let tam_letra = numero_en(o, "tam_letra", &donde, (6.0, 200.0))?.unwrap_or(24.0);
     // El texto tambien con otro nombre («text», «etiqueta», «contenido»...).
-    let texto = ["texto", "text", "etiqueta", "rotulo", "contenido", "label", "titulo", "valor"]
-        .iter()
-        .find_map(|c| texto_en(o, c))
-        .unwrap_or_default();
+    let texto = if tipo == TipoFigura::Tabla {
+        // La tabla viaja en el texto: celdas con tabulador, filas con salto.
+        filas_de_tabla(o).ok_or_else(|| mal(format!("{donde}: la tabla necesita «filas»: [[\"Nombre\",\"UA\"],[\"Mercurio\",\"0.39\"]]")))?
+    } else {
+        ["texto", "text", "etiqueta", "rotulo", "contenido", "label", "titulo", "valor"]
+            .iter()
+            .find_map(|c| texto_en(o, c))
+            .unwrap_or_default()
+    };
     // Un texto sin texto se acepta aqui: `colores_del_pedido` lo saca de lo
     // que el usuario puso entre comillas («Plan 2026»), que es lo que el 2B
     // olvida (medido 13-oct: tres reintentos seguidos sin el campo). Si no
     // hay de donde sacarlo, el lienzo lo descarta.
-    if texto.chars().count() > MAX_TEXTO {
+    if texto.chars().count() > if tipo == TipoFigura::Tabla { MAX_TEXTO * 8 } else { MAX_TEXTO } {
         return Err(mal(format!("{donde}: el texto pasa de {MAX_TEXTO} caracteres")));
     }
     // Una forma con «puntos» de menos (el 2B pone [x, y] sueltos): se ignoran
@@ -743,7 +857,7 @@ fn validar_figura(
         (None, Some("onda")) if sin_sitio => Some([100.0, 220.0, 600.0, 160.0]),
         (None, _) if sin_sitio && tipo == TipoFigura::Instrumento => Some([240.0, 140.0, 320.0, 320.0]),
         (None, _) if sin_sitio && tipo == TipoFigura::Punto => Some([400.0, 300.0, 1.0, 1.0]),
-        (None, _) if sin_sitio && tipo != TipoFigura::Texto => Some([250.0, 150.0, 300.0, 300.0]),
+        (None, _) if sin_sitio && !matches!(tipo, TipoFigura::Texto | TipoFigura::Tabla) => Some([250.0, 150.0, 300.0, 300.0]),
         (c, _) => c,
     };
     if es_trazo && puntos.is_empty() {
@@ -793,12 +907,12 @@ fn validar_figura(
             None => {
                 let x = match x_ {
                     Some(x) => x,
-                    None if tipo == TipoFigura::Texto => 60.0,
+                    None if matches!(tipo, TipoFigura::Texto | TipoFigura::Tabla) => 60.0,
                     None => return Err(mal(format!("{donde}: falta «x» (o «caja»)"))),
                 };
                 let y = match y_ {
                     Some(y) => y,
-                    None if tipo == TipoFigura::Texto => 40.0,
+                    None if matches!(tipo, TipoFigura::Texto | TipoFigura::Tabla) => 40.0,
                     None => return Err(mal(format!("{donde}: falta «y» (o «caja»)"))),
                 };
                 let (a, h) = if tipo == TipoFigura::Texto {
@@ -1013,6 +1127,11 @@ fn forma_de_caja(forma: &str, [x, y, w, h]: [f64; 4]) -> Vec<(f64, f64)> {
                 (x + t * w, y + h / 2.0 - h / 2.0 * (t * 4.0 * std::f64::consts::PI).sin())
             })
             .collect(),
+        // Paralelogramo (entrada/salida de un diagrama de flujo: «Leer N»).
+        "paralelogramo" => {
+            let s = (w * 0.18).min(h * 0.8);
+            vec![(x + s, y), (x + w, y), (x + w - s, y + h), (x, y + h)]
+        }
         // Triangulo con la punta arriba.
         _ => vec![(x, y + h), (x + w / 2.0, y), (x + w, y + h)],
     }
@@ -1548,7 +1667,7 @@ mod pruebas {
     fn el_catalogo_es_json_de_herramientas_valido() {
         let v: Value = serde_json::from_str(&catalogo_json()).unwrap();
         let lista = v.as_array().unwrap();
-        assert_eq!(lista.len(), 11 + crate::acciones::todas().count());
+        assert_eq!(lista.len(), 13 + crate::edicion::FILAS.len() + crate::acciones::todas().count());
         for h in lista {
             assert_eq!(h["type"], "function");
             assert_eq!(h["function"]["parameters"]["type"], "object");
@@ -1691,5 +1810,24 @@ mod pruebas {
         )
         .unwrap_err();
         assert_eq!(e, ErrorHerramienta::Desconocida("anadir_tarea".into()));
+    }
+    /// El local no cambia (decision del usuario, 15-oct): la tabla y las
+    /// guias de eleccion son solo para la nube.
+    #[test]
+    fn lo_de_la_nube_no_toca_el_catalogo_del_local() {
+        let local = catalogo();
+        let mut nube = catalogo();
+        para_la_nube(&mut nube);
+        let de = |l: &[Herramienta], n: &str| l.iter().find(|h| h.nombre == n).unwrap().clone();
+        let (dl, dn) = (de(&local, DIBUJAR), de(&nube, DIBUJAR));
+        assert!(!dl.descripcion.contains("tabla (con") && !dl.parametros.to_string().contains("\"filas\""));
+        assert!(dn.descripcion.contains("tabla (con") && dn.parametros.to_string().contains("\"filas\""));
+        assert!(dn.parametros.to_string().contains("\"paralelogramo\""));
+        assert!(de(&nube, PROBLEMA).descripcion.contains("no hoja_a_lienzo"));
+        assert!(!de(&local, PROBLEMA).descripcion.contains("no hoja_a_lienzo"));
+        // Dos veces da lo mismo (es prefijo de la cache).
+        let mut otra = nube.clone();
+        para_la_nube(&mut otra);
+        assert_eq!(otra.iter().map(|h| h.descripcion.clone()).collect::<Vec<_>>(), nube.iter().map(|h| h.descripcion.clone()).collect::<Vec<_>>());
     }
 }

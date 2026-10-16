@@ -1659,8 +1659,11 @@ name = "pixpin-ia"
 version = "0.1.0"
 dependencies = [
  "image",
+ "pixpin-codec",
  "pixpin-docs",
+ "pixpin-geom",
  "pixpin-motor2d",
+ "pixpin-pdf",
  "pixpin-voz",
  "roxmltree",
  "serde_json",
