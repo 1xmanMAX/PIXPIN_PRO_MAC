@@ -20,6 +20,14 @@
 //!    `llama-server` deja de generar).
 //! 3. Si no hay ninguno, Swift dice que no hay motor.
 //!
+//! **Con los ajustes `[asistente]`** (D6) el turno va por [`turno::ia_turno`]:
+//! la nube (Claude o DeepSeek, por el HTTPS de Swift: [`transporte`]) con el
+//! local de respaldo, el modelo bajado con su `llama-server` ([`local`]) o
+//! el del usuario; pensar, la hoja de trabajo, el camino rapido y las
+//! acciones de la app como en Windows. Las funciones `llama_local_*` de
+//! aqui son el turno suelto de antes (sin ajustes), que siguen usando las
+//! pruebas y quien no tiene carpeta de datos.
+//!
 //! Todo es bloqueante y sin hilos propios: Swift lo llama desde una `Task`
 //! con prioridad `.utility`.
 
@@ -34,6 +42,10 @@ use pixpin_ia::{ErrorIa, Evento};
 use serde_json::Value;
 
 use crate::ErrorNucleo;
+
+pub mod local;
+pub mod transporte;
+pub mod turno;
 
 /// El puerto de fabrica de `llama-server` (`--port 8080`).
 pub const PUERTO_LLAMA: u16 = 8080;
@@ -58,13 +70,37 @@ pub struct HerramientaUsada {
 }
 
 /// Lo que contesto el motor local en un turno.
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct RespuestaIa {
     pub texto: String,
     pub herramientas: Vec<HerramientaUsada>,
     /// Lo dibujado en el turno, como un `.excalidraw` entero (el formato
     /// que lee el lienzo), o nada si no se dibujo.
     pub lienzo: Option<String>,
+    /// Lo que penso antes de contestar (vacio si no penso).
+    pub pensamiento: String,
+    /// Cuanto penso («Pensó 12 s»), si penso.
+    pub segundos_pensando: Option<f32>,
+    /// Quien contesto («Claude Haiku 5.5», «Qwen3.5 2B (recomendado)»).
+    pub motor: String,
+    /// La hoja de trabajo de la conversacion, reescrita (JSON), para el
+    /// turno siguiente. Vacia si el turno no la lleva.
+    pub hoja: String,
+}
+
+impl RespuestaIa {
+    /// Una respuesta sin pensar ni hoja (los turnos sueltos).
+    pub(crate) fn simple(texto: String, herramientas: Vec<HerramientaUsada>, lienzo: Option<String>, motor: &str) -> RespuestaIa {
+        RespuestaIa {
+            texto,
+            herramientas,
+            lienzo,
+            pensamiento: String::new(),
+            segundos_pensando: None,
+            motor: motor.into(),
+            hoja: String::new(),
+        }
+    }
 }
 
 /// Cada cuanto, como mucho, cruza el texto nuevo a Swift mientras llega.
@@ -80,6 +116,10 @@ pub trait OyenteIa: Send + Sync {
     fn texto(&self, trozo: String);
     /// Se uso una herramienta (con su resultado).
     fn herramienta(&self, usada: HerramientaUsada);
+    /// Un trozo de lo que piensa (la seccion plegable «Pensando…»).
+    fn pensando(&self, trozo: String);
+    /// El modelo empezo a pedir una herramienta («dibujando…»).
+    fn llamando(&self, nombre: String);
 }
 
 /// **Para cortar un turno en vivo** desde otro hilo (el boton «Parar»).
@@ -107,14 +147,14 @@ impl CorteIa {
 }
 
 /// Junta el texto que llega y lo suelta en tandas.
-struct Tanda {
+pub(crate) struct Tanda {
     pendiente: String,
     ultima: Instant,
     cada: Duration,
 }
 
 impl Tanda {
-    fn nueva(cada: Duration) -> Tanda {
+    pub(crate) fn nueva(cada: Duration) -> Tanda {
         Tanda {
             pendiente: String::new(),
             ultima: Instant::now(),
@@ -123,7 +163,7 @@ impl Tanda {
     }
 
     /// Mete texto; devuelve la tanda si ya toca soltarla.
-    fn meter(&mut self, texto: &str) -> Option<String> {
+    pub(crate) fn meter(&mut self, texto: &str) -> Option<String> {
         self.pendiente.push_str(texto);
         if self.pendiente.is_empty() || self.ultima.elapsed() < self.cada {
             return None;
@@ -132,7 +172,7 @@ impl Tanda {
     }
 
     /// Lo que quede, toque o no.
-    fn soltar(&mut self) -> Option<String> {
+    pub(crate) fn soltar(&mut self) -> Option<String> {
         self.ultima = Instant::now();
         (!self.pendiente.is_empty()).then(|| std::mem::take(&mut self.pendiente))
     }
@@ -250,11 +290,7 @@ pub(crate) fn turno_en_vivo(
     cada: Duration,
 ) -> Result<RespuestaIa, ErrorNucleo> {
     if corte.cortado() {
-        return Ok(RespuestaIa {
-            texto: String::new(),
-            herramientas: Vec::new(),
-            lienzo: None,
-        });
+        return Ok(RespuestaIa::simple(String::new(), Vec::new(), None, ""));
     }
     let mut tanda = Tanda::nueva(cada);
     let r = turno_con_eventos(motor, historial, pedido, &mut |e| {
@@ -345,17 +381,13 @@ fn turno_con_eventos(
     })?;
     let lienzo = (!ejecutor.elementos.is_empty())
         .then(|| pixpin_ia::lienzo::documento(std::mem::take(&mut ejecutor.elementos)));
-    Ok(RespuestaIa {
-        texto: fin.texto,
-        herramientas: usadas,
-        lienzo,
-    })
+    Ok(RespuestaIa::simple(fin.texto, usadas, lienzo, ""))
 }
 
 /// El `llama-server` que arranco el usuario (no PixPin): no se lanza ni se
 /// mata, solo se le habla.
-struct LlamaDelUsuario {
-    puerto: u16,
+pub(crate) struct LlamaDelUsuario {
+    pub(crate) puerto: u16,
 }
 
 impl Motor for LlamaDelUsuario {
@@ -412,7 +444,7 @@ impl Ejecutor for EjecutorMac {
 }
 
 #[cfg(test)]
-mod pruebas {
+pub(crate) mod pruebas {
     use super::*;
     use pixpin_ia::herramientas;
     use pixpin_ia::motor::MotorGuionado;
@@ -490,9 +522,11 @@ mod pruebas {
 
     /// Lo que oye Swift, apuntado.
     #[derive(Default)]
-    struct Apunta {
-        tandas: std::sync::Mutex<Vec<String>>,
-        herramientas: std::sync::Mutex<Vec<HerramientaUsada>>,
+    pub(crate) struct Apunta {
+        pub(crate) tandas: std::sync::Mutex<Vec<String>>,
+        pub(crate) herramientas: std::sync::Mutex<Vec<HerramientaUsada>>,
+        pub(crate) pensado: std::sync::Mutex<String>,
+        pub(crate) llamadas: std::sync::Mutex<Vec<String>>,
         /// Si se pone, corta al llegar la primera tanda.
         cortar: Option<Arc<CorteIa>>,
     }
@@ -506,6 +540,12 @@ mod pruebas {
         }
         fn herramienta(&self, usada: HerramientaUsada) {
             self.herramientas.lock().unwrap().push(usada);
+        }
+        fn pensando(&self, trozo: String) {
+            self.pensado.lock().unwrap().push_str(&trozo);
+        }
+        fn llamando(&self, nombre: String) {
+            self.llamadas.lock().unwrap().push(nombre);
         }
     }
 

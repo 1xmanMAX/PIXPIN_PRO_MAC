@@ -20,9 +20,11 @@
 //! un cliente HTTP/1.1 minimo sobre `TcpStream` (el mismo lector que
 //! `llama-server`, [`crate::servidor::LectorHttp`]): sirve para las pruebas
 //! con el servidor falso y para cualquier motor local. `https://` devuelve
-//! un [`Fallo::Red`] claro: en Apple la nube la habla URLSession desde Swift
-//! (TLS, proxy y certificados del sistema), sin meter un TLS propio en el
-//! ejecutable (§4bis del plan de Apple).
+//! un [`Fallo::Red`] claro mientras la app no instale su [`Transporte`]: en
+//! Apple la nube la habla URLSession desde Swift (TLS, proxy y certificados
+//! del sistema), sin meter un TLS propio en el ejecutable (§4bis del plan
+//! de Apple). Con el transporte puesto ([`instalar_transporte`]), el resto
+//! (Claude, DeepSeek, reintentos, «probar») es el mismo codigo que Windows.
 
 #[cfg(windows)]
 use std::ffi::c_void;
@@ -277,9 +279,12 @@ pub fn enviar(p: &Pedido, al_trozo: &mut dyn FnMut(&[u8]) -> Seguir) -> Result<b
 
     let d = partir(p.url).ok_or_else(|| Fallo::Red(format!("direccion no valida: {}", p.url)))?;
     if d.segura {
-        return Err(Fallo::Red(
-            "en este sistema el HTTPS lo hace la app (en Apple, URLSession desde Swift), no el nucleo".into(),
-        ));
+        return match TRANSPORTE.get() {
+            Some(t) => por_transporte(t.as_ref(), p, al_trozo),
+            None => Err(Fallo::Red(
+                "en este sistema el HTTPS lo hace la app (en Apple, URLSession desde Swift), no el nucleo".into(),
+            )),
+        };
     }
     let red = |que: &str, e: std::io::Error| Fallo::Red(format!("{que}: {e}"));
     let direccion = (d.servidor.as_str(), d.puerto)
@@ -353,6 +358,86 @@ pub fn enviar(p: &Pedido, al_trozo: &mut dyn FnMut(&[u8]) -> Seguir) -> Result<b
     Ok(false)
 }
 
+/// Lo que el [`Transporte`] de la app va contando de la respuesta.
+#[cfg(not(windows))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EventoHttp<'a> {
+    /// Llego la cabecera: el codigo y lo que pide esperar (`retry-after`).
+    Estado { codigo: u32, esperar: Option<Duration> },
+    /// Un trozo del cuerpo, tal cual llega.
+    Datos(&'a [u8]),
+}
+
+/// **El HTTPS de la app** (fuera de Windows): en Apple, URLSession desde
+/// Swift (`pixpin-nucleo`, `TransporteApp`). Manda el POST de `p` y va
+/// contando la respuesta a `al_evento` (primero el estado, luego los
+/// trozos); si `al_evento` dice [`Seguir::Parar`], corta la peticion.
+/// `Err`: no se llego a hablar con el servidor (sin red, TLS, tiempo).
+#[cfg(not(windows))]
+pub trait Transporte: Send + Sync {
+    fn enviar(&self, p: &Pedido, al_evento: &mut dyn FnMut(EventoHttp) -> Seguir) -> Result<(), String>;
+}
+
+#[cfg(not(windows))]
+static TRANSPORTE: std::sync::OnceLock<Box<dyn Transporte>> = std::sync::OnceLock::new();
+
+/// **Instala el HTTPS de la app** (una vez por proceso, al arrancar). Otra
+/// vez da error y se queda el primero.
+#[cfg(not(windows))]
+pub fn instalar_transporte(t: Box<dyn Transporte>) -> Result<(), String> {
+    TRANSPORTE.set(t).map_err(|_| "el transporte HTTPS ya estaba instalado".to_string())
+}
+
+/// Si la app ya puso su HTTPS (sin el, la nube no se puede usar aqui).
+#[cfg(not(windows))]
+pub fn hay_transporte() -> bool {
+    TRANSPORTE.get().is_some()
+}
+
+/// El POST por el transporte de la app, con el mismo contrato que el de
+/// WinHTTP: los trozos solo si es 2xx; si no, el principio del cuerpo va en
+/// [`Fallo::Http`].
+#[cfg(not(windows))]
+fn por_transporte(t: &dyn Transporte, p: &Pedido, al_trozo: &mut dyn FnMut(&[u8]) -> Seguir) -> Result<bool, Fallo> {
+    let mut estado: Option<(u32, Option<Duration>)> = None;
+    let mut error: Vec<u8> = Vec::new();
+    let mut parado = false;
+    let r = t.enviar(p, &mut |e| match e {
+        EventoHttp::Estado { codigo, esperar } => {
+            estado = Some((codigo, esperar));
+            Seguir::Si
+        }
+        EventoHttp::Datos(b) => match estado {
+            Some((c, _)) if (200..300).contains(&c) => {
+                if b.is_empty() || al_trozo(b) == Seguir::Si {
+                    Seguir::Si
+                } else {
+                    parado = true;
+                    Seguir::Parar
+                }
+            }
+            _ => {
+                error.extend_from_slice(b);
+                if error.len() > 64 * 1024 { Seguir::Parar } else { Seguir::Si }
+            }
+        },
+    });
+    if parado {
+        return Ok(true);
+    }
+    // Un error de red tras un codigo malo: vale el codigo (dice mas).
+    match (estado, r) {
+        (Some((codigo, esperar)), _) if !(200..300).contains(&codigo) => Err(Fallo::Http {
+            codigo,
+            cuerpo: String::from_utf8_lossy(&error).into_owned(),
+            esperar,
+        }),
+        (_, Err(e)) => Err(Fallo::Red(e)),
+        (None, Ok(())) => Err(Fallo::Red("el servidor no contesto".into())),
+        (Some(_), Ok(())) => Ok(false),
+    }
+}
+
 #[cfg(test)]
 mod pruebas {
     use super::*;
@@ -364,6 +449,62 @@ mod pruebas {
         assert_eq!((d.servidor.as_str(), d.puerto, d.ruta.as_str()), ("api.anthropic.com", 443, "/v1/messages"));
         let d = partir("https://x.y:8443").unwrap();
         assert_eq!((d.puerto, d.ruta.as_str()), (8443, "/"));
+    }
+
+    /// Un transporte falso: contesta lo guionado sin salir a la red.
+    #[cfg(not(windows))]
+    struct Guion {
+        codigo: u32,
+        trozos: Vec<&'static str>,
+        red: Option<&'static str>,
+    }
+
+    #[cfg(not(windows))]
+    impl Transporte for Guion {
+        fn enviar(&self, p: &Pedido, al_evento: &mut dyn FnMut(EventoHttp) -> Seguir) -> Result<(), String> {
+            assert!(p.url.starts_with("https://"));
+            if let Some(e) = self.red {
+                return Err(e.into());
+            }
+            let esperar = (self.codigo == 429).then(|| Duration::from_secs(2));
+            al_evento(EventoHttp::Estado { codigo: self.codigo, esperar });
+            for t in &self.trozos {
+                if al_evento(EventoHttp::Datos(t.as_bytes())) == Seguir::Parar {
+                    break;
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn el_transporte_de_la_app_reparte_trozos_errores_y_cortes() {
+        let p = Pedido { url: "https://api.x/v1", cabeceras: vec![], cuerpo: b"{}" };
+        let mut oido = String::new();
+        let bien = Guion { codigo: 200, trozos: vec!["data: a\n\n", "data: b\n\n"], red: None };
+        let r = por_transporte(&bien, &p, &mut |b| {
+            oido.push_str(std::str::from_utf8(b).unwrap());
+            Seguir::Si
+        });
+        assert_eq!(r, Ok(false));
+        assert_eq!(oido, "data: a\n\ndata: b\n\n");
+        // Parar en el primer trozo corta y lo dice.
+        let mut n = 0;
+        assert_eq!(por_transporte(&bien, &p, &mut |_| { n += 1; Seguir::Parar }), Ok(true));
+        assert_eq!(n, 1);
+        // Un 429 trae su cuerpo y su espera, y no llega como trozo.
+        let lleno = Guion { codigo: 429, trozos: vec![r#"{"error":{"message":"slow"}}"#], red: None };
+        match por_transporte(&lleno, &p, &mut |_| panic!("un error no es un trozo")) {
+            Err(Fallo::Http { codigo: 429, cuerpo, esperar }) => {
+                assert!(cuerpo.contains("slow"));
+                assert_eq!(esperar, Some(Duration::from_secs(2)));
+            }
+            otro => panic!("{otro:?}"),
+        }
+        // Sin red.
+        let sin = Guion { codigo: 0, trozos: vec![], red: Some("sin conexion") };
+        assert_eq!(por_transporte(&sin, &p, &mut |_| Seguir::Si), Err(Fallo::Red("sin conexion".into())));
     }
 
     #[test]
