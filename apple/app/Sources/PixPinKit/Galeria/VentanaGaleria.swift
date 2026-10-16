@@ -468,8 +468,8 @@ struct CeldaCaptura: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             MiniaturaCaptura(url: URL(fileURLWithPath: captura.ruta), esVideo: captura.esVideo)
-                .frame(height: 140)
                 .frame(maxWidth: .infinity)
+                .frame(height: 140)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(alignment: .topTrailing) { InsigniaCaducidad(captura: captura).padding(6) }
                 .overlay(alignment: .topLeading) {
@@ -568,31 +568,43 @@ struct MiniaturaCaptura: View {
     @State private var falta = false
 
     var body: some View {
-        ZStack {
-            Rectangle().fill(Paleta.v2.tarjeta)
-            if let imagen {
-                Image(decorative: imagen, scale: 2)
-                    .resizable()
-                    .interpolation(.medium)
-                    .scaledToFill()
-            } else if esVideo {
+        // La imagen va encima de un rectangulo que toma el tamano que le
+        // den: asi `scaledToFill` no se sale de la celda.
+        Rectangle().fill(Paleta.v2.tarjeta)
+            .overlay {
+                if let imagen {
+                    Image(decorative: imagen, scale: 2)
+                        .resizable()
+                        .interpolation(.medium)
+                        .scaledToFill()
+                }
+            }
+            .overlay { marca }
+            .clipped()
+            .task(id: url) {
+                guard !esVideo else { return }
+                if let hecha = Miniaturas.compartidas.enCache(url, lado: MiniaturaCaptura.lado) {
+                    imagen = hecha
+                    return
+                }
+                let leida = await Miniaturas.compartidas.cargar(url, lado: MiniaturaCaptura.lado)
+                imagen = leida
+                falta = leida == nil
+            }
+    }
+
+    /// Mientras no hay imagen: el icono del video, el de que falta o la
+    /// ruedita.
+    @ViewBuilder
+    private var marca: some View {
+        if imagen == nil {
+            if esVideo {
                 Image(systemName: "film").font(.largeTitle).foregroundStyle(Paleta.v2.gris)
             } else if falta {
                 Image(systemName: "photo.badge.exclamationmark").foregroundStyle(Paleta.v2.gris)
             } else {
                 ProgressView().controlSize(.small)
             }
-        }
-        .clipped()
-        .task(id: url) {
-            guard !esVideo else { return }
-            if let hecha = Miniaturas.compartidas.enCache(url, lado: MiniaturaCaptura.lado) {
-                imagen = hecha
-                return
-            }
-            let leida = await Miniaturas.compartidas.cargar(url, lado: MiniaturaCaptura.lado)
-            imagen = leida
-            falta = leida == nil
         }
     }
 }

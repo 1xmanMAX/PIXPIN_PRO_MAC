@@ -376,16 +376,16 @@ struct MenuExportarTimeline: View {
             Button("Documento PDF…") { exportar(pdf: true) }
             Button("Compartir…") { compartir() }
         } label: {
-            Label("Exportar", systemImage: "square.and.arrow.up")
-                .font(.system(size: 13.5, weight: .medium))
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 15))
                 .foregroundStyle(Paleta.v2.texto)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
         .fixedSize()
-        .padding(.horizontal, 14)
-        .frame(height: 40)
+        .frame(width: 40, height: 40)
         .background(Paleta.v2.caja, in: RoundedRectangle(cornerRadius: 10))
+        .help("Exportar lo que se ve")
         .disabled(modelo.pestana == .lecciones && !modelo.buscando)
     }
 

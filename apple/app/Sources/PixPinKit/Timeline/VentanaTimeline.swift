@@ -27,6 +27,7 @@ public struct VentanaTimeline: View {
                 SegmentosCabecera(ModeloTimeline.Pestana.allCases.map { ($0, $0.rotulo) },
                                   eleccion: Binding(get: { modelo.pestana },
                                                     set: { p in cambiarPestana(p) }))
+                    .fixedSize()
                 MenuExportarTimeline(modelo: modelo)
             }
             contenido
