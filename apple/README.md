@@ -255,6 +255,19 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
         Falta: la tinta de un EPUB (en Windows va por columna reflujada, `anot-<uid>` con su
         `.maqueta`), elegir texto de las hojas de Office con su enlace, y juntar la tinta si
         cambia en el disco con el lector abierto (`lector_pdf/al_dia.rs`).
+  - [x] Hojas de calculo con un solo formato (Windows 01dccd4, 15-oct): `Tabla::leer`
+        tolerante (numeros en celdas y estilos-palabra de un movil o PC viejo se abren; lo que
+        no se entiende vuelve al guardar), la fusion celda a celda del texto-tabla de un
+        mensaje, y las hojas que el movil guardaba solo en `tablas/libro-<id>-<n>.json`: la
+        burbuja del Excel ofrece «Hojas editadas en el móvil» y al guardar pasan a mensajes
+        `MINIAPP` tabla (`pixpin-nucleo/src/hojas.rs`, `hojas/libro.rs`). Falta: el Mac abre
+        solo la primera de esas hojas (las demas salen como burbujas al guardar) y aun no
+        edita un `.xlsx` como libro (Windows `hoja_pin`); ver en un Mac con el xcframework nuevo.
+  - [x] Borrar mensajes del chat como Windows (`Chat/BorrarMensajes.swift`): «Borrar» en rojo
+        en el menu de cada burbuja (⌫ con el menu abierto), «Elegir varios», ⌘-clic y ⇧-clic,
+        barra de elegidos (Escape cancela), pregunta con Cancelar por defecto, sin deshacer;
+        `Almacen.borrar` → `Nucleo::borrar_mensajes` (marca para sincronizar y borra el
+        adjunto). Falta probarlo a mano en la interfaz.
 - [ ] `por-adaptar/` → `nucleo/`:
   - [x] `pixpin-codec` (decodificar con `image`; WIC, vista reducida y portapapeles tras
         `#[cfg(windows)]`; ImageIO y `NSPasteboard` desde Swift).
