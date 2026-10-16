@@ -1,5 +1,5 @@
 // Pruebas de lo que se anadio a la captura para igualar a Windows: medidas
-// y proporciones, repetir la zona, el color de la lupa, anotar y quemar,
+// y proporciones, repetir la zona, el color de la lupa, anotar con el lienzo,
 // el cosido con scroll, el GIF (deduplicar y escribir), la pila, el
 // selector de proyecto y los gestos con Option. Sin pantallas, permisos ni
 // eventos: solo cuentas e imagenes sinteticas.
@@ -112,95 +112,102 @@ final class CapturaMasTests: XCTestCase {
         XCTAssertEqual(ultima.leer(pantalla: 1), CGRect(x: 10, y: 20, width: 300, height: 200))
     }
 
-    // MARK: - Anotar
+    // MARK: - Anotar (con el lienzo)
 
-    func testCogerLaMismaHerramientaDosVecesLaSuelta() {
-        var a = AnotacionCaptura()
-        a.tomar(.flecha)
-        XCTAssertEqual(a.herramienta, .flecha)
-        a.tomar(.flecha)
-        XCTAssertNil(a.herramienta)
+    func testLasTeclas1a5SonHerramientasDelLienzo() {
         XCTAssertEqual(HerramientaAnotar.deTecla("5"), .mosaico)
         XCTAssertNil(HerramientaAnotar.deTecla("6"))
+        // Cada una es una herramienta de verdad de la barra del lienzo.
+        for h in HerramientaAnotar.allCases {
+            XCTAssertNotNil(HerramientaLienzo.con(id: h.delLienzo), h.delLienzo)
+        }
     }
 
-    func testUnRectanguloSeDibujaSeDeshaceYSeRehace() {
-        var a = AnotacionCaptura()
-        a.tomar(.rectangulo)
-        a.ponerColor(3)
-        a.pulsar(CGPoint(x: 50, y: 50))
-        a.mover(CGPoint(x: 10, y: 80))
-        a.soltar(CGPoint(x: 10, y: 80))
-        XCTAssertEqual(a.figuras.count, 1)
-        XCTAssertEqual(a.figuras[0].clase, .rectangulo(CGRect(x: 10, y: 50, width: 40, height: 30)))
-        XCTAssertEqual(a.figuras[0].color, 3)
-        XCTAssertTrue(a.deshacer())
-        XCTAssertTrue(a.figuras.isEmpty)
-        XCTAssertTrue(a.rehacer())
-        XCTAssertEqual(a.figuras.count, 1)
-        // Caso negativo: un clic sin arrastrar no deja un rectangulo.
-        a.pulsar(CGPoint(x: 5, y: 5))
-        a.soltar(CGPoint(x: 5, y: 5))
-        XCTAssertEqual(a.figuras.count, 1)
-        // Sin herramienta, el clic no dibuja.
-        a.tomar(.rectangulo)
-        a.pulsar(CGPoint(x: 1, y: 1))
-        XCTAssertNil(a.enCurso)
+    func testLaBarraDeLaCapturaEsLaDelLienzoSinFigurasNiCompartir() {
+        let b = BotonBarraLienzo.barraDeCaptura
+        XCTAssertFalse(b.contains(.figuras))
+        XCTAssertFalse(b.contains(.grupo(.sacar)))
+        XCTAssertTrue(b.contains(.herramienta("lapiz")))
+        XCTAssertTrue(b.contains(.grupo(.tapar)), "el mosaico, la lupa y el foco")
+        XCTAssertTrue(b.contains(.salir))
+        XCTAssertEqual(b.count, BotonBarraLienzo.barra.count - 2)
     }
 
-    func testElTextoSeEscribeBorraYCierra() {
-        var a = AnotacionCaptura()
-        a.tomar(.texto)
-        a.pulsar(CGPoint(x: 4, y: 4))
-        XCTAssertTrue(a.escribiendo)
-        a.escribir("Hola\n")
-        a.borrarLetra()
-        XCTAssertEqual(a.enCurso?.clase, .texto("Hol", en: CGPoint(x: 4, y: 4)))
-        XCTAssertTrue(a.cerrarTexto())
-        XCTAssertEqual(a.figuras.count, 1)
-        // Caso negativo: un texto vacio no queda.
-        a.pulsar(CGPoint(x: 9, y: 9))
-        XCTAssertTrue(a.cerrarTexto())
-        XCTAssertEqual(a.figuras.count, 1)
-    }
-
-    func testLaFlechaTieneLasAlasDetrasDeLaPunta() {
-        let (i, d) = AnotacionCaptura.alas(desde: .zero, hasta: CGPoint(x: 100, y: 0), grosor: 4)
-        XCTAssertLessThan(i.x, 100)
-        XCTAssertLessThan(d.x, 100)
-        XCTAssertEqual(i.y, -d.y, accuracy: 0.001)
-        XCTAssertNotNil(AnotacionCaptura.camino(de: FiguraAnotada(clase: .flecha(desde: .zero, hasta: CGPoint(x: 9, y: 9)),
-                                                                 color: 0, grosor: 1)))
-        XCTAssertNil(AnotacionCaptura.camino(de: FiguraAnotada(clase: .mosaico(.zero), color: 0, grosor: 1)))
-    }
-
-    func testLoDibujadoEntraEnLaImagenYSinDibujoNoSeCopia() throws {
+    @MainActor
+    func testElAnotadorDejaPasarElRatonHastaQueSeAnota() throws {
         let foto = try XCTUnwrap(imagen(ancho: 40, alto: 40) { _, _ in (255, 255, 255) })
-        XCTAssertTrue(AnotacionCaptura.quemar([], en: foto, escala: 2) === foto, "sin figuras, la misma imagen")
-        // Un rectangulo rojo de 2 a 18 puntos (4 a 36 pixeles a 2x).
-        let f = FiguraAnotada(clase: .rectangulo(CGRect(x: 2, y: 2, width: 16, height: 16)), color: 0, grosor: 1)
-        let hecha = AnotacionCaptura.quemar([f], en: foto, escala: 2)
+        let carpeta = FileManager.default.temporaryDirectory.appendingPathComponent("anotar-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let a = try AnotadorCaptura(recorte: foto, zona: CGRect(x: 100, y: 50, width: 20, height: 20), carpeta: carpeta)
+        XCTAssertEqual(a.marco.frame, CGRect(x: 100, y: 50, width: 20, height: 20))
+        XCTAssertFalse(a.activo)
+        XCTAssertNil(a.marco.hitTest(CGPoint(x: 110, y: 60)), "sin herramienta, el raton es de la captura")
+        a.tomar("rectangulo")
+        XCTAssertTrue(a.activo)
+        XCTAssertNotNil(a.marco.hitTest(CGPoint(x: 110, y: 60)))
+        // La misma otra vez la suelta.
+        a.tomar("rectangulo")
+        XCTAssertEqual(a.modelo.herramienta, "seleccion")
+        XCTAssertFalse(a.activo)
+    }
+
+    @MainActor
+    func testLoDibujadoEntraEnLaImagenYSinDibujoNoHayCopia() throws {
+        let foto = try XCTUnwrap(imagen(ancho: 40, alto: 40) { _, _ in (255, 255, 255) })
+        let carpeta = FileManager.default.temporaryDirectory.appendingPathComponent("anotar-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let a = try AnotadorCaptura(recorte: foto, zona: CGRect(x: 0, y: 0, width: 20, height: 20), carpeta: carpeta)
+        XCTAssertNil(a.imagen(escala: 2), "sin dibujo vale el recorte tal cual")
+        XCTAssertFalse(a.anotado)
+        // Un rectangulo de 2 a 18 puntos (4 a 36 pixeles a 2x), en rojo
+        // (el color de partida de la captura).
+        a.tomar("rectangulo")
+        let ed = a.modelo.editor
+        _ = ed.puntero(fase: .pulsar, x: 2, y: 2, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .mover, x: 18, y: 18, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .soltar, x: 18, y: 18, presion: nil, modificadores: 0, zoom: 1)
+        XCTAssertTrue(a.anotado)
+        let hecha = try XCTUnwrap(a.imagen(escala: 2))
         XCTAssertEqual(hecha.width, 40)
+        XCTAssertEqual(hecha.height, 40)
         let px = try pixeles(hecha)
         let borde = px(4, 20)
-        XCTAssertGreaterThan(borde.0, 200)
+        XCTAssertGreaterThan(borde.0, 180)
         XCTAssertLessThan(borde.1, 120, "el borde es rojo")
         let centro = px(20, 20)
-        XCTAssertEqual(centro.0, 255)
-        XCTAssertEqual(centro.1, 255, "dentro del rectangulo no se pinta")
+        XCTAssertGreaterThan(centro.1, 240, "dentro sigue la foto (sin fondo de relleno)")
+        let esquina = px(1, 1)
+        XCTAssertGreaterThan(esquina.1, 240, "fuera del rectangulo, la foto")
+        XCTAssertTrue(a.deshacer())
+        XCTAssertNil(a.imagen(escala: 2))
     }
 
-    func testElMosaicoTapaSuZonaYNoLaDeFuera() throws {
-        // Un degradado: cada columna de otro gris.
-        let foto = try XCTUnwrap(imagen(ancho: 64, alto: 64) { x, _ in (UInt8(x * 4), UInt8(x * 4), UInt8(x * 4)) })
-        let f = FiguraAnotada(clase: .mosaico(CGRect(x: 0, y: 0, width: 32, height: 64)), color: 0, grosor: 2)
-        let hecha = AnotacionCaptura.quemar([f], en: foto, escala: 1)
-        let px = try pixeles(hecha)
-        // Dentro, dos columnas vecinas del mismo cuadro (16 px) son iguales.
-        XCTAssertEqual(px(1, 10).0, px(2, 10).0)
-        // Fuera, el degradado sigue tal cual.
-        XCTAssertEqual(px(40, 10).0, 160)
-        XCTAssertEqual(px(41, 10).0, 164)
+    func testLasBarrasVanEncimaYDebajoSinPisarse() {
+        let pantalla = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let acc = CGSize(width: 600, height: 44)
+        let her = CGSize(width: 640, height: 44)
+        // Zona en medio: acciones debajo, herramientas encima.
+        let z = CGRect(x: 400, y: 300, width: 500, height: 300)
+        let b = GeometriaCaptura.barras(seleccion: z, acciones: acc, herramientas: her, anchoPanel: 200, limites: pantalla)
+        XCTAssertEqual(b.acciones.maxY, z.minY - 8)
+        XCTAssertEqual(b.herramientas.minY, z.maxY + 8)
+        XCTAssertEqual(b.herramientas.minX, z.minX)
+        XCTAssertEqual(b.panel.x, z.maxX + 8, "el panel, a la derecha (lejos de las acciones)")
+        XCTAssertFalse(b.acciones.intersects(b.herramientas))
+        // La pantalla entera: todo dentro y sin pisarse.
+        let t = GeometriaCaptura.barras(seleccion: pantalla, acciones: acc, herramientas: her, anchoPanel: 200,
+                                        limites: pantalla)
+        XCTAssertTrue(pantalla.contains(t.acciones))
+        XCTAssertTrue(pantalla.contains(t.herramientas))
+        XCTAssertFalse(t.acciones.intersects(t.herramientas))
+        XCTAssertGreaterThanOrEqual(t.panel.x, 8)
+        // Una zona pegada arriba: las herramientas no caben encima y van
+        // dentro, arriba.
+        let arriba = CGRect(x: 400, y: 700, width: 500, height: 200)
+        let u = GeometriaCaptura.barras(seleccion: arriba, acciones: acc, herramientas: her, anchoPanel: 200,
+                                        limites: pantalla)
+        XCTAssertEqual(u.herramientas.maxY, arriba.maxY - 8)
+        XCTAssertFalse(u.acciones.intersects(u.herramientas))
     }
 
     // MARK: - Cosido con scroll

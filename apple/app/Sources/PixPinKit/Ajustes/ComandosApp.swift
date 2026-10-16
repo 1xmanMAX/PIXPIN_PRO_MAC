@@ -34,7 +34,7 @@ public enum ComandosApp {
             }
         }
         atajos.poner(.capturarUltimaRegion) { capturador.capturarUltimaZona() }
-        atajos.poner(.cuentagotas) { Capturador.cuentagotas() }
+        atajos.poner(.cuentagotas) { capturador.capturar(.cuentagotas) }
         atajos.poner(.pinear) { capturador.capturar(.pinear) }
         atajos.poner(.pinearEnVivo) { capturador.capturar(.enVivo) }
         atajos.poner(.pinearPortapapeles) {

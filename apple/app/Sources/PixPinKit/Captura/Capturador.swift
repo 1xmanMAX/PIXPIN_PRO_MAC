@@ -1,7 +1,9 @@
 // Capturar una zona de la pantalla: la foto congelada, elegir la zona y lo
 // que se hace con ella (copiar, pinear, al chat, texto, guardar), anotada
 // encima si se quiere (1-5). Modos `Z V P S G L T`, medidas tecleadas,
-// proporciones, `R` repetir la ultima zona y `C` copiar el color.
+// proporciones, `R` repetir la ultima zona, `C` copiar el color (⇧ sola
+// cambia HEX/RGB), ⌘A la pantalla entera, flechas (⇧ ×10) para mover la
+// zona, Espacio para ver la pantalla en vivo y ⇧⌘S guardar como.
 //
 // Lo que no es de la captura lo hacen otros por los ganchos `alPinear`,
 // `alMandarAlChat` y `alSacarTexto`: si un gancho no esta puesto, su boton
@@ -39,6 +41,9 @@ public enum IntencionCaptura: Sendable {
     case gif
     /// Modo `L`: pin en vivo.
     case enVivo
+    /// El cuentagotas suelto: la lupa sin zona; clic, Intro o `C` copian
+    /// el color y cierran, Esc cierra.
+    case cuentagotas
 }
 
 @MainActor
@@ -84,6 +89,24 @@ public final class Capturador {
     /// Lo que hace Intro: copiar, o grabar si se abrio para grabar.
     private var intro: AccionCaptura = .copiar
     var accionIntro: AccionCaptura { intro }
+    /// El formato del color de la lupa (el de los ajustes al abrir; ⇧
+    /// sola lo cambia mientras dura la captura).
+    private(set) var formatoColor: FormatoColorLupa = .hex
+    /// Espacio: la pantalla en vivo (sin la foto congelada). Al volver, o
+    /// al hacer algo con la zona, se hace otra foto.
+    private(set) var enVivo = false
+    private var refotografiando = false
+    /// Abierta como cuentagotas (sin zona ni barras).
+    var esCuentagotas: Bool { intencion == .cuentagotas }
+
+    /// Donde viven los `.excalidraw` del anotador mientras dura la captura
+    /// (se borra al cerrarla: lo anotado sale como imagen).
+    private(set) var carpetaDeAnotar = Capturador.carpetaNuevaDeAnotar()
+
+    private static func carpetaNuevaDeAnotar() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("pixpin-anotar-\(UUID().uuidString)",
+                                                                     isDirectory: true)
+    }
 
     /// El de la app (el ultimo creado), para quien no lo tiene a mano: la
     /// entrada «Captura» de la hoja del clip del chat.
@@ -123,6 +146,7 @@ public final class Capturador {
         guard !abierta else { return }
         guard PermisoCaptura.asegurar() else { return }
         intro = paraGrabar && alGrabar != nil ? .grabar : .copiar
+        formatoColor = AjustesCaptura.actuales().formatoColor
         self.paraAnotar = paraAnotar
         abriendo = true
         Task { @MainActor in
@@ -147,10 +171,17 @@ public final class Capturador {
         intro = .copiar
         paraAnotar = false
         intencion = .normal
+        enVivo = false
+        refotografiando = false
         for panel in lista {
             vista(de: panel)?.soltar()
             panel.orderOut(nil)
             panel.close()
+        }
+        let carpeta = carpetaDeAnotar
+        carpetaDeAnotar = Capturador.carpetaNuevaDeAnotar()
+        if !lista.isEmpty {
+            Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: carpeta) }
         }
     }
 
@@ -161,9 +192,10 @@ public final class Capturador {
         case .scroll: modo = alScroll != nil ? .scroll : .zona
         case .gif: modo = alGif != nil ? .gif : .zona
         case .enVivo: modo = alPinEnVivo != nil ? .pinEnVivo : .zona
-        case .normal, .copiar, .pinear, .anotar: modo = .zona
+        case .normal, .copiar, .pinear, .anotar, .cuentagotas: modo = .zona
         }
         paneles = fotos.map { PanelCaptura.abrir(foto: $0, ventanas: ventanas, capturador: self) }
+        if esCuentagotas { for v in vistas { v.barraModos?.isHidden = true } }
         // La pantalla donde esta el raton es la que recibe el teclado.
         let raton = NSEvent.mouseLocation
         let principal = paneles.first { $0.frame.contains(raton) } ?? paneles.first
@@ -191,7 +223,7 @@ public final class Capturador {
     /// Si una accion tiene a alguien detras (si no, su boton sale apagado).
     func disponible(_ accion: AccionCaptura) -> Bool {
         switch accion {
-        case .copiar, .guardar, .cerrar: true
+        case .copiar, .guardar, .guardarComo, .cerrar: true
         case .pinear: alPinear != nil
         case .alChat: alMandarAlChat != nil
         case .texto: alSacarTexto != nil
@@ -217,12 +249,38 @@ public final class Capturador {
         let conMando = mods.contains(.command) || mods.contains(.control)
         let letra = (e.charactersIgnoringModifiers ?? "").lowercased()
 
+        // El cuentagotas: solo el color (Intro o C) y salir.
+        if esCuentagotas {
+            switch e.keyCode {
+            case 53: cerrar()
+            case 36, 76: copiarColor(de: vista)
+            default:
+                guard !conMando, letra == "c" else { return false }
+                copiarColor(de: vista)
+            }
+            return true
+        }
+
         switch e.keyCode {
         case 53: // Esc
             cerrar()
             return true
         case 36, 76: // Intro y el Intro del teclado numerico
             if vista.elegida { accion(intro, en: vista) }
+            return true
+        case 49 where !conMando: // Espacio: en vivo o congelada
+            alternarVivo()
+            return true
+        case 123, 124, 125, 126 where !conMando: // flechas: mover la zona
+            guard vista.elegida, !vista.anotada else { return vista.elegida }
+            let paso: CGFloat = mods.contains(.shift) ? 10 : 1
+            let (dx, dy): (CGFloat, CGFloat) = switch e.keyCode {
+            case 123: (-paso, 0)
+            case 124: (paso, 0)
+            case 125: (0, -paso)
+            default: (0, paso)
+            }
+            vista.desplazar(dx: dx, dy: dy)
             return true
         default:
             break
@@ -235,6 +293,13 @@ public final class Capturador {
                 if !hecho { NSSound.beep() }
                 return true
             }
+            // ⌘A: la pantalla entera (la del raton), lista para confirmar.
+            if letra == "a", !mods.contains(.shift) {
+                guard !vista.anotada else { return true }
+                empezo(en: vista)
+                vista.elegirPantalla()
+                return true
+            }
             guard vista.elegida else { return false }
             let accion: AccionCaptura?
             switch letra {
@@ -242,7 +307,7 @@ public final class Capturador {
             case "p": accion = .pinear
             case "m": accion = .alChat
             case "t": accion = .texto
-            case "s": accion = .guardar
+            case "s": accion = mods.contains(.shift) ? .guardarComo : .guardar
             case "g": accion = .grabar
             default: accion = nil
             }
@@ -258,6 +323,8 @@ public final class Capturador {
             vista.tomar(h)
             return true
         }
+        // Con algo dibujado, la zona ya no cambia de modo (como Windows).
+        if vista.anotada { return false }
         switch letra {
         case "z": cambiarModo(.zona, desde: vista)
         case "v": cambiarModo(.ventana, desde: vista)
@@ -269,17 +336,68 @@ public final class Capturador {
         case "r":
             if !vista.repetirUltima() { NSSound.beep() }
         case "c":
-            // El color bajo la lupa, en HEX.
-            guard let c = vista.colorBajoRaton else {
-                NSSound.beep()
-                return true
-            }
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(MedidasCaptura.hex(c.0, c.1, c.2), forType: .string)
+            // El color bajo la lupa, en el formato de la lupa; y se cierra,
+            // como en Windows.
+            guard !vista.elegida else { return false }
+            copiarColor(de: vista)
         default:
             return false
         }
         return true
+    }
+
+    /// Copia el color bajo la lupa de `vista` (en su formato) y cierra.
+    func copiarColor(de vista: VistaCaptura) {
+        guard let c = vista.colorBajoRaton else { return NSSound.beep() }
+        let texto = formatoColor.texto(c.0, c.1, c.2)
+        cerrar()
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(texto, forType: .string)
+    }
+
+    /// ⇧ sola: HEX ↔ RGB en la lupa de todas las pantallas.
+    func cambiarFormatoColor() {
+        formatoColor = formatoColor.siguiente
+        for v in vistas { v.refrescarLupa() }
+    }
+
+    // MARK: - En vivo (Espacio)
+
+    /// Espacio: quita la foto congelada para ver la pantalla en vivo; otra
+    /// vez Espacio hace una foto nueva y vuelve a congelar.
+    func alternarVivo() {
+        guard !refotografiando else { return }
+        if enVivo {
+            refotografiar {}
+        } else {
+            enVivo = true
+            for v in vistas { v.ponerVivo(true) }
+        }
+    }
+
+    /// Una foto nueva de cada pantalla (sin la captura, que es de esta app)
+    /// para las vistas, y luego `despues`. Si falla, sigue la de antes.
+    private func refotografiar(_ despues: @escaping @MainActor () -> Void) {
+        refotografiando = true
+        Task { @MainActor in
+            let fotos = (try? await Instantanea.fotografiarTodas()) ?? []
+            guard self.refotografiando else { return }
+            self.refotografiando = false
+            for v in self.vistas {
+                if let n = v.numeroDePantalla, let f = fotos.first(where: { $0.pantalla.numeroDePantalla == n }) {
+                    v.cambiarFoto(f.imagen)
+                }
+                v.ponerVivo(false)
+            }
+            self.enVivo = false
+            despues()
+        }
+    }
+
+    /// Lo que necesita la foto (hacer algo con la zona, anotar): en vivo,
+    /// primero se congela con una foto nueva.
+    func conFotoCongelada(_ hacer: @escaping @MainActor () -> Void) {
+        if enVivo { refotografiar(hacer) } else if !refotografiando { hacer() }
     }
 
     /// Si un modo tiene a alguien detras (si no, suena y no se cambia).
@@ -365,6 +483,13 @@ public final class Capturador {
             NSSound.beep()
             return
         }
+        if enVivo || refotografiando {
+            conFotoCongelada { [weak self, weak vista] in
+                guard let self, let vista else { return }
+                self.accion(accion, en: vista)
+            }
+            return
+        }
         recordar(vista)
         if accion == .grabar {
             guard let zona = vista.zonaDeGrabacion() else { return }
@@ -384,6 +509,8 @@ public final class Capturador {
             if let alCopiar { alCopiar(recorte, escala) } else { Capturador.copiar(recorte, escala: escala) }
         case .guardar:
             guardar(recorte, escala: escala)
+        case .guardarComo:
+            guardarComo(recorte, escala: escala)
         case .pinear:
             alPinear?(Capturador.suelto(recorte, entera: entera))
         case .alChat:
@@ -437,6 +564,35 @@ public final class Capturador {
             let guardada = ruta
             await MainActor.run { [weak self] in
                 if let guardada { self?.alGuardar?(guardada) } else { NSSound.beep() }
+            }
+        }
+    }
+
+    /// ⇧⌘S: el panel de guardar del Mac, con el nombre de la hora y la
+    /// carpeta de capturas de entrada. La captura ya esta cerrada.
+    private func guardarComo(_ imagen: CGImage, escala: CGFloat) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.nameFieldStringValue = GeometriaCaptura.rutaNueva(en: carpetaDeCapturas, fecha: Date()).lastPathComponent
+        try? FileManager.default.createDirectory(at: carpetaDeCapturas, withIntermediateDirectories: true)
+        panel.directoryURL = carpetaDeCapturas
+        panel.level = .modalPanel
+        NSApp.activate()
+        guard panel.runModal() == .OK, let destino = panel.url else { return }
+        let carpeta = carpetaDeCapturas
+        Task.detached(priority: .utility) { [weak self] in
+            let bien: Bool
+            if let datos = Capturador.codificar(imagen, tipo: .png, escala: escala) {
+                bien = (try? datos.write(to: destino, options: .atomic)) != nil
+            } else {
+                bien = false
+            }
+            await MainActor.run { [weak self] in
+                guard bien else { return NSSound.beep() }
+                // Si quedo en la carpeta de capturas, la galeria la ve.
+                if destino.deletingLastPathComponent().standardizedFileURL == carpeta.standardizedFileURL {
+                    self?.alGuardar?(destino)
+                }
             }
         }
     }

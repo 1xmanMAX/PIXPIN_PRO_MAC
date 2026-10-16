@@ -3,11 +3,10 @@
 //
 // - una zona ya decidida (una region guardada o la ultima) se captura y se
 //   copia sin superposicion, como `scroll::capturar` + la pila de Windows;
-// - el cuentagotas, con el de macOS (`NSColorSampler`: lupa y todo);
+// - el cuentagotas: la captura con `.cuentagotas` (la lupa y nada mas);
 // - «ventana encima»: macOS no deja subir la ventana de otra app por
 //   encima de todo, asi que se hace un pin en vivo de esa ventana, que si
 //   flota encima y se mueve con lo que pase dentro;
-// - la cuenta atras de capturar con retardo;
 // - pinear lo elegido en el Finder (lo pide por Apple Events).
 
 import AppKit
@@ -71,19 +70,8 @@ extension Capturador {
 
     // MARK: Cuentagotas
 
-    /// El cuentagotas de macOS: el color elegido se copia en HEX (como la
-    /// `C` de la captura). Esc lo cancela.
-    public static func cuentagotas() {
-        NSApp.activate()
-        NSColorSampler().show { color in
-            guard let c = color?.usingColorSpace(.sRGB) else { return }
-            let hex = MedidasCaptura.hex(UInt8((c.redComponent * 255).rounded()),
-                                         UInt8((c.greenComponent * 255).rounded()),
-                                         UInt8((c.blueComponent * 255).rounded()))
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(hex, forType: .string)
-        }
-    }
+    // El cuentagotas suelto es la captura abierta como `.cuentagotas`: la
+    // misma lupa, y clic, Intro o `C` copian en el formato de los ajustes.
 
     // MARK: Ventana encima
 
@@ -94,56 +82,7 @@ extension Capturador {
     }
 }
 
-// MARK: - Cuenta atras
-
-/// Los segundos antes de capturar con retardo, grandes en el centro de la
-/// pantalla del raton (sin quitar el foco: el menu que se quiere capturar
-/// sigue abierto). Como la `cuenta_atras` de Windows, de 3.
-@MainActor
-public enum CuentaAtras {
-    private static var panel: NSPanel?
-
-    public static func empezar(segundos: Int = 3, alAcabar: @escaping @MainActor () -> Void) {
-        guard panel == nil else { return }
-        let lado: CGFloat = 120
-        let pantalla = NSScreen.screens.first { $0.frame.contains(NSEvent.mouseLocation) } ?? NSScreen.main
-        guard let pantalla else { return alAcabar() }
-        let marco = CGRect(x: pantalla.frame.midX - lado / 2, y: pantalla.frame.midY - lado / 2,
-                           width: lado, height: lado)
-        let p = NSPanel(contentRect: marco, styleMask: [.borderless, .nonactivatingPanel],
-                        backing: .buffered, defer: false)
-        p.level = .screenSaver
-        p.isOpaque = false
-        p.backgroundColor = .clear
-        p.ignoresMouseEvents = true
-        p.hasShadow = false
-        p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-        let fondo = NSVisualEffectView(frame: CGRect(origin: .zero, size: marco.size))
-        fondo.material = .hudWindow
-        fondo.state = .active
-        fondo.wantsLayer = true
-        fondo.layer?.cornerRadius = 24
-        let numero = NSTextField(labelWithString: "\(segundos)")
-        numero.font = .monospacedDigitSystemFont(ofSize: 64, weight: .semibold)
-        numero.alignment = .center
-        numero.frame = CGRect(x: 0, y: (lado - 80) / 2, width: lado, height: 80)
-        fondo.addSubview(numero)
-        p.contentView = fondo
-        p.orderFrontRegardless()
-        panel = p
-        Task { @MainActor in
-            for s in stride(from: segundos, to: 0, by: -1) {
-                numero.stringValue = "\(s)"
-                try? await Task.sleep(for: .seconds(1))
-            }
-            p.orderOut(nil)
-            panel = nil
-            // Un respiro para que la cuenta no salga en la foto.
-            try? await Task.sleep(for: .milliseconds(80))
-            alAcabar()
-        }
-    }
-}
+// La cuenta atras de capturar con retardo: `CuentaAtras.swift`.
 
 // MARK: - Lo elegido en el Finder
 

@@ -21,6 +21,16 @@ public enum GeometriaCaptura {
         return dentro.isNull ? .zero : dentro
     }
 
+    /// `r` movida `dx`, `dy` sin salirse de `limites` ni cambiar de tamano
+    /// (las flechas de la captura; `deslizar_dentro` de Windows): al llegar
+    /// al borde se queda pegada a el.
+    public static func deslizar(_ r: CGRect, dx: CGFloat, dy: CGFloat, dentroDe limites: CGRect) -> CGRect {
+        guard !r.isEmpty, !limites.isEmpty else { return r }
+        let x = min(max(r.minX + dx, limites.minX), max(limites.maxX - r.width, limites.minX))
+        let y = min(max(r.minY + dy, limites.minY), max(limites.maxY - r.height, limites.minY))
+        return CGRect(x: x, y: y, width: r.width, height: r.height)
+    }
+
     /// Si el raton se ha movido lo bastante para que sea un arrastre.
     public static func esArrastre(desde a: CGPoint, hasta b: CGPoint) -> Bool {
         abs(a.x - b.x) >= arrastreMinimo || abs(a.y - b.y) >= arrastreMinimo
@@ -81,6 +91,49 @@ public enum GeometriaCaptura {
         x = min(x, l.maxX - margen - t.width)
         x = max(x, l.minX + margen)
         return CGPoint(x: x, y: y)
+    }
+
+    /// Donde va cada barra de la zona elegida (puntos de AppKit, origen
+    /// abajo): la de acciones DEBAJO y a la derecha (`posicionBarra`), la
+    /// de anotar ENCIMA y a la izquierda, como en la captura de Windows, y
+    /// el panel de estilo a la derecha de la zona (o a la izquierda, o
+    /// dentro si no cabe). Las dos barras no se pisan: si la de acciones
+    /// tuvo que subir, la de anotar va encima de ella o dentro de la zona.
+    public struct Barras: Equatable {
+        public var acciones: CGRect
+        public var herramientas: CGRect
+        /// La esquina de ARRIBA a la izquierda del panel de estilo.
+        public var panel: CGPoint
+    }
+
+    public static func barras(seleccion s: CGRect, acciones a: CGSize, herramientas h: CGSize,
+                              anchoPanel: CGFloat, limites l: CGRect, margen m: CGFloat = 8) -> Barras {
+        let oa = posicionBarra(seleccion: s, tamBarra: a, limites: l, margen: m)
+        let acciones = CGRect(origin: oa, size: a)
+        func encajarX(_ x: CGFloat, _ ancho: CGFloat) -> CGFloat {
+            max(l.minX + m, min(x, l.maxX - m - ancho))
+        }
+        let x = encajarX(s.minX, h.width)
+        var y = s.maxY + m
+        if acciones.minY >= s.maxY { y = acciones.maxY + m }
+        if y + h.height > l.maxY - m {
+            // Arriba no cabe: dentro de la zona, arriba.
+            y = max(l.minY + m, min(s.maxY, l.maxY) - m - h.height)
+        }
+        var herramientas = CGRect(x: x, y: y, width: h.width, height: h.height)
+        if herramientas.intersects(acciones) {
+            // Las acciones quedaron dentro: la de anotar, debajo de ellas.
+            herramientas.origin.y = max(l.minY + m, acciones.minY - m - h.height)
+        }
+        // A la derecha primero: la barra de acciones crece hacia la
+        // izquierda desde la esquina derecha de la zona, y asi no se pisan.
+        var px = s.maxX + m
+        if px + anchoPanel > l.maxX - m {
+            px = s.minX - m - anchoPanel
+            if px < l.minX + m { px = encajarX(s.maxX - m - anchoPanel, anchoPanel) }
+        }
+        let arriba = min(s.maxY, herramientas.minY > s.maxY - 1 ? s.maxY : herramientas.minY - m, l.maxY - m)
+        return Barras(acciones: acciones, herramientas: herramientas, panel: CGPoint(x: px, y: arriba))
     }
 
     /// Lo que ensena la lupa: un cuadrado de `lado` puntos alrededor de `p`,
