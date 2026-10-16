@@ -1916,6 +1916,13 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
      */
     func contenidoDeTapado(idObjeto: UInt64)  -> ContenidoTapado?
     
+    
+    /**
+     * **La tinta del anotador de pantalla**, resumida: su huella y la caja
+     * de cada trazo (en el mundo del lienzo). Sin texto a medias: quien
+     * llama lo termina antes (`terminar_texto`).
+     */
+    func tintaDePantalla()  -> TintaDePantalla
 }
 /**
  * **Un lienzo abierto para editar.** Se usa desde varios hilos: el puntero
@@ -2402,6 +2409,20 @@ open func teclear(texto: String) -> Bool  {
     uniffi_pixpin_nucleo_fn_method_editorlienzo_teclear(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La tinta del anotador de pantalla**, resumida: su huella y la caja
+     * de cada trazo (en el mundo del lienzo). Sin texto a medias: quien
+     * llama lo termina antes (`terminar_texto`).
+     */
+open func tintaDePantalla() -> TintaDePantalla  {
+    return try!  FfiConverterTypeTintaDePantalla_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_tinta_de_pantalla(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -6297,6 +6318,26 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      */
     func ponerTranscripcion(chat: String, mensaje: String, segmentos: [SegmentoVoz]) throws  -> MensajeChat
     
+    
+    /**
+     * **Guarda una pantalla anotada en «Mensajes guardados»** (creandolo si
+     * no esta): `foto` es el PNG de lo que habia debajo; la tinta es la del
+     * `editor` del anotador, que empieza en `origen_x, origen_y` (puntos del
+     * escritorio) y lleva `escala` pixeles de la foto por punto. Bloqueante
+     * (copia la foto y escribe el lienzo): Swift lo llama fuera del hilo
+     * principal.
+     */
+    func pantallaAnotadaAlChat(foto: String, editor: EditorLienzo, origenX: Float, origenY: Float, escala: Float) throws  -> PantallaAnotada
+    
+    /**
+     * **Pone al dia el lienzo de una pantalla ya guardada** en esta sesion
+     * con la tinta de ahora: ni foto nueva ni mensaje nuevo (la de fondo es
+     * la de la primera vez, sobre la que se dibujo). Lo de antes se marca
+     * borrado, que es lo que le dice al movil «esto se quito». Devuelve
+     * cuantos trazos quedaron. Sin el lienzo, error: no se inventa uno sin
+     * foto. Bloqueante.
+     */
+    func ponerAlDiaPantallaAnotada(guardada: PantallaAnotada, editor: EditorLienzo, origenX: Float, origenY: Float, escala: Float) throws  -> UInt32
 }
 /**
  * **Una carpeta de datos de PixPin abierta**: el objeto con el que trabaja
@@ -7072,6 +7113,50 @@ open func cambiarMensaje(chat: String, id: String, cambio: CambioMensaje)throws 
         FfiConverterString.lower(chat),
         FfiConverterString.lower(id),
         FfiConverterTypeCambioMensaje_lower(cambio),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Guarda una pantalla anotada en «Mensajes guardados»** (creandolo si
+     * no esta): `foto` es el PNG de lo que habia debajo; la tinta es la del
+     * `editor` del anotador, que empieza en `origen_x, origen_y` (puntos del
+     * escritorio) y lleva `escala` pixeles de la foto por punto. Bloqueante
+     * (copia la foto y escribe el lienzo): Swift lo llama fuera del hilo
+     * principal.
+     */
+open func pantallaAnotadaAlChat(foto: String, editor: EditorLienzo, origenX: Float, origenY: Float, escala: Float)throws  -> PantallaAnotada  {
+    return try  FfiConverterTypePantallaAnotada_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_pantalla_anotada_al_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(foto),
+        FfiConverterTypeEditorLienzo_lower(editor),
+        FfiConverterFloat.lower(origenX),
+        FfiConverterFloat.lower(origenY),
+        FfiConverterFloat.lower(escala),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pone al dia el lienzo de una pantalla ya guardada** en esta sesion
+     * con la tinta de ahora: ni foto nueva ni mensaje nuevo (la de fondo es
+     * la de la primera vez, sobre la que se dibujo). Lo de antes se marca
+     * borrado, que es lo que le dice al movil «esto se quito». Devuelve
+     * cuantos trazos quedaron. Sin el lienzo, error: no se inventa uno sin
+     * foto. Bloqueante.
+     */
+open func ponerAlDiaPantallaAnotada(guardada: PantallaAnotada, editor: EditorLienzo, origenX: Float, origenY: Float, escala: Float)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_al_dia_pantalla_anotada(
+            self.uniffiCloneHandle(),
+        FfiConverterTypePantallaAnotada_lower(guardada),
+        FfiConverterTypeEditorLienzo_lower(editor),
+        FfiConverterFloat.lower(origenX),
+        FfiConverterFloat.lower(origenY),
+        FfiConverterFloat.lower(escala),uniffiCallStatus
     )
 })
 }
@@ -34890,6 +34975,208 @@ public func tiemposAuto() -> TiemposAuto  {
 })
 }
 
+/**
+ * Donde quedo una pantalla anotada.
+ */
+public struct PantallaAnotada: Equatable, Hashable {
+    /**
+     * El id de «Mensajes guardados».
+     */
+    public var chat: String
+    /**
+     * El mensaje IMAGEN, ya con su `referencia`.
+     */
+    public var mensaje: MensajeChat
+    /**
+     * El id del lienzo de la foto (`foto-<id del mensaje>`).
+     */
+    public var lienzo: String
+    /**
+     * Cuantos trazos quedaron encima.
+     */
+    public var trazos: UInt32
+    /**
+     * Los pixeles de la foto (la tinta va en ellos al poner al dia).
+     */
+    public var ancho: UInt32
+    public var alto: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El id de «Mensajes guardados».
+         */chat: String, 
+        /**
+         * El mensaje IMAGEN, ya con su `referencia`.
+         */mensaje: MensajeChat, 
+        /**
+         * El id del lienzo de la foto (`foto-<id del mensaje>`).
+         */lienzo: String, 
+        /**
+         * Cuantos trazos quedaron encima.
+         */trazos: UInt32, 
+        /**
+         * Los pixeles de la foto (la tinta va en ellos al poner al dia).
+         */ancho: UInt32, alto: UInt32) {
+        self.chat = chat
+        self.mensaje = mensaje
+        self.lienzo = lienzo
+        self.trazos = trazos
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PantallaAnotada: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePantallaAnotada: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PantallaAnotada {
+        return
+            try PantallaAnotada(
+                chat: FfiConverterString.read(from: &buf), 
+                mensaje: FfiConverterTypeMensajeChat.read(from: &buf), 
+                lienzo: FfiConverterString.read(from: &buf), 
+                trazos: FfiConverterUInt32.read(from: &buf), 
+                ancho: FfiConverterUInt32.read(from: &buf), 
+                alto: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PantallaAnotada, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterTypeMensajeChat.write(value.mensaje, into: &buf)
+        FfiConverterString.write(value.lienzo, into: &buf)
+        FfiConverterUInt32.write(value.trazos, into: &buf)
+        FfiConverterUInt32.write(value.ancho, into: &buf)
+        FfiConverterUInt32.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePantallaAnotada_lift(_ buf: RustBuffer) throws -> PantallaAnotada {
+    return try FfiConverterTypePantallaAnotada.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePantallaAnotada_lower(_ value: PantallaAnotada) -> RustBuffer {
+    return FfiConverterTypePantallaAnotada.lower(value)
+}
+
+
+/**
+ * Lo que Swift necesita saber de la tinta para decidir si guardar y que
+ * trozo de la pantalla.
+ */
+public struct TintaDePantalla: Equatable, Hashable {
+    /**
+     * Una huella de la tinta que se guardaria ([`huella`]); `None` si no
+     * hay nada.
+     */
+    public var huella: UInt64?
+    /**
+     * La caja de cada trazo, en el mundo del anotador (puntos del
+     * escritorio): para saber que pantallas tocan.
+     */
+    public var cajas: [CajaLienzo]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Una huella de la tinta que se guardaria ([`huella`]); `None` si no
+         * hay nada.
+         */huella: UInt64?, 
+        /**
+         * La caja de cada trazo, en el mundo del anotador (puntos del
+         * escritorio): para saber que pantallas tocan.
+         */cajas: [CajaLienzo]) {
+        self.huella = huella
+        self.cajas = cajas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TintaDePantalla: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTintaDePantalla: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TintaDePantalla {
+        return
+            try TintaDePantalla(
+                huella: FfiConverterOptionUInt64.read(from: &buf), 
+                cajas: FfiConverterSequenceTypeCajaLienzo.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TintaDePantalla, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt64.write(value.huella, into: &buf)
+        FfiConverterSequenceTypeCajaLienzo.write(value.cajas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTintaDePantalla_lift(_ buf: RustBuffer) throws -> TintaDePantalla {
+    return try FfiConverterTypeTintaDePantalla.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTintaDePantalla_lower(_ value: TintaDePantalla) -> RustBuffer {
+    return FfiConverterTypeTintaDePantalla.lower(value)
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCajaLienzo: FfiConverterRustBuffer {
+    typealias SwiftType = [CajaLienzo]
+
+    public static func write(_ value: [CajaLienzo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCajaLienzo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CajaLienzo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CajaLienzo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCajaLienzo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 private enum InitializationResult {
     case ok
     case contractVersionMismatch
@@ -36404,6 +36691,15 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitDecidirOferta()
     uniffiCallbackInitElegirSincro()
     uniffiCallbackInitMedidorLetras()
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_pantalla_anotada_al_chat() != 36137) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_al_dia_pantalla_anotada() != 64257) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_tinta_de_pantalla() != 708) {
+        return InitializationResult.apiChecksumMismatch
+    }
     return InitializationResult.ok
 }()
 

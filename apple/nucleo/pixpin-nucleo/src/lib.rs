@@ -51,6 +51,7 @@ uniffi::setup_scaffolding!();
 pub mod adjuntos;
 pub mod ajustes;
 pub mod aligerar;
+pub mod anotador_al_chat;
 pub mod aparatos;
 pub mod asistente;
 pub mod automatizaciones;
