@@ -13,6 +13,13 @@
 //!   `galeriajunta`, `damecaptura`, `poncaptura`): las capturas pasan con su
 //!   fecha y se van el mismo dia en todos ([`crate::galeria_sincro`]).
 //! - «Lo mio manda» si esta encendido en `pixpinmax.toml`.
+//! - **Los proyectos borrados** (lapidas): como Windows, sin preguntar
+//!   («con todos», la automatica) no se borra ningun proyecto, se avisa; y
+//!   **preguntando** ([`Nucleo::sincronizar_preguntando`], «¿Qué
+//!   sincronizar?») lo borrado en el otro se borra aqui si se deja marcado
+//!   y lo borrado aqui ([`Nucleo::borrar_proyecto`]) se borra alli.
+//! - **Las tareas al instante** ([`Nucleo::sincronizar_tareas`]): solo sus
+//!   chats, sin galeria (`vuelta::solo_estos`).
 //!
 //! Y la [`Escucha`] contesta, como `responder` de Windows: la sonda, quien se
 //! une al grupo, una vuelta (con galeria), **un archivo suelto** al chat o
@@ -70,13 +77,131 @@ pub struct ResumenSincro {
     /// se quitaron aqui porque se quitaron a mano en el otro.
     pub capturas: u64,
     pub capturas_tiradas: u64,
+    /// Mensajes borrados aqui o alli por la vuelta.
+    pub borrados: u64,
+    /// **Lo que cambio en los dos lados y se junto** (`Hecho::fusionados`).
+    /// Una vuelta que solo junta no trae nada nuevo, pero cambia lo que se
+    /// ve: tambien cuenta para releer la lista ([`ResumenSincro::trajo`]).
+    pub fusionados: u64,
     /// Bytes que pasaron por la red.
     pub bytes: u64,
     pub segundos: f64,
     /// La frase de lo hecho, como la ensena Windows.
     pub texto: String,
-    /// Los avisos del final (reloj desfasado, lo que no se pudo...).
+    /// Los avisos del final: lo rescatado y lo ahorrado
+    /// (`avisos_de_lo_hecho`), lo que quedo sin decidir de los proyectos
+    /// borrados, el reloj desfasado...
     pub avisos: Vec<String>,
+    /// **Si hay que releer la lista**: llego algo, se junto algo o se borro
+    /// algo (`trajo` de Windows: `traidos > 0 || fusionados > 0`, mas lo
+    /// que el Mac ya miraba: los archivos y lo borrado).
+    pub trajo: bool,
+    /// Se cancelo en «¿Que sincronizar?»: no se hizo nada.
+    pub cancelada: bool,
+}
+
+/// Una fila de «¿Que sincronizar?» (`vuelta::Fila`), ya con lo que se lee
+/// debajo del nombre en cada pestana.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct FilaElegir {
+    /// El id del chat como viaja (no la ficha de este aparato).
+    pub id: String,
+    pub nombre: String,
+    /// Si esta en este aparato y si esta en el otro.
+    pub aqui: bool,
+    pub alli: bool,
+    /// Lo que se lee en la pestana de este aparato («Más reciente»,
+    /// «Solo aquí · se copiará a…») y si va en verde.
+    pub estado_aqui: String,
+    pub reciente_aqui: bool,
+    /// Y en la del otro.
+    pub estado_alli: String,
+    pub reciente_alli: bool,
+    /// Como empieza la casilla: lo elegido la ultima vez con ese aparato.
+    pub marcado: bool,
+    /// **Borrado en el otro** y aqui sin tocar desde entonces: si se deja
+    /// marcado, la vuelta lo borra AQUI (con copia, a la papelera). Empieza
+    /// sin marcar.
+    pub se_borra_aqui: bool,
+}
+
+/// Lo que se le pregunta al usuario antes de una vuelta (`vuelta::Pregunta`).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct PreguntaSincro {
+    /// El nombre del otro aparato y el de este (las dos pestanas).
+    pub otro: String,
+    pub yo: String,
+    pub filas: Vec<FilaElegir>,
+    /// Los nombres de lo que se borrara en el otro porque se borro aqui.
+    pub se_borran_alli: Vec<String>,
+    /// Como empieza el interruptor «Juntar / Lo mío manda».
+    pub lo_mio_manda: bool,
+}
+
+/// Lo que contesta el usuario (`vuelta::Eleccion`).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct EleccionSincro {
+    /// Los ids de [`FilaElegir::id`] marcados.
+    pub elegidos: Vec<String>,
+    pub lo_mio_manda: bool,
+}
+
+/// **Quien contesta «¿Que sincronizar?»**: Swift ensena la lista y devuelve
+/// lo marcado, o `None` si se cancela. Se llama desde el hilo de la vuelta,
+/// que se queda esperando: puede tardar lo que tarde el usuario.
+#[uniffi::export(callback_interface)]
+pub trait ElegirSincro: Send + Sync {
+    fn elegir(&self, pregunta: PreguntaSincro) -> Option<EleccionSincro>;
+}
+
+/// Que chats entran en una vuelta (`Alcance` de Windows).
+enum Alcance<'a> {
+    /// Se pregunta en «¿Que sincronizar?».
+    Preguntar(&'a dyn ElegirSincro),
+    /// Lo elegido la ultima vez con ese aparato («con todos», la automatica).
+    ComoSiempre,
+    /// Solo estos chats (ids como viajan): las tareas al instante.
+    Solo(std::collections::BTreeSet<String>),
+}
+
+/// La pregunta del crate, con los textos de cada pestana, para Swift.
+fn pregunta_para_swift(p: &vuelta::Pregunta, otro: &str, yo: &str) -> PreguntaSincro {
+    let filas = p
+        .filas
+        .iter()
+        .map(|f| {
+            // En la pestana de aqui, «el otro» es el otro aparato; en la
+            // suya, este (como `pintar` de `elegir.rs`).
+            let (estado_aqui, reciente_aqui) = f.estado(true, otro);
+            let (estado_alli, reciente_alli) = f.estado(false, yo);
+            FilaElegir {
+                id: f.id.clone(),
+                nombre: f.nombre.clone(),
+                aqui: f.aqui.is_some(),
+                alli: f.alli.is_some(),
+                estado_aqui,
+                reciente_aqui,
+                estado_alli,
+                reciente_alli,
+                marcado: f.marcado,
+                se_borra_aqui: f.se_borra_aqui,
+            }
+        })
+        .collect();
+    PreguntaSincro {
+        otro: otro.to_string(),
+        yo: yo.to_string(),
+        filas,
+        se_borran_alli: p.se_borran_alli.clone(),
+        lo_mio_manda: p.lo_mio_manda,
+    }
+}
+
+/// Si una vuelta cambio lo que se ve aqui: llego algo, se junto algo
+/// (`fusionados`: una vuelta que solo junta tambien cambia los chats) o se
+/// borro algo.
+pub(crate) fn hecho_trajo(h: &Hecho) -> bool {
+    h.traidos > 0 || h.fusionados > 0 || h.archivos > 0 || h.borrados > 0
 }
 
 /// Un numero uniforme por debajo de `n`, del azar del sistema (como
@@ -335,55 +460,61 @@ impl Nucleo {
     /// IPv6 (con su interfaz si es de enlace local: `fe80::1%en0`) o un
     /// nombre. Bloquea hasta terminar.
     pub fn sincronizar_con(&self, host: String, puerto: u16) -> Result<ResumenSincro, ErrorNucleo> {
-        let inicio = Instant::now();
-        let flujo = conectar(&host, puerto)?;
-        let disco = DiscoPc::nuevo(self.ruta());
-        // Las capturas de este aparato, para la galeria que viaja (antes que
-        // la sesion: tienen que vivir mas que ella).
-        let capturas = CapturasDelMac::nuevas(self.ruta());
-        let mut s = Sesion::conectar(
-            flujo,
-            &disco,
-            false,
-            None,
-            crate::ahora_ms,
-            self.mi_puerto(),
-            nonce()?,
-        )
-        .map_err(|e| explicar(e, &host))?;
-        s.con_galeria(&capturas);
-        // «Lo mio manda»: se lee en cada vuelta, como Windows.
-        if ajustes::cargar(&self.ubicacion())
-            .map(|a| a.sincro.lo_mio_manda)
-            .unwrap_or(false)
-        {
-            s.quien_manda(pixpin_sincro::mezcla::Mando::LoMioManda);
+        self.vuelta_con(&host, puerto, Alcance::ComoSiempre)
+    }
+
+    /// **Una vuelta preguntando que sincronizar** (`lanzar_vuelta` de
+    /// Windows): antes de juntar nada se le pasa a `elegir` la lista de
+    /// chats de los dos, con **lo borrado en el otro** (que solo se borra
+    /// aqui si se deja marcado) y lo borrado aqui (que se borrara alli), y
+    /// el interruptor «Lo mío manda». Si `elegir` devuelve `None` no se hace
+    /// nada y el resumen sale con `cancelada`. Bloquea hasta terminar,
+    /// tambien mientras el usuario decide.
+    pub fn sincronizar_preguntando(
+        &self,
+        host: String,
+        puerto: u16,
+        elegir: Box<dyn ElegirSincro>,
+    ) -> Result<ResumenSincro, ErrorNucleo> {
+        self.vuelta_con(&host, puerto, Alcance::Preguntar(elegir.as_ref()))
+    }
+
+    /// **Las tareas, al instante** (`vuelta::solo_estos`): una vuelta sin
+    /// preguntar y sin galeria **solo con los chats de `fichas`** (las
+    /// carpetas de `proyectos/`, como [`crate::FichaChat::id`]), de lo
+    /// elegido la ultima vez con ese aparato. Es la que sale tras tachar una
+    /// casilla; lo demas lo lleva la vuelta entera de detras.
+    pub fn sincronizar_tareas(
+        &self,
+        host: String,
+        puerto: u16,
+        fichas: Vec<String>,
+    ) -> Result<ResumenSincro, ErrorNucleo> {
+        let chats: std::collections::BTreeSet<String> = fichas
+            .iter()
+            .filter_map(|f| pixpin_proyecto::vista::chat_de_ficha(self.ruta(), f))
+            .collect();
+        if chats.is_empty() {
+            return Err(ErrorNucleo::Argumento {
+                detalle: "ninguna de esas fichas es un chat que viaje".into(),
+            });
         }
-        let otro = s.otro.clone();
-        let mut hecho = Hecho::default();
-        let r = vuelta::una(&mut s, None, &mut hecho, "", &crate::ahora_ms, &mut |_| {});
-        let bytes = s.enviados() + s.recibidos();
-        if r.is_err() {
-            s.soltar();
-        }
-        drop(s);
-        // Lo que llego cambia los cuadernos: los indices de la cache, fuera.
+        self.vuelta_con(&host, puerto, Alcance::Solo(chats))
+    }
+
+    /// **Borra un proyecto** (a la papelera de PixPin, como «Borrar» de la
+    /// lista de proyectos de Windows) y **deja su lapida**: la proxima
+    /// vuelta lo borra tambien en los demas aparatos (preguntando) en vez de
+    /// traerlo entero otra vez. «Mensajes guardados» no se borra. Devuelve
+    /// si se quito.
+    pub fn borrar_proyecto(&self, ficha: String) -> Result<bool, ErrorNucleo> {
+        let (quitados, _sin_mover) = pixpin_proyecto::almacen::borrar_proyectos(
+            self.ruta(),
+            std::slice::from_ref(&ficha),
+            crate::ahora_ms(),
+        )?;
         self.vaciar_caches();
-        let v = r?;
-        let segundos = inicio.elapsed().as_secs_f64();
-        Ok(ResumenSincro {
-            otro_id: otro.id,
-            otro_nombre: otro.nombre,
-            traidos: hecho.traidos as u64,
-            enviados: hecho.enviados as u64,
-            archivos: hecho.archivos as u64,
-            capturas: hecho.capturas as u64,
-            capturas_tiradas: hecho.capturas_tiradas as u64,
-            bytes,
-            segundos,
-            texto: vuelta::contar_lo_hecho(&hecho, bytes, segundos),
-            avisos: v.avisos,
-        })
+        Ok(quitados > 0)
     }
 
     /// Escucha en `puerto` (0: el que de el sistema; el de siempre es
@@ -407,6 +538,110 @@ impl Nucleo {
 }
 
 impl Nucleo {
+    /// `una_vuelta` de Windows: conecta, saluda, resuelve lo borrado y junta
+    /// lo que diga `alcance`.
+    fn vuelta_con(
+        &self,
+        host: &str,
+        puerto: u16,
+        alcance: Alcance<'_>,
+    ) -> Result<ResumenSincro, ErrorNucleo> {
+        let inicio = Instant::now();
+        let flujo = conectar(host, puerto)?;
+        let disco = DiscoPc::nuevo(self.ruta());
+        // Las capturas de este aparato, para la galeria que viaja (antes que
+        // la sesion: tienen que vivir mas que ella).
+        let capturas = CapturasDelMac::nuevas(self.ruta());
+        let yo = disco
+            .identidad()
+            .map(|i| i.yo.nombre)
+            .ok()
+            .filter(|n| !n.trim().is_empty())
+            .unwrap_or_else(|| "Este Mac".into());
+        let mut s = Sesion::conectar(
+            flujo,
+            &disco,
+            false,
+            None,
+            crate::ahora_ms,
+            self.mi_puerto(),
+            nonce()?,
+        )
+        .map_err(|e| explicar(e, host))?;
+        s.con_galeria(&capturas);
+        // «Lo mio manda»: se lee en cada vuelta, como Windows. Preguntando,
+        // es solo como empieza el interruptor; lo que se elija es lo que vale.
+        if ajustes::cargar(&self.ubicacion())
+            .map(|a| a.sincro.lo_mio_manda)
+            .unwrap_or(false)
+        {
+            s.quien_manda(pixpin_sincro::mezcla::Mando::LoMioManda);
+        }
+        let otro = s.otro.clone();
+        let mut hecho = Hecho::default();
+        let r = match &alcance {
+            Alcance::Preguntar(quien) => {
+                let mut elegir = |o: &Aparato, p: vuelta::Pregunta| {
+                    quien
+                        .elegir(pregunta_para_swift(&p, &o.nombre, &yo))
+                        .map(|e| vuelta::Eleccion {
+                            elegidos: e.elegidos.into_iter().collect(),
+                            lo_mio_manda: e.lo_mio_manda,
+                        })
+                };
+                vuelta::una(
+                    &mut s,
+                    Some(&mut elegir),
+                    &mut hecho,
+                    "",
+                    &crate::ahora_ms,
+                    &mut |_| {},
+                )
+            }
+            Alcance::ComoSiempre => {
+                vuelta::una(&mut s, None, &mut hecho, "", &crate::ahora_ms, &mut |_| {})
+            }
+            Alcance::Solo(chats) => {
+                vuelta::solo_estos(&mut s, chats, &mut hecho, "", &crate::ahora_ms, &mut |_| {})
+            }
+        };
+        let bytes = s.enviados() + s.recibidos();
+        if r.is_err() {
+            s.soltar();
+        }
+        drop(s);
+        // Lo que llego cambia los cuadernos: los indices de la cache, fuera.
+        self.vaciar_caches();
+        let v = r?;
+        let segundos = inicio.elapsed().as_secs_f64();
+        let mut avisos = vuelta::avisos_de_lo_hecho(&hecho);
+        avisos.extend(v.avisos);
+        Ok(ResumenSincro {
+            otro_id: otro.id,
+            otro_nombre: otro.nombre,
+            traidos: hecho.traidos as u64,
+            enviados: hecho.enviados as u64,
+            archivos: hecho.archivos as u64,
+            capturas: hecho.capturas as u64,
+            capturas_tiradas: hecho.capturas_tiradas as u64,
+            borrados: hecho.borrados as u64,
+            fusionados: hecho.fusionados as u64,
+            bytes,
+            segundos,
+            texto: if v.cancelada {
+                String::new()
+            } else {
+                vuelta::contar_lo_hecho(&hecho, bytes, segundos)
+            },
+            avisos,
+            // Preguntando se pudo borrar o levantar un proyecto entero: la
+            // lista se relee siempre.
+            trajo: hecho_trajo(&hecho)
+                || (matches!(alcance, Alcance::Preguntar(_)) && !v.cancelada),
+            cancelada: v.cancelada,
+        })
+    }
+
     /// El puerto de la ultima [`Escucha`] abierta, para decirselo al otro en
     /// el saludo (`hola.puerto`), o 0.
     pub(crate) fn mi_puerto(&self) -> u32 {

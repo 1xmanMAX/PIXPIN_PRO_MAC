@@ -75,6 +75,7 @@ pub mod office;
 pub mod planos;
 pub mod red;
 pub mod sincro;
+pub mod sincro_auto;
 pub mod tareas;
 pub mod timeline;
 pub mod unidades;

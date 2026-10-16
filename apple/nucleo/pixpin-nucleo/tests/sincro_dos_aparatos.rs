@@ -295,7 +295,11 @@ fn de_punta_a_punta(etiqueta: &str, host: &str) {
         .unwrap();
     rectangulo(&ed, (0.0, 200.0), (50.0, 260.0));
     drop(ed);
-    vuelta(&mac, host, puerto, &rx);
+    // Una vuelta que solo junta tambien cuenta como traer algo
+    // (`fusionados`): la lista se relee.
+    let r = mac.sincronizar_con(host.into(), puerto).unwrap();
+    let _ = rx.recv_timeout(Duration::from_secs(20)).unwrap();
+    assert!(r.fusionados > 0 && r.trajo, "{r:?}");
     let junta = "Titulo\n\nPrimero, del PC.\n\nSegundo, del Mac.";
     for n in [&pc, &mac] {
         let t = textos(n, "Obra");

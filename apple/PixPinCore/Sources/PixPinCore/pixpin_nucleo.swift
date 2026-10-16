@@ -4158,6 +4158,15 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func anuncioDePresencia() throws  -> AnuncioBonjour?
     
     /**
+     * **Borra un proyecto** (a la papelera de PixPin, como «Borrar» de la
+     * lista de proyectos de Windows) y **deja su lapida**: la proxima
+     * vuelta lo borra tambien en los demas aparatos (preguntando) en vez de
+     * traerlo entero otra vez. «Mensajes guardados» no se borra. Devuelve
+     * si se quito.
+     */
+    func borrarProyecto(ficha: String) throws  -> Bool
+    
+    /**
      * Crea un grupo nuevo con este aparato dentro (letra `a`) y devuelve su
      * codigo, para ensenarlo y que los demas se unan. Como `crearGrupo` de
      * Android.
@@ -4190,6 +4199,26 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * nombre. Bloquea hasta terminar.
      */
     func sincronizarCon(host: String, puerto: UInt16) throws  -> ResumenSincro
+    
+    /**
+     * **Una vuelta preguntando que sincronizar** (`lanzar_vuelta` de
+     * Windows): antes de juntar nada se le pasa a `elegir` la lista de
+     * chats de los dos, con **lo borrado en el otro** (que solo se borra
+     * aqui si se deja marcado) y lo borrado aqui (que se borrara alli), y
+     * el interruptor «Lo mío manda». Si `elegir` devuelve `None` no se hace
+     * nada y el resumen sale con `cancelada`. Bloquea hasta terminar,
+     * tambien mientras el usuario decide.
+     */
+    func sincronizarPreguntando(host: String, puerto: UInt16, elegir: ElegirSincro) throws  -> ResumenSincro
+    
+    /**
+     * **Las tareas, al instante** (`vuelta::solo_estos`): una vuelta sin
+     * preguntar y sin galeria **solo con los chats de `fichas`** (las
+     * carpetas de `proyectos/`, como [`crate::FichaChat::id`]), de lo
+     * elegido la ultima vez con ese aparato. Es la que sale tras tachar una
+     * casilla; lo demas lo lleva la vuelta entera de detras.
+     */
+    func sincronizarTareas(host: String, puerto: UInt16, fichas: [String]) throws  -> ResumenSincro
     
     /**
      * **Se une al grupo** de otro aparato que escucha en `host:puerto`, con
@@ -5440,6 +5469,23 @@ open func anuncioDePresencia()throws  -> AnuncioBonjour?  {
 }
     
     /**
+     * **Borra un proyecto** (a la papelera de PixPin, como «Borrar» de la
+     * lista de proyectos de Windows) y **deja su lapida**: la proxima
+     * vuelta lo borra tambien en los demas aparatos (preguntando) en vez de
+     * traerlo entero otra vez. «Mensajes guardados» no se borra. Devuelve
+     * si se quito.
+     */
+open func borrarProyecto(ficha: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_borrar_proyecto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ficha),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Crea un grupo nuevo con este aparato dentro (letra `a`) y devuelve su
      * codigo, para ensenarlo y que los demas se unan. Como `crearGrupo` de
      * Android.
@@ -5500,6 +5546,46 @@ open func sincronizarCon(host: String, puerto: UInt16)throws  -> ResumenSincro  
             self.uniffiCloneHandle(),
         FfiConverterString.lower(host),
         FfiConverterUInt16.lower(puerto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Una vuelta preguntando que sincronizar** (`lanzar_vuelta` de
+     * Windows): antes de juntar nada se le pasa a `elegir` la lista de
+     * chats de los dos, con **lo borrado en el otro** (que solo se borra
+     * aqui si se deja marcado) y lo borrado aqui (que se borrara alli), y
+     * el interruptor «Lo mío manda». Si `elegir` devuelve `None` no se hace
+     * nada y el resumen sale con `cancelada`. Bloquea hasta terminar,
+     * tambien mientras el usuario decide.
+     */
+open func sincronizarPreguntando(host: String, puerto: UInt16, elegir: ElegirSincro)throws  -> ResumenSincro  {
+    return try  FfiConverterTypeResumenSincro_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_sincronizar_preguntando(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),
+        FfiConverterCallbackInterfaceElegirSincro_lower(elegir),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las tareas, al instante** (`vuelta::solo_estos`): una vuelta sin
+     * preguntar y sin galeria **solo con los chats de `fichas`** (las
+     * carpetas de `proyectos/`, como [`crate::FichaChat::id`]), de lo
+     * elegido la ultima vez con ese aparato. Es la que sale tras tachar una
+     * casilla; lo demas lo lleva la vuelta entera de detras.
+     */
+open func sincronizarTareas(host: String, puerto: UInt16, fichas: [String])throws  -> ResumenSincro  {
+    return try  FfiConverterTypeResumenSincro_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_sincronizar_tareas(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),
+        FfiConverterSequenceString.lower(fichas),uniffiCallStatus
     )
 })
 }
@@ -6850,6 +6936,293 @@ public func FfiConverterTypePuertaRecibir_lift(_ handle: UInt64) throws -> Puert
 #endif
 public func FfiConverterTypePuertaRecibir_lower(_ value: PuertaRecibir) -> UInt64 {
     return FfiConverterTypePuertaRecibir.lower(value)
+}
+
+
+
+
+
+
+/**
+ * **El [`Reloj`] para Swift**: lo guarda el `Sincronizador` y le pregunta
+ * que toca. Todo es puro y rapido: se puede llamar en el hilo principal.
+ */
+public protocol RelojSincroProtocol: AnyObject, Sendable {
+    
+    /**
+     * Acabo una vuelta entera; `cambios` es la cuenta de avisos de ahora.
+     * Devuelve si hay que avisar del fallo (el tercero seguido, una vez).
+     */
+    func acabo(bien: Bool, cambios: UInt64, ahora: Int64)  -> Bool
+    
+    func avisanTareas(ficha: String, ahora: Int64) 
+    
+    func conQuien()  -> [String]
+    
+    func empezo(ahora: Int64) 
+    
+    func fallosSeguidos()  -> UInt32
+    
+    /**
+     * Ya no esta en la red (se fue de Bonjour): como si no contestara.
+     */
+    func olvidar(id: String) 
+    
+    /**
+     * Ver [`Reloj::proximo`].
+     */
+    func proximoMs(ahora: Int64, corriendo: Bool)  -> Int64?
+    
+    /**
+     * Lo que dijo la sonda de un aparato del grupo.
+     */
+    func responde(id: String, si: Bool) 
+    
+    func siguiente(ahora: Int64, ocupado: Bool)  -> PasoAuto
+    
+    func tomarTareas()  -> [String]
+    
+    /**
+     * La cuenta de avisos de cambio de aqui (`pixpinCambioLocal`), vista
+     * `ahora`: cuando deja de crecer [`QUIETO`] ms, toca la vuelta.
+     */
+    func verCambios(cambios: UInt64, ahora: Int64) 
+    
+}
+/**
+ * **El [`Reloj`] para Swift**: lo guarda el `Sincronizador` y le pregunta
+ * que toca. Todo es puro y rapido: se puede llamar en el hilo principal.
+ */
+open class RelojSincro: RelojSincroProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_relojsincro(self.handle, $0) }
+    }
+public convenience init() {
+    let handle =
+        try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_constructor_relojsincro_new(uniffiCallStatus
+    )
+}
+    self.init(unsafeFromHandle: handle)
+}
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_relojsincro(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * Acabo una vuelta entera; `cambios` es la cuenta de avisos de ahora.
+     * Devuelve si hay que avisar del fallo (el tercero seguido, una vez).
+     */
+open func acabo(bien: Bool, cambios: UInt64, ahora: Int64) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_acabo(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(bien),
+        FfiConverterUInt64.lower(cambios),
+        FfiConverterInt64.lower(ahora),uniffiCallStatus
+    )
+})
+}
+    
+open func avisanTareas(ficha: String, ahora: Int64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_avisan_tareas(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ficha),
+        FfiConverterInt64.lower(ahora),uniffiCallStatus
+    )
+}
+}
+    
+open func conQuien() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_con_quien(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func empezo(ahora: Int64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_empezo(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(ahora),uniffiCallStatus
+    )
+}
+}
+    
+open func fallosSeguidos() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_fallos_seguidos(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Ya no esta en la red (se fue de Bonjour): como si no contestara.
+     */
+open func olvidar(id: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_olvidar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Ver [`Reloj::proximo`].
+     */
+open func proximoMs(ahora: Int64, corriendo: Bool) -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_proximo_ms(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(ahora),
+        FfiConverterBool.lower(corriendo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo que dijo la sonda de un aparato del grupo.
+     */
+open func responde(id: String, si: Bool)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_responde(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterBool.lower(si),uniffiCallStatus
+    )
+}
+}
+    
+open func siguiente(ahora: Int64, ocupado: Bool) -> PasoAuto  {
+    return try!  FfiConverterTypePasoAuto_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_siguiente(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(ahora),
+        FfiConverterBool.lower(ocupado),uniffiCallStatus
+    )
+})
+}
+    
+open func tomarTareas() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_tomar_tareas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La cuenta de avisos de cambio de aqui (`pixpinCambioLocal`), vista
+     * `ahora`: cuando deja de crecer [`QUIETO`] ms, toca la vuelta.
+     */
+open func verCambios(cambios: UInt64, ahora: Int64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojsincro_ver_cambios(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt64.lower(cambios),
+        FfiConverterInt64.lower(ahora),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRelojSincro: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = RelojSincro
+
+    public static func lift(_ handle: UInt64) throws -> RelojSincro {
+        return RelojSincro(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: RelojSincro) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RelojSincro {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: RelojSincro, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRelojSincro_lift(_ handle: UInt64) throws -> RelojSincro {
+    return try FfiConverterTypeRelojSincro.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRelojSincro_lower(_ value: RelojSincro) -> UInt64 {
+    return FfiConverterTypeRelojSincro.lower(value)
 }
 
 
@@ -9090,6 +9463,69 @@ public func FfiConverterTypeEleccion3d_lower(_ value: Eleccion3d) -> RustBuffer 
 
 
 /**
+ * Lo que contesta el usuario (`vuelta::Eleccion`).
+ */
+public struct EleccionSincro: Equatable, Hashable {
+    /**
+     * Los ids de [`FilaElegir::id`] marcados.
+     */
+    public var elegidos: [String]
+    public var loMioManda: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Los ids de [`FilaElegir::id`] marcados.
+         */elegidos: [String], loMioManda: Bool) {
+        self.elegidos = elegidos
+        self.loMioManda = loMioManda
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EleccionSincro: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEleccionSincro: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EleccionSincro {
+        return
+            try EleccionSincro(
+                elegidos: FfiConverterSequenceString.read(from: &buf), 
+                loMioManda: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EleccionSincro, into buf: inout [UInt8]) {
+        FfiConverterSequenceString.write(value.elegidos, into: &buf)
+        FfiConverterBool.write(value.loMioManda, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEleccionSincro_lift(_ buf: RustBuffer) throws -> EleccionSincro {
+    return try FfiConverterTypeEleccionSincro.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEleccionSincro_lower(_ value: EleccionSincro) -> RustBuffer {
+    return FfiConverterTypeEleccionSincro.lower(value)
+}
+
+
+/**
  * Como cae la capa de tinta del plano en el dibujo:
  * `x = cero_x + x_capa * u`, `y = cero_y - y_capa * u` (la y de la capa baja).
  */
@@ -9943,6 +10379,138 @@ public func FfiConverterTypeFichaLeccion_lift(_ buf: RustBuffer) throws -> Ficha
 #endif
 public func FfiConverterTypeFichaLeccion_lower(_ value: FichaLeccion) -> RustBuffer {
     return FfiConverterTypeFichaLeccion.lower(value)
+}
+
+
+/**
+ * Una fila de «¿Que sincronizar?» (`vuelta::Fila`), ya con lo que se lee
+ * debajo del nombre en cada pestana.
+ */
+public struct FilaElegir: Equatable, Hashable {
+    /**
+     * El id del chat como viaja (no la ficha de este aparato).
+     */
+    public var id: String
+    public var nombre: String
+    /**
+     * Si esta en este aparato y si esta en el otro.
+     */
+    public var aqui: Bool
+    public var alli: Bool
+    /**
+     * Lo que se lee en la pestana de este aparato («Más reciente»,
+     * «Solo aquí · se copiará a…») y si va en verde.
+     */
+    public var estadoAqui: String
+    public var recienteAqui: Bool
+    /**
+     * Y en la del otro.
+     */
+    public var estadoAlli: String
+    public var recienteAlli: Bool
+    /**
+     * Como empieza la casilla: lo elegido la ultima vez con ese aparato.
+     */
+    public var marcado: Bool
+    /**
+     * **Borrado en el otro** y aqui sin tocar desde entonces: si se deja
+     * marcado, la vuelta lo borra AQUI (con copia, a la papelera). Empieza
+     * sin marcar.
+     */
+    public var seBorraAqui: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El id del chat como viaja (no la ficha de este aparato).
+         */id: String, nombre: String, 
+        /**
+         * Si esta en este aparato y si esta en el otro.
+         */aqui: Bool, alli: Bool, 
+        /**
+         * Lo que se lee en la pestana de este aparato («Más reciente»,
+         * «Solo aquí · se copiará a…») y si va en verde.
+         */estadoAqui: String, recienteAqui: Bool, 
+        /**
+         * Y en la del otro.
+         */estadoAlli: String, recienteAlli: Bool, 
+        /**
+         * Como empieza la casilla: lo elegido la ultima vez con ese aparato.
+         */marcado: Bool, 
+        /**
+         * **Borrado en el otro** y aqui sin tocar desde entonces: si se deja
+         * marcado, la vuelta lo borra AQUI (con copia, a la papelera). Empieza
+         * sin marcar.
+         */seBorraAqui: Bool) {
+        self.id = id
+        self.nombre = nombre
+        self.aqui = aqui
+        self.alli = alli
+        self.estadoAqui = estadoAqui
+        self.recienteAqui = recienteAqui
+        self.estadoAlli = estadoAlli
+        self.recienteAlli = recienteAlli
+        self.marcado = marcado
+        self.seBorraAqui = seBorraAqui
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FilaElegir: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFilaElegir: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FilaElegir {
+        return
+            try FilaElegir(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                aqui: FfiConverterBool.read(from: &buf), 
+                alli: FfiConverterBool.read(from: &buf), 
+                estadoAqui: FfiConverterString.read(from: &buf), 
+                recienteAqui: FfiConverterBool.read(from: &buf), 
+                estadoAlli: FfiConverterString.read(from: &buf), 
+                recienteAlli: FfiConverterBool.read(from: &buf), 
+                marcado: FfiConverterBool.read(from: &buf), 
+                seBorraAqui: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FilaElegir, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterBool.write(value.aqui, into: &buf)
+        FfiConverterBool.write(value.alli, into: &buf)
+        FfiConverterString.write(value.estadoAqui, into: &buf)
+        FfiConverterBool.write(value.recienteAqui, into: &buf)
+        FfiConverterString.write(value.estadoAlli, into: &buf)
+        FfiConverterBool.write(value.recienteAlli, into: &buf)
+        FfiConverterBool.write(value.marcado, into: &buf)
+        FfiConverterBool.write(value.seBorraAqui, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilaElegir_lift(_ buf: RustBuffer) throws -> FilaElegir {
+    return try FfiConverterTypeFilaElegir.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilaElegir_lower(_ value: FilaElegir) -> RustBuffer {
+    return FfiConverterTypeFilaElegir.lower(value)
 }
 
 
@@ -12729,6 +13297,93 @@ public func FfiConverterTypePersonaCompartida_lower(_ value: PersonaCompartida) 
 
 
 /**
+ * Lo que se le pregunta al usuario antes de una vuelta (`vuelta::Pregunta`).
+ */
+public struct PreguntaSincro: Equatable, Hashable {
+    /**
+     * El nombre del otro aparato y el de este (las dos pestanas).
+     */
+    public var otro: String
+    public var yo: String
+    public var filas: [FilaElegir]
+    /**
+     * Los nombres de lo que se borrara en el otro porque se borro aqui.
+     */
+    public var seBorranAlli: [String]
+    /**
+     * Como empieza el interruptor «Juntar / Lo mío manda».
+     */
+    public var loMioManda: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El nombre del otro aparato y el de este (las dos pestanas).
+         */otro: String, yo: String, filas: [FilaElegir], 
+        /**
+         * Los nombres de lo que se borrara en el otro porque se borro aqui.
+         */seBorranAlli: [String], 
+        /**
+         * Como empieza el interruptor «Juntar / Lo mío manda».
+         */loMioManda: Bool) {
+        self.otro = otro
+        self.yo = yo
+        self.filas = filas
+        self.seBorranAlli = seBorranAlli
+        self.loMioManda = loMioManda
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PreguntaSincro: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePreguntaSincro: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PreguntaSincro {
+        return
+            try PreguntaSincro(
+                otro: FfiConverterString.read(from: &buf), 
+                yo: FfiConverterString.read(from: &buf), 
+                filas: FfiConverterSequenceTypeFilaElegir.read(from: &buf), 
+                seBorranAlli: FfiConverterSequenceString.read(from: &buf), 
+                loMioManda: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PreguntaSincro, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.otro, into: &buf)
+        FfiConverterString.write(value.yo, into: &buf)
+        FfiConverterSequenceTypeFilaElegir.write(value.filas, into: &buf)
+        FfiConverterSequenceString.write(value.seBorranAlli, into: &buf)
+        FfiConverterBool.write(value.loMioManda, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePreguntaSincro_lift(_ buf: RustBuffer) throws -> PreguntaSincro {
+    return try FfiConverterTypePreguntaSincro.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePreguntaSincro_lower(_ value: PreguntaSincro) -> RustBuffer {
+    return FfiConverterTypePreguntaSincro.lower(value)
+}
+
+
+/**
  * Lo que el etiquetador propone para un texto.
  */
 public struct PropuestaLeccion: Equatable, Hashable {
@@ -13673,6 +14328,16 @@ public struct ResumenSincro: Equatable, Hashable {
     public var capturas: UInt64
     public var capturasTiradas: UInt64
     /**
+     * Mensajes borrados aqui o alli por la vuelta.
+     */
+    public var borrados: UInt64
+    /**
+     * **Lo que cambio en los dos lados y se junto** (`Hecho::fusionados`).
+     * Una vuelta que solo junta no trae nada nuevo, pero cambia lo que se
+     * ve: tambien cuenta para releer la lista ([`ResumenSincro::trajo`]).
+     */
+    public var fusionados: UInt64
+    /**
      * Bytes que pasaron por la red.
      */
     public var bytes: UInt64
@@ -13682,9 +14347,21 @@ public struct ResumenSincro: Equatable, Hashable {
      */
     public var texto: String
     /**
-     * Los avisos del final (reloj desfasado, lo que no se pudo...).
+     * Los avisos del final: lo rescatado y lo ahorrado
+     * (`avisos_de_lo_hecho`), lo que quedo sin decidir de los proyectos
+     * borrados, el reloj desfasado...
      */
     public var avisos: [String]
+    /**
+     * **Si hay que releer la lista**: llego algo, se junto algo o se borro
+     * algo (`trajo` de Windows: `traidos > 0 || fusionados > 0`, mas lo
+     * que el Mac ya miraba: los archivos y lo borrado).
+     */
+    public var trajo: Bool
+    /**
+     * Se cancelo en «¿Que sincronizar?»: no se hizo nada.
+     */
+    public var cancelada: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -13700,14 +14377,32 @@ public struct ResumenSincro: Equatable, Hashable {
          * se quitaron aqui porque se quitaron a mano en el otro.
          */capturas: UInt64, capturasTiradas: UInt64, 
         /**
+         * Mensajes borrados aqui o alli por la vuelta.
+         */borrados: UInt64, 
+        /**
+         * **Lo que cambio en los dos lados y se junto** (`Hecho::fusionados`).
+         * Una vuelta que solo junta no trae nada nuevo, pero cambia lo que se
+         * ve: tambien cuenta para releer la lista ([`ResumenSincro::trajo`]).
+         */fusionados: UInt64, 
+        /**
          * Bytes que pasaron por la red.
          */bytes: UInt64, segundos: Double, 
         /**
          * La frase de lo hecho, como la ensena Windows.
          */texto: String, 
         /**
-         * Los avisos del final (reloj desfasado, lo que no se pudo...).
-         */avisos: [String]) {
+         * Los avisos del final: lo rescatado y lo ahorrado
+         * (`avisos_de_lo_hecho`), lo que quedo sin decidir de los proyectos
+         * borrados, el reloj desfasado...
+         */avisos: [String], 
+        /**
+         * **Si hay que releer la lista**: llego algo, se junto algo o se borro
+         * algo (`trajo` de Windows: `traidos > 0 || fusionados > 0`, mas lo
+         * que el Mac ya miraba: los archivos y lo borrado).
+         */trajo: Bool, 
+        /**
+         * Se cancelo en «¿Que sincronizar?»: no se hizo nada.
+         */cancelada: Bool) {
         self.otroId = otroId
         self.otroNombre = otroNombre
         self.traidos = traidos
@@ -13715,10 +14410,14 @@ public struct ResumenSincro: Equatable, Hashable {
         self.archivos = archivos
         self.capturas = capturas
         self.capturasTiradas = capturasTiradas
+        self.borrados = borrados
+        self.fusionados = fusionados
         self.bytes = bytes
         self.segundos = segundos
         self.texto = texto
         self.avisos = avisos
+        self.trajo = trajo
+        self.cancelada = cancelada
     }
 
     
@@ -13744,10 +14443,14 @@ public struct FfiConverterTypeResumenSincro: FfiConverterRustBuffer {
                 archivos: FfiConverterUInt64.read(from: &buf), 
                 capturas: FfiConverterUInt64.read(from: &buf), 
                 capturasTiradas: FfiConverterUInt64.read(from: &buf), 
+                borrados: FfiConverterUInt64.read(from: &buf), 
+                fusionados: FfiConverterUInt64.read(from: &buf), 
                 bytes: FfiConverterUInt64.read(from: &buf), 
                 segundos: FfiConverterDouble.read(from: &buf), 
                 texto: FfiConverterString.read(from: &buf), 
-                avisos: FfiConverterSequenceString.read(from: &buf)
+                avisos: FfiConverterSequenceString.read(from: &buf), 
+                trajo: FfiConverterBool.read(from: &buf), 
+                cancelada: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -13759,10 +14462,14 @@ public struct FfiConverterTypeResumenSincro: FfiConverterRustBuffer {
         FfiConverterUInt64.write(value.archivos, into: &buf)
         FfiConverterUInt64.write(value.capturas, into: &buf)
         FfiConverterUInt64.write(value.capturasTiradas, into: &buf)
+        FfiConverterUInt64.write(value.borrados, into: &buf)
+        FfiConverterUInt64.write(value.fusionados, into: &buf)
         FfiConverterUInt64.write(value.bytes, into: &buf)
         FfiConverterDouble.write(value.segundos, into: &buf)
         FfiConverterString.write(value.texto, into: &buf)
         FfiConverterSequenceString.write(value.avisos, into: &buf)
+        FfiConverterBool.write(value.trajo, into: &buf)
+        FfiConverterBool.write(value.cancelada, into: &buf)
     }
 }
 
@@ -14118,6 +14825,75 @@ public func FfiConverterTypeTextoElegido_lift(_ buf: RustBuffer) throws -> Texto
 #endif
 public func FfiConverterTypeTextoElegido_lower(_ value: TextoElegido) -> RustBuffer {
     return FfiConverterTypeTextoElegido.lower(value)
+}
+
+
+/**
+ * Las constantes de la automatica, para Swift.
+ */
+public struct TiemposAuto: Equatable, Hashable {
+    public var quietoMs: Int64
+    public var periodoMs: Int64
+    public var calmaTareasMs: Int64
+    public var topeTareasMs: Int64
+    public var fallosParaAvisar: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(quietoMs: Int64, periodoMs: Int64, calmaTareasMs: Int64, topeTareasMs: Int64, fallosParaAvisar: UInt32) {
+        self.quietoMs = quietoMs
+        self.periodoMs = periodoMs
+        self.calmaTareasMs = calmaTareasMs
+        self.topeTareasMs = topeTareasMs
+        self.fallosParaAvisar = fallosParaAvisar
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TiemposAuto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTiemposAuto: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TiemposAuto {
+        return
+            try TiemposAuto(
+                quietoMs: FfiConverterInt64.read(from: &buf), 
+                periodoMs: FfiConverterInt64.read(from: &buf), 
+                calmaTareasMs: FfiConverterInt64.read(from: &buf), 
+                topeTareasMs: FfiConverterInt64.read(from: &buf), 
+                fallosParaAvisar: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TiemposAuto, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.quietoMs, into: &buf)
+        FfiConverterInt64.write(value.periodoMs, into: &buf)
+        FfiConverterInt64.write(value.calmaTareasMs, into: &buf)
+        FfiConverterInt64.write(value.topeTareasMs, into: &buf)
+        FfiConverterUInt32.write(value.fallosParaAvisar, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTiemposAuto_lift(_ buf: RustBuffer) throws -> TiemposAuto {
+    return try FfiConverterTypeTiemposAuto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTiemposAuto_lower(_ value: TiemposAuto) -> RustBuffer {
+    return FfiConverterTypeTiemposAuto.lower(value)
 }
 
 
@@ -16626,6 +17402,82 @@ public func FfiConverterTypeLineaEstilo_lower(_ value: LineaEstilo) -> RustBuffe
 
 
 /**
+ * Por que se sincroniza ahora.
+ */
+
+public enum MotivoAuto: Equatable, Hashable {
+    
+    case aparecio
+    case cambio
+    case periodo
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension MotivoAuto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMotivoAuto: FfiConverterRustBuffer {
+    typealias SwiftType = MotivoAuto
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MotivoAuto {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .aparecio
+        
+        case 2: return .cambio
+        
+        case 3: return .periodo
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: MotivoAuto, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .aparecio:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .cambio:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .periodo:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMotivoAuto_lift(_ buf: RustBuffer) throws -> MotivoAuto {
+    return try FfiConverterTypeMotivoAuto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMotivoAuto_lower(_ value: MotivoAuto) -> RustBuffer {
+    return FfiConverterTypeMotivoAuto.lower(value)
+}
+
+
+
+/**
  * Los cuatro niveles de PixPin (los perfiles de pdfsqueeze).
  */
 
@@ -16802,6 +17654,105 @@ public func FfiConverterTypeNotaRepaso_lift(_ buf: RustBuffer) throws -> NotaRep
 #endif
 public func FfiConverterTypeNotaRepaso_lower(_ value: NotaRepaso) -> RustBuffer {
     return FfiConverterTypeNotaRepaso.lower(value)
+}
+
+
+
+/**
+ * Lo que toca hacer ahora ([`Reloj::siguiente`]).
+ */
+
+public enum PasoAuto: Equatable, Hashable {
+    
+    case nada
+    /**
+     * La vuelta rapida, con las fichas de los chats cuyas tareas cambiaron.
+     */
+    case tareas(fichas: [String]
+    )
+    /**
+     * La vuelta entera de siempre.
+     */
+    case entera(motivo: MotivoAuto
+    )
+    /**
+     * Habia tareas esperando y no contesta nadie: se olvidan, que la vuelta
+     * entera de cuando aparezca alguno ya las lleva.
+     */
+    case olvidar
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension PasoAuto: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePasoAuto: FfiConverterRustBuffer {
+    typealias SwiftType = PasoAuto
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PasoAuto {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .nada
+        
+        case 2: return .tareas(fichas: try FfiConverterSequenceString.read(from: &buf)
+        )
+        
+        case 3: return .entera(motivo: try FfiConverterTypeMotivoAuto.read(from: &buf)
+        )
+        
+        case 4: return .olvidar
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: PasoAuto, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .nada:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .tareas(fichas):
+            writeInt(&buf, Int32(2))
+            FfiConverterSequenceString.write(fichas, into: &buf)
+            
+        
+        case let .entera(motivo):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeMotivoAuto.write(motivo, into: &buf)
+            
+        
+        case .olvidar:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasoAuto_lift(_ buf: RustBuffer) throws -> PasoAuto {
+    return try FfiConverterTypePasoAuto.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePasoAuto_lower(_ value: PasoAuto) -> RustBuffer {
+    return FfiConverterTypePasoAuto.lower(value)
 }
 
 
@@ -17312,6 +18263,146 @@ public func FfiConverterCallbackInterfaceAvanceAligerar_lift(_ handle: UInt64) t
 #endif
 public func FfiConverterCallbackInterfaceAvanceAligerar_lower(_ v: AvanceAligerar) -> UInt64 {
     return FfiConverterCallbackInterfaceAvanceAligerar.lower(v)
+}
+
+
+
+
+/**
+ * **Quien contesta «¿Que sincronizar?»**: Swift ensena la lista y devuelve
+ * lo marcado, o `None` si se cancela. Se llama desde el hilo de la vuelta,
+ * que se queda esperando: puede tardar lo que tarde el usuario.
+ */
+public protocol ElegirSincro: AnyObject, Sendable {
+    
+    func elegir(pregunta: PreguntaSincro)  -> EleccionSincro?
+    
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceElegirSincro {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceElegirSincro = UniffiVTableCallbackInterfaceElegirSincro(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterCallbackInterfaceElegirSincro.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface ElegirSincro: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterCallbackInterfaceElegirSincro.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface ElegirSincro: handle missing in uniffiClone")
+            }
+        },
+        elegir: { (
+            uniffiHandle: UInt64,
+            pregunta: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> EleccionSincro? in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceElegirSincro.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.elegir(
+                     pregunta: try FfiConverterTypePreguntaSincro_lift(pregunta)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionTypeEleccionSincro.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceElegirSincro> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceElegirSincro>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitElegirSincro() {
+    uniffi_pixpin_nucleo_fn_init_callback_vtable_elegirsincro(UniffiCallbackInterfaceElegirSincro.vtablePtr)
+}
+
+// FfiConverter protocol for callback interfaces
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterCallbackInterfaceElegirSincro {
+    fileprivate static let handleMap = UniffiHandleMap<ElegirSincro>()
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+extension FfiConverterCallbackInterfaceElegirSincro : FfiConverter {
+    typealias SwiftType = ElegirSincro
+    typealias FfiType = UInt64
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lift(_ handle: UInt64) throws -> SwiftType {
+        try handleMap.get(handle: handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lower(_ v: SwiftType) -> UInt64 {
+        return handleMap.insert(obj: v)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(v))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceElegirSincro_lift(_ handle: UInt64) throws -> ElegirSincro {
+    return try FfiConverterCallbackInterfaceElegirSincro.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceElegirSincro_lower(_ v: ElegirSincro) -> UInt64 {
+    return FfiConverterCallbackInterfaceElegirSincro.lower(v)
 }
 
 
@@ -17904,6 +18995,30 @@ fileprivate struct FfiConverterOptionTypeEleccion3d: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeEleccion3d.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeEleccionSincro: FfiConverterRustBuffer {
+    typealias SwiftType = EleccionSincro?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEleccionSincro.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEleccionSincro.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -18719,6 +19834,31 @@ fileprivate struct FfiConverterSequenceTypeFichaLeccion: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFichaLeccion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFilaElegir: FfiConverterRustBuffer {
+    typealias SwiftType = [FilaElegir]
+
+    public static func write(_ value: [FilaElegir], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFilaElegir.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FilaElegir] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FilaElegir]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFilaElegir.read(from: &buf))
         }
         return seq
     }
@@ -20262,6 +21402,29 @@ public func tipoDeServicio() -> String  {
     )
 })
 }
+/**
+ * **Cuantas rondas lleva «con todos»**: con dos aparatos o mas al otro
+ * lado (tres o mas en el grupo), dos. En la primera este queda con todo,
+ * pero los primeros se quedaron con lo de antes de hablar con los ultimos;
+ * la segunda lo reparte, y cuesta poco porque solo viajan los cambios. Las
+ * tareas al instante van en una: lo que corre es que lo de aqui llegue.
+ */
+public func rondasConTodos(aparatos: UInt32, soloTareas: Bool) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_rondas_con_todos(
+        FfiConverterUInt32.lower(aparatos),
+        FfiConverterBool.lower(soloTareas),uniffiCallStatus
+    )
+})
+}
+public func tiemposAuto() -> TiemposAuto  {
+    return try!  FfiConverterTypeTiemposAuto_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tiempos_auto(uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -20527,6 +21690,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio() != 57375) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_rondas_con_todos() != 23075) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tiempos_auto() != 59924) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_aparato() != 58843) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -20737,6 +21906,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_anuncio_de_presencia() != 61613) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_proyecto() != 26965) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_grupo() != 41949) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -20747,6 +21919,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sincronizar_con() != 38049) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_sincronizar_preguntando() != 3207) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_sincronizar_tareas() != 26334) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_unirse_a_grupo() != 64359) {
@@ -21118,6 +22296,39 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_escucha_puerto() != 42327) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_acabo() != 23764) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_avisan_tareas() != 18735) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_con_quien() != 33737) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_empezo() != 55819) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_fallos_seguidos() != 52049) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_olvidar() != 6880) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_proximo_ms() != 9305) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_responde() != 2903) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_siguiente() != 22229) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_tomar_tareas() != 19714) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojsincro_ver_cambios() != 40349) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_constructor_nucleo_abrir() != 47148) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21142,6 +22353,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_constructor_documentooffice_abrir() != 54506) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_constructor_relojsincro_new() != 30980) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_avancealigerar_avance() != 54882) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -21154,10 +22368,14 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_medidorletras_existe() != 13979) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_elegirsincro_elegir() != 51131) {
+        return InitializationResult.apiChecksumMismatch
+    }
 
     uniffiCallbackInitLlaveroApp()
     uniffiCallbackInitOyenteIa()
     uniffiCallbackInitAvanceAligerar()
+    uniffiCallbackInitElegirSincro()
     uniffiCallbackInitMedidorLetras()
     return InitializationResult.ok
 }()
