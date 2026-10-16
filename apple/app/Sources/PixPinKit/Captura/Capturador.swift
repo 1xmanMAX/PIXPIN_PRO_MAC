@@ -85,8 +85,13 @@ public final class Capturador {
     private var intro: AccionCaptura = .copiar
     var accionIntro: AccionCaptura { intro }
 
+    /// El de la app (el ultimo creado), para quien no lo tiene a mano: la
+    /// entrada «Captura» de la hoja del clip del chat.
+    public private(set) static weak var principal: Capturador?
+
     public init(carpetaDeCapturas: URL = carpetaDeDatos().appendingPathComponent("capturas", isDirectory: true)) {
         self.carpetaDeCapturas = carpetaDeCapturas
+        Capturador.principal = self
     }
 
     /// Si la captura esta en pantalla.

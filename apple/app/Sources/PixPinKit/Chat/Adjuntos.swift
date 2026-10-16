@@ -21,11 +21,13 @@ struct BurbujaImagen: View {
     let chat: String
     let almacen: Almacen
     @State private var url: URL?
+    /// La escala del chat (⌘+ / ⌘−): la foto crece con la letra.
+    @Environment(\.escalaChat) private var escala
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let url {
-                MiniaturaVista(url: url, lado: ladoDeBurbuja)
+                MiniaturaVista(url: url, lado: ladoDeBurbuja * escala)
                     .accionesDeFichero(url: url, nombre: mensaje.nombre)
             } else {
                 Label(mensaje.nombre, systemImage: "photo")
@@ -134,6 +136,7 @@ struct BurbujaDibujo: View {
     @State private var fotosListas = 0
     /// Sube cuando el editor guarda este dibujo, para volver a leerlo.
     @State private var recargas = 0
+    @Environment(\.escalaChat) private var escala
 
     /// Las fotos de dentro del dibujo se piden al tamano de la burbuja (a
     /// 2x): no hace falta mas para verlas ahi.
@@ -156,7 +159,7 @@ struct BurbujaDibujo: View {
                     ProgressView()
                 }
             }
-            .frame(width: ladoDeBurbuja, height: ladoDeBurbuja * 0.7)
+            .frame(width: ladoDeBurbuja * escala, height: ladoDeBurbuja * 0.7 * escala)
             .clipShape(RoundedRectangle(cornerRadius: 8))
             // Doble clic: editarlo en su ventana. Al guardarse alli, se
             // vuelve a leer aqui.

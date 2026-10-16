@@ -33,7 +33,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
    - Hecho también `direcciones.txt` (A3).
 4. ~~**Los pines no se guardan ni se restauran** entre arranques.~~ Hecho (B1): el mismo `almacen/indice.json` que Windows, filtros, giros, negativo, modo texto, tamaños 1–3, flechas y ⌘T.
    - Quedan las marcas de texto guardadas (resaltar, subrayar) y su ⌘Z.
-5. **El menú del mensaje del chat** ya es el de Windows (B2): etiquetas, responder, copiar, pinear, describir, reenviar, compartir, recordar, hacer lección, renombrar, fijar, abrir con, guardar del buzón y ver comentarios, con sus letras. Faltan anotar encima de una foto, exportar e imprimir un lienzo, unir PDF y la letra de una voz. Tampoco hay buscar dentro del chat ni la hoja «+».
+5. **El menú del mensaje del chat** ya es el de Windows (B2): etiquetas, responder, copiar, pinear, describir, reenviar, compartir, recordar, hacer lección, renombrar, fijar, abrir con, guardar del buzón y ver comentarios, con sus letras. Faltan anotar encima de una foto, exportar e imprimir un lienzo, unir PDF y la letra de una voz. La caja de escribir ya es la isla de Windows, con su hoja del clip, la lupa (⌘F) y la escala (⌘+ / ⌘− / ⌘0) (B3).
 6. **Tareas y Timeline casi de solo lectura.**
    - Tareas: falta buscar, mover, editar, y borrar con deshacer.
    - Timeline: no se puede apuntar nada.
@@ -197,15 +197,15 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Lista de proyectos; chat por páginas; burbujas por tipo | completo | K/Vistas.swift, K/Chat/* | — |
 | proyectos/ (tarjeta rica, «universo», teclado) | parcial | K/Vistas.swift | Tarjeta y universo |
 | logo del proyecto; «Guardar en…» al crearlo | falta | — | Todo |
-| Caja de escribir | parcial | K/Vistas.swift | Salto de línea con ⇧↩; Esc limpia |
-| Hoja «+» (captura, lienzo, tabla, tareas, página, nota, móvil…) | parcial | K/Vistas.swift | Solo están «Lienzo nuevo» y el micrófono |
+| Caja de escribir | completo | K/Chat/CajaEscribir.swift | Hecho (B3): la isla (radio 22 y filete), el campo en pastilla con el clip dentro (se retira al escribir) y el micrófono o enviar fuera; ↩ envía, ⇧↩ o ⌥↩ saltan de línea, Esc suelta lo seleccionado, luego limpia y, vacía, deja de responder; grabando, el cronómetro en su sitio. Falta el dictado y las menciones `@` del asistente (E1) |
+| Hoja «+» (captura, lienzo, tabla, tareas, página, nota, móvil…) | parcial | K/Chat/HojaAdjuntar.swift | Hecho (B3): las 19 entradas de Windows con su buscador (sin tildes, con sinónimos), 1–8, flechas, ↩ y Esc. Hacen lo suyo: foto o vídeo, archivo, lienzo, nota (nace «# Nota nueva» y se abre en el editor), lista de tareas y las seis mini-apps (en el chat y como pin), tabla, captura (la de siempre; «Al chat» propone este proyecto) y traer del móvil. Salen apagadas y lo dicen: Conversación, Teleprónter y Pronunciar (**E**), Página de un proyecto y Proyecto entero (**B9**) |
 | Enviar fotos con descripción | falta | — | Todo |
 | Caja de soltar flotante | parcial | K/Vistas.swift | Hay soltar sobre el chat |
 | Tarjetas de enlace | falta | — | Todo |
 | Menú del mensaje (menu_v2) | parcial | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs | Hecho (B2): etiquetas ⭐✅⏳💡💰📍, Responder (con la cita en la burbuja y la barra encima de la caja), Copiar, Pinear (fichero o lista de tareas), Añadir/editar descripción, Abrir en el editor de notas, Pasar a texto, Reenviar, Compartir, Recordármelo (horas de Windows y «Elegir la hora…»), Hacer lección (con `deMensaje`), Cambiar el nombre, Fijar arriba (y la barra «Mensaje fijado»), Abrir con…, Aligerar el PDF, Guardar esto, Ver comentarios, Elegir varios, Borrar; la barra de elegidos con Copiar, Compartir, Fijar, Reenviar y Borrar. Falta: Anotar encima y Abrir en lienzo de una foto (**dep. lienzo**, foto anotada), Exportar e Imprimir un lienzo (**D1**), Unir/Devolver al proyecto y «como imágenes» (PDF en el chat), Insertar en nota, Letra, Ver el dibujo entero, Guardar receta (asistente) y la llamada secreta de una voz (**E5**) |
 | Elegir varios y marcar un tramo | completo | K/Chat/BorrarMensajes.swift | — |
-| Buscar dentro del chat (Ctrl+F) | falta | — | ⌘F hoy abre «Buscar en todo» |
-| Escala (Ctrl + / − / 0) | falta | — | Todo |
+| Buscar dentro del chat (Ctrl+F) | completo | K/Chat/BuscarEnChat.swift | Hecho (B3): ⌘F con un chat abierto (sin chat, sigue «Buscar en todo»); en todo el chat, no solo lo cargado; filtra las burbujas (texto o lo dicho y nombre del fichero, sin tildes), resalta en las notas, chips de etiqueta, «N resultados · Ver en contexto», ↑/↓ o ⌘G/⇧⌘G entre resultados («3 de 12»), ↩ lo ve en su sitio, Esc apaga |
+| Escala (Ctrl + / − / 0) | parcial | K/Chat/EscalaChat.swift | Hecho (B3): ⌘+ / ⌘− / ⌘0 con los escalones de Windows (75–250 %), su aviso, y se recuerda. Crece el chat (letra, burbujas, fotos, dibujos y la caja); la lista de proyectos y la franja no. Falta la entrada «Escala de la interfaz» del menú de la cabecera (el Mac aún no tiene cabecera del chat) |
 | Fondos del chat | falta | — | Todo |
 | Micrófono flotante con hora | falta | — | Todo |
 | Reproductor flotante | parcial | K/Voz/VistasVoz.swift | Espacio, ←/→, barra |
@@ -331,14 +331,14 @@ Choques con macOS que hay que esquivar:
 
 | Windows | Acción | Mac | Estado |
 |---|---|---|---|
-| Intro / Mayús+Intro | Enviar / salto de línea | ↩ y ⌘↩ / ⌥↩ | completo (otro salto) |
+| Intro / Mayús+Intro | Enviar / salto de línea | ↩ / ⇧↩ (o ⌥↩) | completo |
 | Ctrl+V | Pegar adjunto | ⌘V | completo |
-| Ctrl+F | Buscar en el chat | ⌘F (abre Buscar en todo) | parcial |
-| Ctrl + / − / 0 | Escala | ⌘+ / ⌘− / ⌘0 | falta |
+| Ctrl+F | Buscar en el chat | ⌘F con un chat abierto; ↑↓, ⌘G/⇧⌘G, ↩, Esc | completo |
+| Ctrl + / − / 0 | Escala | ⌘+ / ⌘− / ⌘0 | completo |
 | Esc en cascada | — | ⎋ | parcial |
 | Menú: R, Ctrl+C, P, A, E, N, T, F, L, F2, Supr | Acciones del mensaje | R, ⌘C, P, E, N, T, F, L, F2 (en «Más»), ⌫ con el menú abierto; falta A (anotar encima) | parcial |
 | Ctrl+clic, Mayús+clic | Elegir varios | ⌘-clic, ⇧-clic | completo |
-| Hoja «+»: flechas, Intro · Reproductor: Espacio, ←→ · Micrófono: Esc, Intro, ↑↓ | — | — | falta |
+| Hoja «+»: flechas, Intro · Reproductor: Espacio, ←→ · Micrófono: Esc, Intro, ↑↓ | — | Hoja: 1–8, flechas, ↩, Esc (B3); reproductor y micrófono flotantes, no | parcial |
 | Renombrar o describir: Intro, Esc | — | Intro guarda, Esc lo deja (hoja de una línea; también «Elegir la hora…») | completo |
 
 ### 2.5 Lienzo
@@ -524,7 +524,7 @@ Las tandas que dependen de ellos lo marcan como **dep. lienzo** o **dep. ventana
 |---|---|---|
 | B1 ✅ | **Pines persistentes y sus teclas**: guardar y restaurar al arrancar, «restaurar el último», «cerrar todos» en el menú; 1–3, 5–8, 0, N, R/⇧R, H/V, flechas que mueven, ⌘T clic a través, T y ⇧C del OCR | K/Pines/GestorPines.swift, K/Pines/Pin.swift, K/Pines/BarraPin.swift, nuevo K/Pines/AlmacenPines.swift, APP (menú) |
 | B2 | ✅ **Menú del mensaje** (hecho): etiquetas, Responder, Copiar, Pinear, Describir, Reenviar, Compartir, Fijar, Renombrar, Hacer lección, Recordar, Abrir con, Guardar esto, Ver comentarios; letras R, ⌘C, P, E, N, T, F, L, F2. Queda Anotar encima (dep. lienzo), Exportar/Imprimir un lienzo (D1), Unir PDF, Letra | K/Chat/MenuMensaje.swift, K/Chat/BorrarMensajes.swift, N/chats.rs (`cambiar_mensaje`, `reenviar_mensajes`), N/lecciones.rs (`leccion_de_mensaje`) |
-| B3 | **Caja del chat y la hoja «+»**: ⇧↩ para el salto de línea, Esc limpia, hoja «+» con todas las entradas, buscar dentro del chat (⌘F), escala ⌘+ / − / 0 | K/Vistas.swift, nuevo K/Chat/HojaAdjuntar.swift, nuevo K/Chat/BuscarEnChat.swift (**no a la vez que B2 si B2 tiene que tocar Vistas.swift**: B2 solo engancha su menú con una línea) |
+| B3 | ✅ **Caja del chat y la hoja «+»** (hecho; quedan las 5 entradas apagadas de la hoja y la escala de la lista): ⇧↩ para el salto de línea, Esc limpia, hoja «+» con todas las entradas, buscar dentro del chat (⌘F), escala ⌘+ / − / 0 | K/Vistas.swift, K/Chat/CajaEscribir.swift, K/Chat/HojaAdjuntar.swift, K/Chat/BuscarEnChat.swift, K/Chat/EscalaChat.swift |
 | B4 | **Tareas editables**: buscar, «Mover a…», borrar con deshacer, F2 para editar, pegar imágenes, ver y poner `⏰`, teclado | K/Tareas/Tareas.swift, N/tareas.rs (**después de A4** o junto a él en `⏰`) |
 | B5 | **Timeline editable**: apuntar texto, foto y voz; pestañas ⌘1…4; ↑ corrige el último; buscar | K/Timeline/Timeline.swift, N/timeline.rs |
 | B6 | **Galería completa**: buscador (también OCR con Vision), grupos por día, teclado, «Guardar como», panel de detalle | K/Galeria/Galeria.swift, K/Galeria/Comun.swift, N/galeria.rs |
