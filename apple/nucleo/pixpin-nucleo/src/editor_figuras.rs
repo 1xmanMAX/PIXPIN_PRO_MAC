@@ -186,6 +186,8 @@ impl EditorLienzo {
     /// por renglon, en funcion de `x`), con sus ejes y su ecuacion, en la
     /// ventana `x_desde..x_hasta` x `y_desde..y_hasta` a `escala` pixeles la
     /// unidad; con el pincel de ahora, centrada en `(centro_x, centro_y)`.
+    // Los numeros sueltos y no un registro: es lo que teclea el cajetin.
+    #[allow(clippy::too_many_arguments)]
     pub fn estampar_grafica(
         &self,
         formulas: Vec<String>,
