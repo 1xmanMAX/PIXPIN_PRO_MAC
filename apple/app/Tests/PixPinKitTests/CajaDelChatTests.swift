@@ -151,7 +151,8 @@ final class CajaDelChatTests: XCTestCase {
                         resumen: texto, codigoChat: nil, respondeA: nil, emoji: emoji, fijado: false,
                         referencia: nil, pagina: nil, duracionMs: 0, transcripcion: nil, picos: [],
                         enBuzon: false, recuerdaEn: nil, miniapp: nil, esLeccion: false,
-                        sePuedeRenombrar: false, sePuedeDescribir: false)
+                        sePuedeRenombrar: false, sePuedeDescribir: false, punto: nil, soloLaFoto: true,
+                        vieneDe: nil, vieneDeDibujo: nil, recibidoDe: nil, lienzoIa: nil)
         }
         let todos = [m("1", "muro", "\u{2B50}"), m("2", "muro sur", nil), m("3", "techo", "\u{2B50}")]
         XCTAssertEqual(BuscadorDelChat.filtrar(todos, aguja: "", etiqueta: "\u{2B50}").map(\.id), ["1", "3"])

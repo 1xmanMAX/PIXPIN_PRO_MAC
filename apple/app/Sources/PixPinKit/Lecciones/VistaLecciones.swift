@@ -200,6 +200,7 @@ struct FichaLeccionVista: View {
                 }
             }
             if let f = ficha {
+                AdjuntosDeLeccion(nucleo: modelo.nucleo, leccion: f.id)
                 Section("Repaso") {
                     Text(textoDeRepaso(f))
                         .foregroundStyle(f.tocaRepasar ? Color.orange : Color.secondary)
@@ -291,5 +292,70 @@ struct FichaLeccionVista: View {
     private func repasar(_ nota: NotaRepaso) {
         guard let id = ficha?.id else { return }
         Task { _ = await modelo.repasar(id, nota: nota) }
+    }
+}
+
+/// **Las fotos y audios de una leccion** (`AdjuntosDeLaLeccion.kt`): la foto
+/// del error en la obra, la nota de voz con lo que dijo el profesor. Los
+/// pone el movil (o Windows) como mensajes que le responden; aqui se ven y
+/// se abren (doble clic: Vista Rapida). Sin ninguno, no sale la seccion.
+struct AdjuntosDeLeccion: View {
+    let nucleo: Nucleo
+    let leccion: String
+    @State private var adjuntos: [AdjuntoLeccion] = []
+
+    var body: some View {
+        Group {
+            if !adjuntos.isEmpty {
+                Section("Fotos y audios (\(adjuntos.count))") {
+                    ScrollView(.horizontal) {
+                        HStack(alignment: .top, spacing: 10) {
+                            ForEach(adjuntos, id: \.mensaje.id) { a in celda(a) }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+            }
+        }
+        .task(id: leccion) {
+            let (nucleo, id) = (nucleo, leccion)
+            adjuntos = await Task.detached(priority: .utility) {
+                (try? nucleo.adjuntosDeLeccion(id: id)) ?? []
+            }.value
+        }
+    }
+
+    @ViewBuilder
+    private func celda(_ a: AdjuntoLeccion) -> some View {
+        let m = a.mensaje
+        let url = a.fichero.map { URL(fileURLWithPath: $0) }
+        if m.clase == "IMAGEN" {
+            Group {
+                if let url {
+                    MiniaturaVista(url: url, lado: 110).accionesDeFichero(url: url, nombre: m.nombre)
+                } else {
+                    Label("Aún no ha llegado", systemImage: "photo").font(.caption).foregroundStyle(.secondary)
+                        .frame(width: 110, height: 80)
+                }
+            }
+            .help(m.texto.isEmpty ? m.nombre : m.texto)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                Label(textoDeVoz(m), systemImage: "waveform")
+                if let t = m.transcripcion, !t.isEmpty {
+                    Text(t).font(.caption).foregroundStyle(.secondary).lineLimit(3)
+                }
+            }
+            .frame(width: 160, alignment: .leading)
+            .padding(6)
+            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+            .modifier(AccionesSiHay(url: url, nombre: m.nombre))
+        }
+    }
+
+    private func textoDeVoz(_ m: MensajeChat) -> String {
+        guard m.duracionMs > 0 else { return "Nota de voz" }
+        let s = Int(m.duracionMs / 1000)
+        return String(format: "Nota de voz · %d:%02d", s / 60, s % 60)
     }
 }

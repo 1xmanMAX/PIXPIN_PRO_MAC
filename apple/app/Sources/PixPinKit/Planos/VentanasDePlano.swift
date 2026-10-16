@@ -78,6 +78,18 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         visor.cargar()
     }
 
+    /// **Un croquis 3D del movil** (`croquis3d::abrir_desde_chat` de
+    /// Windows): `referencia` en el chat `chat`. Solo se ve.
+    public func abrirCroquis(_ referencia: String, en chat: String, titulo: String, nucleo: Nucleo) {
+        let clave = "croquis|" + chat + "|" + referencia
+        if traerAlFrente(clave) { return }
+        let visor = VisorModelo3D(clave: clave, titulo: titulo) {
+            try nucleo.abrirCroquis(chat: chat, referencia: referencia)
+        }
+        mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo)
+        visor.cargar()
+    }
+
     private func traerAlFrente(_ clave: String) -> Bool {
         guard let a = abiertas[clave] else { return false }
         a.ventana.makeKeyAndOrderFront(nil)

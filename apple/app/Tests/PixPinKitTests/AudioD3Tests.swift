@@ -17,7 +17,8 @@ private func vozDePrueba(_ id: String, cuando: Int64, nombre: String = "", ruta:
                 resumen: "", codigoChat: nil, respondeA: nil, emoji: nil, fijado: false,
                 referencia: nil, pagina: nil, duracionMs: duracionMs, transcripcion: transcripcion, picos: [],
                 enBuzon: enBuzon, recuerdaEn: nil, miniapp: nil, esLeccion: false,
-                sePuedeRenombrar: false, sePuedeDescribir: false)
+                sePuedeRenombrar: false, sePuedeDescribir: false, punto: nil, soloLaFoto: true,
+                vieneDe: nil, vieneDeDibujo: nil, recibidoDe: nil, lienzoIa: nil)
 }
 
 /// Un `.m4a` de `segundos` de seno.

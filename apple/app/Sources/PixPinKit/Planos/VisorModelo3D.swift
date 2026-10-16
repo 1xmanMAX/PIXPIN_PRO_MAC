@@ -12,6 +12,10 @@
 // - El terreno de Civil 3D ya trae el color por cota y las curvas de nivel.
 //
 // Como el visor de planos, la vista esta parada y pinta solo al cambiar.
+//
+// Tambien ensena los croquis 3D del movil (`croquis3d.rs` de Windows, B9):
+// llegan del chat ya hechos triangulos (`Nucleo.abrirCroquis`) y traen su
+// fondo, su tema y desde donde se miran (`ExtrasCroquis`). Solo se ven.
 
 import AppKit
 import Metal
@@ -24,6 +28,8 @@ import SwiftUI
 public final class ModeloEnTarjeta: @unchecked Sendable {
     public let modelo: Modelo3dApple
     public let resumen: ResumenModelo3d
+    /// Lo que pide un croquis del movil; `nil` en un modelo de un fichero.
+    public let croquis: ExtrasCroquis?
     let vertices: MTLBuffer?
     private(set) var indices: [MTLBuffer?] = [nil, nil, nil, nil, nil]
     private(set) var cuantos: [Int] = [0, 0, 0, 0, 0]
@@ -35,6 +41,7 @@ public final class ModeloEnTarjeta: @unchecked Sendable {
         self.modelo = modelo
         self.motor = motor
         resumen = modelo.resumen()
+        croquis = modelo.extrasCroquis()
         vertices = motor.bufer(modelo.vertices(), nombre: "vertices 3d")
         poner(modelo.indices())
     }
@@ -55,6 +62,11 @@ public final class ModeloEnTarjeta: @unchecked Sendable {
     public static func cargar(ruta: String, motor: MotorMetal) throws -> ModeloEnTarjeta {
         ModeloEnTarjeta(modelo: try Modelo3dApple.abrir(ruta: ruta), motor: motor)
     }
+
+    /// Lo mismo con quien lo lee (un croquis del chat).
+    static func cargar(_ abrir: () throws -> Modelo3dApple, motor: MotorMetal) throws -> ModeloEnTarjeta {
+        ModeloEnTarjeta(modelo: try abrir(), motor: motor)
+    }
 }
 
 /// **El estado del visor 3D**: el modelo, el filtro, lo elegido y la caja de
@@ -73,11 +85,22 @@ public final class VisorModelo3D: ObservableObject {
     @Published public var corte: [Double] = [0, 0, 0, 1, 1, 1] { didSet { vista?.repintar() } }
     public let titulo: String
     public let ruta: String
+    /// Quien lee el modelo (fuera del hilo principal).
+    private let abrir: @Sendable () throws -> Modelo3dApple
     weak var vista: VistaModeloMetal?
 
     public init(ruta: String, titulo: String) {
         self.ruta = ruta
         self.titulo = titulo
+        abrir = { try Modelo3dApple.abrir(ruta: ruta) }
+    }
+
+    /// **Un croquis 3D del movil**: `abrir` lo lee del chat
+    /// (`Nucleo.abrirCroquis`); `clave` lo distingue de otro.
+    public init(clave: String, titulo: String, abrir: @escaping @Sendable () throws -> Modelo3dApple) {
+        ruta = clave
+        self.titulo = titulo
+        self.abrir = abrir
     }
 
     public func cargar() {
@@ -86,10 +109,10 @@ public final class VisorModelo3D: ObservableObject {
             error = "Este Mac no tiene una tarjeta gráfica con Metal."
             return
         }
-        let ruta = self.ruta
+        let abrir = self.abrir
         Task {
             let hecho = await Task.detached(priority: .userInitiated) { () -> Result<ModeloEnTarjeta, Error> in
-                Result { try ModeloEnTarjeta.cargar(ruta: ruta, motor: motor) }
+                Result { try ModeloEnTarjeta.cargar(abrir, motor: motor) }
             }.value
             switch hecho {
             case let .success(d):
@@ -199,7 +222,11 @@ public final class VistaModeloMetal: MTKView {
 
     private var ancho: UInt32 { UInt32(max(drawableSize.width, 1)) }
     private var alto: UInt32 { UInt32(max(drawableSize.height, 1)) }
-    private var claro: Bool { effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) != .darkAqua }
+    /// Claro u oscuro: el del croquis si lo dice (su fondo deja ver su
+    /// tinta); si no, el del sistema.
+    private var claro: Bool {
+        visor.datos?.croquis?.claro ?? (effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) != .darkAqua)
+    }
 
     func alLlegarElModelo() {
         guard let d = visor.datos else { return }
@@ -211,7 +238,13 @@ public final class VistaModeloMetal: MTKView {
 
     func encuadrar() {
         guard let d = visor.datos, drawableSize.width > 0 else { return }
-        camara = camaraEncuadrar(caja: d.resumen.cajaUtil, ancho: ancho, alto: alto)
+        if let c = d.croquis, let caja = c.encuadre {
+            // Un croquis: lo dibujado (sin el suelo), desde donde lo mira
+            // el movil de fabrica.
+            camara = camaraEncuadrarDesde(caja: caja, ancho: ancho, alto: alto, rumbo: c.rumbo, altura: c.altura)
+        } else {
+            camara = camaraEncuadrar(caja: d.resumen.cajaUtil, ancho: ancho, alto: alto)
+        }
         encuadrado = true
         repintar()
     }
@@ -259,8 +292,12 @@ public final class VistaModeloMetal: MTKView {
 
     override public func draw(_ dirtyRect: NSRect) {
         let claro = self.claro
-        clearColor = claro ? MTLClearColor(red: 0.955, green: 0.958, blue: 0.965, alpha: 1)
-            : MTLClearColor(red: 0.13, green: 0.15, blue: 0.19, alpha: 1)
+        if let f = visor.datos?.croquis?.fondo {
+            clearColor = MTLClearColor(red: Double(f.r), green: Double(f.g), blue: Double(f.b), alpha: 1)
+        } else {
+            clearColor = claro ? MTLClearColor(red: 0.955, green: 0.958, blue: 0.965, alpha: 1)
+                : MTLClearColor(red: 0.13, green: 0.15, blue: 0.19, alpha: 1)
+        }
         guard let pasada = currentRenderPassDescriptor, let dibujable = currentDrawable,
               let cb = motor.cola.makeCommandBuffer(),
               let enc = cb.makeRenderCommandEncoder(descriptor: pasada) else { return }

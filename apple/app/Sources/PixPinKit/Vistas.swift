@@ -546,15 +546,25 @@ struct Burbuja: View {
                 BurbujaArchivo(mensaje: mensaje, chat: chat, almacen: almacen)
             case "DIBUJO" where mensaje.referencia != nil:
                 BurbujaDibujo(mensaje: mensaje, chat: chat, almacen: almacen)
+            // Lo que llega de Windows y del movil (B9, `Chat/BurbujasQueLlegan.swift`).
+            case "PAGINA":
+                BurbujaPagina(mensaje: mensaje, chat: chat, almacen: almacen)
+            case "PROYECTO":
+                BurbujaProyecto(mensaje: mensaje, almacen: almacen)
+            case "CROQUIS":
+                BurbujaCroquis(mensaje: mensaje, chat: chat, almacen: almacen)
             default:
                 Label(mensaje.resumen.isEmpty ? mensaje.nombre : mensaje.resumen,
                       systemImage: Burbuja.icono(mensaje.clase))
             }
+            // De donde viene, el lienzo del asistente y de quien llego.
+            PieDelMovil(mensaje: mensaje, chat: chat, almacen: almacen)
             HStack(spacing: 6) {
                 Text(Date(timeIntervalSince1970: TimeInterval(mensaje.cuando) / 1000),
                      format: .dateTime.hour().minute())
                     .font(.system(size: 10 * escala)).foregroundStyle(.secondary)
                 MarcasDeMensaje(mensaje: mensaje)
+                if let punto = mensaje.punto { PuntoDeProyecto(verde: punto) }
             }
         }
         .padding(8 * escala)
@@ -571,6 +581,8 @@ struct Burbuja: View {
         case "DIBUJO": "scribble.variable"
         case "PAGINA": "doc.richtext"
         case "MINIAPP": "checklist"
+        case "PROYECTO": "folder"
+        case "CROQUIS": "cube.transparent"
         default: "doc"
         }
     }

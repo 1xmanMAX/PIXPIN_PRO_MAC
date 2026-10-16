@@ -74,7 +74,8 @@ final class MenuMensajeTests: XCTestCase {
                         resumen: texto, codigoChat: nil, respondeA: nil, emoji: nil, fijado: false,
                         referencia: nil, pagina: nil, duracionMs: 0, transcripcion: nil, picos: [],
                         enBuzon: false, recuerdaEn: nil, miniapp: nil, esLeccion: false,
-                        sePuedeRenombrar: false, sePuedeDescribir: false)
+                        sePuedeRenombrar: false, sePuedeDescribir: false, punto: nil, soloLaFoto: true,
+                        vieneDe: nil, vieneDeDibujo: nil, recibidoDe: nil, lienzoIa: nil)
         }
         let lista = [m("1", "NOTA", "  uno \n"), m("2", "MINIAPP", "{\"x\":1}"), m("3", "IMAGEN", "pie"), m("4", "NOTA", "  ")]
         XCTAssertEqual(ChatAbierto.textoParaCopiar(lista), "uno\n\npie")

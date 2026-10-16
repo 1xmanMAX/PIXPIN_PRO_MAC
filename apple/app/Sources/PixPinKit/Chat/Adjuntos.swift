@@ -21,14 +21,22 @@ struct BurbujaImagen: View {
     let chat: String
     let almacen: Almacen
     @State private var url: URL?
+    /// Lo dibujado encima en el movil (o aqui), en el lienzo propio de la
+    /// foto (`BurbujasQueLlegan.swift`, B9). `nil` si no esta anotada.
+    @State private var anotada: FotoConDibujo?
+    /// Sube cuando el editor guarda el lienzo de esta foto.
+    @State private var recargas = 0
     /// La escala del chat (⌘+ / ⌘−): la foto crece con la letra.
     @Environment(\.escalaChat) private var escala
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            if let url {
+            if let anotada {
+                VistaFotoAnotada(leida: anotada, soloLaFoto: mensaje.soloLaFoto, version: recargas) { anotar() }
+                    .modifier(AccionesSiHay(url: url, nombre: mensaje.nombre, anotar: anotar))
+            } else if let url {
                 MiniaturaVista(url: url, lado: ladoDeBurbuja * escala)
-                    .accionesDeFichero(url: url, nombre: mensaje.nombre)
+                    .modifier(AccionesDeFichero(url: url, nombre: mensaje.nombre, anotar: anotar))
             } else {
                 Label(mensaje.nombre, systemImage: "photo")
             }
@@ -37,8 +45,18 @@ struct BurbujaImagen: View {
                 Text(mensaje.texto).textSelection(.enabled)
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .pixpinLienzoGuardado)) { aviso in
+            guard let r = aviso.object as? String, r == lienzoDeLaFoto(mensaje) else { return }
+            recargas += 1
+        }
         .task(id: mensaje.id) { url = await resolver(mensaje, chat, almacen) }
+        .task(id: "\(mensaje.id)#\(recargas)") {
+            anotada = await leerFotoAnotada(mensaje, chat: chat, almacen: almacen)
+        }
     }
+
+    /// En su lienzo, como el movil (`anotarFoto`).
+    private func anotar() { anotarFoto(mensaje, chat: chat, almacen: almacen) }
 }
 
 // MARK: - Archivo
@@ -218,6 +236,8 @@ struct AccionesDeFichero: ViewModifier {
     /// Con el nucleo, los documentos se abren en el lector o en un pin
     /// (`Documentos/`); sin el, con Vista Rapida.
     var nucleo: Nucleo?
+    /// Una foto: «Anotar encima» la abre en su lienzo (B9).
+    var anotar: (() -> Void)?
     @State private var vistaRapida: URL?
 
     func body(content: Content) -> some View {
@@ -227,6 +247,9 @@ struct AccionesDeFichero: ViewModifier {
                 // Lo de la burbuja va con lo diario del menu del mensaje.
                 EntradasDeMensaje {
                     if let nucleo { MenuDeDocumento(url: url, nucleo: nucleo) }
+                    if let anotar {
+                        Button { anotar() } label: { Label("Anotar encima", systemImage: "pencil.tip.crop.circle") }
+                    }
                     Button { vistaRapida = url } label: { Label("Vista rápida", systemImage: "eye") }
                     Button { NSWorkspace.shared.open(url) } label: { Label("Abrir", systemImage: "arrow.up.right.square") }
                     Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
@@ -269,10 +292,11 @@ struct AccionesSiHay: ViewModifier {
     let url: URL?
     let nombre: String
     var nucleo: Nucleo?
+    var anotar: (() -> Void)?
     @ViewBuilder
     func body(content: Content) -> some View {
         if let url {
-            content.modifier(AccionesDeFichero(url: url, nombre: nombre, nucleo: nucleo))
+            content.modifier(AccionesDeFichero(url: url, nombre: nombre, nucleo: nucleo, anotar: anotar))
         } else {
             content
         }
