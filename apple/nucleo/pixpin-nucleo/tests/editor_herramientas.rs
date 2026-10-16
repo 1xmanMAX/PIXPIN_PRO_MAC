@@ -562,6 +562,11 @@ fn las_herramientas_nuevas_tienen_nombre_de_vuelta() {
         ("recortar", "recortar"),
         ("extender", "extender"),
         ("punto", "punto"),
+        ("arco", "arco"),
+        ("serie", "serie"),
+        ("grafito", "grafito"),
+        ("flecha_codos", "flecha_codos"),
+        ("flecha_libre", "flecha_libre"),
     ] {
         ed.herramienta(pedido.into()).unwrap();
         assert_eq!(ed.herramienta_actual(), puesto);
@@ -584,4 +589,24 @@ fn el_cursor_del_texto_dice_donde_poner_la_ventanita_del_metodo_de_entrada() {
     assert!(c1.x0 > c0.x0, "el cursor avanza con lo escrito");
     assert!(ed.terminar_texto());
     assert!(ed.caja_del_cursor().is_none());
+}
+
+#[test]
+fn el_arco_y_la_serie_de_la_barra_de_windows_dibujan_y_se_guardan() {
+    let t = Temporal::nueva("arco-serie");
+    let ruta = t.fichero("a.excalidraw");
+    let ed = EditorLienzo::de_fichero(ruta.clone(), true).unwrap();
+    ed.herramienta("arco".into()).unwrap();
+    arrastre(&ed, (10.0, 10.0), (120.0, 90.0));
+    ed.herramienta("serie".into()).unwrap();
+    ed.puntero(FasePuntero::Pulsar, 200.0, 50.0, None, 0, 1.0);
+    ed.puntero(FasePuntero::Soltar, 200.0, 50.0, None, 0, 1.0);
+    assert!(ed.guardar().unwrap());
+    let v = elementos(&ruta);
+    assert_eq!(v.len(), 2, "el arco y el numerito: {v:?}");
+    // Y se vuelven a leer: no se pierden al reabrir el lienzo.
+    let otra = EditorLienzo::de_fichero(ruta.clone(), false).unwrap();
+    assert!(otra.caja().is_some());
+    // Caso negativo: un nombre que no existe sigue siendo un error.
+    assert!(ed.herramienta("arco_iris".into()).is_err());
 }

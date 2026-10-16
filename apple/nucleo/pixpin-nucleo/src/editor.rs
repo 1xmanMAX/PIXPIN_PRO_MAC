@@ -129,6 +129,10 @@ fn herramienta_de(nombre: &str) -> Option<Herramienta> {
         "rectangulo" => Herramienta::Rectangulo,
         "rombo" => Herramienta::Rombo,
         "elipse" => Herramienta::Elipse,
+        // El arco y el numerito de serie, como en la barra de Windows (las
+        // formas y lo que nombra): el motor ya los sabe trazar.
+        "arco" => Herramienta::Arco,
+        "serie" => Herramienta::Serie,
         "flecha" => Herramienta::Flecha,
         "flecha_codos" => Herramienta::FlechaCodos,
         "flecha_libre" => Herramienta::FlechaLibre,
@@ -158,6 +162,8 @@ fn nombre_de(h: Herramienta) -> &'static str {
         Herramienta::Rectangulo => "rectangulo",
         Herramienta::Rombo => "rombo",
         Herramienta::Elipse => "elipse",
+        Herramienta::Arco => "arco",
+        Herramienta::Serie => "serie",
         Herramienta::Flecha => "flecha",
         Herramienta::FlechaCodos => "flecha_codos",
         Herramienta::FlechaLibre => "flecha_libre",
