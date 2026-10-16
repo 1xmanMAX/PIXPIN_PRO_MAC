@@ -268,7 +268,8 @@ impl EditorLienzo {
         let abierto = excalidraw::leer(texto).map_err(|e| ErrorNucleo::Lienzo {
             detalle: e.to_string(),
         })?;
-        let escena = excalidraw::a_escena(&abierto);
+        let mut escena = excalidraw::a_escena(&abierto);
+        escena.siguiente_id = ids_nuevos_desde(escena.siguiente_id);
         let imagenes = imagenes.unwrap_or_else(|| {
             excalidraw::ficheros(&abierto)
                 .into_iter()
@@ -428,6 +429,32 @@ impl EditorLienzo {
         }
         hecho
     }
+}
+
+/// **Desde donde cuentan los ids de lo que nace en esta sesion** del editor.
+///
+/// Lo nuevo se escribe como `pc<hex>` (`excalidraw::sellar`) y
+/// `excalidraw::a_escena` deja el contador en el mayor `pc<n>` del fichero
+/// mas uno. Si el PC y este Mac abren el mismo lienzo y cada uno dibuja algo
+/// antes de sincronizar, los dos sacan el MISMO `pc<n+1>`: dos figuras con el
+/// mismo id no se juntan una a una (`fusion::con_ids`) y una tapa a la otra
+/// (lo vigila `sincro_dos_aparatos`). El movil no tiene el problema: sus ids
+/// son 21 letras al azar. Aqui se salta un trecho al azar (de 2^24 a 2^32)
+/// por encima del contador: el PC sigue contando de uno en uno desde el
+/// mayor y el Mac cae lejos, y dos Mac caen en sitios distintos. Sigue
+/// siendo `pc<hex>` de 16 cifras como mucho, que es lo que entienden Windows
+/// y Android: el formato no cambia.
+fn ids_nuevos_desde(contador: u64) -> u64 {
+    const MINIMO: u64 = 1 << 24;
+    let mut b = [0u8; 4];
+    let azar = match getrandom::getrandom(&mut b) {
+        Ok(()) => u64::from(u32::from_le_bytes(b)),
+        // Sin azar del sistema, la hora: tambien cae lejos del PC.
+        Err(_) => crate::ahora_ms() as u64,
+    };
+    let salto = MINIMO + azar % ((1u64 << 32) - MINIMO);
+    // Lejos del techo: el contador sigue sumando uno a uno despues.
+    contador.max(1).saturating_add(salto).min(u64::MAX >> 2)
 }
 
 /// Una copia de la escena para escribirla, **sin el historial** (que puede

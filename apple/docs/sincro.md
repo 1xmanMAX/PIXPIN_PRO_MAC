@@ -72,6 +72,23 @@ copiada de un aparato a otro sigue funcionando. Si algun dia Windows protege
 un trait que implementa Swift con Keychain (`kSecClassGenericPassword`, servicio
 `PixPin`, cuenta `persona`), instalado al arrancar.
 
+## Lo que se arreglo al comparar con Windows y Android (15-oct-2026)
+
+- **La tabla en el texto de un mensaje se junta celda a celda** (`pixpin-sincro/src/fusion.rs`,
+  `tabla_junta`): copiado tal cual de Windows (01dccd4, que a su vez es `Fusion.tablaJunta` de
+  Android). Sin ello el Mac juntaba por parrafos lo que los otros dos juntan por celdas.
+- **Los mensajes, por su hora**: el indice de lineas de `chats.rs` ordena por `cuando`, como
+  `ventana_chat` de Windows. Un cuaderno que viajo puede venir con las lineas mezcladas.
+- **Lo nuevo de un lienzo no repite el `pc<n>` del PC**: el editor del Mac salta un trecho al
+  azar por encima del contador (`editor.rs`, `ids_nuevos_desde`). Antes, si el PC y el Mac
+  dibujaban a la vez en el mismo lienzo, los dos sacaban el mismo id y una figura tapaba a la
+  otra. **Entre dos PC con Windows sigue pasando** (es de `pixpin-motor2d`): alli habria que
+  hacer lo mismo.
+- **Borrar mensajes** (`Nucleo::borrar_mensajes`), con su marca de borrado para que la vuelta
+  siguiente no los traiga otra vez, como `borrar_mensajes` de Windows.
+
+La prueba de punta a punta es `pixpin-nucleo/tests/sincro_dos_aparatos.rs` (IPv4 e IPv6).
+
 ## Varias conexiones a la vez
 
 Swift deja `hilos_de_escucha()` (4) hilos esperando en la misma `Escucha::atender`: `accept`

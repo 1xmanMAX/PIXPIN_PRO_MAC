@@ -165,6 +165,7 @@ impl From<Mensaje> for MensajeChat {
 struct Cabeza {
     id: String,
     numero: i64,
+    cuando: i64,
 }
 
 /// El indice de lineas de un cuaderno (ver la doc del modulo).
@@ -172,7 +173,10 @@ struct Cabeza {
 pub(crate) struct IndiceCuaderno {
     largo: u64,
     modificado: Option<SystemTime>,
-    /// Inicio y largo en bytes de cada mensaje visible, en orden.
+    /// Inicio y largo en bytes de cada mensaje visible, **por su hora**
+    /// (`cuando`), como los ensenan Windows y Android: el fichero se escribe
+    /// anadiendo, pero un cuaderno que viajo entre aparatos puede venir con
+    /// las lineas mezcladas.
     lineas: Vec<(u64, u32)>,
     /// El mayor `numero` de todos (tambien los de sistema): el siguiente
     /// mensaje lleva este mas uno (`Cuaderno::siguiente_numero`).
@@ -187,6 +191,7 @@ impl IndiceCuaderno {
             modificado,
             ..Default::default()
         };
+        let mut horas: Vec<i64> = Vec::new();
         let mut inicio = 0usize;
         while inicio < texto.len() {
             let fin = texto[inicio..]
@@ -202,12 +207,21 @@ impl IndiceCuaderno {
                         // no son conversacion: no salen como burbujas.
                         if !c.id.starts_with(cuaderno::PREFIJO_DE_SISTEMA) {
                             ind.lineas.push((inicio as u64, linea.len() as u32));
+                            horas.push(c.cuando);
                         }
                     }
                     Err(_) => ind.lineas_rotas += 1,
                 }
             }
             inicio = fin + 1;
+        }
+        // Lo mas viejo arriba, como `ventana_chat` de Windows
+        // (`mensajes.sort_by_key(|m| m.cuando)`, estable: a la misma hora,
+        // el orden del fichero). Lo ya ordenado no se toca.
+        if horas.windows(2).any(|w| w[0] > w[1]) {
+            let mut orden: Vec<usize> = (0..ind.lineas.len()).collect();
+            orden.sort_by_key(|&i| horas[i]);
+            ind.lineas = orden.into_iter().map(|i| ind.lineas[i]).collect();
         }
         ind
     }
@@ -294,14 +308,20 @@ fn leer_tramo(
     if desde >= hasta {
         return Ok(Vec::new());
     }
-    let (inicio, _) = ind.lineas[desde];
-    let (ultimo, largo) = ind.lineas[hasta - 1];
-    let fin = ultimo + u64::from(largo);
+    // Las lineas van por hora y no por sitio en el fichero: el tramo es el
+    // que las abarca a todas (el de siempre si el fichero ya va en orden).
+    let paso = &ind.lineas[desde..hasta];
+    let inicio = paso.iter().map(|&(i, _)| i).min().unwrap_or(0);
+    let fin = paso
+        .iter()
+        .map(|&(i, l)| i + u64::from(l))
+        .max()
+        .unwrap_or(inicio);
     let mut f = std::fs::File::open(fichero)?;
     f.seek(SeekFrom::Start(inicio))?;
     let mut tramo = vec![0u8; (fin - inicio) as usize];
     f.read_exact(&mut tramo)?;
-    Ok(ind.lineas[desde..hasta]
+    Ok(paso
         .iter()
         .filter_map(|&(i, l)| {
             let a = (i - inicio) as usize;
@@ -427,6 +447,57 @@ impl Nucleo {
         }
         indice.guardar(raiz)?;
         Ok(MensajeChat::from(m))
+    }
+
+    /// **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
+    /// Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
+    /// **la marca de cada uno** para sincronizar (sin ella, la vuelta
+    /// siguiente los traeria otra vez del otro aparato) y se borra el
+    /// fichero de los que lo llevan (archivo, foto, voz). Un lienzo o una
+    /// pagina NO se borran: son hojas del proyecto y otras cosas pueden
+    /// apuntar a ellas. Devuelve cuantos se quitaron. Bloqueante.
+    pub fn borrar_mensajes(&self, chat: String, ids: Vec<String>) -> Result<u32, ErrorNucleo> {
+        use pixpin_proyecto::cuaderno::Clase;
+        validar_chat(&chat)?;
+        let raiz = self.ruta();
+        let carpeta = almacen::carpeta(raiz, &chat);
+        let fichero = carpeta.join("guardados.jsonl");
+        if !fichero.exists() {
+            return Ok(0);
+        }
+        let ids: std::collections::BTreeSet<String> = ids.into_iter().collect();
+        let mut cache = self.cache_tomada();
+        let quitados = cuaderno::quitar(&carpeta, &ids)?;
+        cache.quitar(&fichero);
+        drop(cache);
+        if quitados.is_empty() {
+            return Ok(0);
+        }
+        // Con la hora del reloj (UTC) y no la local: se compara con la del
+        // movil.
+        pixpin_proyecto::vista::anotar_borrados(raiz, &chat, &quitados, crate::ahora_ms())?;
+        for m in &quitados {
+            if !matches!(m.clase, Some(Clase::Archivo | Clase::Imagen | Clase::Voz)) {
+                continue;
+            }
+            if let Some(r) = m.ruta.as_deref().and_then(|r| self.resolver(&chat, r))
+                && r.is_file()
+            {
+                let _ = std::fs::remove_file(&r);
+            }
+        }
+        // La ultima linea de la lista, la de lo que queda.
+        let mut indice = Indice::leer(raiz);
+        if let Some(f) = indice.proyectos.iter_mut().find(|f| f.id == chat) {
+            let queda = cuaderno::Cuaderno::leer_de(&carpeta).unwrap_or_default();
+            f.resumen = queda
+                .mensajes
+                .last()
+                .map(Mensaje::resumen)
+                .unwrap_or_default();
+            indice.guardar(raiz)?;
+        }
+        Ok(quitados.len() as u32)
     }
 }
 

@@ -291,19 +291,49 @@ fn lo_ajeno_se_queda_y_el_fichero_es_el_de_windows() {
     ev(&mut g, EventoGesto::Soltar { p: p(500.0, 120.0) });
     let de_windows = excalidraw::escribir(&excalidraw::con_escena(&lienzo, &escena));
 
-    // Iguales salvo la hora (`updated`) y el desempate que sale de ella.
+    // Iguales salvo la hora (`updated`), el desempate que sale de ella y el
+    // NUMERO de lo nacido aqui: el Mac salta un trecho al azar
+    // (`ids_nuevos_desde`, para no repetir el `pc<n>` del PC al dibujar los
+    // dos a la vez). La forma, `pc<hex>`, es la misma.
     fn sin_hora(v: &mut Value) {
+        let mut nacidos = 0;
         if let Some(lista) = v["elements"].as_array_mut() {
             for e in lista {
                 if let Some(m) = e.as_object_mut() {
                     m.remove("updated");
                     m.remove("versionNonce");
+                    let id = m["id"].as_str().unwrap_or_default().to_string();
+                    if let Some(hex) = id.strip_prefix("pc") {
+                        assert!(
+                            u64::from_str_radix(hex, 16).is_ok() && hex.len() <= 16,
+                            "{id}"
+                        );
+                        nacidos += 1;
+                        m.insert("id".into(), Value::String(format!("pc#{nacidos}")));
+                    }
                 }
             }
         }
     }
     let mut a: Value = serde_json::from_str(&std::fs::read_to_string(&ruta).unwrap()).unwrap();
     let mut b: Value = serde_json::from_str(&de_windows).unwrap();
+    // Los del Mac, distintos de los que sacaria el PC desde el mismo fichero.
+    let ids = |v: &Value| -> Vec<String> {
+        v["elements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["id"].as_str().unwrap().to_string())
+            .collect()
+    };
+    let (de_mac, de_pc) = (ids(&a), ids(&b));
+    assert!(
+        de_mac
+            .iter()
+            .filter(|i| i.starts_with("pc"))
+            .all(|i| !de_pc.contains(i)),
+        "{de_mac:?} {de_pc:?}"
+    );
     sin_hora(&mut a);
     sin_hora(&mut b);
     assert_eq!(a, b);
