@@ -191,6 +191,10 @@ public struct VistaChat: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            if almacen.chats.first(where: { $0.id == chat })?.esAsistente == true {
+                CabeceraDelAsistente(almacen: almacen, chat: chat)
+                Divider()
+            }
             if buscador.abierto {
                 BarraBuscarEnChat(buscador: buscador, verEnContexto: verEnContexto)
                 Divider()

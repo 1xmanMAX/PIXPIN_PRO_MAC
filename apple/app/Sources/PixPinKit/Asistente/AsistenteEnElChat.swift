@@ -312,6 +312,20 @@ public final class AsistenteEnElChat: ObservableObject {
 /// **El texto de una respuesta del asistente**: lo pensado encima, el texto
 /// (en vivo mientras contesta) y la tarjeta de «¿seguro?» debajo.
 struct NotaDelAsistente: View {
+    /// **La respuesta como se lee** (Windows, 17-oct): las listas del
+    /// Markdown como listas (•, ◦, 1.) y las negritas en negrita. Lo
+    /// guardado no cambia: copiar copia lo que escribio el modelo.
+    static func formateado(_ texto: String) -> AttributedString {
+        let f = iaFormatoDeRespuesta(texto: texto)
+        let ns = NSMutableAttributedString(string: f.texto)
+        let largo = (f.texto as NSString).length
+        for t in f.negritas where Int(t.inicio) + Int(t.largo) <= largo {
+            ns.addAttribute(.inlinePresentationIntent, value: InlinePresentationIntent.stronglyEmphasized.rawValue,
+                            range: NSRange(location: Int(t.inicio), length: Int(t.largo)))
+        }
+        return (try? AttributedString(ns, including: \.foundation)) ?? AttributedString(f.texto)
+    }
+
     let mensaje: MensajeChat
     let chat: String
     let almacen: Almacen
@@ -327,7 +341,9 @@ struct NotaDelAsistente: View {
             if let p = vivo?.pensado ?? guardado, p.algo {
                 SeccionPensado(pensado: p, nota: mensaje.id)
             }
-            Text(textoResaltado(vivo?.texto ?? mensaje.texto, aguja: aguja)).textSelection(.enabled)
+            let texto = vivo?.texto ?? mensaje.texto
+            Text(aguja.isEmpty ? NotaDelAsistente.formateado(texto) : textoResaltado(texto, aguja: aguja))
+                .textSelection(.enabled)
                 .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))
             if let p = ia.preguntas[mensaje.id] {
                 TarjetaConfirmar(pregunta: p.texto) { si in ia.responder(nota: mensaje.id, si: si) }

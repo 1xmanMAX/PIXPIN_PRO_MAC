@@ -473,6 +473,18 @@ impl Nucleo {
         }))
     }
 
+    /// **«Conversación nueva»** en el chat `chat`: una nota del asistente que
+    /// corta el contexto que se le manda (lo de antes sigue a la vista y
+    /// viaja como siempre; Windows, 17-oct).
+    pub fn ia_conversacion_nueva(&self, chat: String) -> Result<MensajeChat, ErrorNucleo> {
+        validar_chat(&chat)?;
+        let nota = self.escribir_nota_con(chat, ia_chat::TEXTO_NUEVA_CONVERSACION.into(), None, |n| {
+            n.aparato = Some(ia_chat::APARATO.into());
+            n.resto.insert(ia_chat::NUEVA_CONVERSACION.into(), serde_json::Value::Bool(true));
+        })?;
+        Ok(MensajeChat::from(nota))
+    }
+
     /// **Lo que se pinta encima de una respuesta guardada**: lo que penso,
     /// la peticion mejorada y si se renovo el contexto. `None` si no es del
     /// asistente o no hay nada que ensenar.
@@ -534,6 +546,32 @@ impl Nucleo {
 #[uniffi::export]
 pub fn ia_consulta_de_mencion(antes: String) -> Option<String> {
     ia_chat::consulta_de_mencion(&antes, antes.len()).map(|(_, escrito)| escrito)
+}
+
+/// Una respuesta del asistente como se pinta en su burbuja: las listas
+/// como listas y las negritas aparte (en unidades UTF-16, las de
+/// `NSString`). Lo guardado no cambia.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct FormatoRespuesta {
+    pub texto: String,
+    /// `(inicio, largo)` de cada tramo en negrita, en UTF-16.
+    pub negritas: Vec<TramoNegrita>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct TramoNegrita {
+    pub inicio: u32,
+    pub largo: u32,
+}
+
+/// El texto de una respuesta para su burbuja (Windows, 17-oct).
+#[uniffi::export]
+pub fn ia_formato_de_respuesta(texto: String) -> FormatoRespuesta {
+    let (texto, n) = ia_chat::formato_de_respuesta(&texto);
+    FormatoRespuesta {
+        texto,
+        negritas: n.into_iter().map(|(inicio, largo)| TramoNegrita { inicio, largo }).collect(),
+    }
 }
 
 /// Si un texto que se va a enviar lleva a `@asistente` (para precargar el

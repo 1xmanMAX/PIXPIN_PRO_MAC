@@ -62,6 +62,20 @@ pub const VENTANA_NUBE: u32 = 64_000;
 /// Cuantos mensajes de antes se mandan, y cuanto de cada uno (Windows).
 const ULTIMOS: usize = 12;
 const LARGO: usize = 1500;
+/// Con la nube, mas (Windows, 17-oct: 40 mensajes de hasta 4000 letras,
+/// medido: ~24 000 tokens con el catalogo).
+const ULTIMOS_NUBE: usize = 40;
+const LARGO_NUBE: usize = 4000;
+
+/// «(Ahora: vie 17-oct-2026 14:05, hora local del usuario.)» al final del
+/// pedido, solo con la nube (Windows, 17-oct): con la hora de ahora y la de
+/// cada archivo, el modelo entiende «lo de esta mañana» sin preguntar.
+pub fn nota_de_ahora(ahora_utc_ms: i64, desfase_ms: i64) -> String {
+    match pixpin_ia::fechas::fecha_y_hora(ahora_utc_ms, desfase_ms) {
+        Some(f) => format!("\n\n(Ahora: {f}, hora local del usuario.)"),
+        None => String::new(),
+    }
+}
 
 /// Lo que se le devuelve al modelo de un texto leido (OCR, PDF).
 const LEIDO_PARA_EL_MODELO: usize = 6000;
@@ -480,6 +494,10 @@ pub(crate) fn turno_nucleo(
 ) -> Result<(RespuestaIa, Detalle), ErrorNucleo> {
     let pedido = peticion.pedido.trim().to_string();
     let en_chat = ejecutor.chat.is_some();
+    // Con la nube, lo hallado lleva su fecha y hora al minuto (Windows).
+    if entorno.nube {
+        ejecutor.citas.desfase_ms = Some(peticion.desfase_ms);
+    }
     let mut hoja = serde_json::from_str::<Value>(&peticion.hoja)
         .ok()
         .and_then(|v| HojaDeTrabajo::de_json(&v).ok())
@@ -520,9 +538,12 @@ pub(crate) fn turno_nucleo(
         .historial
         .iter()
         .filter(|m| !m.texto.trim().is_empty())
-        .map(|m| (m.del_usuario, m.texto.chars().take(LARGO).collect::<String>()))
+        .map(|m| {
+            let largo = if entorno.nube { LARGO_NUBE } else { LARGO };
+            (m.del_usuario, m.texto.chars().take(largo).collect::<String>())
+        })
         .collect();
-    let desde = anteriores.len().saturating_sub(ULTIMOS);
+    let desde = anteriores.len().saturating_sub(if entorno.nube { ULTIMOS_NUBE } else { ULTIMOS });
     let anteriores = &anteriores[desde..];
     let fuentes: Vec<Fuente> = extra.fuentes.unwrap_or_else(|| {
         anteriores
@@ -534,9 +555,14 @@ pub(crate) fn turno_nucleo(
             })
             .collect()
     });
+    let con_hora = if entorno.nube {
+        format!("{pedido}{}", nota_de_ahora(crate::ahora_ms(), peticion.desfase_ms))
+    } else {
+        pedido.clone()
+    };
     let nuevo = match &peticion.foto {
-        Some(f) => Mensaje::usuario_con_imagen(pedido.clone(), f.bytes.clone(), &f.mime),
-        None => Mensaje::usuario(pedido.clone()),
+        Some(f) => Mensaje::usuario_con_imagen(con_hora, f.bytes.clone(), &f.mime),
+        None => Mensaje::usuario(con_hora),
     };
     let sistema = contexto::sistema_con_hoja(&agente::instrucciones(), &hoja, None);
     let mut con_buscar = herramientas.clone();

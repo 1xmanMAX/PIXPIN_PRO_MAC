@@ -5726,6 +5726,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func iaAlEnviar(chat: String, mensaje: String) throws  -> InicioIa?
     
     /**
+     * **«Conversación nueva»** en el chat `chat`: una nota del asistente que
+     * corta el contexto que se le manda (lo de antes sigue a la vista y
+     * viaja como siempre; Windows, 17-oct).
+     */
+    func iaConversacionNueva(chat: String) throws  -> MensajeChat
+    
+    /**
      * **La lista de `@`** para lo escrito tras el `@`: el asistente (fuera
      * de su chat) y los lienzos y hojas de la conversacion, del mas nuevo
      * al mas viejo.
@@ -7405,6 +7412,21 @@ open func iaAlEnviar(chat: String, mensaje: String)throws  -> InicioIa?  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Conversación nueva»** en el chat `chat`: una nota del asistente que
+     * corta el contexto que se le manda (lo de antes sigue a la vista y
+     * viaja como siempre; Windows, 17-oct).
+     */
+open func iaConversacionNueva(chat: String)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_conversacion_nueva(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),uniffiCallStatus
     )
 })
 }
@@ -18754,6 +18776,71 @@ public func FfiConverterTypeFinChatIa_lower(_ value: FinChatIa) -> RustBuffer {
 
 
 /**
+ * Una respuesta del asistente como se pinta en su burbuja: las listas
+ * como listas y las negritas aparte (en unidades UTF-16, las de
+ * `NSString`). Lo guardado no cambia.
+ */
+public struct FormatoRespuesta: Equatable, Hashable {
+    public var texto: String
+    /**
+     * `(inicio, largo)` de cada tramo en negrita, en UTF-16.
+     */
+    public var negritas: [TramoNegrita]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(texto: String, 
+        /**
+         * `(inicio, largo)` de cada tramo en negrita, en UTF-16.
+         */negritas: [TramoNegrita]) {
+        self.texto = texto
+        self.negritas = negritas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FormatoRespuesta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFormatoRespuesta: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FormatoRespuesta {
+        return
+            try FormatoRespuesta(
+                texto: FfiConverterString.read(from: &buf), 
+                negritas: FfiConverterSequenceTypeTramoNegrita.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FormatoRespuesta, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterSequenceTypeTramoNegrita.write(value.negritas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFormatoRespuesta_lift(_ buf: RustBuffer) throws -> FormatoRespuesta {
+    return try FfiConverterTypeFormatoRespuesta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFormatoRespuesta_lower(_ value: FormatoRespuesta) -> RustBuffer {
+    return FfiConverterTypeFormatoRespuesta.lower(value)
+}
+
+
+/**
  * El lienzo propio de una foto del chat (`foto_anotada.rs`).
  */
 public struct FotoAnotada: Equatable, Hashable {
@@ -27550,6 +27637,60 @@ public func FfiConverterTypeTramoMd_lift(_ buf: RustBuffer) throws -> TramoMd {
 #endif
 public func FfiConverterTypeTramoMd_lower(_ value: TramoMd) -> RustBuffer {
     return FfiConverterTypeTramoMd.lower(value)
+}
+
+
+public struct TramoNegrita: Equatable, Hashable {
+    public var inicio: UInt32
+    public var largo: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(inicio: UInt32, largo: UInt32) {
+        self.inicio = inicio
+        self.largo = largo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TramoNegrita: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTramoNegrita: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TramoNegrita {
+        return
+            try TramoNegrita(
+                inicio: FfiConverterUInt32.read(from: &buf), 
+                largo: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TramoNegrita, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.inicio, into: &buf)
+        FfiConverterUInt32.write(value.largo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTramoNegrita_lift(_ buf: RustBuffer) throws -> TramoNegrita {
+    return try FfiConverterTypeTramoNegrita.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTramoNegrita_lower(_ value: TramoNegrita) -> RustBuffer {
+    return FfiConverterTypeTramoNegrita.lower(value)
 }
 
 
@@ -37565,6 +37706,31 @@ fileprivate struct FfiConverterSequenceTypeTramoMd: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeTramoNegrita: FfiConverterRustBuffer {
+    typealias SwiftType = [TramoNegrita]
+
+    public static func write(_ value: [TramoNegrita], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTramoNegrita.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TramoNegrita] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TramoNegrita]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTramoNegrita.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTramoReflujo: FfiConverterRustBuffer {
     typealias SwiftType = [TramoReflujo]
 
@@ -37941,6 +38107,17 @@ public func iaConsultaDeMencion(antes: String) -> String?  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_ia_consulta_de_mencion(
         FfiConverterString.lower(antes),uniffiCallStatus
+    )
+})
+}
+/**
+ * El texto de una respuesta para su burbuja (Windows, 17-oct).
+ */
+public func iaFormatoDeRespuesta(texto: String) -> FormatoRespuesta  {
+    return try!  FfiConverterTypeFormatoRespuesta_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_formato_de_respuesta(
+        FfiConverterString.lower(texto),uniffiCallStatus
     )
 })
 }
@@ -39539,6 +39716,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_ia_consulta_de_mencion() != 15807) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_formato_de_respuesta() != 63563) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_menciona_al_asistente() != 64056) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -39975,6 +40155,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_al_enviar() != 1421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_conversacion_nueva() != 29870) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_opciones_mencion() != 10230) {

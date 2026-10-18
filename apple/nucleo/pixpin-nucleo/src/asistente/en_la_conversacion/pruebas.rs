@@ -546,3 +546,21 @@ fn con_ojos_revisar_lleva_la_vista_y_ver_lienzo_la_pinta_swift() {
     assert!(manos2.vistas.lock().unwrap().is_empty());
     let _ = std::fs::remove_dir_all(d);
 }
+
+#[test]
+fn una_conversacion_nueva_corta_lo_que_se_le_manda_al_modelo_pero_no_lo_borra() {
+    let (n, d) = nucleo("conversacion-nueva");
+    let chat = n.chat_asistente().unwrap().id;
+    n.escribir_nota(chat.clone(), "lo de antes".into(), None).unwrap();
+    let corte = n.ia_conversacion_nueva(chat.clone()).unwrap();
+    assert_eq!(corte.texto, ia_chat::TEXTO_NUEVA_CONVERSACION);
+    n.escribir_nota(chat.clone(), "lo de ahora".into(), None).unwrap();
+    let notas = n.notas_de(&chat);
+    assert_eq!(notas.len(), 3, "lo de antes sigue a la vista");
+    assert!(ia_chat::es_corte(&notas[1]));
+    let c = ia_chat::conversacion(&notas);
+    assert_eq!(c, vec![(true, "lo de ahora".to_string())]);
+    // Caso negativo: sin corte va todo.
+    assert_eq!(ia_chat::conversacion(&notas[..1]).len(), 1);
+    let _ = std::fs::remove_dir_all(&d);
+}
