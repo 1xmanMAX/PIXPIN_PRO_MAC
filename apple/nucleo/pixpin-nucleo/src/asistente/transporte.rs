@@ -49,12 +49,27 @@ pub trait TransporteApp: Send + Sync {
         cuerpo: Vec<u8>,
         receptor: Arc<ReceptorHttp>,
     ) -> Option<String>;
+
+    /// **Una peticion cualquiera** (GET, POST, PUT...) con solo las
+    /// `cabeceras` dadas: las conexiones del asistente (Google Drive y su
+    /// OAuth). Como `enviar`, pero con su metodo, sin `Content-Type` ni
+    /// `Accept` puestos, y contando la cabecera `Location` al receptor
+    /// ([`ReceptorHttp::ubicacion`]) antes de los datos.
+    fn pedir(
+        &self,
+        metodo: String,
+        url: String,
+        cabeceras: Vec<CabeceraHttp>,
+        cuerpo: Vec<u8>,
+        receptor: Arc<ReceptorHttp>,
+    ) -> Option<String>;
 }
 
 /// Lo que va llegando, de Swift al hilo del turno.
 enum Llegada {
     Estado { codigo: u32, esperar: Option<Duration> },
     Datos(Vec<u8>),
+    Ubicacion(String),
     Fin(Option<String>),
 }
 
@@ -77,6 +92,11 @@ impl ReceptorHttp {
 
     /// Un trozo del cuerpo. `false`: hay que cancelar (el usuario paro o ya
     /// no hay quien lea).
+    /// La cabecera `Location` de la respuesta (si la hay), tras `estado`.
+    pub fn ubicacion(&self, valor: String) {
+        self.mandar(Llegada::Ubicacion(valor));
+    }
+
     pub fn datos(&self, trozo: Vec<u8>) -> bool {
         if self.parar.load(Ordering::Relaxed) {
             return false;
@@ -138,6 +158,36 @@ impl Transporte for Adaptador {
         }
         leer(&receptor, &rx, al_evento)
     }
+
+    fn pedir(
+        &self,
+        metodo: &str,
+        url: &str,
+        cabeceras: &[(&'static str, String)],
+        cuerpo: &[u8],
+        al_evento: &mut dyn FnMut(EventoHttp) -> Seguir,
+    ) -> Result<(), String> {
+        let (receptor, rx) = ReceptorHttp::nuevo();
+        let cabeceras = cabeceras
+            .iter()
+            .map(|(k, v)| CabeceraHttp {
+                nombre: (*k).to_string(),
+                valor: v.clone(),
+            })
+            .collect();
+        let (app, metodo, url, cuerpo, r) =
+            (self.app.clone(), metodo.to_string(), url.to_string(), cuerpo.to_vec(), receptor.clone());
+        let lanzado = std::thread::Builder::new()
+            .name("conexion-https".into())
+            .spawn(move || {
+                let error = app.pedir(metodo, url, cabeceras, cuerpo, r.clone());
+                r.cerrar(error);
+            });
+        if let Err(e) = lanzado {
+            return Err(format!("no se pudo lanzar la peticion: {e}"));
+        }
+        leer(&receptor, &rx, al_evento)
+    }
 }
 
 /// Lee lo que llega hasta el final (o hasta que `al_evento` pide parar: se
@@ -156,6 +206,9 @@ fn leer(
                     parado = true;
                     receptor.parar.store(true, Ordering::Relaxed);
                 }
+            }
+            Ok(Llegada::Ubicacion(u)) if !parado => {
+                let _ = al_evento(EventoHttp::Ubicacion(&u));
             }
             Ok(Llegada::Datos(b)) if !parado => {
                 if al_evento(EventoHttp::Datos(&b)) == Seguir::Parar {
@@ -215,6 +268,39 @@ mod pruebas {
             }
             None
         }
+
+        fn pedir(&self, metodo: String, url: String, cabeceras: Vec<CabeceraHttp>, cuerpo: Vec<u8>, r: Arc<ReceptorHttp>) -> Option<String> {
+            assert_eq!(metodo, "PUT");
+            assert!(url.starts_with("https://"));
+            assert!(cabeceras.iter().any(|c| c.nombre == "Authorization"));
+            r.estado(self.codigo, -1.0);
+            r.ubicacion("https://subida/1".into());
+            r.datos(cuerpo);
+            None
+        }
+    }
+
+    #[test]
+    fn pedir_lleva_su_metodo_y_trae_la_ubicacion() {
+        let (t, _) = falso(200, vec![], None);
+        let mut oido = Vec::new();
+        let r = Transporte::pedir(
+            &t,
+            "PUT",
+            "https://www.googleapis.com/upload/drive/v3/files",
+            &[("Authorization", "Bearer x".into())],
+            b"hola",
+            &mut |e| {
+                oido.push(match e {
+                    EventoHttp::Estado { codigo, .. } => codigo.to_string(),
+                    EventoHttp::Ubicacion(u) => u.to_string(),
+                    EventoHttp::Datos(b) => String::from_utf8_lossy(b).into_owned(),
+                });
+                Seguir::Si
+            },
+        );
+        assert_eq!(r, Ok(()));
+        assert_eq!(oido, ["200", "https://subida/1", "hola"]);
     }
 
     fn falso(codigo: u32, trozos: Vec<&'static str>, error: Option<&'static str>) -> (Adaptador, Arc<AtomicBool>) {
@@ -244,6 +330,7 @@ mod pruebas {
             oido.push(match e {
                 EventoHttp::Estado { codigo, esperar } => format!("{codigo}:{esperar:?}"),
                 EventoHttp::Datos(b) => String::from_utf8_lossy(b).into_owned(),
+                EventoHttp::Ubicacion(u) => u.to_string(),
             });
             Seguir::Si
         });

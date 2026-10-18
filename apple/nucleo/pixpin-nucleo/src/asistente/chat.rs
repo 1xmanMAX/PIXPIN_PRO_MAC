@@ -259,7 +259,7 @@ pub fn fuentes_para_la_nota(citas: &[pixpin_ia::documentos::Cita], respuesta: &s
     if citas.is_empty() {
         return None;
     }
-    let c = pixpin_ia::documentos::Citas { lista: citas.to_vec() };
+    let c = pixpin_ia::documentos::Citas { lista: citas.to_vec(), desfase_ms: None };
     let citadas: Vec<serde_json::Value> = c
         .citadas(respuesta)
         .into_iter()

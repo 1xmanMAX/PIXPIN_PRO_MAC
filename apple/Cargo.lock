@@ -1635,6 +1635,7 @@ dependencies = [
 name = "pixpin-docs"
 version = "0.1.0"
 dependencies = [
+ "pixpin-motor2d",
  "serde",
  "serde_json",
  "thiserror",

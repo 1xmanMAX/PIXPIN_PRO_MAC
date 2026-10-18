@@ -56,6 +56,62 @@ pub trait Llavero: Send + Sync {
     fn hay(&self, p: Proveedor) -> bool {
         self.leer(p).is_some()
     }
+    /// Un secreto con nombre que no es una clave de API (los tokens de las
+    /// conexiones del asistente, `conexion-google-drive`). Fuera de Windows
+    /// van al Llavero como las claves; sin soporte, error.
+    fn guardar_secreto(&self, _nombre: &str, _valor: &str) -> Result<(), String> {
+        Err("este llavero no guarda secretos con nombre".into())
+    }
+    fn leer_secreto(&self, _nombre: &str) -> Option<String> {
+        None
+    }
+    fn borrar_secreto(&self, _nombre: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
+
+/// Guarda un secreto con nombre en el llavero instalado (fuera de Windows,
+/// el de la app). Sin llavero, error: nunca en claro.
+pub fn guardar_secreto(nombre: &str, valor: &str) -> Result<(), String> {
+    llavero()
+        .ok_or_else(|| "no hay llavero donde guardar".to_string())?
+        .guardar_secreto(nombre, valor)
+}
+
+/// El secreto con nombre, o `None`.
+pub fn leer_secreto(nombre: &str) -> Option<String> {
+    llavero()?.leer_secreto(nombre)
+}
+
+/// Borra el secreto con nombre (lo que no esta no es un error).
+pub fn borrar_secreto(nombre: &str) -> Result<(), String> {
+    llavero().map_or(Ok(()), |l| l.borrar_secreto(nombre))
+}
+
+/// Fuera de Windows no hay carpeta de claves: todo va al Llavero. Se da
+/// una ruta simbolica para que quien la pide siga (las conexiones la
+/// ignoran fuera de las pruebas).
+#[cfg(not(windows))]
+pub fn carpeta() -> Option<std::path::PathBuf> {
+    Some(std::path::PathBuf::from("llavero"))
+}
+
+/// En las pruebas fuera de Windows no hay DPAPI: un «cifrado» de juguete
+/// (marca y XOR), que no deja nada legible, para probar el mismo camino de
+/// ficheros que en Windows. Fuera de las pruebas no existe: todo va al
+/// Llavero.
+#[cfg(all(not(windows), test))]
+const MARCA_PRUEBA: &[u8] = b"PXPRUEBA";
+
+#[cfg(all(not(windows), test))]
+pub fn cifrar(claro: &[u8]) -> Result<Vec<u8>, String> {
+    Ok(MARCA_PRUEBA.iter().copied().chain(claro.iter().map(|b| b ^ 0xA5)).collect())
+}
+
+#[cfg(all(not(windows), test))]
+pub fn descifrar(cifrado: &[u8]) -> Result<Vec<u8>, String> {
+    let resto = cifrado.strip_prefix(MARCA_PRUEBA).ok_or("no esta cifrado")?;
+    Ok(resto.iter().map(|b| b ^ 0xA5).collect())
 }
 
 static LLAVERO: OnceLock<Box<dyn Llavero>> = OnceLock::new();

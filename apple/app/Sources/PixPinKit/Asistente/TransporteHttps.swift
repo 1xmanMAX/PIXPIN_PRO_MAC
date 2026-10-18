@@ -65,6 +65,31 @@ public final class TransporteHttps: TransporteApp, @unchecked Sendable {
         return delegado.error
     }
 
+    /// Una peticion cualquiera de las conexiones (Google Drive y su OAuth):
+    /// su metodo y solo sus cabeceras; la `Location` va a Rust antes que
+    /// los datos (la subida reanudable de Drive la necesita).
+    public func pedir(metodo: String, url: String, cabeceras: [CabeceraHttp], cuerpo: Data,
+                      receptor: ReceptorHttp) -> String? {
+        guard let destino = URL(string: url), destino.scheme == "https" else {
+            return "dirección no válida"
+        }
+        var pedido = URLRequest(url: destino)
+        pedido.httpMethod = metodo
+        for c in cabeceras {
+            pedido.setValue(c.valor, forHTTPHeaderField: c.nombre)
+        }
+        if !cuerpo.isEmpty { pedido.httpBody = cuerpo }
+        let delegado = Delegado(receptor: receptor)
+        let cola = OperationQueue()
+        cola.maxConcurrentOperationCount = 1
+        cola.qualityOfService = .utility
+        let sesion = URLSession(configuration: TransporteHttps.configuracion, delegate: delegado, delegateQueue: cola)
+        sesion.dataTask(with: pedido).resume()
+        delegado.hecho.wait()
+        sesion.finishTasksAndInvalidate()
+        return delegado.error
+    }
+
     /// Pasa la respuesta a Rust mientras llega.
     final class Delegado: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         let receptor: ReceptorHttp
@@ -81,6 +106,9 @@ public final class TransporteHttps: TransporteApp, @unchecked Sendable {
             let http = response as? HTTPURLResponse
             let espera = http?.value(forHTTPHeaderField: "retry-after").flatMap(Double.init) ?? -1
             receptor.estado(codigo: UInt32(http?.statusCode ?? 0), reintentarEnS: espera)
+            if let donde = http?.value(forHTTPHeaderField: "Location") {
+                receptor.ubicacion(valor: donde)
+            }
             completionHandler(.allow)
         }
 

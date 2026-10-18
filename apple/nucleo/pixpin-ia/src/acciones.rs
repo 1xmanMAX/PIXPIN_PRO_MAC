@@ -753,6 +753,28 @@ pub const ACCIONES: &[Accion] = &[
         confirmar: None,
         hecho: "Excel leído.",
     },
+    // Banco de documentos (15-oct): «resume este Word», «¿qué dice el
+    // comunicado?», «pásame sus fórmulas»: el texto ENTERO, no los trozos
+    // de `buscar_en_mis_cosas` (con ellos el resumen salia de un apartado).
+    // Lee con el mismo lector que la busqueda y la voz (`documentos::leer_fichero`)
+    // y, en un PDF escaneado o una foto, con el OCR de siempre.
+    Accion {
+        herramienta: "leer_documento",
+        accion: EN_EL_CHAT,
+        descripcion: "Lee el texto entero de un archivo del chat (PDF, Word, PowerPoint, Excel, nota, o una foto/escaneo con OCR), pagina a pagina, \
+                      para resumirlo, contestar sobre el, revisarlo o sacar sus formulas. Usala ANTES de contestar sobre un archivo adjunto \
+                      (buscar_en_mis_cosas solo da trozos sueltos). Si el archivo es una foto que ya ves, no hace falta.",
+        categoria: Categoria::Notas,
+        // Sin claves: solo para la nube, que la elige por su descripcion.
+        claves: &[],
+        fijos: "{}",
+        params: &[
+            p("archivo", Tipo::Texto, false, "nombre o descripcion del archivo; omitir: el mas reciente del chat"),
+            p("paginas", Tipo::Texto, false, "paginas o diapositivas, como \"3\" o \"2-5\"; omitir: todo"),
+        ],
+        confirmar: None,
+        hecho: "Documento leído.",
+    },
     Accion {
         herramienta: "resumen_de_actividad",
         accion: EN_EL_CHAT,
@@ -764,7 +786,56 @@ pub const ACCIONES: &[Accion] = &[
         confirmar: None,
         hecho: "Hecho.",
     },
+    // 17-oct: «que el bot pueda crear nuevos canvas o analizar existentes y
+    // pueda verlos tambien, de forma que se pueda mejorar su propio trabajo».
+    // Las hace el ejecutor del chat ([`LIENZOS`]): cambian adonde va lo que
+    // dibuja, edita o mira (`ver_lienzo`) en el resto del turno.
+    Accion {
+        herramienta: LIENZOS_DEL_CHAT,
+        accion: EN_EL_CHAT,
+        descripcion: "Lista los lienzos de este chat (nombre y cuantas cosas tiene cada uno) y dice en cual trabajas ahora.",
+        categoria: Categoria::Notas,
+        claves: &[],
+        fijos: "{}",
+        params: &[],
+        confirmar: None,
+        hecho: "Lienzos listados.",
+    },
+    Accion {
+        herramienta: CREAR_LIENZO,
+        accion: EN_EL_CHAT,
+        descripcion: "Crea un lienzo NUEVO con ese nombre en este chat, sin abrirlo, y lo deja como destino: lo que dibujes, edites o mires con ver_lienzo despues va a el.",
+        categoria: Categoria::Notas,
+        claves: &[],
+        fijos: "{}",
+        params: &[p("nombre", Tipo::Texto, true, "nombre del lienzo nuevo")],
+        confirmar: None,
+        hecho: "Lienzo «{nombre}» creado.",
+    },
+    Accion {
+        herramienta: USAR_LIENZO,
+        accion: EN_EL_CHAT,
+        descripcion: "Pasa a trabajar en un lienzo EXISTENTE de este chat por su nombre: devuelve el resumen de sus elementos (con #id) y lo deja como destino de lo que dibujes, edites o mires con ver_lienzo (para revisarlo y corregirlo).",
+        categoria: Categoria::Notas,
+        claves: &[],
+        fijos: "{}",
+        params: &[p("nombre", Tipo::Texto, true, "nombre del lienzo (o un trozo)")],
+        confirmar: None,
+        hecho: "Trabajando en «{nombre}».",
+    },
 ];
+
+/// Las herramientas de los lienzos del chat (17-oct), que hace el ejecutor
+/// del chat con lo que sabe del turno (su lienzo destino).
+pub const LIENZOS_DEL_CHAT: &str = "lienzos_del_chat";
+pub const CREAR_LIENZO: &str = "crear_lienzo";
+pub const USAR_LIENZO: &str = "usar_lienzo";
+pub const LIENZOS: &[&str] = &[LIENZOS_DEL_CHAT, CREAR_LIENZO, USAR_LIENZO];
+
+/// Si es una de las herramientas de los lienzos del chat ([`LIENZOS`]).
+pub fn es_de_lienzos(herramienta: &str) -> bool {
+    LIENZOS.contains(&herramienta)
+}
 
 /// **Las filas del 15-oct, solo para la nube** (Claude, DeepSeek). El
 /// usuario: «con relacion a la IA local, aun dejala ahi, no la toques,
@@ -785,7 +856,42 @@ pub const SOLO_NUBE: &[&str] = &[
     "transcribir_audio",
     "leer_excel",
     "resumen_de_actividad",
+    "leer_documento",
+    LIENZOS_DEL_CHAT,
+    CREAR_LIENZO,
+    USAR_LIENZO,
+    // Las conexiones (17-oct, `crate::conexiones`): Google Drive y los que vengan.
+    crate::conexiones::acciones::BUSCAR,
+    crate::conexiones::acciones::LEER,
+    crate::conexiones::acciones::BAJAR,
+    crate::conexiones::acciones::SUBIR,
 ];
+
+/// **Las opciones que solo ve la nube** en una fila de las de siempre
+/// (herramienta, parametro, valores), como los campos de la nube de
+/// `edicion`: misma fila y mismo `hacer`; el esquema del local no cambia
+/// y el local no las manda. 16-oct: la tabla de una foto, al LIENZO con su
+/// aspecto medido (no solo a la tabla del chat o al Excel).
+pub const OPCIONES_NUBE: &[(&str, &str, &[&str])] = &[(crate::acciones_documentos::TABLA, "destino", &["lienzo"])];
+
+fn opcion_de_la_nube(herramienta: &str, param: &str, valor: &str) -> bool {
+    let v = normalizar(valor.trim());
+    OPCIONES_NUBE.iter().any(|(h, p, vs)| *h == herramienta && *p == param && vs.contains(&v.as_str()))
+}
+
+/// Pone en el esquema de la nube sus [`OPCIONES_NUBE`] (lo llama
+/// `herramientas::para_la_nube`).
+pub fn para_la_nube(h: &mut crate::herramientas::Herramienta) {
+    for (_, param, valores) in OPCIONES_NUBE.iter().filter(|(n, _, _)| *n == h.nombre) {
+        if let Some(e) = h.parametros.pointer_mut(&format!("/properties/{param}/enum")).and_then(Value::as_array_mut) {
+            for v in *valores {
+                if !e.iter().any(|x| x == v) {
+                    e.push(json!(v));
+                }
+            }
+        }
+    }
+}
 
 /// Si la herramienta es solo para la nube ([`SOLO_NUBE`]).
 pub fn es_solo_nube(herramienta: &str) -> bool {
@@ -800,7 +906,10 @@ pub fn es_en_el_chat(herramienta: &str) -> bool {
 /// **Todas las filas**: las de esta tabla y las de los documentos
 /// ([`crate::acciones_documentos`], que hace el chat con sus adjuntos).
 pub fn todas() -> impl Iterator<Item = &'static Accion> {
-    ACCIONES.iter().chain(crate::acciones_documentos::ACCIONES_DOCUMENTOS.iter())
+    ACCIONES
+        .iter()
+        .chain(crate::acciones_documentos::ACCIONES_DOCUMENTOS.iter())
+        .chain(crate::conexiones::acciones::ACCIONES_CONEXIONES.iter())
 }
 
 /// Busca una fila por el nombre de su herramienta.
@@ -1066,6 +1175,8 @@ pub fn validar(a: &'static Accion, args: &Map<String, Value>) -> Result<AccionAp
     let mut por_resolver = Map::new();
     for p in a.params {
         let v = match args.get(p.nombre).filter(|v| !v.is_null() && v.as_str().is_none_or(|s| !s.trim().is_empty())) {
+            // Una opcion que solo ofrece la nube ([`OPCIONES_NUBE`]).
+            Some(v) if v.as_str().is_some_and(|s| opcion_de_la_nube(a.herramienta, p.nombre, s)) => json!(normalizar(v.as_str().unwrap_or_default().trim())),
             Some(v) => valor(p, v)?,
             None => match p.defecto {
                 Some(d) => serde_json::from_str(d).unwrap_or(Value::Null),
@@ -1229,7 +1340,7 @@ mod pruebas {
         assert_eq!(a.por_resolver["chat"], "Obra");
         let a = validar(por_nombre("resumen_de_actividad").unwrap(), &Map::new()).unwrap();
         assert_eq!(a.pedido["periodo"], "hoy");
-        for n in ["leer_en_voz_alta", "comprimir_pdf", "transcribir_audio", "leer_excel", "resumen_de_actividad"] {
+        for n in ["leer_en_voz_alta", "comprimir_pdf", "transcribir_audio", "leer_excel", "resumen_de_actividad", "leer_documento"] {
             assert!(es_en_el_chat(n), "{n}");
             assert!(por_nombre(n).unwrap().confirmar.is_none(), "{n}");
         }

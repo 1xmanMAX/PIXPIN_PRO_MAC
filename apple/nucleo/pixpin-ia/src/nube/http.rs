@@ -366,6 +366,9 @@ pub enum EventoHttp<'a> {
     Estado { codigo: u32, esperar: Option<Duration> },
     /// Un trozo del cuerpo, tal cual llega.
     Datos(&'a [u8]),
+    /// La cabecera `Location` (la subida reanudable de Drive), si la hay;
+    /// llega despues de `Estado` y antes de los datos.
+    Ubicacion(&'a str),
 }
 
 /// **El HTTPS de la app** (fuera de Windows): en Apple, URLSession desde
@@ -376,6 +379,18 @@ pub enum EventoHttp<'a> {
 #[cfg(not(windows))]
 pub trait Transporte: Send + Sync {
     fn enviar(&self, p: &Pedido, al_evento: &mut dyn FnMut(EventoHttp) -> Seguir) -> Result<(), String>;
+    /// Una peticion cualquiera (GET, POST, PUT...) con solo las cabeceras
+    /// de quien llama ([`pedir`], las conexiones del asistente).
+    fn pedir(
+        &self,
+        _metodo: &str,
+        _url: &str,
+        _cabeceras: &[(&'static str, String)],
+        _cuerpo: &[u8],
+        _al_evento: &mut dyn FnMut(EventoHttp) -> Seguir,
+    ) -> Result<(), String> {
+        Err("este transporte solo sabe mandar el POST del asistente".into())
+    }
 }
 
 #[cfg(not(windows))]
@@ -407,6 +422,7 @@ fn por_transporte(t: &dyn Transporte, p: &Pedido, al_trozo: &mut dyn FnMut(&[u8]
             estado = Some((codigo, esperar));
             Seguir::Si
         }
+        EventoHttp::Ubicacion(_) => Seguir::Si,
         EventoHttp::Datos(b) => match estado {
             Some((c, _)) if (200..300).contains(&c) => {
                 if b.is_empty() || al_trozo(b) == Seguir::Si {
@@ -436,6 +452,154 @@ fn por_transporte(t: &dyn Transporte, p: &Pedido, al_trozo: &mut dyn FnMut(&[u8]
         (None, Ok(())) => Err(Fallo::Red("el servidor no contesto".into())),
         (Some(_), Ok(())) => Ok(false),
     }
+}
+
+/// Lo que contesto una peticion entera ([`pedir`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Respuesta {
+    pub codigo: u32,
+    pub cuerpo: Vec<u8>,
+    /// La cabecera `Location` (la subida reanudable de Drive la usa).
+    pub ubicacion: Option<String>,
+}
+
+/// **Una peticion cualquiera** (GET, POST, PUT...) leida entera, con las
+/// cabeceras que diga quien llama (las conexiones del asistente: Google
+/// Drive y su OAuth), el mismo contrato que el de WinHTTP de Windows: el
+/// HTTPS por el transporte de la app, `http://` solo hacia este equipo;
+/// una respuesta de mas de `limite` bytes se corta con error, y un codigo
+/// que no es 2xx es [`Fallo::Http`]. Bloquea.
+#[cfg(not(windows))]
+pub fn pedir(
+    metodo: &str,
+    url: &str,
+    cabeceras: &[(&'static str, String)],
+    cuerpo: &[u8],
+    limite: usize,
+) -> Result<Respuesta, Fallo> {
+    let d = partir(url).ok_or_else(|| Fallo::Red(format!("direccion no valida: {url}")))?;
+    if !d.segura {
+        return pedir_local(metodo, &d, cabeceras, cuerpo, limite);
+    }
+    let t = TRANSPORTE.get().ok_or_else(|| {
+        Fallo::Red("en este sistema el HTTPS lo hace la app (en Apple, URLSession desde Swift), no el nucleo".into())
+    })?;
+    let mut estado: Option<(u32, Option<Duration>)> = None;
+    let mut ubicacion = None;
+    let mut todo = Vec::new();
+    let mut grande = false;
+    let r = t.pedir(metodo, url, cabeceras, cuerpo, &mut |e| match e {
+        EventoHttp::Estado { codigo, esperar } => {
+            estado = Some((codigo, esperar));
+            Seguir::Si
+        }
+        EventoHttp::Ubicacion(u) => {
+            ubicacion = Some(u.to_string());
+            Seguir::Si
+        }
+        EventoHttp::Datos(b) => {
+            todo.extend_from_slice(b);
+            if todo.len() > limite {
+                grande = true;
+                Seguir::Parar
+            } else {
+                Seguir::Si
+            }
+        }
+    });
+    terminar(estado, r.map_err(Fallo::Red), todo, ubicacion, grande, limite)
+}
+
+#[cfg(not(windows))]
+fn terminar(
+    estado: Option<(u32, Option<Duration>)>,
+    r: Result<(), Fallo>,
+    cuerpo: Vec<u8>,
+    ubicacion: Option<String>,
+    grande: bool,
+    limite: usize,
+) -> Result<Respuesta, Fallo> {
+    match (estado, r) {
+        (Some((codigo, esperar)), _) if !(200..300).contains(&codigo) => {
+            let mut c = cuerpo;
+            c.truncate(64 * 1024);
+            Err(Fallo::Http { codigo, cuerpo: String::from_utf8_lossy(&c).into_owned(), esperar })
+        }
+        _ if grande => Err(Fallo::Red(format!("la respuesta pasa de {} MB", (limite / (1024 * 1024)).max(1)))),
+        (_, Err(e)) => Err(e),
+        (None, Ok(())) => Err(Fallo::Red("el servidor no contesto".into())),
+        (Some((codigo, _)), Ok(())) => Ok(Respuesta { codigo, cuerpo, ubicacion }),
+    }
+}
+
+/// [`pedir`] hacia este equipo (`http://127.0.0.1`), por TCP a mano.
+#[cfg(not(windows))]
+fn pedir_local(
+    metodo: &str,
+    d: &Direccion,
+    cabeceras: &[(&'static str, String)],
+    cuerpo: &[u8],
+    limite: usize,
+) -> Result<Respuesta, Fallo> {
+    use std::io::{Read, Write};
+    use std::net::{TcpStream, ToSocketAddrs};
+
+    use crate::servidor::LectorHttp;
+
+    let red = |que: &str, e: std::io::Error| Fallo::Red(format!("{que}: {e}"));
+    let direccion = (d.servidor.as_str(), d.puerto)
+        .to_socket_addrs()
+        .map_err(|e| red("no se pudo conectar", e))?
+        .next()
+        .ok_or_else(|| Fallo::Red(format!("no se pudo conectar: {} sin direccion", d.servidor)))?;
+    let mut s = TcpStream::connect_timeout(&direccion, Duration::from_secs(20)).map_err(|e| red("no se pudo conectar", e))?;
+    let _ = s.set_write_timeout(Some(Duration::from_secs(20)));
+    let _ = s.set_read_timeout(Some(Duration::from_secs(180)));
+    let mut cabeza = format!(
+        "{metodo} {} HTTP/1.1\r\nHost: {}:{}\r\nContent-Length: {}\r\nConnection: close\r\n",
+        d.ruta,
+        d.servidor,
+        d.puerto,
+        cuerpo.len()
+    );
+    for (k, v) in cabeceras {
+        cabeza.push_str(k);
+        cabeza.push_str(": ");
+        cabeza.push_str(v);
+        cabeza.push_str("\r\n");
+    }
+    cabeza.push_str("\r\n");
+    s.write_all(cabeza.as_bytes()).map_err(|e| red("no se pudo mandar", e))?;
+    s.write_all(cuerpo).map_err(|e| red("no se pudo mandar", e))?;
+    let mut lector = LectorHttp::nuevo();
+    let mut buf = vec![0u8; 64 * 1024];
+    let mut todo = Vec::new();
+    let mut grande = false;
+    loop {
+        let n = s.read(&mut buf).map_err(|e| red("se corto la respuesta", e))?;
+        if n == 0 {
+            break;
+        }
+        let trozo = lector.meter(&buf[..n]).map_err(|e| Fallo::Red(e.to_string()))?;
+        todo.extend_from_slice(&trozo);
+        if todo.len() > limite {
+            grande = true;
+            break;
+        }
+        if lector.terminado {
+            break;
+        }
+    }
+    let estado = lector.estado.map(|c| {
+        let esperar = lector
+            .cabecera("retry-after")
+            .and_then(|s| s.trim().parse::<f64>().ok())
+            .filter(|s| s.is_finite() && *s >= 0.0)
+            .map(|s| Duration::from_secs_f64(s.min(120.0)));
+        (u32::from(c), esperar)
+    });
+    let ubicacion = lector.cabecera("location").map(str::to_string);
+    terminar(estado, Ok(()), todo, ubicacion, grande, limite)
 }
 
 #[cfg(test)]

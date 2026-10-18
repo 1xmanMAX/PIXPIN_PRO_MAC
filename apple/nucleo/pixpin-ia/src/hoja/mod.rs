@@ -51,6 +51,7 @@
 pub mod comparar;
 pub mod imagen;
 pub mod montaje;
+pub mod paneles;
 pub mod seccion;
 pub mod vision;
 
@@ -165,10 +166,17 @@ pub enum Tipo {
     Foto,
     Grafica,
     Dibujo,
+    /// Un dibujo hecho de figuras exactas (una figura geometrica, un
+    /// esquema): rectas, circunferencias, puntos, flechas (`diagrama`).
+    Diagrama,
     /// Una raya separadora (entre columnas, bajo un titulo).
     Linea,
     /// No esta claro: se le pregunta al modelo con su recorte.
     Dudosa,
+    /// **Un recuadro** (17-oct): una tarjeta con su fondo o una caja con su
+    /// borde ([`paneles`]). Va como un rectangulo relleno, debajo de lo suyo,
+    /// que se secciona aparte.
+    Recuadro,
 }
 
 impl Tipo {
@@ -181,13 +189,15 @@ impl Tipo {
             Tipo::Foto => "foto",
             Tipo::Grafica => "grafica",
             Tipo::Dibujo => "dibujo",
+            Tipo::Diagrama => "diagrama",
             Tipo::Linea => "linea",
             Tipo::Dudosa => "dudosa",
+            Tipo::Recuadro => "recuadro",
         }
     }
     /// Si su trabajo necesita el modelo con vision.
     pub fn usa_modelo(self) -> bool {
-        matches!(self, Tipo::Formula | Tipo::Dudosa | Tipo::Grafica)
+        matches!(self, Tipo::Formula | Tipo::Dudosa | Tipo::Grafica | Tipo::Diagrama)
     }
 }
 
@@ -250,6 +260,8 @@ pub struct Zona {
     /// Imagenes dentro de la zona (los iconos de las celdas de una tabla),
     /// en pixeles de la pagina: van recortadas encima.
     pub dentro: Vec<Caja>,
+    /// Su relleno y su borde, en un [`Tipo::Recuadro`].
+    pub panel: Option<paneles::Estilo>,
 }
 
 impl Zona {
@@ -270,6 +282,9 @@ pub struct Seccionado {
     pub columnas: usize,
     /// El alto de letra del cuerpo (mediana de los renglones), en pixeles.
     pub alto_letra: f64,
+    /// Las cajas de los recuadros: lo de un recuadro no se junta con lo de
+    /// otro (`bloques_de_texto` de la app).
+    pub paneles: Vec<Caja>,
 }
 
 impl Seccionado {
@@ -291,6 +306,11 @@ pub struct Opciones {
     pub duda: f32,
     /// Cuantas peticiones a la nube a la vez.
     pub concurrencia: usize,
+    /// **Texto rico de la nube** (15-oct): los bloques de texto y formulas
+    /// (la columna «RESOLUCION» de una lamina) se le piden a la nube en texto
+    /// rico, con sus formulas en linea, colores y cursiva. Para las laminas
+    /// que se calcan; una hoja de texto corriente se queda con el OCR.
+    pub rico: bool,
     /// Por debajo de este parecido (0-1) una zona se rehace una vez.
     pub rehacer_bajo: f64,
     /// Comprobar al final (pintar y comparar).
@@ -308,6 +328,7 @@ impl Default for Opciones {
             familia_titulos: "Work Sans".into(),
             duda: 0.55,
             concurrencia: 4,
+            rico: false,
             rehacer_bajo: 0.35,
             comprobar: true,
             plazo_nube: std::time::Duration::from_secs(40),
@@ -399,6 +420,7 @@ pub fn resumen(s: &Seccionado, hechas: usize, rehechas: usize, ms: u128) -> Stri
         Tipo::Foto,
         Tipo::Grafica,
         Tipo::Dibujo,
+        Tipo::Diagrama,
         Tipo::Linea,
     ] {
         let n = s.cuantas(t);

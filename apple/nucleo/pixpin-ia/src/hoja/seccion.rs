@@ -127,10 +127,10 @@ pub fn seccionar_con(a: &Analisis, ancho: u32, alto: u32, palabras: Vec<PalabraH
     let mut ocupado: Vec<(Caja, usize)> = Vec::new(); // (caja, indice en figuras)
     let mut figuras: Vec<Figura> = Vec::new();
     for f in &fotos {
-        figuras.push(Figura { tipo: Tipo::Foto, caja: *f, confianza: 0.85, rayas: Vec::new() });
+        figuras.push(Figura { tipo: Tipo::Foto, caja: *f, confianza: 0.85, rayas: Vec::new(), palabras: Vec::new() });
     }
     for g in &graficas {
-        figuras.push(Figura { tipo: Tipo::Grafica, caja: g.0, confianza: 0.7, rayas: g.1.clone() });
+        figuras.push(Figura { tipo: Tipo::Grafica, caja: g.0, confianza: 0.7, rayas: g.1.clone(), palabras: Vec::new() });
     }
     let mut tablas: Vec<TablaR> = tablas_r.iter().map(|t| TablaR { caja: t.0, rayas: t.1.clone(), palabras: Vec::new(), iconos: Vec::new() }).collect();
     // Una foto dentro de una tabla es un icono de una celda.
@@ -194,6 +194,19 @@ pub fn seccionar_con(a: &Analisis, ancho: u32, alto: u32, palabras: Vec<PalabraH
     unir_figuras(&mut figuras, hm);
     // Los restos dentro de una figura son de ella.
     restos.retain(|r| !figuras.iter().any(|f| r.dentro_de(&f.caja.crecer(hm * 0.5)) > 0.6));
+    // Los rotulos cortos dentro de un dibujo (A, B, 2a, 45°) son suyos: van
+    // con el (sus letras, que un diagrama pone junto a sus puntos), no
+    // sueltos como parrafos de una letra (15-oct, la lamina de geometria).
+    for f in figuras.iter_mut().filter(|f| f.tipo == Tipo::Dibujo) {
+        let caja = f.caja.crecer(hm * 0.3);
+        let (suyas, otras): (Vec<PalabraHoja>, Vec<PalabraHoja>) =
+            libres.drain(..).partition(|p| caja.contiene(p.caja.cx(), p.caja.cy()) && p.texto.chars().count() <= 6);
+        libres = otras;
+        for p in &suyas {
+            f.caja = f.caja.union(&p.caja);
+        }
+        f.palabras.extend(suyas);
+    }
 
     // 5. Renglones.
     let separadores: Vec<Raya> = lineas.iter().filter(|r| r.vertical).copied().collect();
@@ -246,6 +259,7 @@ pub fn seccionar_con(a: &Analisis, ancho: u32, alto: u32, palabras: Vec<PalabraH
             tabla: None,
             rayas: vec![[l.x0, l.y0, l.x1, l.y1, l.grosor]],
             dentro: Vec::new(),
+            panel: None,
         });
     }
     for (i, z) in zonas.iter_mut().enumerate() {
@@ -258,6 +272,7 @@ pub fn seccionar_con(a: &Analisis, ancho: u32, alto: u32, palabras: Vec<PalabraH
         zonas,
         columnas: n_columnas,
         alto_letra: alto_cuerpo,
+        paneles: Vec::new(),
     }
 }
 
@@ -268,21 +283,23 @@ struct Figura {
     caja: Caja,
     confianza: f32,
     rayas: Vec<[f64; 5]>,
+    /// Sus rotulos (las letras de un dibujo).
+    palabras: Vec<PalabraHoja>,
 }
 
 fn figura_de_mancha(m: &Mancha, _hm: f64) -> Figura {
     let e = m.est;
     if e.parece_foto() {
-        Figura { tipo: Tipo::Foto, caja: m.caja, confianza: (0.55 + e.medios as f32).min(0.9), rayas: Vec::new() }
+        Figura { tipo: Tipo::Foto, caja: m.caja, confianza: (0.55 + e.medios as f32).min(0.9), rayas: Vec::new(), palabras: Vec::new() }
     } else if e.tinta < 0.01 {
         // Sin tinta de verdad, solo grises claros (una marca de agua, un
         // sombreado): calcarlo lo oscureceria; va como imagen.
-        Figura { tipo: Tipo::Foto, caja: m.caja, confianza: 0.6, rayas: Vec::new() }
+        Figura { tipo: Tipo::Foto, caja: m.caja, confianza: 0.6, rayas: Vec::new(), palabras: Vec::new() }
     } else if e.tinta < 0.22 && e.medios < 0.12 {
         // Trazos finos sobre papel: un dibujo de lineas.
-        Figura { tipo: Tipo::Dibujo, caja: m.caja, confianza: 0.6, rayas: Vec::new() }
+        Figura { tipo: Tipo::Dibujo, caja: m.caja, confianza: 0.6, rayas: Vec::new(), palabras: Vec::new() }
     } else {
-        Figura { tipo: Tipo::Dudosa, caja: m.caja, confianza: 0.35, rayas: Vec::new() }
+        Figura { tipo: Tipo::Dudosa, caja: m.caja, confianza: 0.35, rayas: Vec::new(), palabras: Vec::new() }
     }
 }
 
@@ -298,6 +315,7 @@ fn unir_figuras(f: &mut Vec<Figura>, hm: f64) {
                     let a = &mut f[i];
                     a.caja = a.caja.union(&b.caja);
                     a.rayas.extend(b.rayas);
+                    a.palabras.extend(b.palabras);
                     if b.tipo == Tipo::Grafica || (a.tipo != Tipo::Grafica && b.confianza > a.confianza) {
                         a.tipo = b.tipo;
                         a.confianza = b.confianza;
@@ -869,7 +887,7 @@ impl Bloque<'_> {
                 Clase::Figura(f) => {
                     cerrar(&mut actual, &mut restos_actual, tipo_actual, &mut out);
                     let fi = &self.figuras[f];
-                    out.push(zona(fi.tipo, fi.caja, fi.confianza, Vec::new(), None, fi.rayas.clone()));
+                    out.push(zona(fi.tipo, fi.caja, fi.confianza, renglones(&fi.palabras, &[], self.hm), None, fi.rayas.clone()));
                     ultimo = None;
                 }
                 Clase::Tabla(t) => {
@@ -997,7 +1015,7 @@ impl Bloque<'_> {
 }
 
 fn zona(tipo: Tipo, caja: Caja, confianza: f32, renglones: Vec<Renglon>, tabla: Option<tabla_escaneada::TablaLeida>, rayas: Vec<[f64; 5]>) -> Zona {
-    Zona { id: 0, tipo, caja, orden: 0, columna: 0, confianza, renglones, alineacion: Alineacion::Izquierda, tabla, rayas, dentro: Vec::new() }
+    Zona { id: 0, tipo, caja, orden: 0, columna: 0, confianza, renglones, alineacion: Alineacion::Izquierda, tabla, rayas, dentro: Vec::new(), panel: None }
 }
 
 /// Como van los renglones dentro del bloque.
@@ -1066,5 +1084,147 @@ fn juntar_formulas(zonas: &mut Vec<Zona>, hm: f64) {
         if !junto {
             break;
         }
+    }
+}
+
+/// **Un dibujo es una zona** (16-oct, el diagrama de flujo del banco de
+/// documentos): el seccionado partia un dibujo en trozos —el ovalo de «Fin»
+/// en dos mitades, los rectangulos como «tablas», el paralelogramo en una
+/// dudosa y una formula— y cada trozo se vectorizaba por su cuenta, sin las
+/// flechas que los unen. Aqui, la tinta que va seguida de una pieza a otra
+/// (las flechas, los lados) junta en UNA zona de dibujo todas las zonas que
+/// toca, si alguna era ya dibujo: el texto de dentro va con ella (sus
+/// rotulos). Un parrafo suelto, una foto o una tabla que no toca un dibujo
+/// se quedan como estaban.
+pub fn unir_dibujos(s: &mut Seccionado, rgba: &[u8]) {
+    let (w, h) = (s.ancho as usize, s.alto as usize);
+    // Que zonas son dibujo: las de dibujo y las dudosas que son un diagrama (las barras
+    // de una grafica, que el seccionado no supo que eran).
+    let (w0, h0) = (s.ancho, s.alto);
+    let es_dibujo: Vec<bool> = s
+        .zonas
+        .iter()
+        .map(|z| {
+            matches!(z.tipo, Tipo::Dibujo | Tipo::Grafica)
+                || (z.tipo == Tipo::Dudosa && z.caja.w >= 60.0 && z.caja.h >= 60.0 && {
+                    let (sub, sw, sh) = imagen::recortar(rgba, w0, h0, &z.caja);
+                    let o = crate::diagrama::Opciones { alto_letra: s.alto_letra, exacta: false, ..Default::default() };
+                    crate::diagrama::vectorizar(&sub, sw, sh, &[], &o, None).es_diagrama()
+                })
+        })
+        .collect();
+    if w < 8 || h < 8 || rgba.len() < w * h * 4 || !es_dibujo.iter().any(|&b| b) {
+        return;
+    }
+    // A mitad de tamano (la tinta de 1 px se queda: se mira el mas oscuro de cada 2x2).
+    let (mw, mh) = (w / 2, h / 2);
+    let img = crate::diagrama::mascara::Img::de_rgba(rgba, w, h);
+    let papel = crate::diagrama::mascara::fondo(&img);
+    let mut tinta = vec![false; mw * mh];
+    for y in 0..mh {
+        for x in 0..mw {
+            tinta[y * mw + x] = (0..4).any(|k| {
+                let (xx, yy) = (2 * x + k % 2, 2 * y + k / 2);
+                crate::diagrama::mascara::dist_color(img.px[yy * w + xx], papel) > 60.0
+            });
+        }
+    }
+    // Lo que es texto no une (un rotulo pegado a una flecha no arrastra el parrafo).
+    for z in &s.zonas {
+        for r in &z.renglones {
+            for p in &r.palabras {
+                let c = p.caja.crecer(1.0);
+                for y in (c.y / 2.0).floor().max(0.0) as usize..((c.y1() / 2.0).ceil() as usize).min(mh) {
+                    for x in (c.x / 2.0).floor().max(0.0) as usize..((c.x1() / 2.0).ceil() as usize).min(mw) {
+                        tinta[y * mw + x] = false;
+                    }
+                }
+            }
+        }
+    }
+    let comps = crate::diagrama::mascara::componentes(&tinta, mw, mh);
+    let unibles = |t: Tipo| matches!(t, Tipo::Dibujo | Tipo::Grafica | Tipo::Tabla | Tipo::Dudosa | Tipo::Formula | Tipo::Linea | Tipo::Diagrama);
+    let mut grupos: Vec<Vec<usize>> = Vec::new();
+    for comp in comps.iter().filter(|c| c.len() >= 40) {
+        // Las zonas que toca la mancha (con al menos 15 de sus pixeles dentro).
+        let mut cuenta = vec![0usize; s.zonas.len()];
+        for &i in comp {
+            let (x, y) = ((i % mw) as f64 * 2.0 + 1.0, (i / mw) as f64 * 2.0 + 1.0);
+            for (k, z) in s.zonas.iter().enumerate() {
+                if z.caja.contiene(x, y) {
+                    cuenta[k] += 1;
+                }
+            }
+        }
+        let mut tocadas: Vec<usize> = (0..s.zonas.len()).filter(|&k| cuenta[k] >= 15 && unibles(s.zonas[k].tipo) && s.zonas[k].tipo != Tipo::Formula).collect();
+        // Una «formula» solo si cae dentro de lo demas (el «Leer N» de su
+        // paralelogramo, si; un titulo subrayado que toca la figura, no).
+        if let Some(union) = tocadas.iter().map(|&k| s.zonas[k].caja).reduce(|a, b| Caja::de_esquinas(a.x.min(b.x), a.y.min(b.y), a.x1().max(b.x1()), a.y1().max(b.y1()))) {
+            tocadas.extend((0..s.zonas.len()).filter(|&k| cuenta[k] >= 15 && s.zonas[k].tipo == Tipo::Formula && s.zonas[k].caja.dentro_de(&union) >= 0.6));
+        }
+        if tocadas.len() >= 2 && tocadas.iter().any(|&k| es_dibujo[k]) {
+            grupos.push(tocadas);
+        }
+    }
+    // Los grupos que comparten zonas, uno.
+    let mut i = 0;
+    while i < grupos.len() {
+        let mut j = i + 1;
+        let mut junto = false;
+        while j < grupos.len() {
+            if grupos[j].iter().any(|k| grupos[i].contains(k)) {
+                let g = grupos.remove(j);
+                for k in g {
+                    if !grupos[i].contains(&k) {
+                        grupos[i].push(k);
+                    }
+                }
+                junto = true;
+            } else {
+                j += 1;
+            }
+        }
+        if !junto {
+            i += 1;
+        }
+    }
+    if grupos.is_empty() {
+        return;
+    }
+    let mut quitar: Vec<usize> = Vec::new();
+    for g in &grupos {
+        let base = *g.iter().min().unwrap();
+        let mut caja = s.zonas[base].caja;
+        for &k in g {
+            let c = s.zonas[k].caja;
+            caja = Caja::de_esquinas(caja.x.min(c.x), caja.y.min(c.y), caja.x1().max(c.x1()), caja.y1().max(c.y1()));
+        }
+        // Y el texto que cae dentro del dibujo (el «Fin» del ovalo, «Si» y «No»).
+        // (Y los rotulos de alrededor: palabras cortas pegadas al dibujo, como los
+        // meses bajo las barras o los valores del eje.)
+        let a = s.alto_letra.max(6.0);
+        let rotulos = |z: &Zona| z.renglones.iter().flat_map(|r| r.palabras.iter()).all(|p| p.texto.chars().count() <= 6);
+        let dentro: Vec<usize> = (0..s.zonas.len())
+            .filter(|&k| !g.contains(&k) && matches!(s.zonas[k].tipo, Tipo::Parrafo | Tipo::Encabezado))
+            .filter(|&k| s.zonas[k].caja.dentro_de(&caja) >= 0.8 || (rotulos(&s.zonas[k]) && s.zonas[k].caja.dentro_de(&caja.crecer(2.5 * a)) >= 0.8))
+            .collect();
+        let mut renglones: Vec<Renglon> = g.iter().chain(&dentro).flat_map(|&k| s.zonas[k].renglones.iter().cloned()).collect();
+        renglones.sort_by(|a, b| a.caja.y.total_cmp(&b.caja.y));
+        let z = &mut s.zonas[base];
+        z.tipo = Tipo::Dibujo;
+        z.caja = caja;
+        z.renglones = renglones;
+        z.rayas.clear();
+        z.tabla = None;
+        z.dentro.clear();
+        quitar.extend(g.iter().chain(&dentro).copied().filter(|&k| k != base));
+    }
+    quitar.sort_unstable();
+    quitar.dedup();
+    for &k in quitar.iter().rev() {
+        s.zonas.remove(k);
+    }
+    for (k, z) in s.zonas.iter_mut().enumerate() {
+        z.id = k;
     }
 }

@@ -97,6 +97,8 @@ pub fn catalogo() -> Vec<Herramienta> {
 /// Fijo para la misma entrada, que el catalogo es prefijo de la cache.
 pub fn para_la_nube(lista: &mut [Herramienta]) {
     for h in lista.iter_mut() {
+        crate::edicion::para_la_nube(h);
+        crate::acciones::para_la_nube(h);
         let extra = match h.nombre.as_str() {
             DIBUJAR => {
                 if let Some(t) = h.parametros.pointer_mut("/properties/elementos/items/properties/tipo/enum").and_then(Value::as_array_mut) {
@@ -112,11 +114,20 @@ pub fn para_la_nube(lista: &mut [Herramienta]) {
                         json!({"type": "array", "items": {"type": "array", "items": {"type": "string"}}, "description": "tabla: filas de celdas, la primera es la cabecera"}),
                     );
                     p.insert("rugosidad".into(), json!({"type": "number", "description": "0 trazo exacto (geometria, planos), 1 a mano"}));
+                    // El texto rico del lienzo (`pixpin_motor2d::texto_rico`).
+                    p.insert(
+                        "texto".into(),
+                        json!({"type": "string", "description": "texto rico: formulas en linea entre $...$ (LaTeX), \\color{rojo}{X}, **negrita**, *cursiva*, <u>sub</u>, renglones con \\n, \\centro al inicio de un renglon"}),
+                    );
                 }
                 "Tambien: tabla (con «x», «y» y «filas»:[[\"Planeta\",\"UA\"],[\"Mercurio\",\"0.39\"]], la primera fila es la cabecera; es LA forma de hacer una tabla en el lienzo, no una nota) \
                  y paralelogramo (con «caja»). En un diagrama de flujo: inicio/fin elipse, proceso rectangulo, decision rombo, leer/escribir paralelogramo. \
                  En geometria, fisica o planos pon «rugosidad»:0 en cada figura (la circunferencia exacta, no a mano), calcula las coordenadas de verdad \
-                 (centro y radio de una inscrita), y cada punto lleva su letra UNA vez: los textos de al lado no la repiten («incentro», no «I incentro»)."
+                 (centro y radio de una inscrita), y cada punto lleva su letra UNA vez: los textos de al lado no la repiten («incentro», no «I incentro»). \
+                 Un «texto» es TEXTO RICO: formulas en linea entre $...$ con LaTeX (\\frac, ^, _, \\sqrt, \\overline{AB} segmento, \\overset{\\frown}{AC} arco, \\vec{v}, \\sphericalangle o ∢ para «m∢AOB», ^\\circ grados, \\theta, \\pi, \\therefore ∴, \\perp, \\parallel, \\cong, \\boxed{}), \
+                 colores con \\color{rojo}{X} (dentro o fuera de $...$), **negrita**, *cursiva*, <u>subrayado</u>, ~~tachado~~, \\tam{1.4}{grande}; varios renglones con \\n y \\centro, \\derecha o \\justificado al inicio de un renglon. \
+                 Para la resolucion de un problema, UN texto por bloque con sus formulas en linea, no ecuaciones sueltas: \
+                 {\"tipo\":\"texto\",\"x\":40,\"y\":60,\"texto\":\"Nos piden $m\\\\sphericalangle COD = \\\\color{rojo}{X}$\\n• Se observa que $\\\\overline{AB}$ es diametro:\\n\\\\centro $45^\\\\circ = \\\\frac{\\\\color{azul}{2a+2b}}{2}$\"}."
             }
             PROBLEMA => {
                 "Es LA herramienta para «pasa en limpio el problema/ejercicio» (no hoja_a_lienzo). El enunciado SIN las formulas; cada formula entera una sola vez en «ecuaciones» \
@@ -124,7 +135,24 @@ pub fn para_la_nube(lista: &mut [Herramienta]) {
                  necesario (triangulo, circuito, plano inclinado), nunca para integrales, matrices o ecuaciones."
             }
             "nota_nueva" => "Solo si piden una nota o un apunte: una tabla, un diagrama o una grafica van al lienzo.",
-            crate::hoja::NOMBRE => "NO para pasar en limpio o resolver un problema o ejercicio: eso es problema_en_limpio.",
+            crate::hoja::NOMBRE => "Tambien es la de «calca/pasa esta pagina al lienzo» con un PDF adjunto (calcar_imagen solo calca fotos). \
+                                    NO para pasar en limpio o resolver un problema o ejercicio: eso es problema_en_limpio.",
+            // Banco de documentos (15-oct): «convierte estas formulas a LaTeX»
+            // acababa dibujado en el lienzo sin una linea de LaTeX en la respuesta.
+            ECUACION => "Solo si piden las formulas EN EL LIENZO. Si piden el LaTeX («pasame en LaTeX», «convierte a LaTeX»), \
+                         contesta el codigo en el texto, una formula por renglon entre $$...$$, sin herramienta.",
+            // «Anota en la imagen los pasos» acababa en una tarea pendiente.
+            "anadir_tarea" => "NO para «anota/marca/señala en el documento, la foto o el PDF»: eso es anotar_inteligente o anotar_documento.",
+            crate::edicion::ESTILO => "Con «tam_letra» cambia el tamano de la letra de los textos (y los de una tabla).",
+            crate::acciones_documentos::ANOTAR => "Solo PDF, Word, PowerPoint o plano, y para un texto concreto que dice el usuario. \
+                                                   NUNCA para «lo importante», resumir o explicar al margen, ni varias notas a mano: eso es anotar_inteligente, en UNA llamada.",
+            crate::anotacion::NOMBRE => "Es LA herramienta para «señala/marca lo importante», «resume cada seccion al margen», «explica paso a paso» o «marca los errores» \
+                                         en un documento, foto o Excel del chat: lee y coloca ella sola, en una llamada (no escribas tu las notas con anotar_documento).",
+            // «Haz esta tabla en el lienzo» acababa como tabla del chat.
+            crate::acciones_documentos::TABLA => "Con «destino»:«lienzo» la dibuja en el lienzo IGUAL que en la foto (letra, anchos, colores de fondo y borde medidos): \
+                                                  es LA forma de «haz/pasa/copia esta tabla en el lienzo», no la dibujes tu.",
+            // «Marca los errores del Excel» acababa contestado en el chat.
+            "leer_excel" => "Para MARCAR o explicar algo EN el Excel (errores, lo importante), anotar_inteligente: lee las celdas por su cuenta.",
             _ => continue,
         };
         if !h.descripcion.ends_with(extra) {
@@ -156,7 +184,8 @@ pub fn catalogo_base() -> Vec<Herramienta> {
                 "Un paso de un diagrama: {\"tipo\":\"rectangulo\",\"caja\":[60,260,160,70],\"texto\":\"Inicio\"},",
                 "{\"tipo\":\"flecha\",\"puntos\":[220,295,320,295]}. ",
                 "Para copiar exacta una foto adjunta usa calcar_imagen; para dibujarla con figuras o a lapiz, interpretala con estas figuras. ",
-                "Para ilustraciones con curvas o mucho detalle, mejor dibujar_svg."
+                "Para ilustraciones con curvas o mucho detalle, mejor dibujar_svg. ",
+                "Para geometria exacta de lamina (arcos, semicircunferencias, cuadrantes, sectores, marcas de angulo, angulo recto, puntos con letra, degradados, raya-punto) usa geometria_precisa."
             )
             .into(),
             parametros: json!({
@@ -1825,6 +1854,12 @@ mod pruebas {
         assert!(dn.parametros.to_string().contains("\"paralelogramo\""));
         assert!(de(&nube, PROBLEMA).descripcion.contains("no hoja_a_lienzo"));
         assert!(!de(&local, PROBLEMA).descripcion.contains("no hoja_a_lienzo"));
+        // Banco de documentos (15-oct): el LaTeX en el texto, la tabla al
+        // lienzo y el tamano de letra; el local, igual que antes.
+        assert!(de(&nube, ECUACION).descripcion.contains("LaTeX"));
+        assert!(!de(&local, ECUACION).descripcion.contains("sin herramienta"));
+        assert!(de(&nube, crate::edicion::ESTILO).parametros["properties"].get("tam_letra").is_some());
+        assert!(de(&local, crate::edicion::ESTILO).parametros["properties"].get("tam_letra").is_none());
         // Dos veces da lo mismo (es prefijo de la cache).
         let mut otra = nube.clone();
         para_la_nube(&mut otra);

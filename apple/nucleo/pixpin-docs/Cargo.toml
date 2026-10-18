@@ -15,3 +15,6 @@ thiserror = "2.0"
 # nota: los mismos serde y serde_json que ya lleva el resto del proyecto.
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+# Las formulas `$…$` viven en el motor del lienzo desde el 15-oct (Windows:
+# `pixpin_notas::formulas` las reexporta); aqui igual.
+pixpin-motor2d = { path = "../pixpin-motor2d" }

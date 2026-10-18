@@ -23,6 +23,10 @@ use crate::ErrorNucleo;
 /// El servicio del Llavero donde viven las claves del asistente.
 pub const SERVICIO: &str = "PixPinMax.asistente";
 
+/// El de las conexiones del asistente (Google Drive): su ID de cliente y sus
+/// tokens de OAuth, en JSON (en Windows, `conexion-<servicio>.cifrado`).
+pub const SERVICIO_CONEXIONES: &str = "PixPinMax.conexiones";
+
 /// **El Llavero de la app**, implementado en Swift. Cada metodo es una
 /// llamada al sistema (rapida); se llama solo al guardar o al usar una
 /// clave, nunca en bucle.
@@ -59,6 +63,19 @@ impl claves::Llavero for Adaptador {
     fn borrar(&self, p: Proveedor) -> Result<(), String> {
         self.app
             .borrar(SERVICIO.into(), p.id().into())
+            .map_err(|e| e.to_string())
+    }
+    fn guardar_secreto(&self, nombre: &str, valor: &str) -> Result<(), String> {
+        self.app
+            .guardar(SERVICIO_CONEXIONES.into(), nombre.into(), valor.into())
+            .map_err(|e| e.to_string())
+    }
+    fn leer_secreto(&self, nombre: &str) -> Option<String> {
+        self.app.leer(SERVICIO_CONEXIONES.into(), nombre.into())
+    }
+    fn borrar_secreto(&self, nombre: &str) -> Result<(), String> {
+        self.app
+            .borrar(SERVICIO_CONEXIONES.into(), nombre.into())
             .map_err(|e| e.to_string())
     }
 }

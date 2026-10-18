@@ -11430,10 +11430,6 @@ public func FfiConverterTypePuertaRecibir_lower(_ value: PuertaRecibir) -> UInt6
  */
 public protocol ReceptorHttpProtocol: AnyObject, Sendable {
     
-    /**
-     * Un trozo del cuerpo. `false`: hay que cancelar (el usuario paro o ya
-     * no hay quien lea).
-     */
     func datos(trozo: Data)  -> Bool
     
     /**
@@ -11441,6 +11437,13 @@ public protocol ReceptorHttpProtocol: AnyObject, Sendable {
      * si no lo dijo).
      */
     func estado(codigo: UInt32, reintentarEnS: Double) 
+    
+    /**
+     * Un trozo del cuerpo. `false`: hay que cancelar (el usuario paro o ya
+     * no hay quien lea).
+     * La cabecera `Location` de la respuesta (si la hay), tras `estado`.
+     */
+    func ubicacion(valor: String) 
     
 }
 /**
@@ -11499,10 +11502,6 @@ open class ReceptorHttp: ReceptorHttpProtocol, @unchecked Sendable {
     
 
     
-    /**
-     * Un trozo del cuerpo. `false`: hay que cancelar (el usuario paro o ya
-     * no hay quien lea).
-     */
 open func datos(trozo: Data) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
         uniffiCallStatus in
@@ -11523,6 +11522,20 @@ open func estado(codigo: UInt32, reintentarEnS: Double)  {try! rustCall() {
             self.uniffiCloneHandle(),
         FfiConverterUInt32.lower(codigo),
         FfiConverterDouble.lower(reintentarEnS),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Un trozo del cuerpo. `false`: hay que cancelar (el usuario paro o ya
+     * no hay quien lea).
+     * La cabecera `Location` de la respuesta (si la hay), tras `estado`.
+     */
+open func ubicacion(valor: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_receptorhttp_ubicacion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(valor),uniffiCallStatus
     )
 }
 }
@@ -12109,6 +12122,15 @@ public protocol TransporteApp: AnyObject, Sendable {
      */
     func enviar(url: String, cabeceras: [CabeceraHttp], cuerpo: Data, receptor: ReceptorHttp)  -> String?
     
+    /**
+     * **Una peticion cualquiera** (GET, POST, PUT...) con solo las
+     * `cabeceras` dadas: las conexiones del asistente (Google Drive y su
+     * OAuth). Como `enviar`, pero con su metodo, sin `Content-Type` ni
+     * `Accept` puestos, y contando la cabecera `Location` al receptor
+     * ([`ReceptorHttp::ubicacion`]) antes de los datos.
+     */
+    func pedir(metodo: String, url: String, cabeceras: [CabeceraHttp], cuerpo: Data, receptor: ReceptorHttp)  -> String?
+    
 }
 /**
  * **El HTTPS de la app**, implementado en Swift (URLSession).
@@ -12186,6 +12208,27 @@ open func enviar(url: String, cabeceras: [CabeceraHttp], cuerpo: Data, receptor:
 })
 }
     
+    /**
+     * **Una peticion cualquiera** (GET, POST, PUT...) con solo las
+     * `cabeceras` dadas: las conexiones del asistente (Google Drive y su
+     * OAuth). Como `enviar`, pero con su metodo, sin `Content-Type` ni
+     * `Accept` puestos, y contando la cabecera `Location` al receptor
+     * ([`ReceptorHttp::ubicacion`]) antes de los datos.
+     */
+open func pedir(metodo: String, url: String, cabeceras: [CabeceraHttp], cuerpo: Data, receptor: ReceptorHttp) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_transporteapp_pedir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(metodo),
+        FfiConverterString.lower(url),
+        FfiConverterSequenceTypeCabeceraHttp.lower(cabeceras),
+        FfiConverterData.lower(cuerpo),
+        FfiConverterTypeReceptorHttp_lower(receptor),uniffiCallStatus
+    )
+})
+}
+    
 
     
 }
@@ -12229,6 +12272,38 @@ fileprivate struct UniffiCallbackInterfaceTransporteApp {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.enviar(
+                     url: try FfiConverterString.lift(url),
+                     cabeceras: try FfiConverterSequenceTypeCabeceraHttp.lift(cabeceras),
+                     cuerpo: try FfiConverterData.lift(cuerpo),
+                     receptor: try FfiConverterTypeReceptorHttp_lift(receptor)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionString.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        pedir: { (
+            uniffiHandle: UInt64,
+            metodo: RustBuffer,
+            url: RustBuffer,
+            cabeceras: RustBuffer,
+            cuerpo: RustBuffer,
+            receptor: UInt64,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> String? in
+                guard let uniffiObj = try? FfiConverterTypeTransporteApp.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.pedir(
+                     metodo: try FfiConverterString.lift(metodo),
                      url: try FfiConverterString.lift(url),
                      cabeceras: try FfiConverterSequenceTypeCabeceraHttp.lift(cabeceras),
                      cuerpo: try FfiConverterData.lift(cuerpo),
@@ -39303,13 +39378,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_oyentechatia_vivo() != 42047) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_receptorhttp_datos() != 47642) {
+    if (uniffi_pixpin_nucleo_checksum_method_receptorhttp_datos() != 12998) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_receptorhttp_estado() != 30698) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_receptorhttp_ubicacion() != 4512) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_transporteapp_enviar() != 28354) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_transporteapp_pedir() != 27405) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_appia_confirmar() != 48692) {
