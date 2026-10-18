@@ -224,14 +224,14 @@ fn olvidar_hora_de_tarea(carpeta: &Path, lista: &str, local: i64) -> std::io::Re
 }
 
 impl Nucleo {
-    fn carpeta_de_chat(&self, chat: &str) -> Result<std::path::PathBuf, ErrorNucleo> {
+    pub(crate) fn carpeta_de_chat(&self, chat: &str) -> Result<std::path::PathBuf, ErrorNucleo> {
         validar_chat(chat)?;
         Ok(almacen::carpeta(self.ruta(), chat))
     }
 
     /// Suelta el indice de paginas de un cuaderno reescrito (puede quedar
     /// del mismo tamano y la fecha no bastar).
-    fn soltar_cuaderno(&self, carpeta: &Path) {
+    pub(crate) fn soltar_cuaderno(&self, carpeta: &Path) {
         self.cache_tomada().quitar(&carpeta.join("guardados.jsonl"));
     }
 }

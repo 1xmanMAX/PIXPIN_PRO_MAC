@@ -360,6 +360,20 @@ fn las_tareas_de_todos_los_chats_se_marcan_en_su_mensaje() {
     let listas = n.tareas(0).unwrap();
     assert!(listas[0].es_inbox, "el Inbox primero");
     assert!(n.apuntar_tarea("   ".into(), 0).is_err());
+
+    // Lo que se entiende al escribir (Windows, 17-oct): prioridad y #etiqueta
+    // van como marcas detras del titulo, y la vista las ensena.
+    let con = n.apuntar_tarea("llamar al banco prioridad alta #casa".into(), 0).unwrap();
+    let crudo = &con.tareas[2].crudo;
+    assert!(crudo.starts_with("llamar al banco ⏫ #casa ➕ "), "{crudo}");
+    let m = pixpin_nucleo::marcas_de_tarea(crudo.clone(), 0);
+    assert_eq!(m.titulo, "llamar al banco");
+    assert_eq!(m.prioridad.as_deref(), Some("alta"));
+    assert_eq!(m.etiquetas, ["casa"]);
+    assert_eq!(m.chapitas.first().map(String::as_str), Some("⏫"));
+    // Caso negativo: lo que no se entiende se queda en el titulo.
+    let raro = n.apuntar_tarea("comprar pan #".into(), 0).unwrap();
+    assert!(raro.tareas[3].crudo.starts_with("comprar pan #"), "{}", raro.tareas[3].crudo);
 }
 
 #[test]
@@ -432,4 +446,53 @@ fn buscar_en_todo_da_chats_mensajes_tareas_y_momentos() {
     let c = n.buscar("nota".into(), 0, 10, Some(b)).unwrap();
     assert!(c.cancelada);
     assert!(c.resultados.is_empty());
+}
+
+#[test]
+fn editar_borrar_deshacer_y_mover_tareas() {
+    let tmp = Temporal::nueva("cambiar-tareas");
+    let n = tmp.nucleo();
+    let inbox = n.apuntar_tarea("pagar luz".into(), 0).unwrap();
+    n.apuntar_tarea("comprar pan".into(), 0).unwrap();
+    let (chat, lista) = (inbox.chat.clone(), inbox.mensaje.clone());
+    let leer = || {
+        n.tareas(0)
+            .unwrap()
+            .into_iter()
+            .find(|l| l.mensaje == lista)
+            .unwrap()
+            .tareas
+    };
+    let t = leer();
+    // Corregir: el texto nuevo, entendido, con su fecha de creacion.
+    assert!(n
+        .editar_tarea(chat.clone(), lista.clone(), 0, t[0].crudo.clone(), "pagar la luz #casa".into(), 0)
+        .unwrap());
+    let t = leer();
+    assert!(t[0].crudo.starts_with("pagar la luz #casa ➕ "), "{}", t[0].crudo);
+    // Caso negativo: con el texto viejo ya no se toca.
+    assert!(!n
+        .editar_tarea(chat.clone(), lista.clone(), 0, "pagar luz".into(), "x".into(), 0)
+        .unwrap());
+    // Borrar y deshacer: vuelve a su sitio.
+    let crudo = t[0].crudo.clone();
+    assert!(n.borrar_tarea(chat.clone(), lista.clone(), 0, crudo.clone()).unwrap());
+    assert_eq!(leer().len(), 1);
+    n.devolver_tarea(chat.clone(), lista.clone(), 0, crudo.clone(), false).unwrap();
+    assert_eq!(leer()[0].crudo, crudo);
+    // Mover a una lista de otro chat: sale de aqui y entra alli.
+    let obra = n.crear_chat("Obra".into()).unwrap();
+    let otra = self::lista(&n, &tmp.datos(), &obra.id, "Compras", &[]);
+    assert!(n
+        .mover_tarea(chat.clone(), lista.clone(), 1, leer()[1].crudo.clone(), obra.id.clone(), otra.clone())
+        .unwrap());
+    assert_eq!(leer().len(), 1);
+    let alli = n.tareas(0).unwrap().into_iter().find(|l| l.mensaje == otra).unwrap();
+    assert!(alli.tareas[0].crudo.starts_with("comprar pan"));
+    // Caso negativo: mover algo que ya no esta no deja copia en el destino.
+    assert!(!n
+        .mover_tarea(chat.clone(), lista.clone(), 0, "no esta".into(), obra.id.clone(), otra.clone())
+        .unwrap());
+    let alli = n.tareas(0).unwrap().into_iter().find(|l| l.mensaje == otra).unwrap();
+    assert_eq!(alli.tareas.len(), 1);
 }

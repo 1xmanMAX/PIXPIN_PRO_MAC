@@ -139,7 +139,7 @@ pub use planos::{
 };
 pub use recordatorios::{RecordatorioMac, TareaRecordada};
 pub use sincro::{AnuncioBonjour, Atendido, Escucha, ParTxt, ResumenSincro};
-pub use tareas::{ListaTareas, Tarea};
+pub use tareas::{ListaTareas, MarcasTarea, Tarea, marcas_de_tarea, tarea_con_nota, tarea_entendida};
 pub use timeline::{DiaTimeline, MomentoTimeline, PaginaDias, PaginaMomentos};
 pub use turnos::{CambioDeTurno, TurnoVoz};
 pub use voz::{GrabacionVoz, SegmentoVoz};

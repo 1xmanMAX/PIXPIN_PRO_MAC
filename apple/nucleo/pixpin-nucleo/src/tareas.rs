@@ -31,6 +31,12 @@
 
 use std::path::Path;
 
+// Lo que se entiende al escribir una tarea (prioridad, #etiquetas, «recordar
+// a las 5») y sus chapitas, tal cual las de Windows (17-oct).
+mod cambiar;
+mod emoticonos;
+pub(crate) mod frase;
+
 use pixpin_proyecto::almacen::{self, Indice};
 use pixpin_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
 use pixpin_proyecto::mini;
@@ -230,6 +236,73 @@ pub fn sin_marca(texto: &str) -> String {
     }
 }
 
+/// **Lo que se ve de una tarea** (la tarjeta, la fila, el Kanban): el
+/// titulo con sus `#etiquetas`, la hora legible y la nota, y sus chapitas
+/// (la prioridad primero), como `tareas::frase` de Windows.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct MarcasTarea {
+    /// Lo que hay que hacer, sin marcas.
+    pub titulo: String,
+    /// `alta`, `media`, `baja` o nada.
+    pub prioridad: Option<String>,
+    pub etiquetas: Vec<String>,
+    /// Por que no se esta haciendo (tras `💬`).
+    pub nota: Option<String>,
+    /// Cuando recordarla, en ms locales.
+    pub hora_ms: Option<i64>,
+    /// El renglon que se ensena.
+    pub vista: String,
+    /// Las chapitas (emoticonos), la prioridad primero.
+    pub chapitas: Vec<String>,
+}
+
+/// Las marcas del texto de una tarea, con «hoy 17:00» segun `desfase_ms`.
+#[uniffi::export]
+pub fn marcas_de_tarea(texto: String, desfase_ms: i64) -> MarcasTarea {
+    let m = frase::marcas(&texto);
+    let (vista, chapitas) = frase::a_la_vista(&texto, Some(frase::ahora(desfase_ms)));
+    MarcasTarea {
+        titulo: m.titulo,
+        prioridad: m.prioridad.map(|p| {
+            match p {
+                frase::Prioridad::Alta => "alta",
+                frase::Prioridad::Media => "media",
+                frase::Prioridad::Baja => "baja",
+            }
+            .to_string()
+        }),
+        etiquetas: m.etiquetas,
+        nota: m.nota,
+        hora_ms: m.hora,
+        vista,
+        chapitas,
+    }
+}
+
+/// El texto crudo de una tarea con otra nota (vacia: sin nota).
+#[uniffi::export]
+pub fn tarea_con_nota(crudo: String, nota: String) -> String {
+    frase::con_nota(&crudo, &nota)
+}
+
+/// Lo que quedaria guardado al apuntar `texto` (para ensenarlo mientras se
+/// escribe).
+#[uniffi::export]
+pub fn tarea_entendida(texto: String, desfase_ms: i64) -> String {
+    let f = frase::leer(&texto, frase::ahora(desfase_ms));
+    if f.titulo.is_empty() { texto } else { f.texto() }
+}
+
+/// El texto sin la hora (el nombre de Windows, para `frase`).
+pub fn sin_hora(texto: &str) -> String {
+    sin_marca(texto)
+}
+
+/// El texto con la hora `local_ms` (cambiando la que tuviera).
+pub fn con_hora(texto: &str, local_ms: i64) -> String {
+    format!("{} {}", sin_marca(texto).trim_end(), marca_de_hora(local_ms))
+}
+
 /// El texto crudo de una tarea con la hora `local_ms` (cambiando la que
 /// tuviera; `None` la quita). La marca va donde la pone Windows: detras de
 /// lo que se lee y **delante** de las imagenes y de la fecha de creacion,
@@ -374,6 +447,10 @@ impl Nucleo {
                 detalle: "tarea vacia".into(),
             });
         }
+        // Lo reconocido al escribir (Windows, 17-oct): prioridad, #etiquetas
+        // y la hora de recordar salen del titulo y van como marcas.
+        let entendida = frase::leer(&texto, frase::ahora(desfase_ms));
+        let texto = if entendida.titulo.is_empty() { texto } else { entendida.texto() };
         let ficha = {
             let g = self.chat_guardados()?;
             Indice::leer_si_esta(self.ruta())?

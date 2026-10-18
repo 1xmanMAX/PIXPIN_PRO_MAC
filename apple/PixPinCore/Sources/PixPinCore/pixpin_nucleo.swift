@@ -6614,6 +6614,32 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func tareas(desfaseMs: Int64) throws  -> [ListaTareas]
     
     /**
+     * **Borra una tarea** de su lista. `false`: la lista cambio. Para
+     * deshacerlo, [`Nucleo::devolver_tarea`] con lo mismo.
+     */
+    func borrarTarea(chat: String, lista: String, indice: UInt32, crudo: String) throws  -> Bool
+    
+    /**
+     * **Deshace un borrado**: vuelve a poner la tarea en su sitio (o al
+     * final, si la lista ya es mas corta).
+     */
+    func devolverTarea(chat: String, lista: String, indice: UInt32, crudo: String, hecha: Bool) throws 
+    
+    /**
+     * **Corrige el texto de una tarea** (F2 de Windows). `false`: la lista
+     * cambio y hay que releer. Un texto vacio no se acepta (para eso,
+     * borrar).
+     */
+    func editarTarea(chat: String, lista: String, indice: UInt32, crudo: String, nuevo: String, desfaseMs: Int64) throws  -> Bool
+    
+    /**
+     * **Pasa una tarea a otra lista** (el Kanban y «Mover a…» de Windows,
+     * `tareas::mover`): se anade al final de la de destino y se quita de la
+     * suya. `false`: la de origen cambio. A la misma lista no hace nada.
+     */
+    func moverTarea(chat: String, lista: String, indice: UInt32, crudo: String, aChat: String, aLista: String) throws  -> Bool
+    
+    /**
      * **Lo manda a «Momentos», o lo saca** (el marcador de la tarjeta).
      * Devuelve si queda dentro.
      */
@@ -9500,6 +9526,80 @@ open func tareas(desfaseMs: Int64)throws  -> [ListaTareas]  {
     uniffi_pixpin_nucleo_fn_method_nucleo_tareas(
             self.uniffiCloneHandle(),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Borra una tarea** de su lista. `false`: la lista cambio. Para
+     * deshacerlo, [`Nucleo::devolver_tarea`] con lo mismo.
+     */
+open func borrarTarea(chat: String, lista: String, indice: UInt32, crudo: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_borrar_tarea(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterUInt32.lower(indice),
+        FfiConverterString.lower(crudo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Deshace un borrado**: vuelve a poner la tarea en su sitio (o al
+     * final, si la lista ya es mas corta).
+     */
+open func devolverTarea(chat: String, lista: String, indice: UInt32, crudo: String, hecha: Bool)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_devolver_tarea(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterUInt32.lower(indice),
+        FfiConverterString.lower(crudo),
+        FfiConverterBool.lower(hecha),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Corrige el texto de una tarea** (F2 de Windows). `false`: la lista
+     * cambio y hay que releer. Un texto vacio no se acepta (para eso,
+     * borrar).
+     */
+open func editarTarea(chat: String, lista: String, indice: UInt32, crudo: String, nuevo: String, desfaseMs: Int64)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_editar_tarea(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterUInt32.lower(indice),
+        FfiConverterString.lower(crudo),
+        FfiConverterString.lower(nuevo),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pasa una tarea a otra lista** (el Kanban y «Mover a…» de Windows,
+     * `tareas::mover`): se anade al final de la de destino y se quita de la
+     * suya. `false`: la de origen cambio. A la misma lista no hace nada.
+     */
+open func moverTarea(chat: String, lista: String, indice: UInt32, crudo: String, aChat: String, aLista: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_mover_tarea(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterUInt32.lower(indice),
+        FfiConverterString.lower(crudo),
+        FfiConverterString.lower(aChat),
+        FfiConverterString.lower(aLista),uniffiCallStatus
     )
 })
 }
@@ -20986,6 +21086,121 @@ public func FfiConverterTypeMarcadorReflujo_lift(_ buf: RustBuffer) throws -> Ma
 #endif
 public func FfiConverterTypeMarcadorReflujo_lower(_ value: MarcadorReflujo) -> RustBuffer {
     return FfiConverterTypeMarcadorReflujo.lower(value)
+}
+
+
+/**
+ * **Lo que se ve de una tarea** (la tarjeta, la fila, el Kanban): el
+ * titulo con sus `#etiquetas`, la hora legible y la nota, y sus chapitas
+ * (la prioridad primero), como `tareas::frase` de Windows.
+ */
+public struct MarcasTarea: Equatable, Hashable {
+    /**
+     * Lo que hay que hacer, sin marcas.
+     */
+    public var titulo: String
+    /**
+     * `alta`, `media`, `baja` o nada.
+     */
+    public var prioridad: String?
+    public var etiquetas: [String]
+    /**
+     * Por que no se esta haciendo (tras `💬`).
+     */
+    public var nota: String?
+    /**
+     * Cuando recordarla, en ms locales.
+     */
+    public var horaMs: Int64?
+    /**
+     * El renglon que se ensena.
+     */
+    public var vista: String
+    /**
+     * Las chapitas (emoticonos), la prioridad primero.
+     */
+    public var chapitas: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Lo que hay que hacer, sin marcas.
+         */titulo: String, 
+        /**
+         * `alta`, `media`, `baja` o nada.
+         */prioridad: String?, etiquetas: [String], 
+        /**
+         * Por que no se esta haciendo (tras `💬`).
+         */nota: String?, 
+        /**
+         * Cuando recordarla, en ms locales.
+         */horaMs: Int64?, 
+        /**
+         * El renglon que se ensena.
+         */vista: String, 
+        /**
+         * Las chapitas (emoticonos), la prioridad primero.
+         */chapitas: [String]) {
+        self.titulo = titulo
+        self.prioridad = prioridad
+        self.etiquetas = etiquetas
+        self.nota = nota
+        self.horaMs = horaMs
+        self.vista = vista
+        self.chapitas = chapitas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MarcasTarea: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMarcasTarea: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarcasTarea {
+        return
+            try MarcasTarea(
+                titulo: FfiConverterString.read(from: &buf), 
+                prioridad: FfiConverterOptionString.read(from: &buf), 
+                etiquetas: FfiConverterSequenceString.read(from: &buf), 
+                nota: FfiConverterOptionString.read(from: &buf), 
+                horaMs: FfiConverterOptionInt64.read(from: &buf), 
+                vista: FfiConverterString.read(from: &buf), 
+                chapitas: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MarcasTarea, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterOptionString.write(value.prioridad, into: &buf)
+        FfiConverterSequenceString.write(value.etiquetas, into: &buf)
+        FfiConverterOptionString.write(value.nota, into: &buf)
+        FfiConverterOptionInt64.write(value.horaMs, into: &buf)
+        FfiConverterString.write(value.vista, into: &buf)
+        FfiConverterSequenceString.write(value.chapitas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcasTarea_lift(_ buf: RustBuffer) throws -> MarcasTarea {
+    return try FfiConverterTypeMarcasTarea.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcasTarea_lower(_ value: MarcasTarea) -> RustBuffer {
+    return FfiConverterTypeMarcasTarea.lower(value)
 }
 
 
@@ -38360,6 +38575,43 @@ public func tiemposAuto() -> TiemposAuto  {
 })
 }
 /**
+ * Las marcas del texto de una tarea, con «hoy 17:00» segun `desfase_ms`.
+ */
+public func marcasDeTarea(texto: String, desfaseMs: Int64) -> MarcasTarea  {
+    return try!  FfiConverterTypeMarcasTarea_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_marcas_de_tarea(
+        FfiConverterString.lower(texto),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * El texto crudo de una tarea con otra nota (vacia: sin nota).
+ */
+public func tareaConNota(crudo: String, nota: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tarea_con_nota(
+        FfiConverterString.lower(crudo),
+        FfiConverterString.lower(nota),uniffiCallStatus
+    )
+})
+}
+/**
+ * Lo que quedaria guardado al apuntar `texto` (para ensenarlo mientras se
+ * escribe).
+ */
+public func tareaEntendida(texto: String, desfaseMs: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tarea_entendida(
+        FfiConverterString.lower(texto),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+/**
  * **Los turnos de la conversacion** a partir de sus teclas: lo que Swift
  * guarda al terminar (sin los ratos de nadie, con el tope de los tropiezos).
  */
@@ -38785,6 +39037,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_tiempos_auto() != 59924) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_marcas_de_tarea() != 43776) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tarea_con_nota() != 59346) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tarea_entendida() != 12070) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_turnos_de_la_conversacion() != 47376) {
@@ -39307,6 +39568,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_tareas() != 57407) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_tarea() != 50134) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_devolver_tarea() != 64290) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_editar_tarea() != 65485) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_mover_tarea() != 49904) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_a_momentos() != 50149) {
