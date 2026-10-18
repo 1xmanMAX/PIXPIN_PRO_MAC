@@ -28,6 +28,14 @@ después las funciones nuevas de Windows, y al final los huecos viejos de
 | F13 | Pinear lo copiado | pines/sacar.rs | K/Pines |
 | F14 | Conexiones del asistente: Google Drive (OAuth PKCE) | asistente/conexiones.rs | K/Asistente (ASWebAuthenticationSession) |
 
+### Estado (18-oct, fin del grupo F)
+
+Hecho y probado: F1–F11 y F14. F12 en el Mac lo da la pagina nueva de la
+nota (lo de Windows era su editor nativo). F13 era un fallo solo de Windows.
+De F9 queda: hoja→lienzo, el banco de documentos (pruebas de Windows) y la
+nota de archivos con su fecha. El aspecto de la tabla de una foto
+(`tabla_aspecto`) queda para despues: pide el OCR de pixeles.
+
 ## G. Huecos viejos (de `paridad-windows.md`)
 
 - G1 Tareas (ventana): buscar, «Mover a…», borrar con deshacer, F2, pegar imágenes.
