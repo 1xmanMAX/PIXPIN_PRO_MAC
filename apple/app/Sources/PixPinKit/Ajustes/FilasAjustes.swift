@@ -299,9 +299,6 @@ public enum FilasAjustes {
             interruptor(.asistente, v, "asistente-revisar", "Ver lo dicho antes de enviarlo",
                         "Con el micrófono del chat «Asistente»: lo que dices queda escrito en la caja para corregirlo y lo envías tú. Apagado, se envía solo.",
                         \.asistenteRevisarLoDicho),
-            interruptor(.asistente, v, "asistente-leer", "Leer siempre las respuestas",
-                        "Cada respuesta se lee en voz alta al acabar. Sin esto, pulsa el altavoz de la burbuja.",
-                        \.asistenteLeerRespuestas),
         ]
         for p in ProveedorNube.allCases {
             filas.append(FilaAjuste(

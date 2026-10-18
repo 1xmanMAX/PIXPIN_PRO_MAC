@@ -485,6 +485,13 @@ ew-malos = Someone tried a wrong code ({ $n } of { $de }).
 ew-esperando = Waiting… Several devices can connect; you press the button for each one. The code stops working when this screen closes.
 ew-quemado = Someone tried a wrong code several times, so this code no longer works. Send again to get another one.
 ew-cerrar = Close
+ew-grupo = Your devices · no code
+ew-grupo-como = They are in your group: it goes straight there, no scanning. It lands in whatever they have open (a chat; a canvas only takes photos) or in Saved messages.
+ew-grupo-se-ve = On the same Wi-Fi
+ew-grupo-no-se-ve = Not visible now: open PixPin on that device
+ew-grupo-enviando = Sending…
+ew-grupo-todos = Send to everyone visible
+ew-grupo-actualiza = Update PixPin on { $movil }: it can't take direct files yet. Let it use the code below.
 
 ## «Update mine / Create as new» when receiving (RecibirActivity.kt)
 rw-ya-tienes = You already have «{ $nombre }» with the same codes
@@ -1494,6 +1501,7 @@ compartir-word = Word
 ## Requests from other programs (Flow Launcher, scripts; docs/protocolo-pedidos.md)
 pedido-tareas = Tasks
 pedido-escrito = Written in “{ $proyecto }”.
+pedido-al-lienzo = Stacked on the canvas “{ $lienzo }”.
 microfono-abriendo = Opening the microphone…
 microfono-guardando = Saving…
 microfono-parar = Click to stop · Esc discards it
@@ -2351,6 +2359,7 @@ tareas5-guardar = Save
 tareas5-corregida = Task updated
 tareas5-vista-lista = List · Ctrl+L
 tareas5-vista-tarjetas = Cards · Ctrl+T
+tareas5-vista-kanban = Kanban board · Ctrl+K
 tareas5-marcar = Mark as done
 tareas5-desmarcar = Mark as pending
 tareas5-editar = Edit
@@ -2404,6 +2413,9 @@ al-movil-cortado = Couldn't send to { $movil }: { $motivo }
 al-movil-sin-grupo = This PC is not in a group: set it up in PixPin's Sync
 al-movil-no-es-del-grupo = That device is no longer in this PC's group
 al-movil-sin-imagenes = There was nothing to send
+al-frente-lienzo = { $de } sent you “{ $nombre }”: it's on the open canvas
+al-frente-chat-abierto = { $de } sent you “{ $nombre }” to the chat “{ $chat }”
+al-frente-guardados = { $de } sent you “{ $nombre }”: it's in Saved messages
 
 ## Excel sheet viewer (visor_hoja)
 hoja-copiado = { $celdas ->
@@ -2535,6 +2547,12 @@ asistente-vista-lista = Better vision for photos is ready.
 asistente-confirmar-si = Yes
 asistente-confirmar-no = No
 asistente-receta-guardar = Save as recipe
+asistente-modelo = Model
+asistente-nueva-conversacion = New conversation
+asistente-borrar-chat = Clear chat
+asistente-borrar-chat-aviso = Every message of the «Assistant» chat is deleted (attachments with them). Continue?
+asistente-escuchar = Listen
+asistente-modelo-cambiado = { $modelo } answers now.
 asistente-receta-guardada = Recipe saved: { $nombre }
 asistente-receta-llenas = There are too many recipes: delete one first.
 asistente-receta-renombrar = Rename
@@ -2560,6 +2578,18 @@ ajustes2-clave-borrar = Delete
 ajustes2-clave-guardada = Saved and encrypted on this PC:
 ajustes2-clave-falta = No key. Get one at
 ajustes2-clave-probando = testing…
+ajustes2-g-conexiones = Assistant connections
+ajustes2-conexion-cliente = { $servicio } client ID
+ajustes2-conexion-cliente-marcador = Paste the client ID (or the JSON Google gives you)
+ajustes2-conexion-guardar = Save
+ajustes2-conexion-de = { $servicio }
+ajustes2-conexion-conectar = Connect
+ajustes2-conexion-desconectar = Disconnect
+ajustes2-conexion-sin-cliente = No client ID. Create it once at { $consola } (steps: docs/conexiones-google-drive.md).
+ajustes2-conexion-cliente-guardado = ID saved and encrypted on this PC:
+ajustes2-conexion-conectado = Connected
+ajustes2-conexion-sin-conectar = Not connected. With your permission, the assistant searches, reads, downloads and uploads files in your { $servicio }.
+ajustes2-conexion-conectando = Finish in the browser…
 
 ## Assistant automations (Oct 13)
 automatizacion-creada = Automation “{ $nombre }” created.
@@ -2590,8 +2620,6 @@ asistente-reiniciado = Context renewed: continuing from the worksheet
 ajustes2-g-asistente-voz = Assistant voice
 ajustes2-asistente-revisar-voz = Review what you said before sending
 ajustes2-ayuda-asistente-revisar-voz = With the microphone of the «Asistente» chat: what you say is written in the box so you can fix it and send it yourself. Off, it is sent right away.
-ajustes2-asistente-leer = Always read answers aloud
-ajustes2-ayuda-asistente-leer = Each answer is read aloud when it finishes, with the readers' voice (Microsoft's if turned on). Without this, press the speaker on the bubble.
 asistente-voz-pasando = Turning your voice into text… { $pct } %
 asistente-voz-bajando = Downloading the speech recognizer (once, ~160 MB)… { $pct } %
 asistente-voz-nada = Nothing was heard: speak closer to the microphone and try again.
@@ -2611,3 +2639,34 @@ notif-ver-galeria = Open the gallery
 notif-captura-se-va = This screenshot goes away { $cuando }
 notif-capturas-se-van = { $n } screenshots go away in the next 24 h
 notif-capturas-titulo = Screenshots expiring
+
+# Geometry sheets (exact arc, angle mark, gradient)
+herramientas-angulo = Angle mark
+lienzo-pista-arco = Arc (on a guide: trace a reference oval; or by centre and two points, or by three points, in the panel)
+lienzo-pista-angulo = Angle (W): click inside the angle, near where two lines meet; puts α, β, θ… without repeating (↑ ↓ or Alt+wheel change the letter; W again: the 90° one with its little square)
+lienzo-panel-modo-angulo = Angle letter
+lienzo-angulo-modo-griega = α β θ
+lienzo-angulo-modo-simple = No letter
+lienzo-angulo-modo-recto = 90° ∟
+lienzo-panel-degradado = Gradient fill
+lienzo-panel-cierre-arco = Arc closure
+lienzo-panel-modo-arco = Draw the arc
+lienzo-panel-arcos-angulo = Arcs
+lienzo-degradado-liso = Flat
+lienzo-degradado-lineal = Linear
+lienzo-degradado-radial = Radial
+lienzo-cierre-abierto = Open
+lienzo-cierre-sector = Sector
+lienzo-cierre-segmento = Segment
+lienzo-arco-modo-guia = Guide
+lienzo-arco-modo-centro = Centre
+lienzo-arco-modo-tres = 3 points
+
+## Tasks: single-task pin and class timetable (17-oct-2026)
+tareas-fijar-pin = 📌 Pin as reminder
+pin-tarea-nota = 💬 Why not now?
+pin-tarea-pista = Why not now · Enter saves
+bandeja-horario = 🎓 Class timetable…
+bandeja-horario-grabar = 🎙 Voice note for the next class
+horario-sin-clases = There are no classes in the timetable yet: open “Class timetable…” and write one per line.
+horario-guardada = You will hear it at the next { $clase } class

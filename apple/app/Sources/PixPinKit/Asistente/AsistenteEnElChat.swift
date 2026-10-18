@@ -249,7 +249,6 @@ public final class AsistenteEnElChat: ObservableObject {
                 VentanasDeLienzo.compartidas.abrir(referencia: ref, en: chat, titulo: "Lienzo del asistente",
                                                   almacen: almacen)
             }
-            if modelo.leerRespuestas { modelo.leerEnVoz(.init(delUsuario: false, texto: fin.respuesta.texto)) }
         case let .failure(e):
             avisar("El asistente no pudo contestar: \(ModeloAjustes.texto(de: e))", en: chat)
             await almacen.abrir(chat: chat)

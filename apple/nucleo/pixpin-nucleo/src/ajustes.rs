@@ -67,8 +67,6 @@ pub struct AjustesMac {
     pub asistente_documentos_a_la_nube: String,
     /// Lo dicho al microfono se deja en la caja para repasarlo.
     pub asistente_revisar_lo_dicho: bool,
-    /// Leer en voz alta cada respuesta al acabar.
-    pub asistente_leer_respuestas: bool,
 }
 
 /// Los rangos de la ventana de Windows (`ventana_ajustes.rs`): lo de fuera
@@ -151,7 +149,6 @@ impl From<&ajustes::Ajustes> for AjustesMac {
             asistente_mejor_vista: a.asistente.mejor_vista,
             asistente_documentos_a_la_nube: a.asistente.documentos_a_la_nube.clone(),
             asistente_revisar_lo_dicho: a.asistente.revisar_lo_dicho,
-            asistente_leer_respuestas: a.asistente.leer_respuestas,
         }
     }
 }
@@ -217,7 +214,6 @@ impl AjustesMac {
         a.asistente.mejor_vista = self.asistente_mejor_vista;
         a.asistente.documentos_a_la_nube = self.asistente_documentos_a_la_nube.clone();
         a.asistente.revisar_lo_dicho = self.asistente_revisar_lo_dicho;
-        a.asistente.leer_respuestas = self.asistente_leer_respuestas;
         Ok(())
     }
 }
@@ -334,7 +330,6 @@ mod pruebas {
             asistente_mejor_vista: true,
             asistente_documentos_a_la_nube: "no".into(),
             asistente_revisar_lo_dicho: true,
-            asistente_leer_respuestas: true,
             ..n.ajustes_de_fabrica()
         };
         n.guardar_ajustes(nuevos.clone()).unwrap();

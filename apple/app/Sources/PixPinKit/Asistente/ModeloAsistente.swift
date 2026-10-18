@@ -208,7 +208,6 @@ public final class ModeloAsistente: ObservableObject {
                          puertoUsuario: puertoLlama)
     }
 
-    var leerRespuestas: Bool { almacen.flatMap { try? $0.nucleo.ajustes().asistenteLeerRespuestas } ?? false }
     public var revisarLoDicho: Bool { almacen.flatMap { try? $0.nucleo.ajustes().asistenteRevisarLoDicho } ?? false }
 
     /// Mira que motor hay ahora segun los ajustes. Barato: el disco, una
@@ -338,9 +337,6 @@ public final class ModeloAsistente: ObservableObject {
         case .llamaLocal, .descargado, .nube:
             let foto = nuevos.first(where: \.esImagen).map(\.ruta)
             await turno(pedido, historial: historialTexto, foto: foto, motor: motor)
-        }
-        if leerRespuestas, let ultima = burbujas.last, !ultima.delUsuario, !ultima.esAviso {
-            leerEnVoz(ultima)
         }
     }
 

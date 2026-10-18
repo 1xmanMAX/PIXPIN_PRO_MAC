@@ -486,6 +486,13 @@ ew-malos = Alguien probó con un código equivocado ({ $n } de { $de }).
 ew-esperando = Esperando… Pueden conectarse varios aparatos; a cada uno le das tú al botón. El código deja de valer al cerrar esta pantalla.
 ew-quemado = Alguien probó varias veces con un código equivocado, así que este código ya no vale. Vuelve a enviar para sacar otro.
 ew-cerrar = Cerrar
+ew-grupo = Tus aparatos · sin código
+ew-grupo-como = Están en tu grupo: se envía directo, sin escanear. Llega a lo que tengan abierto (un chat; un lienzo solo acepta fotos) o a Mensajes guardados.
+ew-grupo-se-ve = En la misma Wi-Fi
+ew-grupo-no-se-ve = No se ve ahora: abre PixPin en ese aparato
+ew-grupo-enviando = Enviando…
+ew-grupo-todos = Enviar a todos los que se ven
+ew-grupo-actualiza = Actualiza PixPin en { $movil }: aún no recibe archivos directos. Que use el código de abajo.
 
 ## «Actualizar el que tengo / Crear como nuevo» al recibir (RecibirActivity.kt)
 rw-ya-tienes = Ya tienes «{ $nombre }» con los mismos códigos
@@ -1495,6 +1502,7 @@ compartir-word = Word
 ## Pedidos de otros programas (Flow Launcher, scripts; docs/protocolo-pedidos.md)
 pedido-tareas = Tareas
 pedido-escrito = Escrito en «{ $proyecto }».
+pedido-al-lienzo = Apilado en el lienzo «{ $lienzo }».
 microfono-abriendo = Abriendo el micrófono…
 microfono-guardando = Guardando…
 microfono-parar = Clic para parar · Esc la descarta
@@ -2352,6 +2360,7 @@ tareas5-guardar = Guardar
 tareas5-corregida = Tarea corregida
 tareas5-vista-lista = Lista · Ctrl+L
 tareas5-vista-tarjetas = Tarjetas · Ctrl+T
+tareas5-vista-kanban = Tablero Kanban · Ctrl+K
 tareas5-marcar = Marcar como hecha
 tareas5-desmarcar = Marcar como pendiente
 tareas5-editar = Editar
@@ -2405,6 +2414,9 @@ al-movil-cortado = No se pudo enviar a { $movil }: { $motivo }
 al-movil-sin-grupo = Este PC no está en un grupo: ábrelo en Sincronizar de PixPin
 al-movil-no-es-del-grupo = Ese aparato ya no está en el grupo de este PC
 al-movil-sin-imagenes = No había nada que enviar
+al-frente-lienzo = { $de } te envió «{ $nombre }»: está en el lienzo abierto
+al-frente-chat-abierto = { $de } te envió «{ $nombre }» al chat «{ $chat }»
+al-frente-guardados = { $de } te envió «{ $nombre }»: está en Mensajes guardados
 
 ## Visor de hojas de Excel (visor_hoja)
 hoja-copiado = { $celdas ->
@@ -2536,6 +2548,12 @@ asistente-vista-lista = La mejor vista con fotos está lista.
 asistente-confirmar-si = Sí
 asistente-confirmar-no = No
 asistente-receta-guardar = Guardar como receta
+asistente-modelo = Modelo
+asistente-nueva-conversacion = Conversación nueva
+asistente-borrar-chat = Borrar chat
+asistente-borrar-chat-aviso = Se borran todos los mensajes del chat «Asistente» (los adjuntos con ellos). ¿Seguir?
+asistente-escuchar = Escuchar
+asistente-modelo-cambiado = Ahora contesta { $modelo }.
 asistente-receta-guardada = Receta guardada: { $nombre }
 asistente-receta-llenas = Ya hay demasiadas recetas: borra alguna antes.
 asistente-receta-renombrar = Cambiar el nombre
@@ -2561,6 +2579,18 @@ ajustes2-clave-borrar = Borrar
 ajustes2-clave-guardada = Guardada y cifrada en este PC:
 ajustes2-clave-falta = Sin clave. Sácala en
 ajustes2-clave-probando = probando…
+ajustes2-g-conexiones = Conexiones del asistente
+ajustes2-conexion-cliente = ID de cliente de { $servicio }
+ajustes2-conexion-cliente-marcador = Pega el ID de cliente (o el JSON que da Google)
+ajustes2-conexion-guardar = Guardar
+ajustes2-conexion-de = { $servicio }
+ajustes2-conexion-conectar = Conectar
+ajustes2-conexion-desconectar = Desconectar
+ajustes2-conexion-sin-cliente = Sin ID de cliente. Créalo una vez en { $consola } (los pasos: docs/conexiones-google-drive.md).
+ajustes2-conexion-cliente-guardado = ID guardado y cifrado en este PC:
+ajustes2-conexion-conectado = Conectado
+ajustes2-conexion-sin-conectar = Sin conectar. Con permiso, el asistente busca, lee, baja y sube archivos de tu { $servicio }.
+ajustes2-conexion-conectando = Termina en el navegador…
 
 ## Automatizaciones del asistente (13-oct)
 automatizacion-creada = Automatización «{ $nombre }» creada.
@@ -2591,8 +2621,6 @@ asistente-reiniciado = Contexto renovado: sigo con la hoja de trabajo
 ajustes2-g-asistente-voz = Voz del asistente
 ajustes2-asistente-revisar-voz = Ver lo dicho antes de enviarlo
 ajustes2-ayuda-asistente-revisar-voz = Con el micrófono del chat «Asistente»: lo que dices queda escrito en la caja para corregirlo y lo envías tú. Apagado, se envía solo.
-ajustes2-asistente-leer = Leer siempre las respuestas
-ajustes2-ayuda-asistente-leer = Cada respuesta se lee en voz alta al acabar, con la voz de los lectores (la de Microsoft si está encendida). Sin esto, pulsa el altavoz de la burbuja.
 asistente-voz-pasando = Pasando tu voz a texto… { $pct } %
 asistente-voz-bajando = Bajando el reconocedor de voz (una vez, ~160 MB)… { $pct } %
 asistente-voz-nada = No se oyó nada: habla más cerca del micrófono y prueba otra vez.
@@ -2612,3 +2640,34 @@ notif-ver-galeria = Ver la galería
 notif-captura-se-va = Esta captura se va { $cuando }
 notif-capturas-se-van = { $n } capturas se van en las próximas 24 h
 notif-capturas-titulo = Capturas que caducan
+
+# Laminas de geometria (arco exacto, marca de angulo, degradado)
+herramientas-angulo = Marca de ángulo
+lienzo-pista-arco = Arco (con la guía: repasa un óvalo de referencia; o por centro y dos puntos, o por tres puntos, en el panel)
+lienzo-pista-angulo = Ángulo (W): clic dentro del ángulo, cerca de donde se juntan dos rectas; pone α, β, θ… sin repetir (↑ ↓ o Alt+rueda cambian la letra; W otra vez: el de 90° con su cuadradito)
+lienzo-panel-modo-angulo = Letra del ángulo
+lienzo-angulo-modo-griega = α β θ
+lienzo-angulo-modo-simple = Sin letra
+lienzo-angulo-modo-recto = 90° ∟
+lienzo-panel-degradado = Relleno degradado
+lienzo-panel-cierre-arco = Cierre del arco
+lienzo-panel-modo-arco = Trazar el arco
+lienzo-panel-arcos-angulo = Arquitos
+lienzo-degradado-liso = Liso
+lienzo-degradado-lineal = Lineal
+lienzo-degradado-radial = Radial
+lienzo-cierre-abierto = Abierto
+lienzo-cierre-sector = Sector
+lienzo-cierre-segmento = Segmento
+lienzo-arco-modo-guia = Guía
+lienzo-arco-modo-centro = Centro
+lienzo-arco-modo-tres = 3 puntos
+
+## Tareas: pin de una tarea y horario de clases (17-oct-2026)
+tareas-fijar-pin = 📌 Fijar como pin
+pin-tarea-nota = 💬 ¿Por qué no ahora?
+pin-tarea-pista = Por qué no la haces ahora · Intro guarda
+bandeja-horario = 🎓 Horario de clases…
+bandeja-horario-grabar = 🎙 Nota de voz para la próxima clase
+horario-sin-clases = Aún no hay clases en el horario: ábrelo en «Horario de clases…» y escribe una por línea.
+horario-guardada = Se oirá en la próxima clase de { $clase }

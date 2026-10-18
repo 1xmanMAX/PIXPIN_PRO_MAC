@@ -12644,10 +12644,6 @@ public struct AjustesMac: Equatable, Hashable {
      * Lo dicho al microfono se deja en la caja para repasarlo.
      */
     public var asistenteRevisarLoDicho: Bool
-    /**
-     * Leer en voz alta cada respuesta al acabar.
-     */
-    public var asistenteLeerRespuestas: Bool
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -12709,10 +12705,7 @@ public struct AjustesMac: Equatable, Hashable {
          */asistenteDocumentosALaNube: String, 
         /**
          * Lo dicho al microfono se deja en la caja para repasarlo.
-         */asistenteRevisarLoDicho: Bool, 
-        /**
-         * Leer en voz alta cada respuesta al acabar.
-         */asistenteLeerRespuestas: Bool) {
+         */asistenteRevisarLoDicho: Bool) {
         self.diasCaducidad = diasCaducidad
         self.sincroAutomatica = sincroAutomatica
         self.sincroPresencia = sincroPresencia
@@ -12732,7 +12725,6 @@ public struct AjustesMac: Equatable, Hashable {
         self.asistenteMejorVista = asistenteMejorVista
         self.asistenteDocumentosALaNube = asistenteDocumentosALaNube
         self.asistenteRevisarLoDicho = asistenteRevisarLoDicho
-        self.asistenteLeerRespuestas = asistenteLeerRespuestas
     }
 
     
@@ -12769,8 +12761,7 @@ public struct FfiConverterTypeAjustesMac: FfiConverterRustBuffer {
                 asistenteRespaldoLocal: FfiConverterBool.read(from: &buf), 
                 asistenteMejorVista: FfiConverterBool.read(from: &buf), 
                 asistenteDocumentosALaNube: FfiConverterString.read(from: &buf), 
-                asistenteRevisarLoDicho: FfiConverterBool.read(from: &buf), 
-                asistenteLeerRespuestas: FfiConverterBool.read(from: &buf)
+                asistenteRevisarLoDicho: FfiConverterBool.read(from: &buf)
         )
     }
 
@@ -12794,7 +12785,6 @@ public struct FfiConverterTypeAjustesMac: FfiConverterRustBuffer {
         FfiConverterBool.write(value.asistenteMejorVista, into: &buf)
         FfiConverterString.write(value.asistenteDocumentosALaNube, into: &buf)
         FfiConverterBool.write(value.asistenteRevisarLoDicho, into: &buf)
-        FfiConverterBool.write(value.asistenteLeerRespuestas, into: &buf)
     }
 }
 
