@@ -69,6 +69,9 @@ public final class GestorPines {
     private var porGuardar: [Int: Pin] = [:]
     private var porReescribir: [Int: Pin] = [:]
     private var tareaGuardar: Task<Void, Never>?
+    /// Mientras se oculta un grupo: sus pines se cierran sin darse por
+    /// cerrados en el almacen (vuelven a su sitio al mostrar el grupo).
+    private var ocultandoGrupo = false
 
     init() {
         let m = panelAbiertos.modelo
@@ -407,6 +410,7 @@ public final class GestorPines {
         registrar(pin, para)
         pin.alGuardar = { [weak self] p in self?.programarGuardar(p) }
         pin.alCambiarContenido = { [weak self] p in self?.programarReescribir(p) }
+        pin.alOcultarGrupo = { [weak self] p in self?.ocultarGrupo(de: p) }
         refrescarPanel()
         return pin
     }
@@ -414,7 +418,7 @@ public final class GestorPines {
     private func quitar(_ pin: Pin) {
         porGuardar[pin.id] = nil
         if let p = porReescribir.removeValue(forKey: pin.id) { reescribir(p) }
-        if !apartados.contains(where: { $0 === pin }) { marcarCerrado(pin) }
+        if !apartados.contains(where: { $0 === pin }), !ocultandoGrupo { marcarCerrado(pin) }
         pines.removeAll { $0 === pin }
         apartados.removeAll { $0 === pin }
         refrescarPanel()
@@ -599,6 +603,59 @@ extension GestorPines {
 
     /// Cuantos pines dejan pasar el clic (para el menu).
     public var cuantosPasantes: Int { pines.filter(\.pasante).count }
+
+    /// Cuantos se ven ahora (el «Pines · N a la vista» del panel).
+    public var aLaVista: Int { pines.filter { !$0.oculto }.count }
+
+    /// «Ocultar los pines» encendido: hay pines y ninguno se ve.
+    public var todosOcultos: Bool { !pines.isEmpty && pines.allSatisfy(\.oculto) }
+
+    /// «Dejar pasar el clic» encendido: la mayoria lo deja pasar (lo que
+    /// haria `alternarPasoDeClics` es lo contrario).
+    public var mayoriaPasante: Bool { !pines.isEmpty && cuantosPasantes * 2 > pines.count }
+
+    // MARK: Grupos ocultos
+
+    /// Un grupo oculto, para el menu de la barra: «● Rojo (3)».
+    public struct GrupoOculto: Equatable, Sendable {
+        public var id: UInt32
+        /// El color (0-7), en el orden de `ColoresGrupo`.
+        public var color: Int
+        public var cuantos: Int
+        public var etiqueta: String { "● \(ColoresGrupo.nombres[color % ColoresGrupo.nombres.count]) (\(cuantos))" }
+    }
+
+    /// **Oculta en bloque el grupo del pin** (D24): cierra sus ventanas pero
+    /// DEJA sus entradas abiertas en el almacen, que es lo que permite
+    /// devolverlos a su sitio exacto al mostrarlo.
+    func ocultarGrupo(de pin: Pin) {
+        guard let almacen, let id = pin.idAlmacen else { return NSSound.beep() }
+        // Lo pendiente (el sitio, el grupo recien elegido) primero.
+        guardarPendientes()
+        guard let grupo = almacen.grupoDe(id) else { return NSSound.beep() }
+        do { try almacen.ponerGrupoOculto(grupo.id, true) } catch { return NSSound.beep() }
+        let delGrupo = Set(almacen.entradas.filter { $0.grupo == grupo.id }.map(\.id))
+        ocultandoGrupo = true
+        for p in pines where p.idAlmacen.map(delGrupo.contains) ?? false { p.cerrar() }
+        ocultandoGrupo = false
+    }
+
+    /// Los grupos ocultos (se arma al abrir el menu, no al arrancar: si no,
+    /// ocultar uno no apareceria hasta reiniciar).
+    public func gruposOcultos() -> [GrupoOculto] {
+        (almacen?.gruposOcultos ?? []).map { GrupoOculto(id: $0.grupo.id, color: $0.grupo.color.indice, cuantos: $0.cuantos) }
+    }
+
+    /// Devuelve a la pantalla los pines de un grupo oculto, cada uno donde
+    /// estaba. Devuelve cuantos vuelven.
+    @discardableResult
+    public func mostrarGrupo(_ id: UInt32) -> Int {
+        guard let almacen else { return 0 }
+        do { try almacen.ponerGrupoOculto(id, false) } catch { return 0 }
+        let vuelven = almacen.abiertas.filter { $0.grupo == id }.count
+        restaurar()
+        return vuelven
+    }
 
     /// Un pin del almacen, a su sitio. Si su pantalla ya no esta, entra en
     /// la principal.

@@ -130,6 +130,8 @@ final class Pin: NSObject {
     /// Cambio lo de dentro: el texto de una nota o mini-app, o la foto al
     /// fijar lo anotado.
     var alCambiarContenido: (@MainActor (Pin) -> Void)?
+    /// «Ocultar este grupo»: el gestor cierra el grupo entero sin olvidarlo.
+    var alOcultarGrupo: (@MainActor (Pin) -> Void)?
     /// Los filtros de la foto (5 6 7 8 0) y su giro (R, H, V).
     private(set) var filtros = FiltrosPin()
     private(set) var giro = GiroPin()
@@ -1400,6 +1402,11 @@ final class Pin: NSObject {
         colores.addItem(sin)
         grupoItem.submenu = colores
         menu.addItem(grupoItem)
+        // Con grupo (y guardado), ocultarlo entero; vuelve desde la barra
+        // de menus («Grupos ocultos»).
+        if grupo != nil, idAlmacen != nil {
+            menu.addItem(elemento("Ocultar este grupo", #selector(ocultarGrupoDesdeMenu(_:))))
+        }
 
         let encima = elemento("Siempre encima", #selector(alternarEncima(_:)))
         encima.state = panel.level == .floating ? .on : .off
@@ -1500,7 +1507,7 @@ final class Pin: NSObject {
     }
 
     /// Un circulito de color para el menu de grupos.
-    private static func muestra(_ color: NSColor) -> NSImage {
+    static func muestra(_ color: NSColor) -> NSImage {
         NSImage(size: CGSize(width: 12, height: 12), flipped: false) { r in
             color.setFill()
             NSBezierPath(ovalIn: r.insetBy(dx: 1, dy: 1)).fill()
@@ -1596,6 +1603,10 @@ final class Pin: NSObject {
 
     @objc private func elegirGrupo(_ sender: NSMenuItem) {
         grupo = sender.tag >= 0 ? sender.tag : nil
+    }
+
+    @objc private func ocultarGrupoDesdeMenu(_ sender: Any?) {
+        alOcultarGrupo?(self)
     }
 
     @objc private func alternarEncima(_ sender: Any?) {

@@ -12,11 +12,8 @@ struct PixPinApp: App {
     @NSApplicationDelegateAdaptor(DelegadoApp.self) private var delegado
 
     var body: some Scene {
-        MenuBarExtra {
-            MenuPrincipal(estado: estado, grabador: GrabadorPantalla.compartido, atajos: estado.atajos)
-        } label: {
-            EtiquetaBarra(grabador: GrabadorPantalla.compartido)
-        }
+        // El icono de la barra de menus (con su panel y su menu del clic
+        // derecho) lo pone `IconoBandeja` al arrancar (E4).
         // Al abrir PixPin se ve la ventana de Proyectos (si no, solo estaria
         // el icono de la barra de menus, que tras la muesca ni se ve), y al
         // abrirla otra vez con la app ya abierta, vuelve a salir.
@@ -260,6 +257,13 @@ final class EstadoApp: ObservableObject {
         // Lo que piden los enlaces `pixpinmax://`, el Dock y los Servicios
         // del Finder (C2); lo que llego al abrir la app se hace ahora.
         HacerPedidos.compartidos.registrar(almacen: almacen, sincro: sincro)
+        // El icono de la barra de menus: clic, el panel; clic derecho, el
+        // menu (E4). En la siguiente vuelta: la app aun esta arrancando.
+        let atajos = self.atajos
+        let nucleo = almacen?.nucleo
+        DispatchQueue.main.async {
+            IconoBandeja.compartido.instalar(atajos: atajos, nucleo: nucleo, sincro: sincro)
+        }
     }
 
     /// Empieza a elegir que grabar o, si ya graba, para.
@@ -273,30 +277,6 @@ final class EstadoApp: ObservableObject {
             capturador.capturar(paraGrabar: true)
         }
     }
-}
-
-/// El icono de la barra de menus: el pin, o un punto rojo mientras graba.
-struct EtiquetaBarra: View {
-    @ObservedObject var grabador: GrabadorPantalla
-
-    var body: some View {
-        if grabador.grabando {
-            Image(nsImage: EtiquetaBarra.puntoRojo)
-        } else {
-            Image(systemName: "pin.fill")
-        }
-    }
-
-    /// En color (no plantilla): la barra de menus pinta las plantillas en
-    /// blanco o negro, y el rojo es justo lo que tiene que verse.
-    static let puntoRojo: NSImage = {
-        let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .regular)
-            .applying(NSImage.SymbolConfiguration(paletteColors: [.white, .systemRed]))
-        let imagen = NSImage(systemSymbolName: "record.circle.fill", accessibilityDescription: "Grabando")?
-            .withSymbolConfiguration(config) ?? NSImage()
-        imagen.isTemplate = false
-        return imagen
-    }()
 }
 
 /// Guarda como abrir la ventana de Proyectos para cuando se abre PixPin
@@ -318,113 +298,5 @@ struct AlReabrirSaleProyectos: ViewModifier {
             }
             NSApp.activate()
         }
-    }
-}
-
-struct MenuPrincipal: View {
-    @ObservedObject var estado: EstadoApp
-    @ObservedObject var grabador: GrabadorPantalla
-    /// Los atajos globales: el menu ensena los que hay y hace lo mismo.
-    @ObservedObject var atajos: GestorAtajos
-    @Environment(\.openWindow) private var abrirVentana
-    @Environment(\.openSettings) private var abrirAjustes
-
-    var body: some View {
-        Button("Capturar zona") { atajos.ejecutar(.capturarRegion) }
-            .atajo(.capturarRegion, atajos)
-        Button("Capturar y anotar") { atajos.ejecutar(.capturarYAnotar) }
-            .atajo(.capturarYAnotar, atajos)
-        Button("Capturar con retardo (3 s)") { atajos.ejecutar(.capturarConRetardo) }
-            .atajo(.capturarConRetardo, atajos)
-        Button("Copiar el texto de una zona") { atajos.ejecutar(.copiarTexto) }
-            .atajo(.copiarTexto, atajos)
-        Button("Anotar la pantalla") { atajos.ejecutar(.anotar) }
-            .atajo(.anotar, atajos)
-        Button("Anotar la pantalla congelada") { atajos.ejecutar(.anotarCongelada) }
-            .atajo(.anotarCongelada, atajos)
-        Button("Cuentagotas") { atajos.ejecutar(.cuentagotas) }
-            .atajo(.cuentagotas, atajos)
-        Button("Grabar un GIF") { atajos.ejecutar(.grabarGif) }
-            .atajo(.grabarGif, atajos)
-        Button(grabador.grabando ? "Detener grabación" : "Grabar pantalla") { atajos.ejecutar(.grabarPantalla) }
-            .atajo(.grabarPantalla, atajos)
-        Toggle("Grabar con el sonido del sistema", isOn: Binding(
-            get: { grabador.conSonido },
-            set: { grabador.conSonido = $0 }))
-            .disabled(grabador.grabando)
-        Divider()
-        Button("Proyectos…") { atajos.ejecutar(.abrirChat) }
-            .atajo(.abrirChat, atajos, siNo: KeyboardShortcut("p", modifiers: [.command, .option]))
-        Button("Sincronizar…") { atajos.ejecutar(.sincronizar) }
-            .atajo(.sincronizar, atajos)
-        if let sincro = estado.sincro {
-            MenuEnviarA(sincro: sincro)
-        }
-        Button("Enviar y recibir por Wi-Fi…") { atajos.ejecutar(.recibirDelMovil) }
-            .atajo(.recibirDelMovil, atajos)
-        Button("Chats compartidos…") { abrir("compartidos") }
-        Button("Lecciones…") {
-            abrirVentana(id: "lecciones")
-            NSApp.activate()
-        }
-        Button("Asistente…") {
-            abrirVentana(id: "asistente")
-            NSApp.activate()
-        }
-        Button("Automatizaciones…") { abrir("automatizaciones") }
-        Button("Buscar en PixPin…") { atajos.ejecutar(.buscar) }
-            .atajo(.buscar, atajos, siNo: KeyboardShortcut("f", modifiers: [.command, .option]))
-        Button("Galería de capturas…") { abrir(IdVentana.galeria) }
-        Button("Timeline…") { abrir(IdVentana.timeline) }
-        Button("Tareas…") { abrir(IdVentana.tareas) }
-        Divider()
-        Button("Pinear desde el portapapeles") { atajos.ejecutar(.pinearPortapapeles) }
-            .atajo(.pinearPortapapeles, atajos)
-        Button("Pin en vivo…") { atajos.ejecutar(.pinearEnVivo) }
-            .atajo(.pinearEnVivo, atajos)
-        Button("Pinear lo elegido en el Finder") { atajos.ejecutar(.pinearSeleccion) }
-            .atajo(.pinearSeleccion, atajos)
-        Button("Ventana encima (pin en vivo)") { atajos.ejecutar(.ventanaEncima) }
-            .atajo(.ventanaEncima, atajos)
-        Menu("Nuevo pin") {
-            Button("Nota") { GestorPines.compartido.pinearNota() }
-            Button("Lista de tareas") { GestorPines.compartido.pinearMiniapp("tareas") }
-            Button("Contador") { GestorPines.compartido.pinearMiniapp("contador") }
-            Button("Ruleta") { GestorPines.compartido.pinearMiniapp("ruleta") }
-            Button("Gastos") { GestorPines.compartido.pinearMiniapp("gastos") }
-            Button("Cronómetro") { GestorPines.compartido.pinearMiniapp("cronometro") }
-            Button("Temporizador") { GestorPines.compartido.pinearMiniapp("temporizador") }
-            Button("Alarma") { GestorPines.compartido.pinearMiniapp("alarma") }
-        }
-        Button("Pines abiertos…") { GestorPines.compartido.mostrarPanelAbiertos() }
-        Button("Mostrar u ocultar los pines") { atajos.ejecutar(.alternarPines) }
-            .atajo(.alternarPines, atajos)
-        if atajos.disponible(.restaurarUltimoPin) {
-            Button("Restaurar el último pin") { atajos.ejecutar(.restaurarUltimoPin) }
-                .atajo(.restaurarUltimoPin, atajos)
-        }
-        if atajos.disponible(.alternarPasoDeClics) {
-            Button("Pines: dejar pasar el clic") { atajos.ejecutar(.alternarPasoDeClics) }
-                .atajo(.alternarPasoDeClics, atajos)
-        }
-        Button("Cerrar todos los pines") { atajos.ejecutar(.cerrarTodosLosPines) }
-            .atajo(.cerrarTodosLosPines, atajos)
-        Divider()
-        // Siempre en el menu: con los atajos soltados, es la unica vuelta.
-        Toggle("Silenciar los atajos", isOn: Binding(
-            get: { atajos.silenciados },
-            set: { atajos.silenciar($0) }))
-        Button("Ajustes…") {
-            abrirAjustes()
-            NSApp.activate()
-        }
-        .keyboardShortcut(",")
-        Button("Salir de PixPin") { NSApp.terminate(nil) }
-            .keyboardShortcut("q")
-    }
-
-    private func abrir(_ id: String) {
-        abrirVentana(id: id)
-        NSApp.activate()
     }
 }

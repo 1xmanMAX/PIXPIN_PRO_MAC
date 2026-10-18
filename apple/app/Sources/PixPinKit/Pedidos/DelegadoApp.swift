@@ -26,6 +26,10 @@ public final class DelegadoApp: NSObject, NSApplicationDelegate {
         IconoDelDock.compartido.vigilar()
     }
 
+    /// Cerrar la ultima ventana no cierra PixPin: sigue en la barra de menus
+    /// (el icono ya no es una escena de SwiftUI, E4).
+    public func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
     public func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         ficheros.applicationShouldHandleReopen(sender, hasVisibleWindows: flag)
     }

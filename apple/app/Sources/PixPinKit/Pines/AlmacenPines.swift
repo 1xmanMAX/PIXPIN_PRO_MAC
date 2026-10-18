@@ -368,6 +368,30 @@ final class AlmacenPines {
         return nuevo
     }
 
+    /// El grupo de la entrada, si tiene.
+    func grupoDe(_ id: UInt64) -> GrupoPines? {
+        guard let g = entrada(id)?.grupo else { return nil }
+        return indice.grupos.first { $0.id == g }
+    }
+
+    /// Oculta (o vuelve a ensenar) un grupo entero (D24 de Windows): sus
+    /// entradas se quedan con su `pin`, que es lo que las devuelve a su sitio
+    /// exacto al mostrarlo; mientras este oculto, no vuelven al arrancar.
+    func ponerGrupoOculto(_ grupo: UInt32, _ oculto: Bool) throws {
+        guard let i = indice.grupos.firstIndex(where: { $0.id == grupo }) else { throw ErrorAlmacen.noExiste(UInt64(grupo)) }
+        guard indice.grupos[i].oculto != oculto else { return }
+        indice.grupos[i].oculto = oculto
+        try persistir()
+    }
+
+    /// Los grupos ocultos con cuantas entradas tiene cada uno (para el menu
+    /// de la barra: es la unica via de vuelta de unos pines que no se ven).
+    var gruposOcultos: [(grupo: GrupoPines, cuantos: Int)] {
+        indice.grupos.filter(\.oculto).map { g in
+            (g, indice.entradas.filter { $0.grupo == g.id }.count)
+        }
+    }
+
     /// Borra la entrada y su objeto propio; un archivo por referencia es del
     /// usuario y no se toca.
     func eliminar(_ id: UInt64) throws {
