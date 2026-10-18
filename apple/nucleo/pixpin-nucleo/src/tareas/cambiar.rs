@@ -202,3 +202,59 @@ impl Nucleo {
         Ok(false)
     }
 }
+
+/// Una tarea encontrada por su titulo (el pin de una tarea, F6).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct TareaDelPin {
+    pub indice: u32,
+    pub crudo: String,
+    pub hecha: bool,
+}
+
+#[uniffi::export]
+impl Nucleo {
+    /// **La tarea de un pin**, buscada por su titulo (sin marcas) y no por
+    /// su numero: el chat o el movil pueden reordenar la lista mientras el
+    /// pin esta en la pantalla (`pines::tarea` de Windows). `None` si ya no
+    /// esta.
+    pub fn tarea_por_titulo(
+        &self,
+        chat: String,
+        lista: String,
+        titulo: String,
+    ) -> Result<Option<TareaDelPin>, ErrorNucleo> {
+        let mut hallada = None;
+        self.con_tareas(&chat, &lista, |doc| {
+            hallada = doc
+                .iter()
+                .enumerate()
+                .find(|(_, t)| frase::marcas(&t.texto).titulo == titulo)
+                .map(|(i, t)| TareaDelPin { indice: i as u32, crudo: t.texto.clone(), hecha: t.hecha });
+            Some(false)
+        })?;
+        Ok(hallada)
+    }
+
+    /// **Pone la nota** de por que no se esta haciendo (vacia: la quita) en
+    /// la tarea de titulo `titulo`. Va dentro de la tarea, tras `💬`, asi
+    /// que viaja al movil. Devuelve el texto crudo nuevo, o `None` si ya no
+    /// esta.
+    pub fn poner_nota_tarea(
+        &self,
+        chat: String,
+        lista: String,
+        titulo: String,
+        nota: String,
+    ) -> Result<Option<String>, ErrorNucleo> {
+        let mut nueva = None;
+        self.con_tareas(&chat, &lista, |doc| {
+            let t = doc.iter_mut().find(|t| frase::marcas(&t.texto).titulo == titulo)?;
+            let otro = frase::con_nota(&t.texto, &nota);
+            let cambia = otro != t.texto;
+            t.texto = otro.clone();
+            nueva = Some(otro);
+            Some(cambia)
+        })?;
+        Ok(nueva)
+    }
+}

@@ -6640,6 +6640,22 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func moverTarea(chat: String, lista: String, indice: UInt32, crudo: String, aChat: String, aLista: String) throws  -> Bool
     
     /**
+     * **Pone la nota** de por que no se esta haciendo (vacia: la quita) en
+     * la tarea de titulo `titulo`. Va dentro de la tarea, tras `💬`, asi
+     * que viaja al movil. Devuelve el texto crudo nuevo, o `None` si ya no
+     * esta.
+     */
+    func ponerNotaTarea(chat: String, lista: String, titulo: String, nota: String) throws  -> String?
+    
+    /**
+     * **La tarea de un pin**, buscada por su titulo (sin marcas) y no por
+     * su numero: el chat o el movil pueden reordenar la lista mientras el
+     * pin esta en la pantalla (`pines::tarea` de Windows). `None` si ya no
+     * esta.
+     */
+    func tareaPorTitulo(chat: String, lista: String, titulo: String) throws  -> TareaDelPin?
+    
+    /**
      * **Lo manda a «Momentos», o lo saca** (el marcador de la tarjeta).
      * Devuelve si queda dentro.
      */
@@ -9600,6 +9616,43 @@ open func moverTarea(chat: String, lista: String, indice: UInt32, crudo: String,
         FfiConverterString.lower(crudo),
         FfiConverterString.lower(aChat),
         FfiConverterString.lower(aLista),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pone la nota** de por que no se esta haciendo (vacia: la quita) en
+     * la tarea de titulo `titulo`. Va dentro de la tarea, tras `💬`, asi
+     * que viaja al movil. Devuelve el texto crudo nuevo, o `None` si ya no
+     * esta.
+     */
+open func ponerNotaTarea(chat: String, lista: String, titulo: String, nota: String)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_nota_tarea(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterString.lower(titulo),
+        FfiConverterString.lower(nota),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La tarea de un pin**, buscada por su titulo (sin marcas) y no por
+     * su numero: el chat o el movil pueden reordenar la lista mientras el
+     * pin esta en la pantalla (`pines::tarea` de Windows). `None` si ya no
+     * esta.
+     */
+open func tareaPorTitulo(chat: String, lista: String, titulo: String)throws  -> TareaDelPin?  {
+    return try  FfiConverterOptionTypeTareaDelPin.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_tarea_por_titulo(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(lista),
+        FfiConverterString.lower(titulo),uniffiCallStatus
     )
 })
 }
@@ -26238,6 +26291,67 @@ public func FfiConverterTypeTarea_lower(_ value: Tarea) -> RustBuffer {
 
 
 /**
+ * Una tarea encontrada por su titulo (el pin de una tarea, F6).
+ */
+public struct TareaDelPin: Equatable, Hashable {
+    public var indice: UInt32
+    public var crudo: String
+    public var hecha: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(indice: UInt32, crudo: String, hecha: Bool) {
+        self.indice = indice
+        self.crudo = crudo
+        self.hecha = hecha
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TareaDelPin: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTareaDelPin: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TareaDelPin {
+        return
+            try TareaDelPin(
+                indice: FfiConverterUInt32.read(from: &buf), 
+                crudo: FfiConverterString.read(from: &buf), 
+                hecha: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TareaDelPin, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.indice, into: &buf)
+        FfiConverterString.write(value.crudo, into: &buf)
+        FfiConverterBool.write(value.hecha, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTareaDelPin_lift(_ buf: RustBuffer) throws -> TareaDelPin {
+    return try FfiConverterTypeTareaDelPin.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTareaDelPin_lower(_ value: TareaDelPin) -> RustBuffer {
+    return FfiConverterTypeTareaDelPin.lower(value)
+}
+
+
+/**
  * La tarea de un recordatorio: su lista y su numero, para «Hecha» y
  * «+10 min» de la notificacion (`tareas::tarea_de_recordatorio`).
  */
@@ -34257,6 +34371,30 @@ fileprivate struct FfiConverterOptionTypeResumenMini: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeTareaDelPin: FfiConverterRustBuffer {
+    typealias SwiftType = TareaDelPin?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTareaDelPin.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTareaDelPin.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeTareaRecordada: FfiConverterRustBuffer {
     typealias SwiftType = TareaRecordada?
 
@@ -39580,6 +39718,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_mover_tarea() != 49904) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_nota_tarea() != 32535) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_tarea_por_titulo() != 28189) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_a_momentos() != 50149) {

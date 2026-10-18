@@ -496,3 +496,27 @@ fn editar_borrar_deshacer_y_mover_tareas() {
     let alli = n.tareas(0).unwrap().into_iter().find(|l| l.mensaje == otra).unwrap();
     assert_eq!(alli.tareas.len(), 1);
 }
+
+#[test]
+fn el_pin_de_una_tarea_la_encuentra_por_su_titulo_y_le_pone_la_nota() {
+    let tmp = Temporal::nueva("pin-tarea");
+    let n = tmp.nucleo();
+    let l = n.apuntar_tarea("llamar al banco prioridad alta".into(), 0).unwrap();
+    let (chat, lista) = (l.chat.clone(), l.mensaje.clone());
+    let t = n.tarea_por_titulo(chat.clone(), lista.clone(), "llamar al banco".into()).unwrap().unwrap();
+    assert_eq!(t.indice, 0);
+    let crudo = n
+        .poner_nota_tarea(chat.clone(), lista.clone(), "llamar al banco".into(), "no abren hasta el lunes".into())
+        .unwrap()
+        .unwrap();
+    assert!(crudo.contains("⏫ 💬 no abren hasta el lunes ➕ "), "{crudo}");
+    let m = pixpin_nucleo::marcas_de_tarea(crudo, 0);
+    assert_eq!(m.nota.as_deref(), Some("no abren hasta el lunes"));
+    assert_eq!(m.titulo, "llamar al banco", "la nota no cambia el titulo");
+    // Quitar la nota.
+    let sin = n.poner_nota_tarea(chat.clone(), lista.clone(), "llamar al banco".into(), "".into()).unwrap().unwrap();
+    assert!(!sin.contains('💬'));
+    // Caso negativo: un titulo que no esta.
+    assert!(n.tarea_por_titulo(chat.clone(), lista.clone(), "otra".into()).unwrap().is_none());
+    assert!(n.poner_nota_tarea(chat, lista, "otra".into(), "x".into()).unwrap().is_none());
+}

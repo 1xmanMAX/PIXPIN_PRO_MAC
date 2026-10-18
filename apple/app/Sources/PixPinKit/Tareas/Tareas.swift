@@ -189,6 +189,12 @@ public final class ModeloTareas: ObservableObject {
         }
     }
 
+    /// Fija la tarea en la pantalla (su pin, con la nota).
+    public func pinear(_ t: TareaConLista) {
+        let titulo = marcasDeTarea(texto: t.tarea.crudo, desfaseMs: desfaseLocalMs()).titulo
+        PinesDeTareas.compartidos.abrir(chat: t.lista.chat, lista: t.lista.mensaje, titulo: titulo, nucleo: nucleo)
+    }
+
     /// La tarea de un id (`chat/lista/indice`), para soltarla en el Kanban.
     public func tarea(id: String) -> TareaConLista? {
         for l in listas {
@@ -276,6 +282,11 @@ public final class ModeloTareas: ObservableObject {
                 try nucleo.apuntarTarea(texto: limpio, desfaseMs: desfase)
             }.value
             error = nil
+            // Con hora: directamente su pin en la pantalla (Windows).
+            let m = marcasDeTarea(texto: tareaEntendida(texto: limpio, desfaseMs: desfase), desfaseMs: desfase)
+            if m.horaMs != nil, !m.titulo.isEmpty {
+                PinesDeTareas.compartidos.abrir(chat: lista.chat, lista: lista.mensaje, titulo: m.titulo, nucleo: nucleo)
+            }
             NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
             NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: lista.chat)
         } catch {
@@ -374,7 +385,8 @@ public struct VentanaTareas: View {
             recordar: { c in Task { await modelo.recordar(t, en: c) } },
             editar: { n in Task { await modelo.editar(t, a: n) } },
             borrar: { Task { await modelo.borrar(t) } },
-            mover: { l in Task { await modelo.mover(t, a: l) } }
+            mover: { l in Task { await modelo.mover(t, a: l) } },
+            pinear: { modelo.pinear(t) }
         )
     }
 
@@ -436,6 +448,7 @@ struct AccionesTarea {
     var editar: (String) -> Void = { _ in }
     var borrar: () -> Void = {}
     var mover: (ListaTareas) -> Void = { _ in }
+    var pinear: () -> Void = {}
 }
 
 /// Una tarea: su casilla, el texto con sus #etiquetas y sus chapitas
@@ -502,6 +515,7 @@ struct FilaTarea: View {
         }
         .contextMenu {
             Button("Corregir (F2)") { empezar() }
+            if !t.tarea.hecha { Button("Pinear en la pantalla") { acciones.pinear() } }
             if !t.tarea.hecha {
                 Menu("Recordármelo") {
                     ForEach(AtajosDeHora.atajos(ahora: Date()), id: \.titulo) { a in
@@ -592,7 +606,8 @@ struct ColumnaKanban: View {
             recordar: { c in Task { await modelo.recordar(x, en: c) } },
             editar: { n in Task { await modelo.editar(x, a: n) } },
             borrar: { Task { await modelo.borrar(x) } },
-            mover: { d in Task { await modelo.mover(x, a: d) } }
+            mover: { d in Task { await modelo.mover(x, a: d) } },
+            pinear: { modelo.pinear(x) }
         ))
         .padding(8)
         .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
