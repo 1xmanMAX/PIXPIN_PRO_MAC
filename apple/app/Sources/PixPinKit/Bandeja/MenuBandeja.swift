@@ -57,6 +57,10 @@ enum MenuBandeja {
         menu.addItem(ventana("Galería de capturas…", IdVentana.galeria))
         menu.addItem(ventana("Timeline…", IdVentana.timeline))
         menu.addItem(ventana("Tareas…", IdVentana.tareas))
+        if let nucleo = IconoBandeja.compartido.nucleo {
+            menu.addItem(cierre("Horario de clases…") { HorarioClases.abrir(nucleo: nucleo) })
+            menu.addItem(cierre("Nota de voz para la próxima clase") { HorarioClases.grabarParaLaProxima(nucleo: nucleo) })
+        }
         menu.addItem(cierre("Abrir documento…") { IconoBandeja.abrirDocumento() })
         let grupos = NSMenuItem(title: "Grupos de ventanas", action: nil, keyEquivalent: "")
         grupos.submenu = GruposVentanas.compartidos.menu()

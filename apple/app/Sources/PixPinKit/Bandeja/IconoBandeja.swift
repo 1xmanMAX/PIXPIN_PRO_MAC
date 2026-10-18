@@ -27,7 +27,7 @@ public final class IconoBandeja: NSObject, NSMenuDelegate {
     private var modelo: ModeloBandeja?
     private var atajos: GestorAtajos?
     private var sincro: Sincronizador?
-    private var nucleo: Nucleo?
+    private(set) var nucleo: Nucleo?
     private var vigias: Set<AnyCancellable> = []
     private var vigiaRaton: Any?
     private var vigiaFoco: Any?

@@ -17,6 +17,11 @@
 //   contestada): la misma alarma a otra hora (`volverARecordar`) y cuelga.
 //
 // Teclado: Intro contesta, Esc cuelga.
+//
+// **El horario de clases** (Windows, 17-oct) llama con la misma tarjeta:
+// debajo del nombre, la hora y el aula (`detalle`); al contestar suena la
+// nota de voz de la clase, si la hay, y despues la voz de la app lee lo
+// apuntado con `>` (`texto`). «Volver a llamar en» lo pospone en memoria.
 
 import AppKit
 import AVFoundation
@@ -104,11 +109,22 @@ final class ModeloLlamada: ObservableObject {
     private var acaboEn: Date?
     private var reloj: Timer?
     var cerrar: (() -> Void)?
+    /// La hora y el aula de una clase (el horario).
+    let detalle: String
+    /// Lo que lee la voz al contestar, tras la nota (el horario).
+    let textoALeer: String?
+    private let habla = AVSpeechSynthesizer()
+    private var leido = false
 
-    init(_ llamada: LlamadaSecreta, nucleo: Nucleo) {
+    init(_ llamada: LlamadaSecreta, nucleo: Nucleo, detalle: String = "", texto: String? = nil) {
         self.llamada = llamada
         self.nucleo = nucleo
+        self.detalle = detalle
+        self.textoALeer = texto
     }
+
+    /// Si es un aviso del horario (y no la nota de un chat).
+    var esDelHorario: Bool { llamada.mensaje.hasPrefix("horario:") }
 
     var nombre: String { Llamada.titulo(llamada.nombre) }
 
@@ -132,15 +148,29 @@ final class ModeloLlamada: ObservableObject {
         guard fase == .sonando else { return }
         timbre?.stop()
         timbre = nil
-        guard let p = try? AVAudioPlayer(contentsOf: URL(fileURLWithPath: llamada.audio)) else {
+        let p = llamada.audio.isEmpty ? nil : try? AVAudioPlayer(contentsOf: URL(fileURLWithPath: llamada.audio))
+        guard p != nil || textoALeer != nil else {
             colgar()
             return
         }
-        p.volume = Llamada.volumenAlOido
-        p.play()
-        voz = p
+        if let p {
+            p.volume = Llamada.volumenAlOido
+            p.play()
+            voz = p
+        } else {
+            leer()
+        }
         fase = .contestada
         desde = Date()
+    }
+
+    /// La voz de la app lee lo apuntado (una vez, tras la nota).
+    private func leer() {
+        guard !leido, let t = textoALeer, !t.isEmpty else { return }
+        leido = true
+        let u = AVSpeechUtterance(string: t)
+        u.voice = AVSpeechSynthesisVoice(language: "es-ES")
+        habla.speak(u)
     }
 
     func cambiarAltavoz() {
@@ -154,6 +184,7 @@ final class ModeloLlamada: ObservableObject {
         reloj = nil
         timbre?.stop()
         voz?.stop()
+        habla.stopSpeaking(at: .immediate)
         timbre = nil
         voz = nil
         cerrar?()
@@ -165,6 +196,16 @@ final class ModeloLlamada: ObservableObject {
         let (nucleo, chat, mensaje) = (self.nucleo, llamada.chat, llamada.mensaje)
         timbre?.stop()
         voz?.stop()
+        habla.stopSpeaking(at: .immediate)
+        if esDelHorario {
+            Recordatorios.compartido.posponerHorario(id: mensaje, nombre: llamada.nombre, a: cuando)
+            dicho = "Te vuelve a llamar a las \(AtajosDeHora.legible(cuando, ahora: Date()))"
+            Task {
+                try? await Task.sleep(for: .seconds(1.6))
+                colgar()
+            }
+            return
+        }
         Task {
             let hecho = await Task.detached(priority: .userInitiated) {
                 (try? nucleo.volverARecordar(chat: chat, mensaje: mensaje, cuandoUtcMs: milisegundos(cuando))) == true
@@ -184,7 +225,9 @@ final class ModeloLlamada: ObservableObject {
     private func latir() {
         let ahora = Date()
         if fase == .contestada, acaboEn == nil, voz?.isPlaying != true {
-            acaboEn = ahora
+            // Tras la nota, la voz lee lo apuntado; acaba cuando calla.
+            if textoALeer != nil, !leido { leer() }
+            if !habla.isSpeaking { acaboEn = ahora }
         }
         if Llamada.tocaColgar(fase, desde: desde, ahora: ahora, acaboEn: acaboEn) {
             if fase == .sonando { perdida() }
@@ -238,6 +281,10 @@ struct VistaLlamada: View {
             .padding(.top, 26)
             Text(m.nombre).font(.system(size: 24)).foregroundStyle(ColoresVoz.texto).lineLimit(2)
                 .multilineTextAlignment(.center).padding(.horizontal, 16).padding(.top, 18)
+            if !m.detalle.isEmpty {
+                Text(m.detalle).font(.system(size: 14)).foregroundStyle(ColoresVoz.texto.opacity(0.75))
+                    .multilineTextAlignment(.center).padding(.horizontal, 16).padding(.top, 6)
+            }
             Spacer()
             if let dicho = m.dicho {
                 Text(dicho).font(.system(size: 14)).foregroundStyle(ColoresVoz.texto).padding(.bottom, 20)
@@ -312,10 +359,10 @@ extension Llamada {
 
     /// **Hace sonar la llamada**: la ventanita encima de todo.
     @MainActor
-    static func sonar(_ l: LlamadaSecreta, nucleo: Nucleo) {
+    static func sonar(_ l: LlamadaSecreta, nucleo: Nucleo, detalle: String = "", texto: String? = nil) {
         let clave = l.chat + "\u{0}" + l.mensaje
         guard sonando[clave] == nil else { return }
-        let m = ModeloLlamada(l, nucleo: nucleo)
+        let m = ModeloLlamada(l, nucleo: nucleo, detalle: detalle, texto: texto)
         let p = PanelFlotanteVoz.nuevo(NSSize(width: 340, height: 520))
         p.contentView = NSHostingView(rootView: VistaLlamada(m: m))
         p.level = .statusBar

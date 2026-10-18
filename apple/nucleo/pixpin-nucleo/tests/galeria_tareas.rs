@@ -520,3 +520,30 @@ fn el_pin_de_una_tarea_la_encuentra_por_su_titulo_y_le_pone_la_nota() {
     assert!(n.tarea_por_titulo(chat.clone(), lista.clone(), "otra".into()).unwrap().is_none());
     assert!(n.poner_nota_tarea(chat, lista, "otra".into(), "x".into()).unwrap().is_none());
 }
+
+#[test]
+fn el_horario_nace_con_la_plantilla_que_no_llama_y_despues_avisa() {
+    let tmp = Temporal::nueva("horario");
+    let n = tmp.nucleo();
+    let ruta = n.fichero_del_horario().unwrap();
+    assert!(std::fs::read_to_string(&ruta).unwrap().contains("# Horario de clases"));
+    // La plantilla trae el ejemplo comentado: no llama.
+    assert!(n.avisos_del_horario(0).is_empty());
+    assert!(n.nota_de_voz_de_clase(0).is_none(), "sin clases no hay donde grabar");
+    // Una clase todos los dias: siempre hay un aviso en los proximos dias.
+    std::fs::write(&ruta, "Lun Mar Mie Jue Vie Sab Dom 9:00-10:00 Geometría @A-12\n> traer el compás\n").unwrap();
+    let a = n.avisos_del_horario(0);
+    assert!(a.len() >= 7, "{a:?}");
+    assert_eq!(a[0].nombre, "Geometría");
+    assert!(a[0].detalle.starts_with("09:00–10:00 · A-12"), "{}", a[0].detalle);
+    assert_eq!(a[0].texto.as_deref(), Some("traer el compás"));
+    assert!(a[0].audio.is_none(), "sin nota de voz grabada");
+    // 10 min antes por omision.
+    assert_eq!(a[0].cuando_utc_ms.rem_euclid(86_400_000), (8 * 60 + 50) * 60_000);
+    let otra_vez = n.aviso_del_horario(a[0].id.clone(), 0).unwrap();
+    assert_eq!(otra_vez.id, a[0].id);
+    let nota = n.nota_de_voz_de_clase(0).unwrap();
+    assert_eq!(nota.clase, "Geometría");
+    assert!(nota.ruta.ends_with("horario/voz/geometria.m4a"), "{}", nota.ruta);
+    assert!(n.aviso_del_horario("horario:clase:0:otra".into(), 0).is_none());
+}

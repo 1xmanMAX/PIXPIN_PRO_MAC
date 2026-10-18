@@ -79,6 +79,8 @@ pub mod hojas;
 pub mod lecciones;
 pub mod lienzo;
 pub mod lienzo_suelto;
+// El horario de clases que llama (Windows, 17-oct).
+pub mod horario;
 pub mod llamada;
 pub mod llavero;
 pub mod mini_tiempos;

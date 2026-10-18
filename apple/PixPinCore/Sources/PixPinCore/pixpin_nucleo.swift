@@ -6273,6 +6273,37 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func esHojaDeCalculo(chat: String, mensaje: String)  -> Bool
     
     /**
+     * El aviso de un id (al sonar, o uno pospuesto con `|<ms>` detras),
+     * leido otra vez del horario: si cambio, sale lo de ahora. `None` si ya
+     * no esta.
+     */
+    func avisoDelHorario(id: String, desfaseMs: Int64)  -> AvisoHorario?
+    
+    /**
+     * **Los avisos del horario** de los proximos [`DIAS_A_LA_VISTA`] dias,
+     * del mas proximo al mas lejano. `desfase_ms`: hora local menos UTC.
+     */
+    func avisosDelHorario(desfaseMs: Int64)  -> [AvisoHorario]
+    
+    /**
+     * Donde esta el horario (`horario.md` junto a los datos); si aun no
+     * existe, se crea con la plantilla (el ejemplo comentado, que no llama).
+     */
+    func ficheroDelHorario() throws  -> String
+    
+    /**
+     * **«Nota de voz para la próxima clase»**: donde grabarla (la de la
+     * clase en marcha, o la ultima de hoy, o la proxima) y de que clase
+     * es. `None` si el horario no tiene clases.
+     */
+    func notaDeVozDeClase(desfaseMs: Int64)  -> NotaDeClase?
+    
+    /**
+     * Donde esta (o estara) el horario, sin crearlo.
+     */
+    func rutaDelHorario()  -> String
+    
+    /**
      * **Las fotos y audios de una leccion** (`LeccionesStore.adjuntosDe`,
      * `almacen::adjuntos_de` de Windows): los de su lista, en su orden, y
      * **tambien los que le responden** (si dos aparatos le pusieron una
@@ -8815,6 +8846,76 @@ open func esHojaDeCalculo(chat: String, mensaje: String) -> Bool  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El aviso de un id (al sonar, o uno pospuesto con `|<ms>` detras),
+     * leido otra vez del horario: si cambio, sale lo de ahora. `None` si ya
+     * no esta.
+     */
+open func avisoDelHorario(id: String, desfaseMs: Int64) -> AvisoHorario?  {
+    return try!  FfiConverterOptionTypeAvisoHorario.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_aviso_del_horario(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los avisos del horario** de los proximos [`DIAS_A_LA_VISTA`] dias,
+     * del mas proximo al mas lejano. `desfase_ms`: hora local menos UTC.
+     */
+open func avisosDelHorario(desfaseMs: Int64) -> [AvisoHorario]  {
+    return try!  FfiConverterSequenceTypeAvisoHorario.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_avisos_del_horario(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Donde esta el horario (`horario.md` junto a los datos); si aun no
+     * existe, se crea con la plantilla (el ejemplo comentado, que no llama).
+     */
+open func ficheroDelHorario()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_fichero_del_horario(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Nota de voz para la próxima clase»**: donde grabarla (la de la
+     * clase en marcha, o la ultima de hoy, o la proxima) y de que clase
+     * es. `None` si el horario no tiene clases.
+     */
+open func notaDeVozDeClase(desfaseMs: Int64) -> NotaDeClase?  {
+    return try!  FfiConverterOptionTypeNotaDeClase.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nota_de_voz_de_clase(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Donde esta (o estara) el horario, sin crearlo.
+     */
+open func rutaDelHorario() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ruta_del_horario(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -13539,6 +13640,110 @@ public func FfiConverterTypeArgAutomatizacion_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeArgAutomatizacion_lower(_ value: ArgAutomatizacion) -> RustBuffer {
     return FfiConverterTypeArgAutomatizacion.lower(value)
+}
+
+
+/**
+ * **Un aviso del horario** para el vigia del Mac: cuando suena (UTC) y la
+ * llamada que sale.
+ */
+public struct AvisoHorario: Equatable, Hashable {
+    /**
+     * El id en la agenda (`horario:clase:…`, `horario:eval:…`).
+     */
+    public var id: String
+    public var cuandoUtcMs: Int64
+    /**
+     * Quien «llama»: la asignatura, o «📝 Evaluación…».
+     */
+    public var nombre: String
+    /**
+     * La hora y el aula, y las evaluaciones cercanas.
+     */
+    public var detalle: String
+    /**
+     * Lo que lee la voz al contestar (lo apuntado con `>`).
+     */
+    public var texto: String?
+    /**
+     * La nota de voz de la clase grabada para esta sesion, si la hay.
+     */
+    public var audio: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El id en la agenda (`horario:clase:…`, `horario:eval:…`).
+         */id: String, cuandoUtcMs: Int64, 
+        /**
+         * Quien «llama»: la asignatura, o «📝 Evaluación…».
+         */nombre: String, 
+        /**
+         * La hora y el aula, y las evaluaciones cercanas.
+         */detalle: String, 
+        /**
+         * Lo que lee la voz al contestar (lo apuntado con `>`).
+         */texto: String?, 
+        /**
+         * La nota de voz de la clase grabada para esta sesion, si la hay.
+         */audio: String?) {
+        self.id = id
+        self.cuandoUtcMs = cuandoUtcMs
+        self.nombre = nombre
+        self.detalle = detalle
+        self.texto = texto
+        self.audio = audio
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AvisoHorario: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAvisoHorario: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AvisoHorario {
+        return
+            try AvisoHorario(
+                id: FfiConverterString.read(from: &buf), 
+                cuandoUtcMs: FfiConverterInt64.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                detalle: FfiConverterString.read(from: &buf), 
+                texto: FfiConverterOptionString.read(from: &buf), 
+                audio: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AvisoHorario, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterInt64.write(value.cuandoUtcMs, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.detalle, into: &buf)
+        FfiConverterOptionString.write(value.texto, into: &buf)
+        FfiConverterOptionString.write(value.audio, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAvisoHorario_lift(_ buf: RustBuffer) throws -> AvisoHorario {
+    return try FfiConverterTypeAvisoHorario.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAvisoHorario_lower(_ value: AvisoHorario) -> RustBuffer {
+    return FfiConverterTypeAvisoHorario.lower(value)
 }
 
 
@@ -22288,6 +22493,63 @@ public func FfiConverterTypeNoDibujado_lift(_ buf: RustBuffer) throws -> NoDibuj
 #endif
 public func FfiConverterTypeNoDibujado_lower(_ value: NoDibujado) -> RustBuffer {
     return FfiConverterTypeNoDibujado.lower(value)
+}
+
+
+/**
+ * Donde va la nota de voz de una clase.
+ */
+public struct NotaDeClase: Equatable, Hashable {
+    public var ruta: String
+    public var clase: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ruta: String, clase: String) {
+        self.ruta = ruta
+        self.clase = clase
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NotaDeClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNotaDeClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NotaDeClase {
+        return
+            try NotaDeClase(
+                ruta: FfiConverterString.read(from: &buf), 
+                clase: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NotaDeClase, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ruta, into: &buf)
+        FfiConverterString.write(value.clase, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotaDeClase_lift(_ buf: RustBuffer) throws -> NotaDeClase {
+    return try FfiConverterTypeNotaDeClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotaDeClase_lower(_ value: NotaDeClase) -> RustBuffer {
+    return FfiConverterTypeNotaDeClase.lower(value)
 }
 
 
@@ -33555,6 +33817,30 @@ fileprivate struct FfiConverterOptionTypeAnuncioBonjour: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeAvisoHorario: FfiConverterRustBuffer {
+    typealias SwiftType = AvisoHorario?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeAvisoHorario.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeAvisoHorario.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCaja3d: FfiConverterRustBuffer {
     typealias SwiftType = Caja3d?
 
@@ -34195,6 +34481,30 @@ fileprivate struct FfiConverterOptionTypeMensajeChat: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeMensajeChat.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeNotaDeClase: FfiConverterRustBuffer {
+    typealias SwiftType = NotaDeClase?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNotaDeClase.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNotaDeClase.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -34877,6 +35187,31 @@ fileprivate struct FfiConverterSequenceTypeArgAutomatizacion: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeArgAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeAvisoHorario: FfiConverterRustBuffer {
+    typealias SwiftType = [AvisoHorario]
+
+    public static func write(_ value: [AvisoHorario], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAvisoHorario.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AvisoHorario] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AvisoHorario]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAvisoHorario.read(from: &buf))
         }
         return seq
     }
@@ -39574,6 +39909,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_es_hoja_de_calculo() != 30308) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_aviso_del_horario() != 16305) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_avisos_del_horario() != 52838) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_fichero_del_horario() != 431) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nota_de_voz_de_clase() != 2844) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_del_horario() != 32022) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntos_de_leccion() != 13576) {

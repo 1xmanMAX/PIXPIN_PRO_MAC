@@ -143,6 +143,15 @@ public final class Recordatorios {
     /// hora ([`marca`]): no vuelve a salir si se lee antes de que el
     /// cuaderno pierda la hora. Otra hora en el mismo mensaje si sale.
     private var hechos: Set<String> = []
+    /// Los avisos del horario pospuestos («Volver a llamar en»), hasta que
+    /// suenan (en memoria, como `POSPUESTOS` de Windows).
+    private var pospuestos: [RecordatorioPuesto] = []
+    /// La huella del horario y el dia: si cambia, se relee la agenda.
+    private var firmaHorario: String = ""
+    private var vigiaHorario: Timer?
+
+    /// El chat de mentira de los avisos del horario (no son de ningun chat).
+    nonisolated static let chatHorario = ""
 
     /// La clave de un recordatorio con su hora.
     nonisolated static func marca(_ clave: String, _ cuandoMs: Int64) -> String { "\(clave)@\(cuandoMs)" }
@@ -170,6 +179,40 @@ public final class Recordatorios {
         ) { _ in
             MainActor.assumeIsolated { Recordatorios.compartido.armar() }
         })
+        // El horario se edita como una nota: se mira cada pocos segundos si
+        // cambio (o cambio el dia) y entonces se relee (`vigilar` de Windows).
+        firmaHorario = Recordatorios.firma(nucleo)
+        let t = Timer(timeInterval: 5, repeats: true) { _ in
+            MainActor.assumeIsolated {
+                let r = Recordatorios.compartido
+                guard let n = r.nucleo else { return }
+                let f = Recordatorios.firma(n)
+                if f != r.firmaHorario {
+                    r.firmaHorario = f
+                    r.releer()
+                }
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        vigiaHorario = t
+        releer()
+    }
+
+    /// La fecha y el tamano de `horario.md` y el dia de hoy.
+    nonisolated static func firma(_ nucleo: Nucleo) -> String {
+        let ruta = nucleo.rutaDelHorario()
+        let a = (try? FileManager.default.attributesOfItem(atPath: ruta)) ?? [:]
+        let fecha = (a[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let tam = (a[.size] as? Int) ?? -1
+        return "\(fecha)/\(tam)/\(Calendar.current.startOfDay(for: Date()).timeIntervalSince1970)"
+    }
+
+    /// «Volver a llamar en» de un aviso del horario: el mismo, mas tarde.
+    func posponerHorario(id: String, nombre: String, a cuando: Date) {
+        let base = id.split(separator: "|", maxSplits: 1).first.map(String.init) ?? id
+        let nuevo = "\(base)|\(milisegundos(cuando))"
+        pospuestos.removeAll { $0.id == id }
+        pospuestos.append(RecordatorioPuesto(chat: Self.chatHorario, id: nuevo, cuando: cuando, texto: nombre))
         releer()
     }
 
@@ -180,11 +223,15 @@ public final class Recordatorios {
         let desfase = desfaseLocalMs()
         lectura?.cancel()
         lectura = Task { [weak self] in
-            let leidos = await Task.detached(priority: .utility) {
-                (try? nucleo.recordatorios(desfaseLocalMs: desfase)) ?? []
+            let (leidos, horario) = await Task.detached(priority: .utility) {
+                ((try? nucleo.recordatorios(desfaseLocalMs: desfase)) ?? [], nucleo.avisosDelHorario(desfaseMs: desfase))
             }.value
             guard !Task.isCancelled, let self else { return }
-            self.aplicar(leidos.map { RecordatorioPuesto($0, desfaseHoy: desfase) })
+            let delHorario = horario.map {
+                RecordatorioPuesto(chat: Self.chatHorario, nombreChat: "Horario", id: $0.id,
+                                   cuando: fechaDe(ms: $0.cuandoUtcMs), texto: $0.nombre)
+            }
+            self.aplicar(leidos.map { RecordatorioPuesto($0, desfaseHoy: desfase) } + delHorario + self.pospuestos)
         }
     }
 
@@ -238,6 +285,12 @@ public final class Recordatorios {
     /// **Suena uno**: su aviso en la app y fuera la hora del cuaderno.
     private func vencer(_ r: RecordatorioPuesto) {
         enElSistema.remove(r.clave)
+        if r.id.hasPrefix("horario:") {
+            pospuestos.removeAll { $0.id == r.id }
+            guard hechos.insert(Self.marca(r.clave, milisegundos(r.cuando))).inserted else { return }
+            sonarHorario(r)
+            return
+        }
         olvidar(r.chat, r.id, tarea: r.tarea != nil)
         guard hechos.insert(Self.marca(r.clave, milisegundos(r.cuando))).inserted else { return }
         // **Una nota de voz con hora es una llamada secreta** (E5): suena
@@ -253,6 +306,26 @@ public final class Recordatorios {
             return
         }
         avisar(r)
+    }
+
+    /// **Suena un aviso del horario**: la tarjeta de la llamada con la hora y
+    /// el aula. Si el horario cambio y ya no se encuentra, sale igual con lo
+    /// que se apunto al ponerlo. Lo que vencio hace rato (la app cerrada) es
+    /// un aviso de siempre.
+    private func sonarHorario(_ r: RecordatorioPuesto) {
+        guard let nucleo, Llamada.aunSuena(r.cuando, ahora: Date()) else {
+            avisar(r)
+            return
+        }
+        let desfase = desfaseLocalMs()
+        Task {
+            let a = await Task.detached(priority: .userInitiated) {
+                nucleo.avisoDelHorario(id: r.id, desfaseMs: desfase)
+            }.value
+            let l = LlamadaSecreta(audio: a?.audio ?? "", nombre: a?.nombre ?? r.texto,
+                                   chat: Self.chatHorario, mensaje: r.id)
+            Llamada.sonar(l, nucleo: nucleo, detalle: a?.detalle ?? "", texto: a?.texto)
+        }
     }
 
     /// El aviso de un recordatorio que sono, en la ventanita de la app.
