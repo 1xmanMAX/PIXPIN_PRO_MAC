@@ -570,6 +570,15 @@ public final class Sincronizador: ObservableObject {
         case let .success(.archivos(_, nombre, llegadas)):
             ultimasLlegadas = llegadas
             ultimoResultado = textoDeLlegadas(llegadas, de: nombre)
+            // **El aviso al recibirlo** (Windows, 17-oct): PixPin puede estar
+            // en la barra de menus sin nada a la vista, y lo que llega de otro
+            // aparato del grupo sin escanear nada tiene que notarse.
+            if !llegadas.isEmpty {
+                CentroAvisos.compartido.mostrarEnLaApp(
+                    Aviso(id: "llegada-\(Date().timeIntervalSince1970)", categoria: .mini,
+                          titulo: "Llegó de \(nombre)", texto: textoDeLlegadas(llegadas, de: nombre), datos: [:]),
+                    sonar: true)
+            }
             for l in llegadas where l.donde == .lienzo {
                 NotificationCenter.default.post(name: .pixpinFotoAlLienzo, object: l)
             }

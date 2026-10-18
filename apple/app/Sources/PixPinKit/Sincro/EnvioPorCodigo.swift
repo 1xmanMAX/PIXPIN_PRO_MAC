@@ -528,15 +528,21 @@ public struct VistaEnvio: View {
     /// Elegir un proyecto: para abrir la puerta (`false`) o para mandarlo
     /// a quien espera con el codigo escrito (`true`).
     @State private var eligiendoProyecto: Bool?
+    /// La sincronizacion, para los aparatos del grupo (sin codigo).
+    let sincro: Sincronizador?
 
-    public init(nucleo: Nucleo) {
+    public init(nucleo: Nucleo, sincro: Sincronizador? = nil) {
         _modelo = StateObject(wrappedValue: ModeloEnvio(nucleo: nucleo))
+        self.sincro = sincro
     }
 
     public var body: some View {
         Form {
             switch modelo.abierta {
             case .nada:
+                if let sincro, sincro.codigoLegible != nil {
+                    TusAparatos(sincro: sincro)
+                }
                 Section {
                     Button("Elegir archivos y enviar…") {
                         let urls = elegirArchivos()
@@ -700,5 +706,69 @@ struct ElegirProyecto: View {
             lista = (try? await Task.detached(priority: .userInitiated) { try nucleo.chats() }.value) ?? []
             leida = true
         }
+    }
+}
+
+
+/// **Tus aparatos · sin código** (Windows, 17-oct): los del grupo de
+/// sincronizacion. Se envia directo por el canal cifrado, sin escanear;
+/// llega a lo que tengan abierto (un chat; un lienzo solo acepta fotos) o a
+/// Mensajes guardados.
+struct TusAparatos: View {
+    @ObservedObject var sincro: Sincronizador
+
+    private var visibles: [String] {
+        sincro.filas.filter { $0.direccion != nil }.map(\.id)
+    }
+
+    private func elegirArchivos() -> [URL] {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.prompt = "Enviar"
+        return panel.runModal() == .OK ? panel.urls : []
+    }
+
+    var body: some View {
+        Section {
+            if sincro.filas.isEmpty {
+                Text("Ningún aparato del grupo en esta Wi-Fi").foregroundStyle(.secondary)
+            }
+            ForEach(sincro.filas, id: \.id) { fila in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(fila.nombre)
+                        Text(estado(fila.id, seVe: fila.direccion != nil))
+                            .font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                    }
+                    Spacer()
+                    Button("Enviar…") {
+                        let urls = elegirArchivos()
+                        if !urls.isEmpty { Task { await sincro.enviar(urls, a: fila.id) } }
+                    }
+                    .disabled(fila.direccion == nil)
+                }
+            }
+            if visibles.count > 1 {
+                Button("Enviar a todos los que se ven…") {
+                    let urls = elegirArchivos()
+                    guard !urls.isEmpty else { return }
+                    for id in visibles { Task { await sincro.enviar(urls, a: id) } }
+                }
+            }
+        } header: {
+            Text("Tus aparatos · sin código")
+        } footer: {
+            Text("Están en tu grupo: se envía directo, sin escanear. Llega a lo que tengan abierto (un chat; un lienzo solo acepta fotos) o a Mensajes guardados.")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func estado(_ id: String, seVe: Bool) -> String {
+        if let e = sincro.envios[id], let linea = e.texto.split(separator: "\n").first {
+            return String(linea)
+        }
+        return seVe ? "En la misma Wi-Fi" : "No se ve ahora: abre PixPin en ese aparato"
     }
 }

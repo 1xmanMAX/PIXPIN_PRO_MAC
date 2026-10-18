@@ -104,7 +104,7 @@ struct PixPinApp: App {
             // Enviar y recibir con un codigo de seis cifras, y los chats
             // compartidos con personas (`Sincro/`).
             Window("Enviar y recibir por Wi-Fi", id: "envio") {
-                ConAlmacen(estado.almacen, error: estado.error) { VistaEnvio(nucleo: $0.nucleo) }
+                ConAlmacen(estado.almacen, error: estado.error) { VistaEnvio(nucleo: $0.nucleo, sincro: estado.sincro) }
                     .ventanaLisa()
             }
             .defaultSize(width: 460, height: 560)
