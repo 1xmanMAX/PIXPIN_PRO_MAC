@@ -547,3 +547,17 @@ fn el_horario_nace_con_la_plantilla_que_no_llama_y_despues_avisa() {
     assert!(nota.ruta.ends_with("horario/voz/geometria.m4a"), "{}", nota.ruta);
     assert!(n.aviso_del_horario("horario:clase:0:otra".into(), 0).is_none());
 }
+
+#[test]
+fn un_proyecto_entero_se_adjunta_como_puerta_sin_copiarlo() {
+    let tmp = Temporal::nueva("adj-proyecto");
+    let n = tmp.nucleo();
+    let a = n.crear_chat("Casa".into()).unwrap();
+    let b = n.crear_chat("Obra".into()).unwrap();
+    let m = n.adjuntar_proyecto(a.id.clone(), b.id.clone()).unwrap();
+    assert_eq!(m.clase, "PROYECTO");
+    assert_eq!(m.referencia.as_deref(), Some(b.id.as_str()));
+    assert_eq!(m.nombre, "Obra");
+    // Caso negativo: un proyecto que no esta.
+    assert!(n.adjuntar_proyecto(a.id.clone(), "no-esta".into()).is_err());
+}

@@ -8,7 +8,7 @@
 // las flechas mueven lo elegido, Intro lo hace y Esc limpia el buscador o,
 // vacio, cierra.
 //
-// Las entradas que el Mac aun no tiene (pagina y proyecto entero) salen
+// Las entradas que el Mac aun no tiene (la pagina de un proyecto) salen
 // apagadas y, pulsadas, lo dicen. Conversacion, Teleprónter y Pronunciar
 // abren sus ventanitas de la voz (`VozVentanas/`, E5).
 
@@ -27,7 +27,7 @@ enum AccionAdjuntar: Hashable, Sendable {
     /// Si el Mac ya la hace. Las que no, salen apagadas.
     var enElMac: Bool {
         switch self {
-        case .pagina, .proyecto: false
+        case .pagina: false
         default: true
         }
     }
@@ -377,10 +377,33 @@ enum AdjuntarEnChat {
             VozEnElChat.telepronter(chat: chat, almacen: almacen, avisar: avisar)
         case .pronunciar:
             VozEnElChat.pronunciar(chat: chat, almacen: almacen, avisar: avisar)
-        case .pagina, .proyecto:
+        case .proyecto:
+            elegirProyecto(chat: chat, almacen: almacen, avisar: avisar)
+        case .pagina:
             let rotulo = HojaAdjuntar.opciones.first { $0.accion == accion }?.rotulo ?? ""
             avisar("«\(rotulo)» aún no está en el Mac")
         }
+    }
+
+    /// «Proyecto entero» (Windows): un menu con los otros chats; el elegido
+    /// entra como su puerta (no se copia).
+    private static func elegirProyecto(chat: String, almacen: Almacen, avisar: @escaping (String) -> Void) {
+        let otros = almacen.chats.filter { $0.id != chat && !$0.esAsistente }
+        guard !otros.isEmpty else { return avisar("No hay otros proyectos") }
+        let menu = NSMenu()
+        for f in otros {
+            menu.addItem(ItemConAccion.nuevo(f.nombre) {
+                let nucleo = almacen.nucleo
+                Task {
+                    guard let m = try? await Task.detached(operation: {
+                        try nucleo.adjuntarProyecto(chat: chat, proyecto: f.id)
+                    }).value else { return avisar("No se pudo adjuntar «\(f.nombre)»") }
+                    almacen.anadir([m], en: chat)
+                    NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                }
+            })
+        }
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
     /// El panel de abrir del sistema; lo elegido se copia al chat.

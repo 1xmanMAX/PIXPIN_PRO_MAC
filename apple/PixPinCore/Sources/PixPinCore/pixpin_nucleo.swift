@@ -5601,6 +5601,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func adjuntar(chat: String, rutaOrigen: String, nombre: String?) throws  -> MensajeChat
     
     /**
+     * **Adjunta un proyecto entero** al chat `chat` (la hoja «+» de
+     * Windows, `AdjProyecto`): no se copia, es la puerta a lo que ya existe
+     * (un mensaje `PROYECTO` con `referencia` = el id del otro chat).
+     */
+    func adjuntarProyecto(chat: String, proyecto: String) throws  -> MensajeChat
+    
+    /**
      * Las fotos de un lienzo del chat con su ruta **absoluta**, todas en
      * una llamada (no una por foto). Las que no se pueden resolver en este
      * aparato no salen.
@@ -7128,6 +7135,22 @@ open func adjuntar(chat: String, rutaOrigen: String, nombre: String?)throws  -> 
         FfiConverterString.lower(chat),
         FfiConverterString.lower(rutaOrigen),
         FfiConverterOptionString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Adjunta un proyecto entero** al chat `chat` (la hoja «+» de
+     * Windows, `AdjProyecto`): no se copia, es la puerta a lo que ya existe
+     * (un mensaje `PROYECTO` con `referencia` = el id del otro chat).
+     */
+open func adjuntarProyecto(chat: String, proyecto: String)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_adjuntar_proyecto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(proyecto),uniffiCallStatus
     )
 })
 }
@@ -40290,6 +40313,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar() != 27442) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar_proyecto() != 22098) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_imagenes_del_lienzo() != 30542) {

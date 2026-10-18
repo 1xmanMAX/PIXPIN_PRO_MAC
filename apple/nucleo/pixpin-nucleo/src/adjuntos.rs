@@ -77,6 +77,40 @@ impl Nucleo {
         self.adjuntar_con(chat, ruta_origen, nombre, |_| {})
     }
 
+    /// **Adjunta un proyecto entero** al chat `chat` (la hoja «+» de
+    /// Windows, `AdjProyecto`): no se copia, es la puerta a lo que ya existe
+    /// (un mensaje `PROYECTO` con `referencia` = el id del otro chat).
+    pub fn adjuntar_proyecto(&self, chat: String, proyecto: String) -> Result<MensajeChat, ErrorNucleo> {
+        validar_chat(&chat)?;
+        validar_chat(&proyecto)?;
+        let raiz = self.ruta();
+        let indice = Indice::leer_si_esta(raiz)?;
+        if indice.buscar(&chat).is_none() {
+            return Err(ErrorNucleo::NoExiste { que: chat });
+        }
+        let nombre = indice
+            .buscar(&proyecto)
+            .map(|f| f.nombre.clone())
+            .ok_or_else(|| ErrorNucleo::NoExiste { que: proyecto.clone() })?;
+        let aparato = self.identidad()?.yo.codigo();
+        let carpeta = almacen::carpeta(raiz, &chat);
+        let fichero = carpeta.join("guardados.jsonl");
+        let mut cache = self.cache_tomada();
+        let numero = cache.indice(&fichero)?.map_or(0, |i| i.mayor_numero) + 1;
+        let mut m = Mensaje::adjunto(
+            cuaderno::Clase::Proyecto,
+            &nombre,
+            "",
+            0,
+            &Sello { cuando: hora_unica(), numero, aparato, proyecto: chat.clone() },
+        );
+        m.ruta = None;
+        m.referencia = Some(proyecto);
+        cuaderno::anadir(&carpeta, &m)?;
+        cache.quitar(&fichero);
+        Ok(MensajeChat::from(m))
+    }
+
     /// La ruta absoluta del fichero de un mensaje (su `ruta`) o de una foto
     /// de un lienzo, para ensenarlo o abrirlo. No comprueba que exista:
     /// para eso basta mirar el disco desde Swift.
