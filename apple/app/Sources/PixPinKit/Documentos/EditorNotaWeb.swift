@@ -19,6 +19,7 @@
 import AppKit
 import PixPinCore
 import UniformTypeIdentifiers
+import SwiftUI
 import WebKit
 
 /// La vista web de la nota: recuerda el ultimo clic para mover la ventana
@@ -97,6 +98,10 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
     private let esquema: EsquemaNota
     private let cola = DispatchQueue(label: "pixpin.nota.web", qos: .userInitiated)
     private var mirar: Timer?
+    /// La barra comun de los visores, fuera de la ventana (Windows, 17-oct:
+    /// el lector de notas como pin): siempre encima, pantalla completa.
+    private var barra: BarraFlotante?
+    private let estadoBarra = EstadoBarraNota()
     private var cerrarYa = false
     private var cerrando = false
     var alCerrar: (@MainActor (ControladorNotaWeb) -> Void)?
@@ -135,6 +140,12 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         ventana.center()
         _ = ventana.setFrameAutosaveName("PixPinNotaWeb")
         web.loadHTMLString(notaPagina(), baseURL: URL(string: "pixpin-nota://nota/"))
+        estadoBarra.nombre = sesion.titulo()
+        let estado = estadoBarra
+        let v = ventana
+        barra = BarraFlotante(ventana: ventana) {
+            BarraNotaPin(estado: estado, ventana: RefVentana(v))
+        }
         mirar = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.mirarFuera() }
         }
@@ -142,6 +153,7 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
 
     func mostrar() {
         ventana.makeKeyAndOrderFront(nil)
+        barra?.empezar()
         ventana.makeFirstResponder(web)
         NSApp.activate()
     }
@@ -340,7 +352,52 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
     func windowWillClose(_ notification: Notification) {
         mirar?.invalidate()
         mirar = nil
+        barra?.terminar()
         web.configuration.userContentController.removeScriptMessageHandler(forName: "pixpin")
         alCerrar?(self)
+    }
+}
+
+
+/// Lo que ensena la barra de una nota.
+@MainActor
+final class EstadoBarraNota: ObservableObject {
+    @Published var nombre = ""
+    @Published var encima = false
+}
+
+/// **La barra de la nota como pin**: el asa, el nombre con su recuadro
+/// «MD», siempre encima, pantalla completa y cerrar (lo de la nota en si
+/// va en la cabecera de la pagina).
+struct BarraNotaPin: View {
+    @ObservedObject var estado: EstadoBarraNota
+    let ventana: RefVentana
+
+    var body: some View {
+        HStack(spacing: 8) {
+            AsaBarra()
+            Text("MD")
+                .font(.system(size: 10, weight: .bold))
+                .padding(.horizontal, 4).padding(.vertical, 1)
+                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.5)))
+                .foregroundStyle(.white.opacity(0.8))
+            Text(estado.nombre)
+                .font(.system(size: 13))
+                .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
+                .lineLimit(1).truncationMode(.middle)
+                .frame(maxWidth: 260, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+            Divider().frame(height: 22)
+            BotonFlotante(simbolo: estado.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
+                          encendido: estado.encima) {
+                estado.encima.toggle()
+                ventana.ventana?.level = estado.encima ? .floating : .normal
+            }
+            BotonFlotante(simbolo: "arrow.up.left.and.arrow.down.right", ayuda: "Pantalla completa (F11)") {
+                ventana.ventana?.toggleFullScreen(nil)
+            }
+            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar") { ventana.ventana?.performClose(nil) }
+        }
+        .fixedSize()
     }
 }

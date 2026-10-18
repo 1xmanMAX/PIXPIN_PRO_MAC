@@ -171,6 +171,7 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
             return true
         }
         if m == .command, c == "e" { exportar(); return true }
+        if m == .command, c == "r" { recargar(); return true }
         if m == .command, c == "w" { cerrar(); return true }
         if m == [.control, .command], c == "f" { ventana.toggleFullScreen(nil); return true }
         if k == 103, m.isEmpty { ventana.toggleFullScreen(nil); return true } // F11
@@ -183,6 +184,16 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     func pantallaCompleta() {
         ventana.toggleFullScreen(nil)
+    }
+
+    /// Vuelve a leer la pagina del disco (Windows, 17-oct).
+    func recargar() {
+        web.reloadFromOrigin()
+    }
+
+    /// La misma pagina en el navegador del Mac.
+    func abrirEnElNavegador() {
+        NSWorkspace.shared.open(url)
     }
 
     private func ponerOscuro(_ oscuro: Bool) {
@@ -347,8 +358,14 @@ struct BarraVisorHtml: View {
                 .frame(maxWidth: 260, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: false)
             Divider().frame(height: 22)
+            BotonFlotante(simbolo: "arrow.clockwise", ayuda: "Recargar (⌘R)") {
+                modelo.controlador?.recargar()
+            }
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar (⌘E)") {
                 modelo.controlador?.exportar()
+            }
+            BotonFlotante(simbolo: "safari", ayuda: "Abrir en el navegador") {
+                modelo.controlador?.abrirEnElNavegador()
             }
             BotonFlotante(simbolo: modelo.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
                           encendido: modelo.encima) {
