@@ -67,6 +67,10 @@ public final class ModeloTareas: ObservableObject {
     @Published public private(set) var listas: [ListaTareas] = []
     @Published public private(set) var error: String?
     @Published public private(set) var cargado = false
+    /// Lo ultimo borrado, para «Deshacer» (⌘Z).
+    @Published public private(set) var borrada: TareaConLista?
+    /// Lo que se busca (texto, `#etiqueta`); vacio: todo.
+    @Published public var busqueda = ""
 
     private let nucleo: Nucleo
 
@@ -80,7 +84,7 @@ public final class ModeloTareas: ObservableObject {
     public var pendientesPorGrupo: [GrupoPendiente] {
         var grupos: [GrupoDeTareas: [TareaConLista]] = [:]
         for l in listas {
-            for t in l.tareas where !t.hecha {
+            for t in l.tareas where !t.hecha && encaja(t) {
                 grupos[GrupoDeTareas.de(t), default: []].append(TareaConLista(lista: l, tarea: t))
             }
         }
@@ -97,7 +101,102 @@ public final class ModeloTareas: ObservableObject {
 
     /// Lo hecho, en el orden de sus listas.
     public var hechas: [TareaConLista] {
-        listas.flatMap { l in l.tareas.filter(\.hecha).map { TareaConLista(lista: l, tarea: $0) } }
+        listas.flatMap { l in l.tareas.filter(\.hecha).filter(encaja).map { TareaConLista(lista: l, tarea: $0) } }
+    }
+
+    /// Si una tarea encaja con lo buscado: todas las palabras, sin tildes
+    /// ni mayusculas, en su texto o en su lista.
+    public func encaja(_ t: Tarea) -> Bool {
+        ModeloTareas.encaja(t.crudo, busqueda)
+    }
+
+    nonisolated static func encaja(_ texto: String, _ busqueda: String) -> Bool {
+        let opciones: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        return busqueda.split(separator: " ").allSatisfy { texto.range(of: $0, options: opciones) != nil }
+    }
+
+    /// Las listas que se ven (las de lo buscado), con sus tareas filtradas.
+    public var listasFiltradas: [ListaTareas] {
+        guard !busqueda.trimmingCharacters(in: .whitespaces).isEmpty else { return listas }
+        return listas.compactMap { l in
+            var x = l
+            x.tareas = l.tareas.filter(encaja)
+            return x.tareas.isEmpty ? nil : x
+        }
+    }
+
+    /// Hace un cambio en el nucleo y relee; si la lista cambio fuera, lo
+    /// dice.
+    private func cambiar(chat: String, _ hacer: @escaping @Sendable (Nucleo) throws -> Bool) async -> Bool {
+        let nucleo = self.nucleo
+        var aviso: String?
+        var hecho = false
+        do {
+            hecho = try await Task.detached(priority: .userInitiated) { try hacer(nucleo) }.value
+            if hecho {
+                NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: chat)
+            } else {
+                aviso = "La lista cambió: se ha vuelto a leer"
+            }
+        } catch {
+            aviso = "\(error)"
+        }
+        await cargar()
+        if let aviso { error = aviso }
+        return hecho
+    }
+
+    /// **Corrige el texto** de una tarea (F2), entendido como al apuntarla.
+    public func editar(_ t: TareaConLista, a nuevo: String) async {
+        let limpio = nuevo.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !limpio.isEmpty, limpio != t.tarea.texto else { return }
+        let (chat, lista, i, crudo, d) = (t.lista.chat, t.lista.mensaje, t.tarea.indice, t.tarea.crudo, desfaseLocalMs())
+        _ = await cambiar(chat: chat) {
+            try $0.editarTarea(chat: chat, lista: lista, indice: i, crudo: crudo, nuevo: limpio, desfaseMs: d)
+        }
+    }
+
+    /// **Borra** una tarea; se puede deshacer hasta el siguiente borrado.
+    public func borrar(_ t: TareaConLista) async {
+        let (chat, lista, i, crudo) = (t.lista.chat, t.lista.mensaje, t.tarea.indice, t.tarea.crudo)
+        if await cambiar(chat: chat, { try $0.borrarTarea(chat: chat, lista: lista, indice: i, crudo: crudo) }) {
+            borrada = t
+        }
+    }
+
+    /// Vuelve a poner lo ultimo borrado en su sitio.
+    public func deshacer() async {
+        guard let t = borrada else { return }
+        borrada = nil
+        let (chat, lista, i, crudo, hecha) = (t.lista.chat, t.lista.mensaje, t.tarea.indice, t.tarea.crudo, t.tarea.hecha)
+        _ = await cambiar(chat: chat) {
+            try $0.devolverTarea(chat: chat, lista: lista, indice: i, crudo: crudo, hecha: hecha)
+            return true
+        }
+    }
+
+    /// **Pasa una tarea a otra lista** («Mover a…», o soltarla en otra
+    /// columna del Kanban).
+    public func mover(_ t: TareaConLista, a destino: ListaTareas) async {
+        guard destino.mensaje != t.lista.mensaje || destino.chat != t.lista.chat else { return }
+        let (chat, lista, i, crudo) = (t.lista.chat, t.lista.mensaje, t.tarea.indice, t.tarea.crudo)
+        let (aChat, aLista) = (destino.chat, destino.mensaje)
+        if await cambiar(chat: chat, {
+            try $0.moverTarea(chat: chat, lista: lista, indice: i, crudo: crudo, aChat: aChat, aLista: aLista)
+        }) {
+            NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: aChat)
+        }
+    }
+
+    /// La tarea de un id (`chat/lista/indice`), para soltarla en el Kanban.
+    public func tarea(id: String) -> TareaConLista? {
+        for l in listas {
+            for t in l.tareas where TareaConLista(lista: l, tarea: t).id == id {
+                return TareaConLista(lista: l, tarea: t)
+            }
+        }
+        return nil
     }
 
     public func cargar() async {
@@ -192,11 +291,14 @@ public struct VentanaTareas: View {
     public enum Vista: String, CaseIterable, Identifiable {
         case porFecha = "Por fecha"
         case porLista = "Por lista"
+        /// Cada lista una columna; arrastrar una tarjeta la pasa a otra
+        /// lista (Windows, 17-oct).
+        case kanban = "Kanban"
         public var id: String { rawValue }
     }
 
     @StateObject private var modelo: ModeloTareas
-    @State private var vista: Vista = .porFecha
+    @AppStorage("PixPinTareasVista") private var vista: Vista = .porFecha
     @State private var nueva = ""
     @State private var verHechas = false
 
@@ -206,25 +308,29 @@ public struct VentanaTareas: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            // La barra comun de Windows (`Cabecera`): las dos vistas y releer.
+            // La barra comun de Windows (`Cabecera`): las vistas y releer.
             Cabecera("Tareas", subtitulo: modelo.listas.count == 1 ? "1 lista" : "\(modelo.listas.count) listas") {
                 SegmentosCabecera(Vista.allCases.map { ($0, $0.rawValue) }, eleccion: $vista)
                 BotonCabecera(icono: "arrow.clockwise", ayuda: "Releer (⌘R)") { Task { await modelo.cargar() } }
                     .keyboardShortcut("r")
             }
             HStack {
-                TextField("Apuntar en el Inbox", text: $nueva)
+                TextField("Apuntar en el Inbox (prioridad alta, #etiqueta, recordar a las 5)", text: $nueva)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(apuntar)
                 Button("Apuntar", action: apuntar)
                     .disabled(nueva.trimmingCharacters(in: .whitespaces).isEmpty)
+                TextField("Buscar", text: $modelo.busqueda)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: 180)
             }
             .padding(10)
             Divider()
-            List {
+            Group {
                 switch vista {
-                case .porFecha: porFecha
-                case .porLista: porLista
+                case .porFecha: List { porFecha }
+                case .porLista: List { porLista }
+                case .kanban: TableroKanban(modelo: modelo)
                 }
             }
             .overlay {
@@ -235,35 +341,55 @@ public struct VentanaTareas: View {
             }
         }
         .overlay(alignment: .bottom) {
-            if let e = modelo.error {
-                Text(e).font(.caption).padding(6)
-                    .background(.red.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
-                    .padding()
+            VStack(spacing: 6) {
+                if let t = modelo.borrada {
+                    HStack {
+                        Text("Borrada: \(t.tarea.texto)").lineLimit(1)
+                        Button("Deshacer (⌘Z)") { Task { await modelo.deshacer() } }
+                            .keyboardShortcut("z")
+                    }
+                    .font(.callout)
+                    .padding(8)
+                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                }
+                if let e = modelo.error {
+                    Text(e).font(.caption).padding(6)
+                        .background(.red.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
+                }
             }
+            .padding()
         }
         .ventanaConCabecera()
         .task { await modelo.cargar() }
         .frame(minWidth: 480, minHeight: 400)
     }
 
+    private func fila(_ t: TareaConLista, conLista: Bool) -> FilaTarea {
+        FilaTarea(t: t, conLista: conLista, listas: modelo.listas, acciones: acciones(t))
+    }
+
+    private func acciones(_ t: TareaConLista) -> AccionesTarea {
+        AccionesTarea(
+            marcar: { h in Task { await modelo.marcar(t, hecha: h) } },
+            recordar: { c in Task { await modelo.recordar(t, en: c) } },
+            editar: { n in Task { await modelo.editar(t, a: n) } },
+            borrar: { Task { await modelo.borrar(t) } },
+            mover: { l in Task { await modelo.mover(t, a: l) } }
+        )
+    }
+
     @ViewBuilder
     private var porFecha: some View {
         ForEach(modelo.pendientesPorGrupo) { g in
             Section(g.grupo.titulo) {
-                ForEach(g.tareas) { t in
-                    FilaTarea(t: t, conLista: true, alRecordar: recordar(t)) { hecha in
-                        Task { await modelo.marcar(t, hecha: hecha) }
-                    }
-                }
+                ForEach(g.tareas) { t in fila(t, conLista: true) }
             }
         }
         let hechas = modelo.hechas
         if !hechas.isEmpty {
             Section {
                 DisclosureGroup("Hechas (\(hechas.count))", isExpanded: $verHechas) {
-                    ForEach(hechas) { t in
-                        FilaTarea(t: t, conLista: true) { hecha in Task { await modelo.marcar(t, hecha: hecha) } }
-                    }
+                    ForEach(hechas) { t in fila(t, conLista: true) }
                 }
             }
         }
@@ -271,27 +397,13 @@ public struct VentanaTareas: View {
 
     @ViewBuilder
     private var porLista: some View {
-        ForEach(modelo.listas, id: \.mensaje) { l in
+        ForEach(modelo.listasFiltradas, id: \.mensaje) { l in
             Section {
-                ForEach(l.tareas, id: \.indice) { t in
-                    let x = TareaConLista(lista: l, tarea: t)
-                    FilaTarea(t: x, conLista: false, alRecordar: recordar(x)) { hecha in
-                        Task { await modelo.marcar(x, hecha: hecha) }
-                    }
-                }
+                ForEach(l.tareas, id: \.indice) { t in fila(TareaConLista(lista: l, tarea: t), conLista: false) }
             } header: {
-                HStack {
-                    Text(l.titulo.isEmpty ? "Tareas" : l.titulo)
-                    Text(l.guardados ? "Mensajes guardados" : l.nombreChat).foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(l.tareas.count - Int(l.pendientes)) de \(l.tareas.count)").monospacedDigit()
-                }
+                CabeceraLista(l: l)
             }
         }
-    }
-
-    private func recordar(_ t: TareaConLista) -> (Date?) -> Void {
-        { cuando in Task { await modelo.recordar(t, en: cuando) } }
     }
 
     private func apuntar() {
@@ -301,41 +413,77 @@ public struct VentanaTareas: View {
     }
 }
 
-/// Una tarea: su casilla, el texto (tachado si esta hecha), su hora de
-/// recordar, cuantos dias lleva y, si se pide, su lista y su chat. Su menu
-/// pone o quita la hora.
+/// El titulo de una lista, su chat y cuantas van hechas.
+struct CabeceraLista: View {
+    let l: ListaTareas
+
+    var body: some View {
+        HStack {
+            Text(l.titulo.isEmpty ? "Tareas" : l.titulo).bold()
+            Text(l.guardados ? "Mensajes guardados" : l.nombreChat).foregroundStyle(.secondary).lineLimit(1)
+            Spacer()
+            Text("\(l.tareas.count - Int(l.pendientes)) de \(l.tareas.count)").monospacedDigit()
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Lo que se puede hacer con una tarea desde su fila o su tarjeta.
+struct AccionesTarea {
+    var marcar: (Bool) -> Void = { _ in }
+    /// Poner la hora de recordarla (`nil` la quita).
+    var recordar: (Date?) -> Void = { _ in }
+    var editar: (String) -> Void = { _ in }
+    var borrar: () -> Void = {}
+    var mover: (ListaTareas) -> Void = { _ in }
+}
+
+/// Una tarea: su casilla, el texto con sus #etiquetas y sus chapitas
+/// (prioridad primero), su hora de recordar, cuantos dias lleva y, si se
+/// pide, su lista y su chat. Doble clic o F2 la corrige; su menu la
+/// recuerda, la mueve o la borra.
 struct FilaTarea: View {
     let t: TareaConLista
     let conLista: Bool
-    /// Poner la hora de recordarla (`nil` la quita).
-    var alRecordar: (Date?) -> Void = { _ in }
-    let alMarcar: (Bool) -> Void
+    var listas: [ListaTareas] = []
+    var acciones = AccionesTarea()
+    @State private var editando = false
+    @State private var texto = ""
+    @FocusState private var foco: Bool
 
-    /// La hora de recordarla, si la lleva.
-    private var recuerda: Date? { t.tarea.recuerda.map(fechaDeLocales) }
+    private var marcas: MarcasTarea { marcasDeTarea(texto: t.tarea.texto, desfaseMs: desfaseLocalMs()) }
 
     var body: some View {
+        let m = marcas
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Toggle("", isOn: Binding(get: { t.tarea.hecha }, set: { alMarcar($0) }))
+            Toggle("", isOn: Binding(get: { t.tarea.hecha }, set: { acciones.marcar($0) }))
                 .toggleStyle(.checkbox)
                 .labelsHidden()
             VStack(alignment: .leading, spacing: 2) {
-                Text(t.tarea.texto.isEmpty ? "(sin texto)" : t.tarea.texto)
-                    .strikethrough(t.tarea.hecha)
-                    .foregroundStyle(t.tarea.hecha ? Color.secondary : Color.primary)
-                    .textSelection(.enabled)
+                if editando {
+                    TextField("Tarea", text: $texto)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($foco)
+                        .onSubmit {
+                            editando = false
+                            acciones.editar(texto)
+                        }
+                        .onExitCommand { editando = false }
+                } else {
+                    HStack(spacing: 4) {
+                        ForEach(m.chapitas, id: \.self) { Text($0) }
+                        Text(m.vista.isEmpty ? "(sin texto)" : m.vista)
+                            .strikethrough(t.tarea.hecha)
+                            .foregroundStyle(t.tarea.hecha ? Color.secondary : Color.primary)
+                    }
+                    .onTapGesture(count: 2) { empezar() }
+                }
                 if conLista {
                     Text("\(t.lista.titulo) · \(t.lista.guardados ? "Mensajes guardados" : t.lista.nombreChat)")
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
             Spacer()
-            if let r = recuerda, !t.tarea.hecha {
-                Label(AtajosDeHora.legible(r, ahora: Date()), systemImage: "alarm")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(r < Date() ? Color.secondary : Color.accentColor)
-                    .help("Te lo recuerdo a esta hora")
-            }
             if !t.tarea.imagenes.isEmpty {
                 Image(systemName: "photo").foregroundStyle(.secondary)
                     .help("\(t.tarea.imagenes.count) imágenes")
@@ -347,17 +495,107 @@ struct FilaTarea: View {
                     .help("Creada el \(t.tarea.creada ?? "")")
             }
         }
+        .contentShape(Rectangle())
+        .onKeyPress(.init("\u{F70F}")) { // F2
+            empezar()
+            return .handled
+        }
         .contextMenu {
+            Button("Corregir (F2)") { empezar() }
             if !t.tarea.hecha {
                 Menu("Recordármelo") {
                     ForEach(AtajosDeHora.atajos(ahora: Date()), id: \.titulo) { a in
-                        Button(a.titulo) { alRecordar(a.cuando) }
+                        Button(a.titulo) { acciones.recordar(a.cuando) }
                     }
                 }
             }
             if t.tarea.recuerda != nil {
-                Button("Quitar el recordatorio") { alRecordar(nil) }
+                Button("Quitar el recordatorio") { acciones.recordar(nil) }
+            }
+            let otras = listas.filter { $0.mensaje != t.lista.mensaje || $0.chat != t.lista.chat }
+            if !otras.isEmpty {
+                Menu("Mover a…") {
+                    ForEach(otras, id: \.mensaje) { l in
+                        Button("\(l.titulo.isEmpty ? "Tareas" : l.titulo) · \(l.guardados ? "Mensajes guardados" : l.nombreChat)") {
+                            acciones.mover(l)
+                        }
+                    }
+                }
+            }
+            Divider()
+            Button("Borrar", role: .destructive) { acciones.borrar() }
+        }
+    }
+
+    private func empezar() {
+        texto = t.tarea.texto
+        editando = true
+        foco = true
+    }
+}
+
+// MARK: - Kanban
+
+/// **El tablero Kanban** (Windows, 17-oct): cada lista una columna con lo
+/// pendiente arriba y lo hecho plegado al pie. Arrastrar una tarjeta a otra
+/// columna la pasa a esa lista. Lo que no cabe a lo ancho baja a otra
+/// banda: nunca hay que desplazarse de lado.
+struct TableroKanban: View {
+    @ObservedObject var modelo: ModeloTareas
+
+    var body: some View {
+        ScrollView {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 240, maximum: 360), spacing: 12, alignment: .top)],
+                      alignment: .leading, spacing: 12) {
+                ForEach(modelo.listasFiltradas, id: \.mensaje) { l in
+                    ColumnaKanban(l: l, modelo: modelo)
+                }
+            }
+            .padding(12)
+        }
+    }
+}
+
+struct ColumnaKanban: View {
+    let l: ListaTareas
+    @ObservedObject var modelo: ModeloTareas
+    @State private var encima = false
+    @State private var verHechas = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CabeceraLista(l: l).font(.callout)
+            ForEach(l.tareas.filter { !$0.hecha }, id: \.indice) { t in tarjeta(t) }
+            let hechas = l.tareas.filter(\.hecha)
+            if !hechas.isEmpty {
+                DisclosureGroup("Hechas (\(hechas.count))", isExpanded: $verHechas) {
+                    ForEach(hechas, id: \.indice) { t in tarjeta(t) }
+                }
+                .font(.caption)
             }
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
+        .background(Color.secondary.opacity(encima ? 0.22 : 0.08), in: RoundedRectangle(cornerRadius: 10))
+        .dropDestination(for: String.self) { ids, _ in
+            for id in ids {
+                if let t = modelo.tarea(id: id) { Task { await modelo.mover(t, a: l) } }
+            }
+            return true
+        } isTargeted: { encima = $0 }
+    }
+
+    private func tarjeta(_ t: Tarea) -> some View {
+        let x = TareaConLista(lista: l, tarea: t)
+        return FilaTarea(t: x, conLista: false, listas: modelo.listas, acciones: AccionesTarea(
+            marcar: { h in Task { await modelo.marcar(x, hecha: h) } },
+            recordar: { c in Task { await modelo.recordar(x, en: c) } },
+            editar: { n in Task { await modelo.editar(x, a: n) } },
+            borrar: { Task { await modelo.borrar(x) } },
+            mover: { d in Task { await modelo.mover(x, a: d) } }
+        ))
+        .padding(8)
+        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+        .draggable(x.id)
     }
 }
