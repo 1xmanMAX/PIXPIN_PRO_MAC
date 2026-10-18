@@ -188,6 +188,9 @@ struct BarraLector: View {
             BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
                 modelo.controlador?.alternarAvance()
             }
+            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
+                modelo.controlador?.compartir()
+            }
             BotonFlotante(simbolo: "gearshape", ayuda: "Ajustes (G)") {
                 modelo.controlador?.mostrarAjustes(evento: NSApp.currentEvent)
             }
@@ -952,6 +955,12 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     func ponerEncima(_ si: Bool) {
         modelo.encima = si
         ventana.level = si ? .floating : .normal
+    }
+
+    /// **Compartir el documento** con la hoja comun (el original, su PDF,
+    /// sus paginas como imagen...).
+    func compartir() {
+        HojaCompartir.abrir(.ficheros(titulo: url.deletingPathExtension().lastPathComponent, [url]), almacen: nil)
     }
 
     func pantallaCompleta() {

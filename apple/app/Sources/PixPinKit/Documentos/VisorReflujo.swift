@@ -338,6 +338,11 @@ struct BarraReflujo: View {
             BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
                 visor?.alternarAvance()
             }
+            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
+                if let u = visor?.url {
+                    HojaCompartir.abrir(.ficheros(titulo: u.deletingPathExtension().lastPathComponent, [u]), almacen: nil)
+                }
+            }
             BotonFlotante(simbolo: "gearshape", ayuda: "Ajustes (G)") {
                 visor?.mostrarAjustes(evento: NSApp.currentEvent)
             }
