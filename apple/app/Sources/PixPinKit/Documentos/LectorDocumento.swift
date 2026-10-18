@@ -957,12 +957,6 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         ventana.level = si ? .floating : .normal
     }
 
-    /// **Compartir el documento** con la hoja comun (el original, su PDF,
-    /// sus paginas como imagen...).
-    func compartir() {
-        HojaCompartir.abrir(.ficheros(titulo: url.deletingPathExtension().lastPathComponent, [url]), almacen: nil)
-    }
-
     func pantallaCompleta() {
         ventana.toggleFullScreen(nil)
     }
