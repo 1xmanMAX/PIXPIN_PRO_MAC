@@ -1311,11 +1311,10 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         vistaPDF.print(with: NSPrintInfo.shared, autoRotate: true, pageScaling: .pageScaleToFit)
     }
 
-    /// ⇧⌘S: compartir el documento con la hoja del Mac.
+    /// ⇧⌘S: compartir el documento con la hoja comun (D1: el original, su
+    /// PDF, sus paginas como imagen; la del Mac en «Más…»).
     func compartir() {
-        let r = contenedor.bounds
-        let ancla = NSRect(x: r.midX - 1, y: contenedor.isFlipped ? 8 : r.maxY - 10, width: 2, height: 2)
-        NSSharingServicePicker(items: [url]).show(relativeTo: ancla, of: contenedor, preferredEdge: .minY)
+        HojaCompartir.abrir(.ficheros(titulo: url.deletingPathExtension().lastPathComponent, [url]), almacen: nil)
     }
 
     // MARK: Cambiar el nombre (F2)
