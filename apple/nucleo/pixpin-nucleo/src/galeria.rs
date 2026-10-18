@@ -630,7 +630,7 @@ impl Nucleo {
 /// `<datos>/cache/galeria/<nombre>-<segundos>-<bytes>.txt`, el mismo nombre
 /// que la miniatura de Windows (`ruta_en_cache`): si la captura cambia,
 /// cambia el nombre y se vuelve a leer.
-fn ruta_del_texto(raiz: &Path, e: &Entrada) -> PathBuf {
+pub(crate) fn ruta_del_texto(raiz: &Path, e: &Entrada) -> PathBuf {
     let base = Path::new(&e.nombre)
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -638,6 +638,37 @@ fn ruta_del_texto(raiz: &Path, e: &Entrada) -> PathBuf {
     raiz.join("cache")
         .join("galeria")
         .join(format!("{base}-{}-{}.txt", e.cuando.div_euclid(1000), e.bytes))
+}
+
+/// El texto ya leido de la captura `ruta` (vacio si no se leyo): lo que
+/// viaja en su entrada de la galeria (`Entrada::texto` de la sincro).
+pub(crate) fn texto_guardado(raiz: &Path, ruta: &Path) -> String {
+    entrada_de_fichero(ruta)
+        .and_then(|e| std::fs::read_to_string(ruta_del_texto(raiz, &e)).ok())
+        .unwrap_or_default()
+}
+
+/// Apunta el texto de la captura `ruta`, llegado de otro aparato, donde lo
+/// busca la galeria (como si lo hubiera leido Vision aqui).
+pub(crate) fn guardar_texto(raiz: &Path, ruta: &Path, texto: &str) -> std::io::Result<PathBuf> {
+    let Some(e) = entrada_de_fichero(ruta) else {
+        return Err(std::io::Error::other("sin la captura"));
+    };
+    let destino = ruta_del_texto(raiz, &e);
+    if let Some(p) = destino.parent() {
+        std::fs::create_dir_all(p)?;
+    }
+    std::fs::write(&destino, texto)?;
+    Ok(destino)
+}
+
+fn entrada_de_fichero(ruta: &Path) -> Option<Entrada> {
+    let meta = std::fs::metadata(ruta).ok()?;
+    Some(Entrada {
+        cuando: meta.modified().map(ms_de).unwrap_or(0),
+        bytes: meta.len(),
+        nombre: ruta.file_name()?.to_string_lossy().into_owned(),
+    })
 }
 
 /// En minusculas y sin tildes, como `logica::plegar` de Windows.
@@ -798,19 +829,10 @@ impl Nucleo {
         let Ok(ruta) = self.fichero_de_captura(&nombre) else {
             return Ok(());
         };
-        let Ok(meta) = std::fs::metadata(&ruta) else {
+        if !ruta.is_file() {
             return Ok(());
-        };
-        let e = Entrada {
-            cuando: meta.modified().map(ms_de).unwrap_or(0),
-            bytes: meta.len(),
-            nombre,
-        };
-        let destino = ruta_del_texto(self.ruta(), &e);
-        if let Some(p) = destino.parent() {
-            std::fs::create_dir_all(p)?;
         }
-        std::fs::write(&destino, &texto)?;
+        let destino = guardar_texto(self.ruta(), &ruta, &texto)?;
         self.galeria_tomada()
             .textos
             .insert(destino.display().to_string(), plegar(&texto));

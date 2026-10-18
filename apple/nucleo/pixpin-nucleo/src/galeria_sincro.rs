@@ -64,6 +64,7 @@ impl CapturasDelAparato for CapturasDelMac {
             galeria::listar(&carpeta)
                 .into_iter()
                 .map(|e| Local {
+                    texto: galeria::texto_guardado(&self.raiz, &carpeta.join(&e.nombre)),
                     cuando: e.cuando,
                     bytes: e.bytes as i64,
                     mime: pixpin_sincro::al_lienzo::mime_de(&e.nombre).to_string(),
@@ -97,13 +98,26 @@ impl CapturasDelAparato for CapturasDelMac {
                 f.set_modified(SystemTime::UNIX_EPOCH + Duration::from_millis(e.cuando as u64))?;
             }
             drop(f);
-            std::fs::rename(&tmp, carpeta.join(&e.nombre))?;
+            let ruta = carpeta.join(&e.nombre);
+            std::fs::rename(&tmp, &ruta)?;
+            // Su texto, si lo trae (Windows lo lee con su OCR): asi se
+            // encuentra al buscar sin volver a leerla.
+            if !e.texto.is_empty() {
+                let _ = galeria::guardar_texto(&self.raiz, &ruta, &e.texto);
+            }
             Ok(true)
         })();
         if !matches!(hecho, Ok(true)) {
             let _ = std::fs::remove_file(&tmp);
         }
         hecho
+    }
+
+    fn apuntar_texto(&self, nombre: &str, texto: &str) {
+        let ruta = self.carpeta().join(nombre);
+        if ruta.is_file() {
+            let _ = galeria::guardar_texto(&self.raiz, &ruta, texto);
+        }
     }
 
     fn tirar(&self, nombres: &[String]) {
@@ -221,6 +235,38 @@ mod pruebas {
         })
         .unwrap();
         assert_eq!(c.caducidad(7).fijadas.get("b.png"), Some(&99));
+        let _ = std::fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn el_texto_de_una_captura_viaja_al_llegar_y_al_listar() {
+        let raiz = temporal("texto");
+        let c = CapturasDelMac::nuevas(&raiz);
+        let mut e = Entrada::nueva("PixPin_20261017_090000.png", 1_791_000_000_000);
+        e.texto = "Factura 123".into();
+        c.guardar(&e, &mut |w| {
+            w.write_all(b"\x89PNG").unwrap();
+            Ok(true)
+        })
+        .unwrap();
+        // Llego con su texto (el OCR de Windows): ya se sabe aqui.
+        assert_eq!(c.listar().unwrap()[0].texto, "Factura 123");
+        // Y el que llega despues para una que ya estaba, se apunta.
+        let mut b = Entrada::nueva("b.png", 1_791_000_000_000);
+        b.mime = "image/png".into();
+        c.guardar(&b, &mut |w| {
+            w.write_all(b"\x89PNG b").unwrap();
+            Ok(true)
+        })
+        .unwrap();
+        let sin = c.listar().unwrap();
+        assert!(sin.iter().find(|l| l.nombre == "b.png").unwrap().texto.is_empty());
+        c.apuntar_texto("b.png", "hola");
+        let con = c.listar().unwrap();
+        assert_eq!(con.iter().find(|l| l.nombre == "b.png").unwrap().texto, "hola");
+        // Caso negativo: una que no esta no deja texto suelto.
+        c.apuntar_texto("no-esta.png", "x");
+        assert!(!raiz.join("cache/galeria").join("no-esta").exists());
         let _ = std::fs::remove_dir_all(&raiz);
     }
 }
