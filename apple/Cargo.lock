@@ -1714,6 +1714,7 @@ dependencies = [
  "pixpin-lecciones",
  "pixpin-motor2d",
  "pixpin-office",
+ "pixpin-pdf",
  "pixpin-proyecto",
  "pixpin-sincro",
  "pixpin-sistema",

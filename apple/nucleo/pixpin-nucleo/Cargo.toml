@@ -62,6 +62,9 @@ uniffi = "0.32"
 # aligerado (`cache/pdf-aligerados.txt`, la de Windows).
 pixpin-docs = { version = "0.1.0", path = "../pixpin-docs" }
 pixpin-office = { version = "0.1.0", path = "../pixpin-office" }
+# La capa de texto de un PDF (buscar y anotar desde el asistente, E1): el
+# mismo lector que el de Windows, Rust puro.
+pixpin-pdf = { path = "../pixpin-pdf" }
 pdfsqueeze-core = { workspace = true }
 rayon = "1"
 sha2 = "0.10"

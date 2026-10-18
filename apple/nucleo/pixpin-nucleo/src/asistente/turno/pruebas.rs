@@ -34,6 +34,18 @@ impl AppIa for Manos {
     fn pintar_vista(&self, _vista: crate::asistente::ojos::VistaParaPintar) -> Option<Vec<u8>> {
         None
     }
+    fn paginas_de_pdf(&self, _ruta: String) -> Vec<crate::asistente::turno::MedidaPagina> {
+        Vec::new()
+    }
+    fn pintar_pagina(&self, _ruta: String, _pagina: u32, _ancho: u32) -> Option<Vec<u8>> {
+        None
+    }
+    fn palabras_de_imagen(&self, _imagen: Vec<u8>) -> Vec<crate::asistente::turno::PalabraLeida> {
+        Vec::new()
+    }
+    fn exportar(&self, _ruta: String, _formato: String, _carpeta: String) -> Result<Vec<String>, ErrorNucleo> {
+        Err(ErrorNucleo::Argumento { detalle: "sin exportar en las pruebas".into() })
+    }
 }
 
 fn entorno(nube: bool, pensar: bool) -> Entorno {

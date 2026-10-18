@@ -350,6 +350,22 @@ impl AppIa for ManosEnLaBurbuja {
     fn pintar_vista(&self, vista: super::ojos::VistaParaPintar) -> Option<Vec<u8>> {
         self.dentro.pintar_vista(vista)
     }
+
+    fn paginas_de_pdf(&self, ruta: String) -> Vec<super::turno::MedidaPagina> {
+        self.dentro.paginas_de_pdf(ruta)
+    }
+
+    fn pintar_pagina(&self, ruta: String, pagina: u32, ancho: u32) -> Option<Vec<u8>> {
+        self.dentro.pintar_pagina(ruta, pagina, ancho)
+    }
+
+    fn palabras_de_imagen(&self, imagen: Vec<u8>) -> Vec<super::turno::PalabraLeida> {
+        self.dentro.palabras_de_imagen(imagen)
+    }
+
+    fn exportar(&self, ruta: String, formato: String, carpeta: String) -> Result<Vec<String>, ErrorNucleo> {
+        self.dentro.exportar(ruta, formato, carpeta)
+    }
 }
 
 // ---------------------------------------------------------------------------

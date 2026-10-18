@@ -78,7 +78,7 @@ mod cache;
 /// Exportar: la pagina web y el DXF.
 mod exportar;
 /// Buscar en los textos del plano.
-mod textos;
+pub(crate) mod textos;
 
 pub use textos::TextoHallado;
 
@@ -405,6 +405,14 @@ fn unir(a: Option<[f64; 4]>, b: [f64; 4]) -> Option<[f64; 4]> {
             a[3].max(b[3]),
         ],
     })
+}
+
+impl Plano {
+    /// Lo que necesita el asistente para anotar (E1): el origen, la caja
+    /// del plano respecto a el y el encaje de la capa.
+    pub(crate) fn para_el_asistente(&self) -> ([f64; 2], [f32; 4], Encaje) {
+        (self.referencia, self.caja_ref, self.encaje_del_fichero())
+    }
 }
 
 fn caja_abs(o: [f64; 2], c: [f32; 4]) -> [f64; 4] {

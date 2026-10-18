@@ -208,10 +208,43 @@ pub trait AppIa: Send + Sync {
     /// **Los ojos**: pinta la vista con el pintor del lienzo y devuelve el
     /// PNG (`None` si no se pudo). Ver [`super::ojos`].
     fn pintar_vista(&self, vista: super::ojos::VistaParaPintar) -> Option<Vec<u8>>;
+    /// Lo que mide cada hoja de un PDF (PDFKit: la caja que se ve, ya
+    /// girada). Vacio si no se pudo abrir.
+    fn paginas_de_pdf(&self, ruta: String) -> Vec<MedidaPagina>;
+    /// La hoja `pagina` (desde 0) de un PDF pintada a `ancho` pixeles, en
+    /// PNG (`None` si no se pudo).
+    fn pintar_pagina(&self, ruta: String, pagina: u32, ancho: u32) -> Option<Vec<u8>>;
+    /// **Las palabras de una imagen** (Vision) con su sitio en pixeles, en
+    /// orden de lectura. `imagen`: los bytes (PNG, JPEG...).
+    fn palabras_de_imagen(&self, imagen: Vec<u8>) -> Vec<PalabraLeida>;
+    /// **Exporta un archivo** a `formato` (pdf, png, docx...) con la hoja
+    /// de compartir comun, dejando lo hecho en `carpeta`. Las rutas hechas.
+    fn exportar(&self, ruta: String, formato: String, carpeta: String) -> Result<Vec<String>, ErrorNucleo>;
 }
 
-/// Lo que el Mac aun no hace (hoja→lienzo, anotar documentos, las acciones
-/// sobre documentos y las del chat): no se le ofrece al modelo. Editar el
+/// Lo que mide una hoja de un PDF, en puntos.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct MedidaPagina {
+    pub ancho: f32,
+    pub alto: f32,
+}
+
+/// Una palabra leida por el OCR, con su caja en pixeles de la imagen (y
+/// abajo) y el numero de su renglon.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct PalabraLeida {
+    pub texto: String,
+    pub x: f32,
+    pub y: f32,
+    pub ancho: f32,
+    pub alto: f32,
+    pub renglon: u32,
+}
+
+/// Lo que el Mac aun no hace (hoja→lienzo, anotar con la nube y las acciones
+/// del chat): no se le ofrece al modelo. Las de documentos (tabla de una
+/// foto, anotar, buscar en un documento, abrir por su nombre, exportar), si
+/// (`documentos_acciones`), pero solo con la app (Swift pinta y lee). Editar el
 /// lienzo y las figuras guardadas, solo `en_chat` (fuera de una conversacion
 /// no hay lienzo que editar).
 fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
@@ -221,8 +254,7 @@ fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
     }
     !(nombre == pixpin_ia::hoja::NOMBRE
         || nombre == pixpin_ia::anotacion::NOMBRE
-        || acciones::es_en_el_chat(nombre)
-        || pixpin_ia::acciones_documentos::es_de_documentos(nombre))
+        || acciones::es_en_el_chat(nombre))
 }
 
 pub(crate) fn es_imagen(ruta: &str) -> bool {
@@ -967,6 +999,18 @@ impl EjecutorDelMac {
     }
 
     fn accion(&self, a: &AccionApp) -> Result<String, String> {
+        if pixpin_ia::acciones_documentos::es_de_documentos(a.herramienta) {
+            let n = self.nucleo.as_ref().ok_or("aqui no se pueden abrir documentos")?;
+            let proyecto = self.chat.as_ref().map(|c| c.chat.clone()).unwrap_or_default();
+            let cx = super::documentos_acciones::Contexto {
+                nucleo: n,
+                proyecto: &proyecto,
+                adjuntos: &self.adjuntos,
+                app: self.app.as_deref(),
+                parar: &|| false,
+            };
+            return super::documentos_acciones::hacer(a, &cx);
+        }
         let app = self.app.clone();
         let confirmar = |q: &str| app.as_ref().is_some_and(|x| x.confirmar(q.to_string()));
         let mut mandar = |p: &Value| -> Result<(), String> {

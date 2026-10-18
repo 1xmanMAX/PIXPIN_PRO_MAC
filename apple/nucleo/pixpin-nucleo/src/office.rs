@@ -89,13 +89,22 @@ struct Cache {
 }
 
 /// El [`Medidor`] de `pixpin-office` sobre el de Swift, con cache.
-struct MedidorConCache {
+pub(crate) struct MedidorConCache {
     swift: Box<dyn MedidorLetras>,
     cache: Mutex<Cache>,
 }
 
 fn clave(l: &Letra) -> ClaveLetra {
     (l.familia.clone(), l.negrita, l.cursiva)
+}
+
+impl MedidorConCache {
+    pub(crate) fn nuevo(swift: Box<dyn MedidorLetras>) -> MedidorConCache {
+        MedidorConCache {
+            swift,
+            cache: Mutex::new(Cache::default()),
+        }
+    }
 }
 
 impl Medidor for MedidorConCache {

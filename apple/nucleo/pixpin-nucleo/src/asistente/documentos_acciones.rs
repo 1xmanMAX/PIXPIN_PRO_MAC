@@ -164,7 +164,10 @@ fn sirve(nombre: &str, s: Sirve) -> bool {
         Sirve::Escaneado => e == "pdf" || es_imagen(Path::new(nombre)),
         Sirve::Documento => e == "pdf" || es_office_de_paginas(nombre) || es_plano(nombre),
         Sirve::Cualquiera => !e.is_empty(),
-        Sirve::Anotable => super::anotar_inteligente::formato_de(Path::new(nombre)).is_some(),
+        Sirve::Anotable => {
+            e == "pdf" || es_office_de_paginas(nombre) || es_plano(nombre) || es_imagen(Path::new(nombre))
+                || matches!(e.as_str(), "xlsx" | "xls" | "ods" | "csv")
+        }
     }
 }
 
@@ -330,7 +333,51 @@ pub(crate) fn elegir_entre(
 /// **Elige el archivo** de los adjuntos de los chats que sirvan a `s`.
 pub fn elegir(cx: &Contexto, archivo: Option<&str>, s: Sirve) -> Result<Candidato, String> {
     let todos: Vec<Candidato> = candidatos(cx.raiz()).into_iter().filter(|c| sirve(&c.nombre, s)).collect();
+    let sin_nada = todos.iter().all(|c| c.proyecto != cx.proyecto)
+        && !cx.adjuntos.iter().any(|a| sirve(&a.nombre, s));
+    if archivo.is_none_or(|a| a.trim().is_empty()) && sin_nada {
+        return Err(no_sirve(cx, s));
+    }
     elegir_entre(cx, todos, archivo, &|n| sirve(n, s), "ningun archivo que sirva")
+}
+
+/// **Por que no hay archivo que sirva**, dicho para que el modelo elija
+/// bien (Windows, 15-oct: con un Excel adjunto, anotar_documento contestaba
+/// «no hay ningun archivo» y el modelo pedia al usuario que lo adjuntara
+/// otra vez). Dice que formatos sirven, que hay en el chat y que
+/// herramienta va con eso.
+fn no_sirve(cx: &Contexto, s: Sirve) -> String {
+    let que = match s {
+        Sirve::Escaneado => "una foto o un PDF",
+        Sirve::Documento => "un PDF, Word, PowerPoint o plano",
+        Sirve::Cualquiera => "ningun archivo",
+        Sirve::Anotable => "un PDF, Word, PowerPoint, Excel, foto o plano",
+    };
+    let mut hay: Vec<Candidato> = candidatos(cx.raiz()).into_iter().filter(|c| c.proyecto == cx.proyecto).collect();
+    let de_turno: Vec<Candidato> = cx
+        .adjuntos
+        .iter()
+        .filter(|a| !hay.iter().any(|c| c.ruta == Path::new(&a.ruta)))
+        .map(|a| Candidato {
+            nombre: a.nombre.clone(),
+            ruta: PathBuf::from(&a.ruta),
+            proyecto: cx.proyecto.to_string(),
+            proyecto_nombre: String::new(),
+            cuando: 0,
+        })
+        .collect();
+    hay.extend(de_turno);
+    if hay.is_empty() {
+        return format!("en este chat no hay {que}; pregunta al usuario cual (por su nombre)");
+    }
+    hay.sort_by_key(|c| std::cmp::Reverse(c.cuando));
+    let nombres: Vec<String> = hay.iter().take(6).map(|c| format!("«{}»", c.nombre)).collect();
+    let consejo = match s {
+        Sirve::Documento => "; para leer un Excel usa leer_excel",
+        Sirve::Escaneado => "; un Excel ya es una tabla (leer_excel), y un Word o PowerPoint se lee con leer_documento",
+        _ => "",
+    };
+    format!("esta herramienta necesita {que} y en este chat solo hay {}{consejo}", nombres.join(", "))
 }
 
 // ---------------------------------------------------------------------------
@@ -488,7 +535,7 @@ pub fn texto_de_pagina(pagina: &pixpin_office::Pagina, medidor: &dyn pixpin_offi
 /// Lo que avanza cada letra de un trozo, con el interletrado y el
 /// justificado. Si el medidor no da una por letra, el ancho del trozo
 /// repartido a partes iguales.
-fn avances_de(t: &pixpin_office::Texto, medidor: &dyn pixpin_office::Medidor, salida: &mut Vec<f32>) {
+fn avances_de(t: &pixpin_office::pagina::Texto, medidor: &dyn pixpin_office::Medidor, salida: &mut Vec<f32>) {
     let n = t.texto.chars().count();
     medidor.avances(&t.texto, &t.letra, salida);
     if salida.len() != n {
@@ -1310,5 +1357,5 @@ fn exportar(args: &Value, cx: &Contexto) -> Result<String, String> {
 }
 
 #[cfg(test)]
-#[path = "documentos_acciones/pruebas.rs"]
+#[path = "documentos_acciones_pruebas.rs"]
 mod pruebas;

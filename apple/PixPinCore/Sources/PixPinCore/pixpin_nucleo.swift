@@ -733,6 +733,30 @@ public protocol AppIa: AnyObject, Sendable {
      */
     func pintarVista(vista: VistaParaPintar)  -> Data?
     
+    /**
+     * Lo que mide cada hoja de un PDF (PDFKit: la caja que se ve, ya
+     * girada). Vacio si no se pudo abrir.
+     */
+    func paginasDePdf(ruta: String)  -> [MedidaPagina]
+    
+    /**
+     * La hoja `pagina` (desde 0) de un PDF pintada a `ancho` pixeles, en
+     * PNG (`None` si no se pudo).
+     */
+    func pintarPagina(ruta: String, pagina: UInt32, ancho: UInt32)  -> Data?
+    
+    /**
+     * **Las palabras de una imagen** (Vision) con su sitio en pixeles, en
+     * orden de lectura. `imagen`: los bytes (PNG, JPEG...).
+     */
+    func palabrasDeImagen(imagen: Data)  -> [PalabraLeida]
+    
+    /**
+     * **Exporta un archivo** a `formato` (pdf, png, docx...) con la hoja
+     * de compartir comun, dejando lo hecho en `carpeta`. Las rutas hechas.
+     */
+    func exportar(ruta: String, formato: String, carpeta: String) throws  -> [String]
+    
 }
 /**
  * **Las manos del asistente en la app**: lo implementa Swift. Se le llama
@@ -844,6 +868,66 @@ open func pintarVista(vista: VistaParaPintar) -> Data?  {
     uniffi_pixpin_nucleo_fn_method_appia_pintar_vista(
             self.uniffiCloneHandle(),
         FfiConverterTypeVistaParaPintar_lower(vista),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo que mide cada hoja de un PDF (PDFKit: la caja que se ve, ya
+     * girada). Vacio si no se pudo abrir.
+     */
+open func paginasDePdf(ruta: String) -> [MedidaPagina]  {
+    return try!  FfiConverterSequenceTypeMedidaPagina.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_appia_paginas_de_pdf(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ruta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La hoja `pagina` (desde 0) de un PDF pintada a `ancho` pixeles, en
+     * PNG (`None` si no se pudo).
+     */
+open func pintarPagina(ruta: String, pagina: UInt32, ancho: UInt32) -> Data?  {
+    return try!  FfiConverterOptionData.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_appia_pintar_pagina(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ruta),
+        FfiConverterUInt32.lower(pagina),
+        FfiConverterUInt32.lower(ancho),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las palabras de una imagen** (Vision) con su sitio en pixeles, en
+     * orden de lectura. `imagen`: los bytes (PNG, JPEG...).
+     */
+open func palabrasDeImagen(imagen: Data) -> [PalabraLeida]  {
+    return try!  FfiConverterSequenceTypePalabraLeida.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_appia_palabras_de_imagen(
+            self.uniffiCloneHandle(),
+        FfiConverterData.lower(imagen),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Exporta un archivo** a `formato` (pdf, png, docx...) con la hoja
+     * de compartir comun, dejando lo hecho en `carpeta`. Las rutas hechas.
+     */
+open func exportar(ruta: String, formato: String, carpeta: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_appia_exportar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ruta),
+        FfiConverterString.lower(formato),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
     )
 })
 }
@@ -973,6 +1057,111 @@ fileprivate struct UniffiCallbackInterfaceAppIa {
                 callStatus: uniffiCallStatus,
                 makeCall: makeCall,
                 writeReturn: writeReturn
+            )
+        },
+        paginasDePdf: { (
+            uniffiHandle: UInt64,
+            ruta: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [MedidaPagina] in
+                guard let uniffiObj = try? FfiConverterTypeAppIa.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.paginasDePdf(
+                     ruta: try FfiConverterString.lift(ruta)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypeMedidaPagina.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        pintarPagina: { (
+            uniffiHandle: UInt64,
+            ruta: RustBuffer,
+            pagina: UInt32,
+            ancho: UInt32,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> Data? in
+                guard let uniffiObj = try? FfiConverterTypeAppIa.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.pintarPagina(
+                     ruta: try FfiConverterString.lift(ruta),
+                     pagina: try FfiConverterUInt32.lift(pagina),
+                     ancho: try FfiConverterUInt32.lift(ancho)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterOptionData.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        palabrasDeImagen: { (
+            uniffiHandle: UInt64,
+            imagen: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [PalabraLeida] in
+                guard let uniffiObj = try? FfiConverterTypeAppIa.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.palabrasDeImagen(
+                     imagen: try FfiConverterData.lift(imagen)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceTypePalabraLeida.lower($0) }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        exportar: { (
+            uniffiHandle: UInt64,
+            ruta: RustBuffer,
+            formato: RustBuffer,
+            carpeta: RustBuffer,
+            uniffiOutReturn: UnsafeMutablePointer<RustBuffer>,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> [String] in
+                guard let uniffiObj = try? FfiConverterTypeAppIa.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.exportar(
+                     ruta: try FfiConverterString.lift(ruta),
+                     formato: try FfiConverterString.lift(formato),
+                     carpeta: try FfiConverterString.lift(carpeta)
+                )
+            }
+
+            
+            let writeReturn = { uniffiOutReturn.pointee = FfiConverterSequenceString.lower($0) }
+            uniffiTraitInterfaceCallWithError(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn,
+                lowerError: FfiConverterTypeErrorNucleo_lower
             )
         }
     )
@@ -21463,6 +21652,63 @@ public func FfiConverterTypeMarcasTarea_lower(_ value: MarcasTarea) -> RustBuffe
 
 
 /**
+ * Lo que mide una hoja de un PDF, en puntos.
+ */
+public struct MedidaPagina: Equatable, Hashable {
+    public var ancho: Float
+    public var alto: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ancho: Float, alto: Float) {
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MedidaPagina: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMedidaPagina: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MedidaPagina {
+        return
+            try MedidaPagina(
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MedidaPagina, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMedidaPagina_lift(_ buf: RustBuffer) throws -> MedidaPagina {
+    return try FfiConverterTypeMedidaPagina.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMedidaPagina_lower(_ value: MedidaPagina) -> RustBuffer {
+    return FfiConverterTypeMedidaPagina.lower(value)
+}
+
+
+/**
  * Un video o un audio de una diapositiva, con su caja en puntos.
  */
 public struct MedioDiapositiva: Equatable, Hashable {
@@ -23488,6 +23734,80 @@ public func FfiConverterTypePaginaTimeline_lift(_ buf: RustBuffer) throws -> Pag
 #endif
 public func FfiConverterTypePaginaTimeline_lower(_ value: PaginaTimeline) -> RustBuffer {
     return FfiConverterTypePaginaTimeline.lower(value)
+}
+
+
+/**
+ * Una palabra leida por el OCR, con su caja en pixeles de la imagen (y
+ * abajo) y el numero de su renglon.
+ */
+public struct PalabraLeida: Equatable, Hashable {
+    public var texto: String
+    public var x: Float
+    public var y: Float
+    public var ancho: Float
+    public var alto: Float
+    public var renglon: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(texto: String, x: Float, y: Float, ancho: Float, alto: Float, renglon: UInt32) {
+        self.texto = texto
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+        self.renglon = renglon
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PalabraLeida: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePalabraLeida: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PalabraLeida {
+        return
+            try PalabraLeida(
+                texto: FfiConverterString.read(from: &buf), 
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf), 
+                renglon: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PalabraLeida, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+        FfiConverterUInt32.write(value.renglon, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePalabraLeida_lift(_ buf: RustBuffer) throws -> PalabraLeida {
+    return try FfiConverterTypePalabraLeida.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePalabraLeida_lower(_ value: PalabraLeida) -> RustBuffer {
+    return FfiConverterTypePalabraLeida.lower(value)
 }
 
 
@@ -36470,6 +36790,31 @@ fileprivate struct FfiConverterSequenceTypeMarcadorReflujo: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeMedidaPagina: FfiConverterRustBuffer {
+    typealias SwiftType = [MedidaPagina]
+
+    public static func write(_ value: [MedidaPagina], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMedidaPagina.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MedidaPagina] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MedidaPagina]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMedidaPagina.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeMedioDiapositiva: FfiConverterRustBuffer {
     typealias SwiftType = [MedioDiapositiva]
 
@@ -36712,6 +37057,31 @@ fileprivate struct FfiConverterSequenceTypeOpcionMencionIa: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeOpcionMencionIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePalabraLeida: FfiConverterRustBuffer {
+    typealias SwiftType = [PalabraLeida]
+
+    public static func write(_ value: [PalabraLeida], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePalabraLeida.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PalabraLeida] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PalabraLeida]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePalabraLeida.read(from: &buf))
         }
         return seq
     }
@@ -37609,6 +37979,17 @@ public func iaTurnoEnChat(ajustes: AjustesIa, nucleo: Nucleo, chat: String, inic
         FfiConverterTypeCorteIa_lower(corte),uniffiCallStatus
     )
 })
+}
+/**
+ * **Instala el medidor de Core Text** para el asistente (una vez; las
+ * demas no hacen nada).
+ */
+public func instalarMedidorDeLetras(medidor: MedidorLetras)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_instalar_medidor_de_letras(
+        FfiConverterCallbackInterfaceMedidorLetras_lower(medidor),uniffiCallStatus
+    )
+}
 }
 /**
  * La carpeta donde Swift saca el `.tar.gz` del motor (con `tar`), ya
@@ -39164,6 +39545,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_ia_turno_en_chat() != 40925) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_instalar_medidor_de_letras() != 45106) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_carpeta_motor() != 7044) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -40170,6 +40554,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_appia_pintar_vista() != 21259) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_appia_paginas_de_pdf() != 51828) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_appia_pintar_pagina() != 34105) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_appia_palabras_de_imagen() != 46713) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_appia_exportar() != 64703) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_empieza() != 29565) {

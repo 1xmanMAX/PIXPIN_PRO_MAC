@@ -14,6 +14,7 @@
 // - Los Servicios del Finder (`ServiciosFinder`) son el menu del Explorador.
 
 import AppKit
+import PixPinCore
 import Foundation
 
 @MainActor
@@ -24,6 +25,9 @@ public final class DelegadoApp: NSObject, NSApplicationDelegate {
         NSApp.servicesProvider = ServiciosFinder.compartidos
         NSUpdateDynamicServices()
         IconoDelDock.compartido.vigilar()
+        // Las letras de Core Text para que el asistente maquete un Word o un
+        // PowerPoint igual que el lector (buscar y anotar en el, E1).
+        instalarMedidorDeLetras(medidor: MedidorCoreText())
     }
 
     /// Cerrar la ultima ventana no cierra PixPin: sigue en la barra de menus
