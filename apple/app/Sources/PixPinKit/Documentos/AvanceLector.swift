@@ -201,6 +201,9 @@ final class RielMarcasNS: NSView {
     var marcas: [MarcaDocumento] = [] { didSet { rehacer() } }
     var paginas = 0 { didSet { rehacer() } }
     var ir: ((MarcaDocumento) -> Void)?
+    /// Lo que dice el globo de cada marcador (en un PDF, su pagina; el visor
+    /// reflujado pone su tanto por ciento).
+    var rotulo: (MarcaDocumento) -> String = { m in "\(m.emoji)  pág. \(Int(m.y) + 1)" } { didSet { rehacer() } }
     private var zonas: [(NSRect, MarcaDocumento)] = []
     static let lado: CGFloat = 22
 
@@ -231,7 +234,7 @@ final class RielMarcasNS: NSView {
         let r = RielMarcasNS.zonas(marcas: marcas, paginas: paginas, alto: bounds.height)
         zonas = Array(zip(r, marcas))
         for (i, (z, m)) in zonas.enumerated() {
-            addToolTip(z, owner: "\(m.emoji)  pág. \(Int(m.y) + 1)\(i < 9 ? "  (⌘\(i + 1))" : "")" as NSString,
+            addToolTip(z, owner: "\(rotulo(m))\(i < 9 ? "  (⌘\(i + 1))" : "")" as NSString,
                        userData: nil)
         }
         needsDisplay = true

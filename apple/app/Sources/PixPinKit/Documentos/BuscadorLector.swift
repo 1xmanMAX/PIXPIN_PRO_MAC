@@ -34,6 +34,11 @@ public final class BuscadorLector: ObservableObject {
     var documento: () -> (PDFDocument?, Int) = { (nil, 0) }
     /// Saltar a la actual y marcar las que toque.
     var mostrar: (_ actual: PDFSelection?, _ todas: [PDFSelection]) -> Void = { _, _ in }
+    /// Un visor sin PDF (el reflujado, E7) busca el solo: da cuantas hay y
+    /// la primera desde donde se lee, y luego pinta la actual y, si
+    /// `marcar`, todas. Puesto esto, no se usa `documento` ni `mostrar`.
+    var buscarEnTexto: ((String) -> (Int, Int?))?
+    var mostrarEnTexto: ((_ actual: Int?, _ marcar: Bool) -> Void)?
 
     private var desde = 0
     private var irAlLlegar = false
@@ -60,13 +65,15 @@ public final class BuscadorLector: ObservableObject {
     func abrir() {
         abierto = true
         foco += 1
-        if !consultaLimpia.isEmpty { mostrar(laActual, coincidencias) }
+        if !consultaLimpia.isEmpty {
+            if buscarEnTexto != nil { pintar() } else { mostrar(laActual, coincidencias) }
+        }
     }
 
     func cerrar() {
         abierto = false
         cancelar()
-        mostrar(nil, [])
+        if let m = mostrarEnTexto { m(nil, false) } else { mostrar(nil, []) }
     }
 
     /// Lo escrito cambio: se vuelve a buscar un instante despues de la
@@ -91,17 +98,21 @@ public final class BuscadorLector: ObservableObject {
 
     private func mover(_ paso: Int) {
         if consultaLimpia.isEmpty { return }
-        if coincidencias.isEmpty {
+        let n = buscarEnTexto != nil ? total : coincidencias.count
+        if n == 0 {
             // Cerrada y con lo ultimo buscado (F3 de Windows): se busca otra vez.
             if !buscando { buscar(ir: true) }
             return
         }
-        let n = coincidencias.count
         actual = actual.map { (($0 + paso) % n + n) % n } ?? (paso > 0 ? 0 : n - 1)
         pintar()
     }
 
     private func pintar() {
+        if let m = mostrarEnTexto {
+            m(actual, abierto)
+            return
+        }
         let todas = abierto ? coincidencias : laActual.map { [$0] } ?? []
         for s in coincidencias { s.color = BuscadorLector.colorMarca }
         laActual?.color = BuscadorLector.colorActual
@@ -122,8 +133,19 @@ public final class BuscadorLector: ObservableObject {
         coincidencias = []
         total = 0
         actual = nil
-        let (doc, hoja) = documento()
         let q = consultaLimpia
+        if let buscarEnTexto {
+            guard !q.isEmpty else {
+                mostrarEnTexto?(nil, false)
+                return
+            }
+            let (n, primera) = buscarEnTexto(q)
+            total = n
+            actual = ir && n > 0 ? (primera ?? 0) : nil
+            pintar()
+            return
+        }
+        let (doc, hoja) = documento()
         guard let doc, !q.isEmpty else {
             mostrar(nil, [])
             return

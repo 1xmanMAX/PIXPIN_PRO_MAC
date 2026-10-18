@@ -47,6 +47,8 @@ use crate::{ErrorNucleo, Nucleo};
 // sola (tanda B7).
 mod lector;
 pub use lector::DocumentoRenombrado;
+// El visor reflujado de Word y libros, con su tinta (tanda E7).
+mod reflujo;
 
 /// Un marcador de un PDF: `x` es la fraccion del ancho de la hoja y `y` la
 /// pagina (desde 0) mas la fraccion de su alto (`marcas::en_la_pagina`).

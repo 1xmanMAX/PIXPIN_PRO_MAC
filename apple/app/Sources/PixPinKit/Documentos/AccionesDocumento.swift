@@ -28,6 +28,11 @@ public enum AbrirDocumento {
             VisorHtml.compartido.abrir(url, nucleo: nucleo)
             return true
         }
+        // Un Word o un libro, en el visor reflujado con su tinta (E7).
+        if VisoresReflujo.seLee(url) {
+            VisoresReflujo.compartidos.abrir(url, nucleo: nucleo, titulo: titulo)
+            return true
+        }
         switch TiposDeDocumento.clase(de: url) {
         case .pdf:
             LectoresDeDocumentos.compartidos.abrir(url, nucleo: nucleo, titulo: titulo)
@@ -57,12 +62,18 @@ struct MenuDeDocumento: View {
             Button("Leer y anotar") { AbrirDocumento.abrir(url, nucleo: nucleo) }
             Button("Aligerar el PDF") { ColaAligerar.compartida.aMano(url, nucleo: nucleo) }
         case .officePaginado:
+            if VisoresReflujo.seLee(url) {
+                Button("Leer") { VisoresReflujo.compartidos.abrir(url, nucleo: nucleo) }
+            }
             Button("Abrir en un pin") { PinesDeOffice.compartidos.abrir(url, nucleo: nucleo) }
             Button("Leer y anotar") { AbrirDocumento.leerYAnotar(url, nucleo: nucleo) }
             if Diapositivas.sePresenta(url) {
                 Button("Presentar") { Diapositivas.presentar(url) }
             }
         case .vistaRapida:
+            if VisoresReflujo.seLee(url) {
+                Button("Leer") { VisoresReflujo.compartidos.abrir(url, nucleo: nucleo) }
+            }
             Button("Abrir en un pin") { PinesDeOffice.compartidos.abrir(url, nucleo: nucleo) }
         case .otro:
             EmptyView()
