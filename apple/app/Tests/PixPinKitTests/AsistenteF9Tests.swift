@@ -31,3 +31,15 @@ final class AsistenteF9Tests: XCTestCase {
         XCTAssertTrue(m.texto.hasPrefix("🧹"))
     }
 }
+
+final class EnlacesF11Tests: XCTestCase {
+    func testLosEnlacesDeUnaBurbujaSePulsan() {
+        let a = textoResaltado("mira https://pixpin.app/guia y www.ejemplo.com, o escribe a yo@correo.com", aguja: "")
+        let enlaces = a.runs.compactMap(\.link).map(\.absoluteString)
+        XCTAssertEqual(enlaces.count, 2, "\(enlaces)")
+        XCTAssertTrue(enlaces[0].hasPrefix("https://pixpin.app/guia"))
+        XCTAssertTrue(enlaces[1].contains("www.ejemplo.com"))
+        // Caso negativo: sin enlaces no cambia nada.
+        XCTAssertTrue(textoResaltado("hola", aguja: "").runs.allSatisfy { $0.link == nil })
+    }
+}

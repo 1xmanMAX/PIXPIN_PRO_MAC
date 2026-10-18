@@ -318,6 +318,7 @@ extension EnvironmentValues {
 /// tildes), como `resaltado::coincidencias` de Windows.
 func textoResaltado(_ texto: String, aguja: String) -> AttributedString {
     var a = AttributedString(texto)
+    conEnlaces(&a)
     let q = aguja.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !q.isEmpty else { return a }
     var desde = texto.startIndex
@@ -330,4 +331,24 @@ func textoResaltado(_ texto: String, aguja: String) -> AttributedString {
         desde = r.upperBound
     }
     return a
+}
+
+
+/// **Los enlaces pulsables** de una burbuja (Windows, 17-oct): `http`,
+/// `https` y `www.` subrayados y en color de enlace; un clic los abre.
+func conEnlaces(_ a: inout AttributedString) {
+    let texto = String(a.characters)
+    guard texto.contains("http") || texto.contains("www."),
+          let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    else { return }
+    let ns = texto as NSString
+    for m in detector.matches(in: texto, range: NSRange(location: 0, length: ns.length)) {
+        guard let url = m.url, ["http", "https"].contains(url.scheme?.lowercased() ?? ""),
+              let r = Range(m.range, in: texto), let ar = Range(r, in: a) else { continue }
+        // Solo lo escrito como enlace (no un correo ni «ejemplo.com» suelto).
+        let escrito = ns.substring(with: m.range).lowercased()
+        guard escrito.hasPrefix("http") || escrito.hasPrefix("www.") else { continue }
+        a[ar].link = url
+        a[ar].underlineStyle = .single
+    }
 }

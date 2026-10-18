@@ -323,7 +323,9 @@ struct NotaDelAsistente: View {
             ns.addAttribute(.inlinePresentationIntent, value: InlinePresentationIntent.stronglyEmphasized.rawValue,
                             range: NSRange(location: Int(t.inicio), length: Int(t.largo)))
         }
-        return (try? AttributedString(ns, including: \.foundation)) ?? AttributedString(f.texto)
+        var a = (try? AttributedString(ns, including: \.foundation)) ?? AttributedString(f.texto)
+        conEnlaces(&a)
+        return a
     }
 
     let mensaje: MensajeChat
