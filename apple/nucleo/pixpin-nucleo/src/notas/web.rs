@@ -99,6 +99,12 @@ pub fn nota_pagina() -> String {
 #[serde(tag = "tipo", rename_all = "snake_case")]
 pub enum DeLaPagina {
     Listo,
+    /// Lo que encienden los botones de la barra del pin: viendo la nota
+    /// (sin escribir) y el panel de los comentarios abierto (Windows, 17-oct).
+    Estado {
+        leyendo: bool,
+        comentarios: bool,
+    },
     Guardar {
         texto: String,
         version: u64,
@@ -217,6 +223,8 @@ pub enum OrdenNota {
     Cerrar,
     /// Abrir la misma nota en el editor de antes (el de AppKit).
     EditorAnterior,
+    /// Lo que encienden los botones de la barra del pin.
+    EstadoBarra { leyendo: bool, comentarios: bool },
 }
 
 /// Un fichero que la pagina pidio, con su tipo.
@@ -579,6 +587,9 @@ impl SesionNota {
             // Las paginas vivas y los enlaces a hojas aun no: necesitan
             // pintar la hoja (`paginas_vivas` de Windows).
             "capacidades": {"hojas": false, "medios": de_chat},
+            // La cabecera propia no: la barra es la comun de los visores
+            // (Windows, 17-oct: el lector de notas como pin).
+            "enPin": true,
         })
         .to_string()
     }
@@ -785,6 +796,7 @@ impl SesionNota {
             DeLaPagina::Listo => vec![OrdenNota::Mandar {
                 json: self.abrir_json(&e),
             }],
+            DeLaPagina::Estado { leyendo, comentarios } => vec![OrdenNota::EstadoBarra { leyendo, comentarios }],
             DeLaPagina::Guardar { texto, version } => {
                 let r = self.guardar(&mut e, &texto);
                 let ok = r.is_ok();

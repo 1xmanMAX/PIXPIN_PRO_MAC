@@ -32434,6 +32434,11 @@ public enum OrdenNota: Equatable, Hashable {
      * Abrir la misma nota en el editor de antes (el de AppKit).
      */
     case editorAnterior
+    /**
+     * Lo que encienden los botones de la barra del pin.
+     */
+    case estadoBarra(leyendo: Bool, comentarios: Bool
+    )
 
 
 
@@ -32488,6 +32493,9 @@ public struct FfiConverterTypeOrdenNota: FfiConverterRustBuffer {
         case 11: return .cerrar
         
         case 12: return .editorAnterior
+        
+        case 13: return .estadoBarra(leyendo: try FfiConverterBool.read(from: &buf), comentarios: try FfiConverterBool.read(from: &buf)
+        )
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -32558,6 +32566,12 @@ public struct FfiConverterTypeOrdenNota: FfiConverterRustBuffer {
         case .editorAnterior:
             writeInt(&buf, Int32(12))
         
+        
+        case let .estadoBarra(leyendo,comentarios):
+            writeInt(&buf, Int32(13))
+            FfiConverterBool.write(leyendo, into: &buf)
+            FfiConverterBool.write(comentarios, into: &buf)
+            
         }
     }
 }

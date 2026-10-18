@@ -130,7 +130,7 @@ public final class ModeloBandeja: ObservableObject {
         }
     }
 
-    public static let cuantasCapturas = 4
+    public nonisolated static let cuantasCapturas = 4
 
     nonisolated static func esVideo(_ ruta: String) -> Bool {
         TiposQueAbre.videos.contains(URL(fileURLWithPath: ruta).pathExtension.lowercased())

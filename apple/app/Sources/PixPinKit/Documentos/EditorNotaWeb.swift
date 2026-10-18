@@ -144,7 +144,9 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         let estado = estadoBarra
         let v = ventana
         barra = BarraFlotante(ventana: ventana) {
-            BarraNotaPin(estado: estado, ventana: RefVentana(v))
+            BarraNotaPin(estado: estado, ventana: RefVentana(v)) { [weak self] que in
+                self?.mandar(#"{"tipo":"orden","que":"\#(que)"}"#)
+            }
         }
         mirar = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.mirarFuera() }
@@ -194,6 +196,10 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
             case let .titulo(texto):
                 let t = texto.trimmingCharacters(in: .whitespacesAndNewlines)
                 ventana.title = t.isEmpty ? sesion.titulo() : t
+                estadoBarra.nombre = ventana.title
+            case let .estadoBarra(leyendo, comentarios):
+                estadoBarra.leyendo = leyendo
+                estadoBarra.comentarios = comentarios
             case let .abrirEnlace(url):
                 if let u = URL(string: url) { NSWorkspace.shared.open(u) }
             case let .abrirFichero(ruta):
@@ -364,6 +370,9 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
 final class EstadoBarraNota: ObservableObject {
     @Published var nombre = ""
     @Published var encima = false
+    /// Viendo la nota sin escribir (el «ojo»), y los comentarios abiertos.
+    @Published var leyendo = false
+    @Published var comentarios = false
 }
 
 /// **La barra de la nota como pin**: el asa, el nombre con su recuadro
@@ -372,6 +381,9 @@ final class EstadoBarraNota: ObservableObject {
 struct BarraNotaPin: View {
     @ObservedObject var estado: EstadoBarraNota
     let ventana: RefVentana
+    /// Una orden para la pagina (`leer`, `editar`, `deshacer`, `rehacer`,
+    /// `buscar`, `comentarios`, `compartir`, `mas`, `titulo`).
+    let orden: (String) -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -387,6 +399,22 @@ struct BarraNotaPin: View {
                 .lineLimit(1).truncationMode(.middle)
                 .frame(maxWidth: 260, alignment: .leading)
                 .fixedSize(horizontal: true, vertical: false)
+                .onTapGesture(count: 2) { orden("titulo") }
+            Divider().frame(height: 22)
+            BotonFlotante(simbolo: estado.leyendo ? "pencil" : "eye",
+                          ayuda: estado.leyendo ? "Editar" : "Ver sin escribir") {
+                orden(estado.leyendo ? "editar" : "leer")
+            }
+            if !estado.leyendo {
+                BotonFlotante(simbolo: "arrow.uturn.backward", ayuda: "Deshacer (⌘Z)") { orden("deshacer") }
+                BotonFlotante(simbolo: "arrow.uturn.forward", ayuda: "Rehacer (⇧⌘Z)") { orden("rehacer") }
+            }
+            BotonFlotante(simbolo: "magnifyingglass", ayuda: "Buscar (⌘F)") { orden("buscar") }
+            BotonFlotante(simbolo: "text.bubble", ayuda: "Comentarios", encendido: estado.comentarios) {
+                orden("comentarios")
+            }
+            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") { orden("compartir") }
+            BotonFlotante(simbolo: "ellipsis", ayuda: "Más") { orden("mas") }
             Divider().frame(height: 22)
             BotonFlotante(simbolo: estado.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
                           encendido: estado.encima) {
