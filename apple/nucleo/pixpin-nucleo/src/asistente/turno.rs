@@ -1025,7 +1025,8 @@ impl EjecutorDelMac {
     }
 
     fn accion(&self, a: &AccionApp) -> Result<String, String> {
-        if pixpin_ia::acciones_documentos::es_de_documentos(a.herramienta) {
+        let de_conexiones = pixpin_ia::conexiones::acciones::es_de_conexiones(a.herramienta);
+        if pixpin_ia::acciones_documentos::es_de_documentos(a.herramienta) || de_conexiones {
             let n = self.nucleo.as_ref().ok_or("aqui no se pueden abrir documentos")?;
             let proyecto = self.chat.as_ref().map(|c| c.chat.clone()).unwrap_or_default();
             let cx = super::documentos_acciones::Contexto {
@@ -1035,6 +1036,9 @@ impl EjecutorDelMac {
                 app: self.app.as_deref(),
                 parar: &|| false,
             };
+            if de_conexiones {
+                return super::conexiones::hacer(a, &cx);
+            }
             return super::documentos_acciones::hacer(a, &cx);
         }
         let app = self.app.clone();

@@ -306,6 +306,14 @@ public enum FilasAjustes {
                 ayuda: "Se guarda en el Llavero de este Mac, nunca en claro. Sácala en \(p.consola).",
                 control: .vista { _ in AnyView(ClaveNube(proveedor: p)) }))
         }
+        // Las conexiones (Windows, 17-oct): Google Drive para el asistente
+        // de la nube, con el ID de cliente del usuario y OAuth.
+        for c in iaConexiones() {
+            filas.append(FilaAjuste(
+                id: "conexion-\(c.id)", seccion: .asistente, grupo: c.nombre, titulo: "Conectar \(c.nombre)",
+                ayuda: "El asistente de la nube podrá buscar, leer y bajar tus archivos (y subir, preguntando). Crea el ID de cliente en \(c.consola).",
+                control: .vista { _ in AnyView(FilaConexion(id: c.id)) }))
+        }
         return filas
     }
 

@@ -45,6 +45,7 @@ use crate::ErrorNucleo;
 
 pub mod al_lienzo;
 pub mod chat;
+pub mod conexiones;
 pub mod documentos;
 pub mod documentos_acciones;
 pub mod letras;

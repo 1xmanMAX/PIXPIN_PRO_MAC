@@ -16073,6 +16073,91 @@ public func FfiConverterTypeColorHoja_lower(_ value: ColorHoja) -> RustBuffer {
 
 
 /**
+ * Un servicio que se puede conectar, como se ve en Ajustes.
+ */
+public struct ConexionIa: Equatable, Hashable {
+    public var id: String
+    public var nombre: String
+    /**
+     * Donde se crea el ID de cliente.
+     */
+    public var consola: String
+    /**
+     * El ID de cliente guardado (no es secreto).
+     */
+    public var cliente: String?
+    public var conectado: Bool
+    public var cuenta: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, nombre: String, 
+        /**
+         * Donde se crea el ID de cliente.
+         */consola: String, 
+        /**
+         * El ID de cliente guardado (no es secreto).
+         */cliente: String?, conectado: Bool, cuenta: String?) {
+        self.id = id
+        self.nombre = nombre
+        self.consola = consola
+        self.cliente = cliente
+        self.conectado = conectado
+        self.cuenta = cuenta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ConexionIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConexionIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConexionIa {
+        return
+            try ConexionIa(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                consola: FfiConverterString.read(from: &buf), 
+                cliente: FfiConverterOptionString.read(from: &buf), 
+                conectado: FfiConverterBool.read(from: &buf), 
+                cuenta: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ConexionIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.consola, into: &buf)
+        FfiConverterOptionString.write(value.cliente, into: &buf)
+        FfiConverterBool.write(value.conectado, into: &buf)
+        FfiConverterOptionString.write(value.cuenta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConexionIa_lift(_ buf: RustBuffer) throws -> ConexionIa {
+    return try FfiConverterTypeConexionIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConexionIa_lower(_ value: ConexionIa) -> RustBuffer {
+    return FfiConverterTypeConexionIa.lower(value)
+}
+
+
+/**
  * **Lo de dentro de un mosaico o de una lupa**, para pintarlo en un mapa.
  *
  * La imagen cubre la caja `(x, y, ancho, alto)` del mundo. Dentro, un
@@ -36120,6 +36205,31 @@ fileprivate struct FfiConverterSequenceTypeColorHoja: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeConexionIa: FfiConverterRustBuffer {
+    typealias SwiftType = [ConexionIa]
+
+    public static func write(_ value: [ConexionIa], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeConexionIa.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ConexionIa] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ConexionIa]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeConexionIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCopiaDeSeguridad: FfiConverterRustBuffer {
     typealias SwiftType = [CopiaDeSeguridad]
 
@@ -38098,6 +38208,59 @@ public func llamaLocalPreguntarEnVivo(puerto: UInt16, historial: [MensajeIa], pe
 })
 }
 /**
+ * Corta la espera al navegador.
+ */
+public func iaCancelarConexion()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_cancelar_conexion(uniffiCallStatus
+    )
+}
+}
+/**
+ * **Conecta**: abre el navegador y espera la vuelta (hasta 5 min). Bloquea:
+ * Swift lo llama fuera del hilo principal. Devuelve la cuenta.
+ */
+public func iaConectar(servicioId: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_conectar(
+        FfiConverterString.lower(servicioId),uniffiCallStatus
+    )
+})
+}
+/**
+ * Los servicios y como estan.
+ */
+public func iaConexiones() -> [ConexionIa]  {
+    return try!  FfiConverterSequenceTypeConexionIa.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_conexiones(uniffiCallStatus
+    )
+})
+}
+/**
+ * Desconecta (borra los tokens y retira el permiso).
+ */
+public func iaDesconectar(servicioId: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_desconectar(
+        FfiConverterString.lower(servicioId),uniffiCallStatus
+    )
+}
+}
+/**
+ * Guarda el ID de cliente pegado (solo, con su secreto, o el JSON de Google).
+ */
+public func iaGuardarCliente(servicioId: String, pegado: String)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_guardar_cliente(
+        FfiConverterString.lower(servicioId),
+        FfiConverterString.lower(pegado),uniffiCallStatus
+    )
+})
+}
+/**
  * **Pone al dia el indice de los documentos** (al abrir la ventana del
  * asistente, desde un hilo de fondo: lee lo que cambio). Devuelve cuantas
  * fuentes leyo.
@@ -39722,6 +39885,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_llama_local_preguntar_en_vivo() != 12190) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_cancelar_conexion() != 11886) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_conectar() != 15273) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_conexiones() != 23516) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_desconectar() != 20352) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_guardar_cliente() != 63990) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ia_documentos_al_dia() != 14088) {
