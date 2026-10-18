@@ -96,6 +96,8 @@ struct BarraDeElegidos: View {
     var compartir: () -> Void = {}
     var fijar: () -> Void = {}
     var reenviar: () -> Void = {}
+    /// Si hay, «Unir PDF» (dos PDF o mas elegidos).
+    var unirPdf: (() -> Void)?
     let borrar: () -> Void
     let cancelar: () -> Void
 
@@ -108,6 +110,9 @@ struct BarraDeElegidos: View {
             Button(action: compartir) { Label("Compartir", systemImage: "square.and.arrow.up") }
             Button(action: fijar) { Label("Fijar", systemImage: "flag") }
             Button(action: reenviar) { Label("Reenviar", systemImage: "arrowshape.turn.up.right") }
+            if let unirPdf {
+                Button(action: unirPdf) { Label("Unir PDF", systemImage: "doc.on.doc.fill") }
+            }
             Button(role: .destructive, action: borrar) {
                 Label("Borrar", systemImage: "trash")
             }

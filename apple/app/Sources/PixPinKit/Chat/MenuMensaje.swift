@@ -21,6 +21,7 @@
 // `nombre`, `recuerdaEn`, `enBuzon`, `respondeA`), para que viajen.
 
 import AppKit
+import PDFKit
 import PixPinCore
 import SwiftUI
 import UniformTypeIdentifiers
@@ -312,6 +313,53 @@ final class ChatAbierto: ObservableObject {
     /// «Compartir…»: la hoja de compartir comun (D1), la misma de toda la
     /// app, con lo que sea cada mensaje (un lienzo, una foto, un PDF, una
     /// nota) y los formatos que le tocan (`compartir_mensajes` de Windows).
+    /// Si entre lo elegido hay dos PDF o mas (para «Unir PDF»).
+    func sePuedenUnir(_ ids: [String]) -> Bool {
+        cargados.filter { ids.contains($0.id) && ChatAbierto.esPdf($0) }.count >= 2
+    }
+
+    static func esPdf(_ m: MensajeChat) -> Bool {
+        m.clase == "ARCHIVO" && (m.ruta ?? "").lowercased().hasSuffix(".pdf")
+    }
+
+    /// **Unir PDF** (Windows): los PDF elegidos, en el orden del chat, en
+    /// uno solo que entra al chat.
+    func unirPdf(_ ids: [String]) {
+        let pdfs = cargados.filter { ids.contains($0.id) && ChatAbierto.esPdf($0) }
+        guard pdfs.count >= 2 else { return }
+        let (chat, almacen) = (self.chat, self.almacen)
+        Task {
+            var urls: [URL] = []
+            for m in pdfs {
+                if let u = await PrepararCompartir.fichero(m, chat: chat, almacen: almacen) { urls.append(u) }
+            }
+            guard urls.count >= 2, let unido = ChatAbierto.unir(urls) else {
+                avisar("No se pudieron leer los PDF")
+                return
+            }
+            _ = await almacen.adjuntar(urls: [unido], en: chat)
+            try? FileManager.default.removeItem(at: unido.deletingLastPathComponent())
+            eleccion.vaciar()
+            avisar("Unidos \(urls.count) PDF")
+        }
+    }
+
+    /// Junta las hojas de `urls` en un PDF nuevo (en una carpeta temporal).
+    nonisolated static func unir(_ urls: [URL]) -> URL? {
+        let doc = PDFDocument()
+        for u in urls {
+            guard let d = PDFDocument(url: u) else { return nil }
+            for i in 0 ..< d.pageCount {
+                if let p = d.page(at: i) { doc.insert(p, at: doc.pageCount) }
+            }
+        }
+        let base = urls[0].deletingPathExtension().lastPathComponent
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("unir-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let salida = dir.appendingPathComponent("\(base) (unido).pdf")
+        return doc.write(to: salida) ? salida : nil
+    }
+
     func compartir(_ ids: [String]) {
         guard let cosa = cosaCompartida(ids) else { return }
         HojaCompartir.abrir(cosa, almacen: almacen)

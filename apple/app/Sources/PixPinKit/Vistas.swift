@@ -252,6 +252,7 @@ public struct VistaChat: View {
                                 compartir: { menu.compartir(menu.elegidos()) },
                                 fijar: { menu.fijar(menu.elegidos()) },
                                 reenviar: { menu.reenviar(menu.elegidos()) },
+                                unirPdf: menu.sePuedenUnir(menu.elegidos()) ? { menu.unirPdf(menu.elegidos()) } : nil,
                                 borrar: { borrar(menu.elegidos()) },
                                 cancelar: { menu.eleccion.vaciar() })
             } else if let resultados = buscador.resultados {
