@@ -38,6 +38,8 @@ pub enum LineaEstilo {
     Continua,
     Discontinua,
     Punteada,
+    /// Raya y punto, la de los ejes de los planos (Windows, 17-oct).
+    RayaPunto,
 }
 
 /// Como se pinta el fondo (`fillStyle`).
@@ -125,6 +127,7 @@ fn linea_de(l: LineaEstilo) -> EstiloTrazo {
         LineaEstilo::Continua => EstiloTrazo::Solido,
         LineaEstilo::Discontinua => EstiloTrazo::Discontinuo,
         LineaEstilo::Punteada => EstiloTrazo::Punteado,
+        LineaEstilo::RayaPunto => EstiloTrazo::RayaPunto,
     }
 }
 
@@ -133,6 +136,7 @@ fn linea_hacia(l: EstiloTrazo) -> LineaEstilo {
         EstiloTrazo::Solido => LineaEstilo::Continua,
         EstiloTrazo::Discontinuo => LineaEstilo::Discontinua,
         EstiloTrazo::Punteado => LineaEstilo::Punteada,
+        EstiloTrazo::RayaPunto => LineaEstilo::RayaPunto,
     }
 }
 
@@ -272,6 +276,7 @@ mod pruebas {
             LineaEstilo::Continua,
             LineaEstilo::Discontinua,
             LineaEstilo::Punteada,
+            LineaEstilo::RayaPunto,
         ] {
             assert_eq!(linea_hacia(linea_de(l)), l);
         }

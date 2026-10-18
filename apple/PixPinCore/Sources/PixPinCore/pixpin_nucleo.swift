@@ -30800,6 +30800,10 @@ public enum LineaEstilo: Equatable, Hashable {
     case continua
     case discontinua
     case punteada
+    /**
+     * Raya y punto, la de los ejes de los planos (Windows, 17-oct).
+     */
+    case rayaPunto
 
 
 
@@ -30827,6 +30831,8 @@ public struct FfiConverterTypeLineaEstilo: FfiConverterRustBuffer {
         
         case 3: return .punteada
         
+        case 4: return .rayaPunto
+        
         default: throw UniffiInternalError.unexpectedEnumCase
         }
     }
@@ -30845,6 +30851,10 @@ public struct FfiConverterTypeLineaEstilo: FfiConverterRustBuffer {
         
         case .punteada:
             writeInt(&buf, Int32(3))
+        
+        
+        case .rayaPunto:
+            writeInt(&buf, Int32(4))
         
         }
     }

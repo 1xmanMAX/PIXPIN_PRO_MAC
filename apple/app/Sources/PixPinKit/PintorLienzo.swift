@@ -40,6 +40,9 @@ public struct PintorLienzo {
                 switch estilo {
                 case 1: ctx.setLineDash(phase: 0, lengths: [grosor * 4, grosor * 3])
                 case 2: ctx.setLineDash(phase: 0, lengths: [0.01, grosor * 2.5])
+                case 3:
+                    let hueco = grosor * 2 + 2
+                    ctx.setLineDash(phase: 0, lengths: [grosor * 5 + 4, hueco, 0.01, hueco])
                 default: break
                 }
                 ctx.strokePath()

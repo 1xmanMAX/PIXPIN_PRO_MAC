@@ -27,7 +27,7 @@ public enum FiguraLienzo {
     case relleno(CGPath, ColorLienzo)
     /// La tinta a mano: curvas por puntos medios y regla *winding*.
     case tinta(CGPath, ColorLienzo)
-    /// Linea abierta. `estilo`: 0 solido, 1 discontinuo, 2 punteado.
+    /// Linea abierta. `estilo`: 0 solido, 1 discontinuo, 2 punteado, 3 raya y punto.
     case linea(CGPath, ColorLienzo, grosor: CGFloat, estilo: Int)
     /// Oscurecer todo menos el hueco.
     case velo(hueco: CGPath, ColorLienzo)

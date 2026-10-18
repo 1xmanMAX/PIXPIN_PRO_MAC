@@ -333,6 +333,7 @@ fn estilo_a_numero(e: EstiloTrazo) -> f32 {
         EstiloTrazo::Solido => 0.0,
         EstiloTrazo::Discontinuo => 1.0,
         EstiloTrazo::Punteado => 2.0,
+        EstiloTrazo::RayaPunto => 3.0,
     }
 }
 

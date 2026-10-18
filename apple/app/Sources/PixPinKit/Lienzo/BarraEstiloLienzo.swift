@@ -74,6 +74,7 @@ public enum OpcionesEstiloLienzo {
         case .continua: return .strokeStyleSolid
         case .discontinua: return .strokeStyleDashed
         case .punteada: return .strokeStyleDotted
+        case .rayaPunto: return .strokeStyleDashed
         }
     }
 
@@ -93,6 +94,7 @@ public enum OpcionesEstiloLienzo {
 
     public static let lineas: [OpcionEstiloLienzo<LineaEstilo>] = [
         .init("Continua", .continua), .init("Discontinua", .discontinua), .init("Punteada", .punteada),
+        .init("Raya y punto", .rayaPunto),
     ]
 
     /// En el orden de Excalidraw: rayado, cruzado y solido; y despues los
