@@ -225,6 +225,7 @@ public final class HacerPedidos {
         case "timeline": await timeline(p)
         case "leer_en_voz": leer(p)
         case "ocr": await ocr(p)
+        case "herramienta": await herramienta(p)
         default:
             avisar("«\(p.accion)» aún no lo hace PixPin en el Mac.")
         }
@@ -726,6 +727,58 @@ public final class HacerPedidos {
     }
 
     /// `ocr`: el texto de una o varias imagenes, al portapapeles.
+    /// **Una herramienta del asistente pedida desde fuera** (el MCP:
+    /// Claude Desktop o Claude Code; el pedido `herramienta` de Windows). Se
+    /// hace por el mismo camino que el asistente (lo que borra pregunta) y
+    /// la respuesta va al fichero `respuesta` de una vez (`{"ok","texto"}`),
+    /// que es donde la espera `pixpin-mcp`.
+    private func herramienta(_ p: Pedido) async {
+        let respuesta = p.texto("respuesta")
+        func contestar(_ ok: Bool, _ texto: String) {
+            guard let respuesta else { return avisar(texto) }
+            HacerPedidos.escribirRespuesta(respuesta, ok: ok, texto: texto)
+        }
+        guard let nombre = p.texto("nombre"), let nucleo = almacen?.nucleo else {
+            return contestar(false, "falta el nombre de la herramienta, o PixPin aun no ha abierto sus datos")
+        }
+        if let q = p.texto("preguntar"), !HacerPedidos.preguntar(q) {
+            return contestar(false, "El usuario dijo que no.")
+        }
+        let args = p["args"]?.json ?? "{}"
+        let manos = ManosDelAsistente(nucleo: nucleo, corte: CorteIa.nuevo()) { pregunta, responder in
+            responder(HacerPedidos.preguntar(pregunta))
+        }
+        let desfase = desfaseLocalMs()
+        let r = await Task.detached(priority: .userInitiated) {
+            Result { try iaHacerHerramienta(nucleo: nucleo, nombre: nombre, argsJson: args, desfaseMs: desfase, app: manos) }
+        }.value
+        switch r {
+        case let .success(t): contestar(true, t)
+        case let .failure(e): contestar(false, (e as? ErrorNucleo).map { "\($0)" } ?? e.localizedDescription)
+        }
+    }
+
+    /// Pregunta al usuario con un aviso del Mac («Claude pide…»).
+    static func preguntar(_ pregunta: String) -> Bool {
+        let a = NSAlert()
+        a.messageText = "PixPin"
+        a.informativeText = pregunta
+        a.addButton(withTitle: "Sí")
+        a.addButton(withTitle: "No")
+        NSApp.activate()
+        return a.runModal() == .alertFirstButtonReturn
+    }
+
+    /// Escribe la respuesta de una vez (aparte y renombrando): quien espera
+    /// nunca lee un fichero a medias.
+    nonisolated static func escribirRespuesta(_ ruta: String, ok: Bool, texto: String) {
+        let destino = URL(fileURLWithPath: ruta)
+        let tmp = destino.appendingPathExtension("parte")
+        guard let datos = try? JSONSerialization.data(withJSONObject: ["ok": ok, "texto": texto]) else { return }
+        try? datos.write(to: tmp)
+        try? FileManager.default.moveItem(at: tmp, to: destino)
+    }
+
     private func ocr(_ p: Pedido) async {
         let rutas = ([p.texto("ruta")].compactMap { $0 }) + (p["rutas"]?.lista?.compactMap(\.texto) ?? [])
         var trozos: [String] = []

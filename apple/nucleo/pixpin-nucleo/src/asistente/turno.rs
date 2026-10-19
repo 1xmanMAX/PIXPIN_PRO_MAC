@@ -1211,3 +1211,28 @@ fn dia_de(s: &str) -> Option<i64> {
 
 #[cfg(test)]
 mod pruebas;
+
+/// **Una herramienta de la app pedida desde fuera** (el MCP: Claude Desktop,
+/// Claude Code; el pedido `herramienta` de Windows). La misma fila de la
+/// tabla y el mismo camino que el asistente: se valida, se pregunta lo que
+/// borra (con `app.confirmar`) y se hace. Devuelve lo que se le dice al
+/// cliente. Bloquea: Swift lo llama fuera del hilo principal.
+#[uniffi::export]
+pub fn ia_hacer_herramienta(
+    nucleo: Arc<Nucleo>,
+    nombre: String,
+    args_json: String,
+    desfase_ms: i64,
+    app: Arc<dyn AppIa>,
+) -> Result<String, ErrorNucleo> {
+    let mal = |detalle: String| ErrorNucleo::Asistente { detalle };
+    let fila = pixpin_ia::acciones::por_nombre(&nombre).ok_or_else(|| mal(format!("herramienta desconocida: {nombre}")))?;
+    let args: serde_json::Map<String, Value> = match serde_json::from_str::<Value>(&args_json) {
+        Ok(Value::Object(m)) => m,
+        Ok(Value::Null) | Err(_) if args_json.trim().is_empty() => serde_json::Map::new(),
+        _ => return Err(mal("los argumentos no son un objeto JSON".into())),
+    };
+    let accion = pixpin_ia::acciones::validar(fila, &args).map_err(|e| mal(e.to_string()))?;
+    let ej = EjecutorDelMac::nuevo(Vec::new(), desfase_ms).con_app(app).con_nucleo(Some(nucleo));
+    ej.accion(&accion).map_err(mal)
+}

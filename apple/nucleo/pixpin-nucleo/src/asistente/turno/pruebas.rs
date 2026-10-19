@@ -312,3 +312,26 @@ fn buscar_en_mis_cosas_encuentra_y_cita_y_la_nube_pide_permiso() {
     assert_eq!(manos.preguntas.lock().unwrap().len(), 1);
     let _ = std::fs::remove_dir_all(d);
 }
+
+#[test]
+fn una_herramienta_pedida_desde_fuera_va_por_el_camino_del_asistente() {
+    let d = carpeta();
+    let nucleo = Nucleo::abrir(d.display().to_string(), "Mac de pruebas".into()).unwrap();
+    let manos = Arc::new(Manos::default());
+    let r = ia_hacer_herramienta(nucleo.clone(), "escribir_en_chat".into(), r#"{"texto":"hola desde Claude"}"#.into(), 0, manos.clone())
+        .unwrap();
+    assert!(!r.is_empty());
+    let p = manos.pedidos.lock().unwrap();
+    assert_eq!(p[0]["accion"], "chat");
+    assert_eq!(p[0]["texto"], "hola desde Claude");
+    drop(p);
+    // Lo que borra pregunta; con un no, no se manda nada.
+    nucleo.apuntar_tarea("comprar pan".into(), 0).unwrap();
+    let antes = manos.pedidos.lock().unwrap().len();
+    let _ = ia_hacer_herramienta(nucleo.clone(), "borrar_lista".into(), r#"{"lista":"Inbox"}"#.into(), 0, manos.clone());
+    assert!(!manos.preguntas.lock().unwrap().is_empty());
+    assert_eq!(manos.pedidos.lock().unwrap().len(), antes);
+    // Casos negativos: una que no existe y unos argumentos que faltan.
+    assert!(ia_hacer_herramienta(nucleo.clone(), "volar".into(), "{}".into(), 0, manos.clone()).is_err());
+    assert!(ia_hacer_herramienta(nucleo, "escribir_en_chat".into(), "{}".into(), 0, manos).is_err());
+}

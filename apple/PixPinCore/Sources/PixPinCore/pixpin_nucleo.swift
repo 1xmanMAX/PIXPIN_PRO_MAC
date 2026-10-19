@@ -38497,6 +38497,25 @@ public func instalarTransporte(transporte: TransporteApp)throws   {try rustCallW
 }
 }
 /**
+ * **Una herramienta de la app pedida desde fuera** (el MCP: Claude Desktop,
+ * Claude Code; el pedido `herramienta` de Windows). La misma fila de la
+ * tabla y el mismo camino que el asistente: se valida, se pregunta lo que
+ * borra (con `app.confirmar`) y se hace. Devuelve lo que se le dice al
+ * cliente. Bloquea: Swift lo llama fuera del hilo principal.
+ */
+public func iaHacerHerramienta(nucleo: Nucleo, nombre: String, argsJson: String, desfaseMs: Int64, app: AppIa)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_hacer_herramienta(
+        FfiConverterTypeNucleo_lower(nucleo),
+        FfiConverterString.lower(nombre),
+        FfiConverterString.lower(argsJson),
+        FfiConverterInt64.lower(desfaseMs),
+        FfiConverterTypeAppIa_lower(app),uniffiCallStatus
+    )
+})
+}
+/**
  * **«Probar»** la clave guardada de un proveedor: una llamada minima (unos
  * pocos tokens). `Ok` con la frase para ensenar; el error, en palabras.
  * Es una peticion de red: fuera del hilo principal.
@@ -39974,6 +39993,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_instalar_transporte() != 12589) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_hacer_herramienta() != 35673) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ia_probar_clave() != 41600) {
