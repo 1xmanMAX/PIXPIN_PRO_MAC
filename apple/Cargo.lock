@@ -1683,6 +1683,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pixpin-mcp"
+version = "0.1.0"
+dependencies = [
+ "pixpin-docs",
+ "pixpin-hojas",
+ "pixpin-ia",
+ "pixpin-office",
+ "pixpin-pdf",
+ "pixpin-proyecto",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
 name = "pixpin-model"
 version = "0.1.0"
 

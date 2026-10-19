@@ -78,6 +78,22 @@ derechos_ad_hoc() {
 
 # Las bibliotecas y frameworks de Contents/Frameworks, firmados antes que
 # quien los carga.
+# El servidor MCP (`nucleo/pixpin-mcp`) va dentro de la app, junto al
+# ejecutable: Claude Desktop o Claude Code lo arrancan con la ruta
+# `/Applications/PixPin.app/Contents/MacOS/pixpin-mcp` (docs/mcp.md).
+# Universal y firmado ad hoc antes que la app.
+meter_mcp() {
+    local app="$1" perfil="${PIXPIN_PERFIL_MCP:-ffi-rapido}" piezas=()
+    echo "==> pixpin-mcp ($perfil, universal)"
+    for t in aarch64-apple-darwin x86_64-apple-darwin; do
+        (cd "$APPLE" && cargo build --quiet --profile "$perfil" -p pixpin-mcp --target "$t")
+        piezas+=("$APPLE/target/$t/$perfil/pixpin-mcp")
+    done
+    lipo -create "${piezas[@]}" -output "$app/Contents/MacOS/pixpin-mcp"
+    adelgazar "$app/Contents/MacOS/pixpin-mcp"
+    codesign --force --sign - --options runtime --timestamp=none "$app/Contents/MacOS/pixpin-mcp"
+}
+
 firmar_frameworks() {
     local dir="$1/Contents/Frameworks" f
     [ -d "$dir" ] || return 0
@@ -192,6 +208,7 @@ construir_spm() {
     sed -e "s/@VERSION@/$VERSION/g" -e "s/@COMPILACION@/$COMPILACION/g" \
         "$APP_SRC/Recursos/Info.plist" > "$app/Contents/Info.plist"
 
+    meter_mcp "$app"
     echo "==> Firma ad hoc"
     firmar_frameworks "$app"
     codesign --force --sign - --options runtime --timestamp=none \
@@ -263,6 +280,7 @@ construir_xcode() {
         echo "::warning::La app no lleva Metadata.appintents: Siri y Atajos no veran sus acciones"
     fi
 
+    meter_mcp "$app"
     echo "==> Firma ad hoc (de dentro afuera)"
     firmar_frameworks "$app"
     codesign --force --sign - --options runtime --timestamp=none \
