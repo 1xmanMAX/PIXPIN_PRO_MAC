@@ -73,7 +73,7 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
         // Un PowerPoint se presenta (D9), como el boton del lector.
         let presentar: (() -> Void)? = Diapositivas.sePresenta(url) ? { Diapositivas.presentar(url) } : nil
         let barra = BarraFlotante(ventana: panel) {
-            BarraPinOffice(nombre: nombre, ventana: RefVentana(panel), leer: leer, presentar: presentar)
+            BarraPinOffice(nombre: nombre, ventana: RefVentana(panel), leer: leer, presentar: presentar, url: url)
         }
         panel.contentView = vista
         abiertos[clave] = Abierto(panel: panel, vista: vista, barra: barra)
@@ -108,31 +108,24 @@ struct BarraPinOffice: View {
     let ventana: RefVentana
     let leer: (() -> Void)?
     var presentar: (() -> Void)?
-    @State private var encima = true
+    var url: URL?
 
     var body: some View {
-        HStack(spacing: 8) {
-            AsaBarra()
-            Text(nombre)
-                .font(.system(size: 13))
-                .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: 260, alignment: .leading)
-                .fixedSize(horizontal: true, vertical: false)
-            if let leer {
-                BotonFlotante(simbolo: "pencil.tip", ayuda: "Leer y anotar: abrirlo en el lector", accion: leer)
-            }
+        BarraVisor(nombre: nombre, ext: (nombre as NSString).pathExtension) {
+            // Los de Windows (`pin_office`): presentar un PowerPoint y abrir
+            // con su programa; aqui ademas el lapiz, que lo pasa al lector
+            // para anotarlo.
             if let presentar {
                 BotonFlotante(simbolo: "play.fill", ayuda: "Presentar", accion: presentar)
             }
-            BotonFlotante(simbolo: encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
-                       encendido: encima) {
-                encima.toggle()
-                ventana.ventana?.level = encima ? .floating : .normal
+            if let leer {
+                BotonVerEditar(editando: false, accion: leer)
             }
-            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar (⌘W)") { VentanaLisa.cerrar(ventana.ventana) }
+            if let url {
+                BotonFlotante(simbolo: "arrow.up.forward.app", ayuda: "Abrir con su programa") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
         }
-        .fixedSize()
     }
 }

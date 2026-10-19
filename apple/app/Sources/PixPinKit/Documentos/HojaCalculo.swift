@@ -22,6 +22,7 @@
 
 import AppKit
 import PixPinCore
+import SwiftUI
 
 /// El texto de una celda con su formato de numero (`nf`: numero, moneda,
 /// porcentaje, fecha), como lo ensena el pin de hoja de Windows.
@@ -216,6 +217,12 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private let colaGuardar = DispatchQueue(label: "pixpin.hoja.guardar", qos: .utility)
     private var guardado: DispatchWorkItem?
     var alCerrar: (@MainActor (ControladorHoja) -> Void)?
+    /// **Ver o editar** (`visor_hoja.rs` de Windows): abre para ver; el lapiz
+    /// de la barra del pin trae la barra de formulas y el formato.
+    let modelo = ModeloHojaPin()
+    private var arriba: NSStackView?
+    private var arribaCerrada: NSLayoutConstraint?
+    private var barraPin: BarraFlotante?
 
     init(hoja: HojaDeCalculo, titulo: String) {
         self.hoja = hoja
@@ -298,6 +305,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         arriba.edgeInsets = NSEdgeInsets(top: 6, left: 8, bottom: 6, right: 8)
         arriba.translatesAutoresizingMaskIntoConstraints = false
         barra.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        self.arriba = arriba
 
         aviso.textColor = .secondaryLabelColor
         aviso.font = .systemFont(ofSize: 11)
@@ -357,6 +365,22 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         NotificationCenter.default.addObserver(self, selector: #selector(columnaCambiada(_:)),
                                                name: NSTableView.columnDidResizeNotification, object: rejilla)
         ponerPestanas()
+        arribaCerrada = arriba.heightAnchor.constraint(equalToConstant: 0)
+        modelo.nombre = ventana.title
+        modelo.controlador = self
+        ponerEditando(false)
+        let modelo = self.modelo
+        let barraPin = BarraFlotante(ventana: ventana) { BarraHojaPin(modelo: modelo) }
+        barraPin.empezar()
+        self.barraPin = barraPin
+    }
+
+    /// El lapiz y el ojo de la barra del pin.
+    func ponerEditando(_ si: Bool) {
+        modelo.editando = si
+        arriba?.isHidden = !si
+        arribaCerrada?.isActive = !si
+        if !si, ventana.firstResponder === barra.currentEditor() { ventana.makeFirstResponder(rejilla) }
     }
 
     /// Las pestanas de un libro (con una sola hoja no hacen falta).
@@ -546,6 +570,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     @objc private func dobleClic() {
         clic()
+        guard modelo.editando else { return }
         ventana.makeFirstResponder(barra)
     }
 
@@ -613,6 +638,11 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             return true
         }
         let ext = m.contains(.shift)
+        // Viendo, solo moverse, copiar y salir: escribir no edita.
+        if !modelo.editando, [36, 76].contains(e.keyCode) || (m.subtracting(.shift).isEmpty
+            && e.characters?.unicodeScalars.first.map({ !CharacterSet.controlCharacters.contains($0) }) == true) {
+            return true
+        }
         if e.keyCode == 53, m.isEmpty { VentanaLisa.escapar(ventana); return true }
         switch e.keyCode {
         case 123: elegir(fila, columna - 1, extender: ext); return true
@@ -636,6 +666,13 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     /// **Hace lo que pide una tecla o un boton.**
     func hacer(_ a: AccionHoja) {
+        // Viendo, lo que cambia la hoja no se hace (como Windows sin editar).
+        if !modelo.editando {
+            switch a {
+            case .copiar, .elegirTodo, .hojaSiguiente, .hojaAnterior, .borde, .cancelar: break
+            default: return NSSound.beep()
+            }
+        }
         switch a {
         case .deshacer, .rehacer:
             let hoja0 = hoja.activa()
@@ -801,6 +838,29 @@ public final class HojasDeCalculo {
                 NSApp.activate()
             case let .failure(e):
                 almacen.ponerError("No se puede abrir la hoja: \(e)")
+            }
+        }
+    }
+}
+
+
+/// Lo que ve la barra del pin de la hoja.
+@MainActor
+final class ModeloHojaPin: ObservableObject {
+    @Published var editando = false
+    @Published var nombre = ""
+    weak var controlador: ControladorHoja?
+}
+
+/// **La barra del pin de la hoja**: viendo, el lapiz; editando, el ojo
+/// (el formato va en la barra de la ventana, debajo).
+struct BarraHojaPin: View {
+    @ObservedObject var modelo: ModeloHojaPin
+
+    var body: some View {
+        BarraVisor(nombre: modelo.nombre, ext: (modelo.nombre as NSString).pathExtension) {
+            BotonVerEditar(editando: modelo.editando) {
+                modelo.controlador?.ponerEditando(!modelo.editando)
             }
         }
     }

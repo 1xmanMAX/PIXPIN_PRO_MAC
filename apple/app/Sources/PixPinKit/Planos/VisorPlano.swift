@@ -57,6 +57,8 @@ public final class VisorPlano: ObservableObject {
     @Published public private(set) var anotando = false
     /// Siempre encima (T).
     @Published public private(set) var siempreEncima = false
+    /// El panel de las capas a la derecha.
+    @Published public var verCapas = true
     /// El buscador de textos (⌘F) a la vista, lo hallado y si se busca.
     @Published public var buscando = false
     @Published public private(set) var hallados: [TextoHallado] = []
@@ -1002,7 +1004,6 @@ struct LienzoMetalPlano: NSViewRepresentable {
 /// de capas. Anotando, encima flotan la barra y el panel del lienzo.
 public struct VentanaPlanoView: View {
     @ObservedObject var visor: VisorPlano
-    @State private var verCapas = true
     @State private var consulta = ""
     @FocusState private var enLaBusqueda: Bool
 
@@ -1013,8 +1014,6 @@ public struct VentanaPlanoView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            barra
-            Divider()
             HStack(spacing: 0) {
                 ZStack(alignment: .top) {
                     contenido
@@ -1023,7 +1022,7 @@ public struct VentanaPlanoView: View {
                     }
                     if visor.buscando { busqueda.padding(10).frame(maxWidth: .infinity, alignment: .topTrailing) }
                 }
-                if verCapas && visor.datos != nil {
+                if visor.verCapas && visor.datos != nil {
                     Divider()
                     panelCapas.frame(width: 230)
                 }
@@ -1044,70 +1043,6 @@ public struct VentanaPlanoView: View {
         } else {
             ContentUnavailableView("Sin Metal", systemImage: "cpu", description: Text("Este Mac no tiene una tarjeta gráfica con Metal."))
         }
-    }
-
-    private var barra: some View {
-        HStack(spacing: 10) {
-            Picker("", selection: $visor.modo) {
-                Label("Mover", systemImage: "hand.raised").tag(ModoVisorPlano.mover)
-                Label("Medir", systemImage: "ruler").tag(ModoVisorPlano.medir)
-                Label("Marco", systemImage: "rectangle.dashed").tag(ModoVisorPlano.marco)
-            }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 260)
-            .help("Mover, medir (M) o marcos para imprimir (I)")
-            Toggle(isOn: Binding(get: { visor.anotando }, set: { _ in visor.alternarAnotar() })) {
-                Label("Anotar", systemImage: "pencil.tip.crop.circle")
-            }
-            .toggleStyle(.button)
-            .help("Anotar a mano con el lienzo (A)")
-            Button { visor.encuadrar() } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
-                .help("Ver el plano entero (F)")
-            Menu {
-                Button("Borrar las cotas") { visor.borrarCotas() }
-                    .disabled(visor.anotado.cotas.isEmpty)
-                Button("Borrar los marcos") { visor.borrarMarcos() }
-                    .disabled(visor.anotado.marcos.isEmpty)
-            } label: { Image(systemName: "trash") }
-                .menuIndicator(.hidden)
-                .fixedSize()
-            Text(visor.medida)
-                .font(.callout.monospacedDigit())
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-            Spacer()
-            Button { visor.buscando.toggle() } label: { Image(systemName: "magnifyingglass") }
-                .help("Buscar en los textos del plano (⌘F)")
-                .keyboardShortcut("f")
-            Button { visor.alternarOscuro() } label: { Image(systemName: visor.oscuro ? "sun.max" : "moon") }
-                .help(visor.oscuro ? "Fondo claro (B)" : "Fondo oscuro (B)")
-            Button { visor.verLetras = true } label: {
-                Image(systemName: "textformat")
-                    .foregroundStyle(visor.faltan.isEmpty ? Color.primary : Color.orange)
-            }
-            .help(visor.faltan.isEmpty ? "Letras del plano (L)" : "Faltan \(visor.faltan.count) letras del plano (L)")
-            Button { visor.verEn3D() } label: { Label("3D", systemImage: "cube") }
-                .help("Ver el plano en 3D (3)")
-            Button { visor.exportar() } label: { Image(systemName: "square.and.arrow.up") }
-                .help("Exportar: HTML, PDF, PNG, DXF… (⌘E)")
-                .keyboardShortcut("e")
-            Button { visor.imprimir() } label: { Image(systemName: "printer") }
-                .help("Imprimir (el último marco, o lo que se ve)")
-                .keyboardShortcut("p")
-            Toggle(isOn: Binding(get: { visor.siempreEncima }, set: { _ in visor.alternarEncima() })) {
-                Image(systemName: visor.siempreEncima ? "pin.fill" : "pin")
-            }
-            .toggleStyle(.button)
-            .help("Siempre encima (T)")
-            Toggle(isOn: $verCapas) { Image(systemName: "square.3.layers.3d") }
-                .toggleStyle(.button)
-                .help("Capas")
-        }
-        .disabled(visor.datos == nil)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.bar)
     }
 
     /// El buscador de textos (⌘F): lo hallado, el mas grande primero.
@@ -1255,5 +1190,52 @@ struct LetrasDelPlanoView: View {
         guard p.runModal() == .OK else { return }
         visor.anadirLetras(p.urls)
         cerrar()
+    }
+}
+
+
+/// **La barra del pin del plano** (la comun de los visores, `BarraVisor`):
+/// el lapiz anota con el lienzo; mover, medir y marcos; ver entero, borrar,
+/// buscar, letras, 3D, exportar, imprimir y capas.
+struct BarraPlanoPin: View {
+    @ObservedObject var visor: VisorPlano
+
+    var body: some View {
+        BarraVisor(nombre: visor.titulo, ext: (visor.ruta as NSString).pathExtension,
+                   oscuro: visor.oscuro, alternarOscuro: { visor.alternarOscuro() },
+                   fijar: { si in if si != visor.siempreEncima { visor.alternarEncima() } }) {
+            BotonVerEditar(editando: visor.anotando) { visor.alternarAnotar() }
+            BotonFlotante(simbolo: "hand.raised", ayuda: "Mover", encendido: visor.modo == .mover) { visor.modo = .mover }
+            BotonFlotante(simbolo: "ruler", ayuda: "Medir (M)", encendido: visor.modo == .medir) { visor.modo = .medir }
+            BotonFlotante(simbolo: "rectangle.dashed", ayuda: "Marcos para imprimir (I)",
+                          encendido: visor.modo == .marco) { visor.modo = .marco }
+            if !visor.medida.isEmpty {
+                Text(visor.medida)
+                    .font(.callout.monospacedDigit())
+                    .foregroundStyle(Color(white: 0.78))
+                    .lineLimit(1)
+                    .fixedSize()
+            }
+            BotonFlotante(simbolo: "viewfinder", ayuda: "Ver el plano entero (F)") { visor.encuadrar() }
+            Menu {
+                Button("Borrar las cotas") { visor.borrarCotas() }
+                    .disabled(visor.anotado.cotas.isEmpty)
+                Button("Borrar los marcos") { visor.borrarMarcos() }
+                    .disabled(visor.anotado.marcos.isEmpty)
+            } label: { Image(systemName: "trash") }
+                .menuIndicator(.hidden)
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .frame(width: 40)
+            BotonFlotante(simbolo: "magnifyingglass", ayuda: "Buscar en los textos del plano (⌘F)",
+                          encendido: visor.buscando) { visor.buscando.toggle() }
+            BotonFlotante(simbolo: "textformat", ayuda: visor.faltan.isEmpty ? "Letras del plano (L)"
+                          : "Faltan \(visor.faltan.count) letras del plano (L)") { visor.verLetras = true }
+            BotonFlotante(simbolo: "cube", ayuda: "Ver el plano en 3D (3)") { visor.verEn3D() }
+            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar: HTML, PDF, PNG, DXF… (⌘E)") { visor.exportar() }
+            BotonFlotante(simbolo: "printer", ayuda: "Imprimir (el último marco, o lo que se ve)") { visor.imprimir() }
+            BotonFlotante(simbolo: "square.3.layers.3d", ayuda: "Capas", encendido: visor.verCapas) { visor.verCapas.toggle() }
+        }
+        .disabled(visor.datos == nil)
     }
 }

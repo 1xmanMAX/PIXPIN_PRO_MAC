@@ -146,9 +146,9 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         let estado = estadoBarra
         let v = ventana
         barra = BarraFlotante(ventana: ventana) {
-            BarraNotaPin(estado: estado, ventana: RefVentana(v)) { [weak self] que in
+            BarraNotaPin(estado: estado, ventana: RefVentana(v), orden: { [weak self] que in
                 self?.mandar(#"{"tipo":"orden","que":"\#(que)"}"#)
-            }
+            }, escuchar: { [weak self] in self?.escuchar() })
         }
         mirar = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.mirarFuera() }
@@ -220,6 +220,18 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
                 ventana.close()
                 alPedirAnterior?(self)
             }
+        }
+    }
+
+    /// **Leer la nota en voz alta** (la voz de la app, como el lector);
+    /// otra vez, se calla.
+    private func escuchar() {
+        let voz = LeerEnVoz.compartida
+        guard let ruta = sesion.fichero() else { return NSSound.beep() }
+        if voz.suena(ruta) { return voz.soltar() }
+        guard let texto = try? String(contentsOfFile: ruta, encoding: .utf8),
+              VozDeLaNota.escuchar(texto: texto, desde: 0, clave: ruta, titulo: sesion.titulo()) else {
+            return NSSound.beep()
         }
     }
 
@@ -386,48 +398,32 @@ struct BarraNotaPin: View {
     /// Una orden para la pagina (`leer`, `editar`, `deshacer`, `rehacer`,
     /// `buscar`, `comentarios`, `compartir`, `mas`, `titulo`).
     let orden: (String) -> Void
+    /// Leer la nota en voz alta.
+    var escuchar: () -> Void = {}
+    @ObservedObject var voz = LeerEnVoz.compartida
 
     var body: some View {
-        HStack(spacing: 8) {
-            AsaBarra()
-            Text("MD")
-                .font(.system(size: 10, weight: .bold))
-                .padding(.horizontal, 4).padding(.vertical, 1)
-                .overlay(RoundedRectangle(cornerRadius: 3).stroke(Color.white.opacity(0.5)))
-                .foregroundStyle(.white.opacity(0.8))
-            Text(estado.nombre)
-                .font(.system(size: 13))
-                .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
-                .lineLimit(1).truncationMode(.middle)
-                .frame(maxWidth: 260, alignment: .leading)
-                .fixedSize(horizontal: true, vertical: false)
-                .onTapGesture(count: 2) { orden("titulo") }
-            Divider().frame(height: 22)
-            BotonFlotante(simbolo: estado.leyendo ? "pencil" : "eye",
-                          ayuda: estado.leyendo ? "Editar" : "Ver sin escribir") {
-                orden(estado.leyendo ? "editar" : "leer")
-            }
+        BarraVisor(nombre: estado.nombre, ext: "md", renombrar: { orden("titulo") },
+                   fijar: { si in
+                       estado.encima = si
+                       ventana.ventana?.level = si ? .floating : .normal
+                   }) {
+            // Los de Windows (`notas_md::lector_web::botones`): leyendo, el
+            // lapiz; escribiendo, el ojo, deshacer y rehacer; y siempre
+            // buscar, los comentarios, compartir y el ⋯. Y escuchar.
+            BotonVerEditar(editando: !estado.leyendo) { orden(estado.leyendo ? "editar" : "leer") }
             if !estado.leyendo {
                 BotonFlotante(simbolo: "arrow.uturn.backward", ayuda: "Deshacer (⌘Z)") { orden("deshacer") }
                 BotonFlotante(simbolo: "arrow.uturn.forward", ayuda: "Rehacer (⇧⌘Z)") { orden("rehacer") }
             }
+            BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Leer en voz alta", encendido: voz.vivo,
+                          accion: escuchar)
             BotonFlotante(simbolo: "magnifyingglass", ayuda: "Buscar (⌘F)") { orden("buscar") }
             BotonFlotante(simbolo: "text.bubble", ayuda: "Comentarios", encendido: estado.comentarios) {
                 orden("comentarios")
             }
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") { orden("compartir") }
             BotonFlotante(simbolo: "ellipsis", ayuda: "Más") { orden("mas") }
-            Divider().frame(height: 22)
-            BotonFlotante(simbolo: estado.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
-                          encendido: estado.encima) {
-                estado.encima.toggle()
-                ventana.ventana?.level = estado.encima ? .floating : .normal
-            }
-            BotonFlotante(simbolo: "arrow.up.left.and.arrow.down.right", ayuda: "Pantalla completa (F11)") {
-                ventana.ventana?.toggleFullScreen(nil)
-            }
-            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar") { ventana.ventana?.performClose(nil) }
         }
-        .fixedSize()
     }
 }

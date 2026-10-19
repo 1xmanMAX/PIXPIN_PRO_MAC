@@ -641,48 +641,6 @@ public struct VentanaModeloView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Button { visor.encuadrar() } label: { Image(systemName: "arrow.up.left.and.arrow.down.right") }
-                    .help("Ver el modelo entero (F)")
-                Toggle("Aristas", isOn: $visor.aristas).toggleStyle(.button).help("Aristas (A)")
-                Toggle("Caja de sección", isOn: $visor.conCorte).toggleStyle(.button).help("Caja de sección (C)")
-                Button { visor.vista.map { visor.alternarTema(actual: $0.claro) } } label: {
-                    Image(systemName: (visor.claro ?? visor.datos?.croquis?.claro ?? false) ? "moon" : "sun.max")
-                }
-                .help("Fondo claro u oscuro (B)")
-                Button { visor.vista?.planta() } label: { Image(systemName: "square.grid.3x3.topleft.filled") }
-                    .help("Planta: desde arriba (P)")
-                Button(visor.filtro.aislado == nil ? "Aislar" : "Ver todo") { visor.aislar() }
-                    .disabled(visor.elegido == nil && visor.filtro.aislado == nil)
-                if !visor.vistas.isEmpty {
-                    Menu {
-                        ForEach(Array(visor.vistas.prefix(9).enumerated()), id: \.offset) { i, n in
-                            Button("\(i + 1)  \(n)") { visor.irAVista(i) }
-                        }
-                    } label: { Label("Vistas", systemImage: "camera.viewfinder") }
-                        .fixedSize()
-                        .help("Las vistas guardadas en el móvil (1–9)")
-                }
-                Spacer()
-                if let r = visor.datos?.resumen {
-                    Text("\(r.elementos) elementos").foregroundStyle(.secondary).font(.callout)
-                }
-                Button { visor.exportar() } label: { Image(systemName: "square.and.arrow.up") }
-                    .help("Exportar lo que se ve, con el original (⌘E)")
-                    .keyboardShortcut("e")
-                Toggle(isOn: Binding(get: { visor.siempreEncima }, set: { _ in visor.alternarEncima() })) {
-                    Image(systemName: visor.siempreEncima ? "pin.fill" : "pin")
-                }
-                .toggleStyle(.button)
-                .help("Siempre encima (T)")
-                Toggle(isOn: $visor.verPanel) { Image(systemName: "sidebar.right") }.toggleStyle(.button)
-                    .help("Niveles y categorías (L)")
-            }
-            .disabled(visor.datos == nil)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(.bar)
-            Divider()
             HStack(spacing: 0) {
                 contenido
                 if visor.verPanel && visor.datos != nil {
@@ -754,5 +712,41 @@ public struct VentanaModeloView: View {
             }
         }
         .listStyle(.sidebar)
+    }
+}
+
+
+/// **La barra del pin del modelo 3D** (la comun, `BarraVisor`).
+struct BarraModeloPin: View {
+    @ObservedObject var visor: VisorModelo3D
+
+    var body: some View {
+        let claro = visor.claro ?? visor.datos?.croquis?.claro ?? false
+        BarraVisor(nombre: visor.titulo, ext: visor.original?.pathExtension ?? "ifc",
+                   oscuro: !claro, alternarOscuro: { visor.vista.map { visor.alternarTema(actual: $0.claro) } },
+                   fijar: { si in if si != visor.siempreEncima { visor.alternarEncima() } }) {
+            BotonFlotante(simbolo: "viewfinder", ayuda: "Ver el modelo entero (F)") { visor.encuadrar() }
+            BotonFlotante(simbolo: "cube.transparent", ayuda: "Aristas (A)", encendido: visor.aristas) { visor.aristas.toggle() }
+            BotonFlotante(simbolo: "square.split.bottomrightquarter", ayuda: "Caja de sección (C)",
+                          encendido: visor.conCorte) { visor.conCorte.toggle() }
+            BotonFlotante(simbolo: "square.grid.3x3.topleft.filled", ayuda: "Planta: desde arriba (P)") { visor.vista?.planta() }
+            BotonFlotante(simbolo: visor.filtro.aislado == nil ? "scope" : "eye",
+                          ayuda: visor.filtro.aislado == nil ? "Aislar lo elegido" : "Ver todo",
+                          encendido: visor.filtro.aislado != nil) { visor.aislar() }
+            if !visor.vistas.isEmpty {
+                Menu {
+                    ForEach(Array(visor.vistas.prefix(9).enumerated()), id: \.offset) { i, n in
+                        Button("\(i + 1)  \(n)") { visor.irAVista(i) }
+                    }
+                } label: { Image(systemName: "camera.viewfinder") }
+                    .menuStyle(.button)
+                    .buttonStyle(.borderless)
+                    .frame(width: 40)
+                    .help("Las vistas guardadas en el móvil (1–9)")
+            }
+            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar lo que se ve, con el original (⌘E)") { visor.exportar() }
+            BotonFlotante(simbolo: "sidebar.right", ayuda: "Niveles y categorías (L)", encendido: visor.verPanel) { visor.verPanel.toggle() }
+        }
+        .disabled(visor.datos == nil)
     }
 }

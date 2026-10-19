@@ -348,35 +348,23 @@ struct BarraVisorHtml: View {
     @ObservedObject var modelo: ModeloVisorHtml
 
     var body: some View {
-        HStack(spacing: 8) {
-            AsaBarra()
-            Text(modelo.nota ?? modelo.nombre)
-                .font(.system(size: 13))
-                .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: 260, alignment: .leading)
-                .fixedSize(horizontal: true, vertical: false)
-            Divider().frame(height: 22)
+        BarraVisor(nombre: modelo.nota ?? modelo.nombre, ext: "html",
+                   fijar: { si in
+                       modelo.encima = si
+                       modelo.controlador?.ventana.level = si ? .floating : .normal
+                   },
+                   cerrar: { modelo.controlador?.cerrar() }) {
+            // Los de Windows (`visor_html::botones`): recargar, exportar y
+            // el navegador. Sin lapiz: una pagina web no se edita aqui.
             BotonFlotante(simbolo: "arrow.clockwise", ayuda: "Recargar (⌘R)") {
                 modelo.controlador?.recargar()
             }
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar (⌘E)") {
                 modelo.controlador?.exportar()
             }
-            BotonFlotante(simbolo: "safari", ayuda: "Abrir en el navegador") {
+            BotonFlotante(simbolo: "globe", ayuda: "Abrir en el navegador") {
                 modelo.controlador?.abrirEnElNavegador()
             }
-            BotonFlotante(simbolo: modelo.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
-                          encendido: modelo.encima) {
-                modelo.encima.toggle()
-                modelo.controlador?.ventana.level = modelo.encima ? .floating : .normal
-            }
-            BotonFlotante(simbolo: "arrow.up.left.and.arrow.down.right", ayuda: "Pantalla completa (F11)") {
-                modelo.controlador?.pantallaCompleta()
-            }
-            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar (⎋)") { modelo.controlador?.cerrar() }
         }
-        .fixedSize()
     }
 }

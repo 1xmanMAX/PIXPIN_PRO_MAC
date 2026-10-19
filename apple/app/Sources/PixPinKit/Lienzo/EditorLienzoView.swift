@@ -945,6 +945,7 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
     private struct Abierta {
         let ventana: NSWindow
         let modelo: ModeloEditorLienzo
+        let barra: BarraFlotante
     }
 
     private var abiertas: [String: Abierta] = [:]
@@ -1006,7 +1007,13 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         ventana.delegate = self
         ventana.identifier = NSUserInterfaceItemIdentifier(clave)
         ventana.collectionBehavior.insert(.fullScreenPrimary)
-        abiertas[clave] = Abierta(ventana: ventana, modelo: modelo)
+        // La barra del pin, la de todos los visores (`modo_ventana.rs` de
+        // Windows: «que use la misma barra que los pines»).
+        let barra = BarraFlotante(ventana: ventana) {
+            BarraVisor(nombre: titulo, ext: "excalidraw") { EmptyView() }
+        }
+        barra.empezar()
+        abiertas[clave] = Abierta(ventana: ventana, modelo: modelo, barra: barra)
         ventana.makeKeyAndOrderFront(nil)
         NSApp.activate()
         // Como se dejo el ultimo lienzo (F11 de Windows, `modo_ventana`).

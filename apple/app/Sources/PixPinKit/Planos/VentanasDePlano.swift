@@ -21,6 +21,8 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
     private struct Abierta {
         let ventana: NSWindow
         let visor: AnyObject
+        /// La barra del pin, fuera de la ventana.
+        let barra: BarraFlotante
     }
 
     private var abiertas: [String: Abierta] = [:]
@@ -58,10 +60,12 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         let clave = "2d|" + url.path
         if traerAlFrente(clave) { return }
         let visor = VisorPlano(ruta: url.path, titulo: titulo)
-        let vista = VentanaPlanoView(visor: visor) { [weak self] in
+        let vista = VentanaPlanoView(visor: visor, alVerEn3D: { [weak self] in
             self?.abrirModelo(url, titulo: titulo + " · 3D")
+        })
+        mostrar(NSHostingController(rootView: vista), visor: visor, clave: clave, titulo: titulo) {
+            BarraPlanoPin(visor: visor)
         }
-        mostrar(NSHostingController(rootView: vista), visor: visor, clave: clave, titulo: titulo)
         if let nucleo {
             visor.cargar(nucleo: nucleo)
         } else {
@@ -75,7 +79,9 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         if traerAlFrente(clave) { return }
         let visor = VisorModelo3D(ruta: url.path, titulo: titulo, nucleo: nucleo)
         visor.original = url
-        mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo)
+        mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo) {
+            BarraModeloPin(visor: visor)
+        }
         visor.cargar()
     }
 
@@ -89,7 +95,9 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         }
         // Al exportar, el `.croquis.gz` va como «Original».
         visor.original = nucleo.croquisDelChat(chat: chat, referencia: referencia).map { URL(fileURLWithPath: $0) }
-        mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo)
+        mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo) {
+            BarraModeloPin(visor: visor)
+        }
         visor.cargar()
     }
 
@@ -100,7 +108,8 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         return true
     }
 
-    private func mostrar(_ controlador: NSViewController, visor: AnyObject, clave: String, titulo: String) {
+    private func mostrar<B: View>(_ controlador: NSViewController, visor: AnyObject, clave: String, titulo: String,
+                                  @ViewBuilder barra: () -> B) {
         let ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
                                styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                backing: .buffered, defer: false)
@@ -116,7 +125,9 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         _ = ventana.setFrameAutosaveName("PixPinPlano")
         ventana.delegate = self
         ventana.identifier = NSUserInterfaceItemIdentifier(clave)
-        abiertas[clave] = Abierta(ventana: ventana, visor: visor)
+        let flotante = BarraFlotante(ventana: ventana, contenido: barra)
+        flotante.empezar()
+        abiertas[clave] = Abierta(ventana: ventana, visor: visor, barra: flotante)
         vigilarMemoria()
         ventana.makeKeyAndOrderFront(nil)
         NSApp.activate()
