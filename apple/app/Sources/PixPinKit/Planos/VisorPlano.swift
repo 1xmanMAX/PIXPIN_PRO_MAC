@@ -1114,6 +1114,9 @@ public struct VentanaPlanoView: View {
 /// plano mientras se anota (los de `EditorLienzoView`).
 private struct HerramientasDelPlano: View {
     @ObservedObject var modelo: ModeloEditorLienzo
+    /// Lo que bajan para no quedar debajo de la barra flotante del visor
+    /// (va dentro de la ventana cuando no cabe encima).
+    private let bajar = BarraFlotante.alto + 2 * BarraFlotante.separacion
 
     var body: some View {
         GeometryReader { geo in
@@ -1125,12 +1128,12 @@ private struct HerramientasDelPlano: View {
                         .onTapGesture { modelo.desplegado = nil }
                 }
                 BarraHerramientasLienzo(modelo: modelo, corte: corte)
-                    .padding(.top, MedidasBarraLienzo.distanciaBorde)
+                    .padding(.top, MedidasBarraLienzo.distanciaBorde + bajar)
                     .padding(.horizontal, MedidasBarraLienzo.distanciaBorde)
                 if modelo.hayElegidos || !HerramientaLienzo.sinEstilo.contains(modelo.herramienta) {
                     PanelEstiloLienzo(modelo: modelo)
                         .padding(.leading, MedidasBarraLienzo.distanciaBorde)
-                        .padding(.top, MedidasBarraLienzo.yPanel
+                        .padding(.top, MedidasBarraLienzo.yPanel + bajar
                                  + (filas - 1) * (MedidasBarraLienzo.lado + MedidasBarraLienzo.relleno))
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 }
