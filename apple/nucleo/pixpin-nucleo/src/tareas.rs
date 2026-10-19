@@ -451,6 +451,10 @@ impl Nucleo {
         }
         // Lo reconocido al escribir (Windows, 17-oct): prioridad, #etiquetas
         // y la hora de recordar salen del titulo y van como marcas.
+        // Las palabras de cada urgencia, las de Ajustes (`[tareas]`).
+        if let Ok(a) = pixpin_store::ajustes::cargar(&self.ubicacion()) {
+            frase::fijar(a.tareas.palabras());
+        }
         let entendida = frase::leer(&texto, frase::ahora(desfase_ms));
         let texto = if entendida.titulo.is_empty() { texto } else { entendida.texto() };
         let ficha = {

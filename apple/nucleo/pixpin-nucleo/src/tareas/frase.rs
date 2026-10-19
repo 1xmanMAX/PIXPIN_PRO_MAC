@@ -16,6 +16,8 @@
 //!   ni la fecha de creacion `➕`, que son de `pixpin_proyecto::mini`.
 
 #![forbid(unsafe_code)]
+// La copia de Windows: lo que el Mac aun no usa se queda igual.
+#![allow(dead_code)]
 
 use std::sync::RwLock;
 
@@ -50,6 +52,7 @@ pub fn leer(texto: &str, ahora: Momento) -> Frase {
 
 /// El texto que se guarda de lo escrito en una caja: lo entendido o, si no
 /// queda titulo ni hay imagenes (solo «#casa»), lo escrito tal cual.
+#[allow(dead_code)]
 pub fn a_guardar(escrito: &str, con_imagenes: bool, ahora: Momento) -> String {
     let f = leer(escrito, ahora);
     if f.titulo.is_empty() && !con_imagenes {
