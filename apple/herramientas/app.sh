@@ -82,16 +82,21 @@ derechos_ad_hoc() {
 # ejecutable: Claude Desktop o Claude Code lo arrancan con la ruta
 # `/Applications/PixPin.app/Contents/MacOS/pixpin-mcp` (docs/mcp.md).
 # Universal y firmado ad hoc antes que la app.
+# Y el puente de la extension del navegador (`nucleo/pixpin-puente`, lo
+# registra `herramientas/registrar-navegador.sh`).
 meter_mcp() {
-    local app="$1" perfil="${PIXPIN_PERFIL_MCP:-ffi-rapido}" piezas=()
-    echo "==> pixpin-mcp ($perfil, universal)"
-    for t in aarch64-apple-darwin x86_64-apple-darwin; do
-        (cd "$APPLE" && cargo build --quiet --profile "$perfil" -p pixpin-mcp --target "$t")
-        piezas+=("$APPLE/target/$t/$perfil/pixpin-mcp")
+    local app="$1" perfil="${PIXPIN_PERFIL_MCP:-ffi-rapido}"
+    for bin in pixpin-mcp pixpin-puente; do
+        local piezas=()
+        echo "==> $bin ($perfil, universal)"
+        for t in aarch64-apple-darwin x86_64-apple-darwin; do
+            (cd "$APPLE" && cargo build --quiet --profile "$perfil" -p "$bin" --target "$t")
+            piezas+=("$APPLE/target/$t/$perfil/$bin")
+        done
+        lipo -create "${piezas[@]}" -output "$app/Contents/MacOS/$bin"
+        adelgazar "$app/Contents/MacOS/$bin"
+        codesign --force --sign - --options runtime --timestamp=none "$app/Contents/MacOS/$bin"
     done
-    lipo -create "${piezas[@]}" -output "$app/Contents/MacOS/pixpin-mcp"
-    adelgazar "$app/Contents/MacOS/pixpin-mcp"
-    codesign --force --sign - --options runtime --timestamp=none "$app/Contents/MacOS/pixpin-mcp"
 }
 
 firmar_frameworks() {
