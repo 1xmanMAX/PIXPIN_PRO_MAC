@@ -6653,6 +6653,25 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func abrirNota(destino: DestinoNota, ingles: Bool) throws  -> SesionNota
     
     /**
+     * **Adjunta la hoja `hoja` del proyecto `desde` al chat `hacia`**
+     * (Clip → «Página de un proyecto»). `png`: la pagina ya pintada, si
+     * [`Nucleo::pagina_por_pintar`] lo pidio.
+     */
+    func adjuntarPagina(hacia: String, desde: String, hoja: String, png: Data?) throws  -> MensajeChat
+    
+    /**
+     * Si adjuntar esa hoja en `hacia` pide pintarla antes (una pagina del
+     * PDF de otro proyecto): que PDF y que hoja. `None`: no hace falta.
+     */
+    func paginaPorPintar(hacia: String, desde: String, hoja: String)  -> PaginaPorPintar?
+    
+    /**
+     * Las hojas de un proyecto que se pueden adjuntar (paginas de su PDF y
+     * lienzos), en su orden. Vacio si no tiene.
+     */
+    func paginasDeProyecto(proyecto: String)  -> [PaginaElegible]
+    
+    /**
      * **Abre un plano DWG o DXF** (por capas). Bloquea (un plano grande
      * tarda segundos): Swift lo llama desde una `Task` de prioridad
      * `.userInitiated`.
@@ -9482,6 +9501,54 @@ open func abrirNota(destino: DestinoNota, ingles: Bool)throws  -> SesionNota  {
             self.uniffiCloneHandle(),
         FfiConverterTypeDestinoNota_lower(destino),
         FfiConverterBool.lower(ingles),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Adjunta la hoja `hoja` del proyecto `desde` al chat `hacia`**
+     * (Clip → «Página de un proyecto»). `png`: la pagina ya pintada, si
+     * [`Nucleo::pagina_por_pintar`] lo pidio.
+     */
+open func adjuntarPagina(hacia: String, desde: String, hoja: String, png: Data?)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_adjuntar_pagina(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(hacia),
+        FfiConverterString.lower(desde),
+        FfiConverterString.lower(hoja),
+        FfiConverterOptionData.lower(png),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si adjuntar esa hoja en `hacia` pide pintarla antes (una pagina del
+     * PDF de otro proyecto): que PDF y que hoja. `None`: no hace falta.
+     */
+open func paginaPorPintar(hacia: String, desde: String, hoja: String) -> PaginaPorPintar?  {
+    return try!  FfiConverterOptionTypePaginaPorPintar.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_pagina_por_pintar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(hacia),
+        FfiConverterString.lower(desde),
+        FfiConverterString.lower(hoja),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Las hojas de un proyecto que se pueden adjuntar (paginas de su PDF y
+     * lienzos), en su orden. Vacio si no tiene.
+     */
+open func paginasDeProyecto(proyecto: String) -> [PaginaElegible]  {
+    return try!  FfiConverterSequenceTypePaginaElegible.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_paginas_de_proyecto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(proyecto),uniffiCallStatus
     )
 })
 }
@@ -23439,6 +23506,79 @@ public func FfiConverterTypePaginaDias_lower(_ value: PaginaDias) -> RustBuffer 
 
 
 /**
+ * Una hoja que se ofrece en el menu.
+ */
+public struct PaginaElegible: Equatable, Hashable {
+    public var hoja: String
+    /**
+     * «Pagina N».
+     */
+    public var numero: UInt32
+    /**
+     * Si es un lienzo (si no, una pagina del PDF).
+     */
+    public var esLienzo: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(hoja: String, 
+        /**
+         * «Pagina N».
+         */numero: UInt32, 
+        /**
+         * Si es un lienzo (si no, una pagina del PDF).
+         */esLienzo: Bool) {
+        self.hoja = hoja
+        self.numero = numero
+        self.esLienzo = esLienzo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaginaElegible: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaginaElegible: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaginaElegible {
+        return
+            try PaginaElegible(
+                hoja: FfiConverterString.read(from: &buf), 
+                numero: FfiConverterUInt32.read(from: &buf), 
+                esLienzo: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaginaElegible, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.hoja, into: &buf)
+        FfiConverterUInt32.write(value.numero, into: &buf)
+        FfiConverterBool.write(value.esLienzo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaElegible_lift(_ buf: RustBuffer) throws -> PaginaElegible {
+    return try FfiConverterTypePaginaElegible.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaElegible_lower(_ value: PaginaElegible) -> RustBuffer {
+    return FfiConverterTypePaginaElegible.lower(value)
+}
+
+
+/**
  * Una pagina de la galeria, de la mas nueva a la mas vieja.
  */
 public struct PaginaGaleria: Equatable, Hashable {
@@ -23861,6 +24001,69 @@ public func FfiConverterTypePaginaOffice_lift(_ buf: RustBuffer) throws -> Pagin
 #endif
 public func FfiConverterTypePaginaOffice_lower(_ value: PaginaOffice) -> RustBuffer {
     return FfiConverterTypePaginaOffice.lower(value)
+}
+
+
+/**
+ * La pagina de otro proyecto que hay que pintar antes de adjuntarla.
+ */
+public struct PaginaPorPintar: Equatable, Hashable {
+    public var pdf: String
+    /**
+     * Desde 0.
+     */
+    public var pagina: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(pdf: String, 
+        /**
+         * Desde 0.
+         */pagina: UInt32) {
+        self.pdf = pdf
+        self.pagina = pagina
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaginaPorPintar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaginaPorPintar: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaginaPorPintar {
+        return
+            try PaginaPorPintar(
+                pdf: FfiConverterString.read(from: &buf), 
+                pagina: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaginaPorPintar, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.pdf, into: &buf)
+        FfiConverterUInt32.write(value.pagina, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaPorPintar_lift(_ buf: RustBuffer) throws -> PaginaPorPintar {
+    return try FfiConverterTypePaginaPorPintar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaPorPintar_lower(_ value: PaginaPorPintar) -> RustBuffer {
+    return FfiConverterTypePaginaPorPintar.lower(value)
 }
 
 
@@ -35120,6 +35323,30 @@ fileprivate struct FfiConverterOptionTypePaginaOffice: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypePaginaPorPintar: FfiConverterRustBuffer {
+    typealias SwiftType = PaginaPorPintar?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePaginaPorPintar.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePaginaPorPintar.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePensadoIa: FfiConverterRustBuffer {
     typealias SwiftType = PensadoIa?
 
@@ -37345,6 +37572,31 @@ fileprivate struct FfiConverterSequenceTypeOpcionMencionIa: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeOpcionMencionIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePaginaElegible: FfiConverterRustBuffer {
+    typealias SwiftType = [PaginaElegible]
+
+    public static func write(_ value: [PaginaElegible], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePaginaElegible.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PaginaElegible] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PaginaElegible]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePaginaElegible.read(from: &buf))
         }
         return seq
     }
@@ -40794,6 +41046,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_nota() != 49902) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar_pagina() != 10980) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_pagina_por_pintar() != 21214) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_paginas_de_proyecto() != 1839) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_plano() != 5693) {

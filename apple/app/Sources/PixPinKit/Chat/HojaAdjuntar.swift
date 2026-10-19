@@ -8,8 +8,7 @@
 // las flechas mueven lo elegido, Intro lo hace y Esc limpia el buscador o,
 // vacio, cierra.
 //
-// Las entradas que el Mac aun no tiene (la pagina de un proyecto) salen
-// apagadas y, pulsadas, lo dicen. Conversacion, Teleprónter y Pronunciar
+// Todas las entradas de Windows estan ya en el Mac. Conversacion, Teleprónter y Pronunciar
 // abren sus ventanitas de la voz (`VozVentanas/`, E5).
 
 import AppKit
@@ -27,7 +26,6 @@ enum AccionAdjuntar: Hashable, Sendable {
     /// Si el Mac ya la hace. Las que no, salen apagadas.
     var enElMac: Bool {
         switch self {
-        case .pagina: false
         default: true
         }
     }
@@ -380,8 +378,7 @@ enum AdjuntarEnChat {
         case .proyecto:
             elegirProyecto(chat: chat, almacen: almacen, avisar: avisar)
         case .pagina:
-            let rotulo = HojaAdjuntar.opciones.first { $0.accion == accion }?.rotulo ?? ""
-            avisar("«\(rotulo)» aún no está en el Mac")
+            elegirPagina(chat: chat, almacen: almacen, avisar: avisar)
         }
     }
 
@@ -403,6 +400,40 @@ enum AdjuntarEnChat {
                 }
             })
         }
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
+    /// «Página de un proyecto» (Windows): el proyecto y luego su hoja. Una
+    /// pagina del PDF de otro proyecto se pinta aqui con PDFKit.
+    private static func elegirPagina(chat: String, almacen: Almacen, avisar: @escaping (String) -> Void) {
+        let nucleo = almacen.nucleo
+        let menu = NSMenu()
+        for f in almacen.chats where !f.esAsistente {
+            let hojas = nucleo.paginasDeProyecto(proyecto: f.id)
+            guard !hojas.isEmpty else { continue }
+            let item = NSMenuItem(title: f.nombre, action: nil, keyEquivalent: "")
+            let sub = NSMenu()
+            for h in hojas {
+                sub.addItem(ItemConAccion.nuevo("\(h.esLienzo ? "✏️" : "📄") Página \(h.numero)") {
+                    Task {
+                        var png: Data?
+                        if let p = nucleo.paginaPorPintar(hacia: chat, desde: f.id, hoja: h.hoja) {
+                            png = ManosDelAsistente.pintar(URL(fileURLWithPath: p.pdf), pagina: Int(p.pagina), ancho: 1400)
+                            if png == nil { return avisar("No se pudo pintar esa página") }
+                        }
+                        let png2 = png
+                        guard let m = try? await Task.detached(operation: {
+                            try nucleo.adjuntarPagina(hacia: chat, desde: f.id, hoja: h.hoja, png: png2)
+                        }).value else { return avisar("No se pudo adjuntar esa página") }
+                        almacen.anadir([m], en: chat)
+                        NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                    }
+                })
+            }
+            item.submenu = sub
+            menu.addItem(item)
+        }
+        guard !menu.items.isEmpty else { return avisar("Ningún proyecto tiene páginas") }
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 

@@ -81,6 +81,8 @@ pub mod lienzo;
 pub mod lienzo_suelto;
 // El horario de clases que llama (Windows, 17-oct).
 pub mod horario;
+// Clip → «Página de un proyecto» (Windows, `ventana_chat/paginas.rs`).
+pub mod paginas;
 pub mod llamada;
 pub mod llavero;
 pub mod mini_tiempos;
