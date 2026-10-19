@@ -268,6 +268,8 @@ struct AccionesDeFichero: ViewModifier {
     }
 
     private func abrir() {
+        // Una foto se abre en su lienzo, como en Windows y el movil.
+        if let anotar { anotar(); return }
         // Un plano o un modelo 3D va a su visor (Metal).
         if FileManager.default.fileExists(atPath: url.path),
            VentanasDePlano.compartidas.abrirSiEsSuyo(url, titulo: nombre) {

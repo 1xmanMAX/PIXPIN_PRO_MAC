@@ -325,6 +325,16 @@ public struct VentanaTareas: View {
     /// Donde se apunta: vacio el Inbox, o una asignatura (Windows, 18-oct).
     @State private var destino = ""
 
+    /// La lista que pidio el chat antes de que la ventana existiera.
+    static var listaPedida: String?
+
+    private func irALista(_ nombre: String?) {
+        guard let nombre else { return }
+        VentanaTareas.listaPedida = nil
+        modelo.busqueda = nombre
+        vista = .porLista
+    }
+
     public init(almacen: Almacen) {
         _modelo = StateObject(wrappedValue: ModeloTareas(nucleo: almacen.nucleo))
     }
@@ -406,6 +416,8 @@ public struct VentanaTareas: View {
         }
         .ventanaConCabecera()
         .task { await modelo.cargar() }
+        .onAppear { irALista(VentanaTareas.listaPedida) }
+        .onReceive(NotificationCenter.default.publisher(for: .pixpinAbrirListaTareas)) { irALista($0.object as? String) }
         .frame(minWidth: 480, minHeight: 400)
     }
 

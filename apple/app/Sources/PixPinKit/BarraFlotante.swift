@@ -22,6 +22,8 @@ public final class BarraFlotante {
     static let espera: TimeInterval = 0.6
     /// Lo que se separa de la ventana.
     nonisolated static let separacion: CGFloat = 6
+    /// Alto de la barra (Windows: compacta, cabe mas contenido).
+    nonisolated static let alto: CGFloat = 36
 
     private let panel: NSPanel
     private let anfitrion: NSView
@@ -44,10 +46,10 @@ public final class BarraFlotante {
         panel.appearance = NSAppearance(named: .darkAqua)
         let raiz = contenido()
             .environment(\.colorScheme, .dark)
-            .padding(.horizontal, 6)
-            .frame(height: 48)
+            .padding(.horizontal, 4)
+            .frame(height: BarraFlotante.alto)
             .background(Color(red: 0.118, green: 0.118, blue: 0.125, opacity: 0.97),
-                        in: RoundedRectangle(cornerRadius: 14))
+                        in: RoundedRectangle(cornerRadius: 10))
             .environment(\.ventanaDeLaBarra, RefVentana(ventana))
         let h = NSHostingView(rootView: raiz)
         h.safeAreaRegions = []
@@ -148,7 +150,7 @@ public struct AsaBarra: View {
         Image(systemName: "line.3.horizontal")
             .font(.system(size: 13))
             .foregroundStyle(Color(white: 0.78))
-            .frame(width: 22, height: 40)
+            .frame(width: 18, height: 28)
             .contentShape(Rectangle())
             .help("Mover")
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)
@@ -167,7 +169,7 @@ public struct AsaBarra: View {
     }
 }
 
-/// Un boton de la barra flotante: 40 x 40, icono claro, fondo blanco al
+/// Un boton de la barra flotante: 28 x 28, icono claro, fondo blanco al
 /// 12 % con el raton encima; encendido, azul (el pin fijado).
 public struct BotonFlotante: View {
     let simbolo: String
@@ -187,11 +189,11 @@ public struct BotonFlotante: View {
         Button(action: accion) {
             Label(ayuda, systemImage: simbolo)
                 .labelStyle(.iconOnly)
-                .font(.system(size: 15))
+                .font(.system(size: 12.5))
                 .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
-                .frame(width: 40, height: 40)
+                .frame(width: 28, height: 28)
                 .background {
-                    RoundedRectangle(cornerRadius: 10)
+                    RoundedRectangle(cornerRadius: 7)
                         .fill(encendido ? Color(red: 0, green: 0.376, blue: 0.875)
                               : encima ? Color.white.opacity(0.12) : .clear)
                 }

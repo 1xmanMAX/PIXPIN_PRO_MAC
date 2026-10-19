@@ -205,7 +205,12 @@ final class RielMarcasNS: NSView {
     /// reflujado pone su tanto por ciento).
     var rotulo: (MarcaDocumento) -> String = { m in "\(m.emoji)  pág. \(Int(m.y) + 1)" } { didSet { rehacer() } }
     private var zonas: [(NSRect, MarcaDocumento)] = []
+    /// El marcador con el raton encima: salta (crece y sale su rotulo).
+    private var encima: Int? { didSet { if encima != oldValue { needsDisplay = true } } }
     static let lado: CGFloat = 22
+    /// Ancho de la vista: el marcador a la derecha y sitio para que salte y
+    /// ensene su rotulo sin cortarse.
+    static let ancho: CGFloat = 170
 
     override var isFlipped: Bool { true }
 
@@ -219,34 +224,67 @@ final class RielMarcasNS: NSView {
         rehacer()
     }
 
-    /// Donde cae cada marcador: su fraccion del documento a lo alto.
-    static func zonas(marcas: [MarcaDocumento], paginas: Int, alto: CGFloat) -> [NSRect] {
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseMoved, .mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+                                       owner: self))
+    }
+
+    override func mouseMoved(with event: NSEvent) {
+        let p = convert(event.locationInWindow, from: nil)
+        encima = zonas.firstIndex { $0.0.insetBy(dx: -3, dy: -3).contains(p) }
+    }
+
+    override func mouseExited(with event: NSEvent) { encima = nil }
+
+    /// Donde cae cada marcador: su fraccion del documento a lo alto, pegado
+    /// a la derecha de la vista (que mide `ancho`).
+    static func zonas(marcas: [MarcaDocumento], paginas: Int, alto: CGFloat, ancho: CGFloat = lado) -> [NSRect] {
         guard paginas > 0 else { return [] }
         let util = max(alto - 2 * lado, 1)
         return marcas.map { m in
             let f = min(max(CGFloat(m.y) / CGFloat(paginas), 0), 1)
-            return NSRect(x: 0, y: lado / 2 + f * util, width: lado, height: lado)
+            return NSRect(x: ancho - lado - 4, y: lado / 2 + f * util, width: lado, height: lado)
         }
     }
 
     private func rehacer() {
-        removeAllToolTips()
-        let r = RielMarcasNS.zonas(marcas: marcas, paginas: paginas, alto: bounds.height)
+        let r = RielMarcasNS.zonas(marcas: marcas, paginas: paginas, alto: bounds.height, ancho: bounds.width)
         zonas = Array(zip(r, marcas))
-        for (i, (z, m)) in zonas.enumerated() {
-            addToolTip(z, owner: "\(rotulo(m))\(i < 9 ? "  (⌘\(i + 1))" : "")" as NSString,
-                       userData: nil)
-        }
+        if let e = encima, e >= zonas.count { encima = nil }
         needsDisplay = true
     }
 
     override func draw(_ dirtyRect: NSRect) {
-        for (z, m) in zonas where z.intersects(dirtyRect) {
-            NSColor(white: 0.12, alpha: 0.55).setFill()
-            NSBezierPath(ovalIn: z.insetBy(dx: -2, dy: -2)).fill()
-            (m.emoji as NSString).draw(in: z.offsetBy(dx: 2, dy: 1),
-                                       withAttributes: [.font: NSFont.systemFont(ofSize: 14)])
+        for (i, (z, m)) in zonas.enumerated() where i != encima {
+            pintar(m, en: z, grande: false)
         }
+        // El de encima, al final (por encima de los demas), grande y con su rotulo.
+        if let e = encima, e < zonas.count {
+            let (z, m) = zonas[e]
+            let g = z.insetBy(dx: -6, dy: -6).offsetBy(dx: -8, dy: 0)
+            pintar(m, en: g, grande: true)
+            let texto = "\(rotulo(m))\(e < 9 ? "  ⌘\(e + 1)" : "")" as NSString
+            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                                                      .foregroundColor: NSColor.white]
+            let t = texto.size(withAttributes: atr)
+            let globo = NSRect(x: max(2, g.minX - t.width - 18), y: g.midY - t.height / 2 - 4,
+                               width: t.width + 14, height: t.height + 8)
+            NSColor(white: 0.1, alpha: 0.88).setFill()
+            NSBezierPath(roundedRect: globo, xRadius: 7, yRadius: 7).fill()
+            texto.draw(at: NSPoint(x: globo.minX + 7, y: globo.minY + 4), withAttributes: atr)
+        }
+    }
+
+    private func pintar(_ m: MarcaDocumento, en z: NSRect, grande: Bool) {
+        NSColor(white: 0.12, alpha: grande ? 0.85 : 0.55).setFill()
+        NSBezierPath(ovalIn: z).fill()
+        let tam: CGFloat = grande ? 20 : 13
+        let e = m.emoji as NSString
+        let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: tam)]
+        let s = e.size(withAttributes: atr)
+        e.draw(at: NSPoint(x: z.midX - s.width / 2, y: z.midY - s.height / 2), withAttributes: atr)
     }
 
     override func mouseDown(with event: NSEvent) {

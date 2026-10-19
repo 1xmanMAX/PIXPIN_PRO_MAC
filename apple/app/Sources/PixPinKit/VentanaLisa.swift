@@ -18,6 +18,7 @@
 
 import AppKit
 import SwiftUI
+import WebKit
 
 @MainActor
 public enum VentanaLisa {
@@ -51,6 +52,30 @@ public enum VentanaLisa {
             ventana.removeTitlebarAccessoryViewController(at: i)
         }
         vestir(ventana, botones: false)
+        // Sin la franja blanca de arriba: lo de dentro no deja hueco para
+        // la barra del titulo (que no se ve). Otra vez al montar el contenido.
+        quitarFranja(ventana)
+        DispatchQueue.main.async { quitarFranja(ventana) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { quitarFranja(ventana) }
+    }
+
+    /// Que el contenido llegue hasta arriba del todo: las listas y el PDF no
+    /// se apartan de la barra del titulo, ni las paginas web ni SwiftUI.
+    static func quitarFranja(_ ventana: NSWindow) {
+        guard let raiz = ventana.contentView else { return }
+        let alto = max(0, ventana.frame.height - ventana.contentLayoutRect.height)
+        raiz.additionalSafeAreaInsets = NSEdgeInsets(top: -alto, left: 0, bottom: 0, right: 0)
+        func recorrer(_ v: NSView) {
+            if let s = v as? NSScrollView, s.automaticallyAdjustsContentInsets {
+                s.automaticallyAdjustsContentInsets = false
+                s.contentInsets = NSEdgeInsetsZero
+            }
+            if let w = v as? WKWebView {
+                if #available(macOS 26.0, *) { w.obscuredContentInsets = NSEdgeInsetsZero }
+            }
+            v.subviews.forEach(recorrer)
+        }
+        recorrer(raiz)
     }
 
     /// **⎋ de los visores**: a pantalla completa, el primero sale de ella; si

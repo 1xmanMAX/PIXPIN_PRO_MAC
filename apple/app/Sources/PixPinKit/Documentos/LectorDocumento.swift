@@ -361,7 +361,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             negro.topAnchor.constraint(equalTo: contenedor.topAnchor),
             negro.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
             riel.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor, constant: -18),
-            riel.widthAnchor.constraint(equalToConstant: RielMarcasNS.lado),
+            riel.widthAnchor.constraint(equalToConstant: RielMarcasNS.ancho),
             riel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: 40),
             riel.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor, constant: -40),
             arriba.centerXAnchor.constraint(equalTo: contenedor.centerXAnchor),

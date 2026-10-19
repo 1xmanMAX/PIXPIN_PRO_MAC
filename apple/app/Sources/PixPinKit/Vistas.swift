@@ -557,6 +557,8 @@ struct Burbuja: View {
             // «TABLA» siempre es tabla; una «MINIAPP» solo si lo que trae lo es.
             case "TABLA":
                 BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)
+            case "MINIAPP" where BurbujaTareas.esTareas(mensaje):
+                BurbujaTareas(mensaje: mensaje)
             case "MINIAPP" where BurbujaTabla.esTabla(mensaje):
                 BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)
             case "IMAGEN" where mensaje.ruta != nil:

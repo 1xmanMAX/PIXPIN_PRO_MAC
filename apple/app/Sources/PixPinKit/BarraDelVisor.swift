@@ -72,10 +72,10 @@ struct CuadroDeTipo: View {
         let f = ColorDeExtension.de(ext)
         RoundedRectangle(cornerRadius: 5)
             .fill(ColorDeExtension.color(f))
-            .frame(width: 24, height: 24)
+            .frame(width: 19, height: 19)
             .overlay {
                 Text(ColorDeExtension.rotulo(ext))
-                    .font(.system(size: 9.5, weight: .semibold))
+                    .font(.system(size: 8, weight: .semibold))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
                     .padding(.horizontal, 2)
@@ -119,21 +119,21 @@ public struct BarraVisor<Propios: View>: View {
     }
 
     public var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 2) {
             AsaBarra()
             Button { renombrar?() } label: {
                 HStack(spacing: 7) {
                     if !ext.isEmpty { CuadroDeTipo(ext: ext) }
                     Text(nombre)
-                        .font(.system(size: 13))
+                        .font(.system(size: 12))
                         .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
                         .lineLimit(1)
                         .truncationMode(.middle)
-                        .frame(maxWidth: 260, alignment: .leading)
+                        .frame(maxWidth: 220, alignment: .leading)
                         .fixedSize(horizontal: true, vertical: false)
                 }
                 .padding(.horizontal, 8)
-                .frame(height: 40)
+                .frame(height: 28)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

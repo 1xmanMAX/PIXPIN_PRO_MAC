@@ -466,3 +466,72 @@ struct PieDelMovil: View {
         VentanasDeLienzo.compartidas.abrir(referencia: id, en: chat, titulo: titulo, almacen: almacen)
     }
 }
+
+// MARK: - Lista de tareas (MINIAPP «tareas»)
+
+/// Una lista de tareas del movil o de Windows: una ficha con su nombre y lo
+/// hecho («3 de 7»), como `fila_de_fichero` de Windows. Pulsarla abre la
+/// ventana de Tareas en esa lista.
+struct BurbujaTareas: View {
+    let mensaje: MensajeChat
+    @Environment(\.escalaChat) private var escala
+    @Environment(\.openWindow) private var abrirVentana
+
+    static func esTareas(_ m: MensajeChat) -> Bool { m.miniapp == "tareas" }
+
+    /// Las tareas del texto (`- [ ]` / `- [x]`): hechas y total.
+    static func cuenta(_ texto: String) -> (hechas: Int, total: Int) {
+        var h = 0, t = 0
+        for l in texto.split(separator: "\n") {
+            let s = l.trimmingCharacters(in: .whitespaces).lowercased()
+            if s.hasPrefix("- [ ]") || s.hasPrefix("* [ ]") { t += 1 }
+            else if s.hasPrefix("- [x]") || s.hasPrefix("* [x]") { t += 1; h += 1 }
+        }
+        return (h, t)
+    }
+
+    private var nombre: String {
+        if !mensaje.nombre.isEmpty { return mensaje.nombre }
+        let primera = mensaje.texto.split(separator: "\n").first.map(String.init) ?? ""
+        let limpia = primera.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
+        return limpia.isEmpty ? "Tareas" : limpia
+    }
+
+    var body: some View {
+        let c = Self.cuenta(mensaje.texto)
+        HStack(spacing: 10 * escala) {
+            Image(systemName: "checklist")
+                .font(.system(size: 24 * escala))
+                .foregroundStyle(Color.accentColor)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(nombre).font(.system(size: 13 * escala, weight: .semibold))
+                Text(c.total == 0 ? "Lista de tareas · vacía" : "Lista de tareas · \(c.hechas) de \(c.total)")
+                    .font(.system(size: 11 * escala)).foregroundStyle(.secondary)
+                if c.total > 0 {
+                    ProgressView(value: Double(c.hechas), total: Double(c.total))
+                        .frame(width: 140 * escala)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+        .contentShape(Rectangle())
+        .onTapGesture { abrir() }
+        .help("Abrir la lista en Tareas")
+        .contextMenu {
+            EntradasDeMensaje {
+                Button { abrir() } label: { Label("Abrir en Tareas", systemImage: "checklist") }
+            }
+        }
+    }
+
+    private func abrir() {
+        VentanaTareas.listaPedida = nombre
+        abrirVentana(id: IdVentana.tareas)
+        NotificationCenter.default.post(name: .pixpinAbrirListaTareas, object: nombre)
+    }
+}
+
+extension Notification.Name {
+    /// Abrir la ventana de Tareas en una lista (su nombre en `object`).
+    static let pixpinAbrirListaTareas = Notification.Name("PixPinAbrirListaTareas")
+}

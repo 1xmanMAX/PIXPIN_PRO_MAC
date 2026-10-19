@@ -110,6 +110,8 @@ final class HerramientasDeTinta {
         let arribaPanel = panel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: MedidasBarraLienzo.yPanel)
         NSLayoutConstraint.activate([
             barra.centerXAnchor.constraint(equalTo: contenedor.centerXAnchor),
+            barra.widthAnchor.constraint(lessThanOrEqualTo: contenedor.widthAnchor, constant: -16),
+            panel.bottomAnchor.constraint(lessThanOrEqualTo: contenedor.bottomAnchor, constant: -8),
             arriba,
             panel.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor, constant: MedidasBarraLienzo.distanciaBorde),
             arribaPanel,
@@ -119,8 +121,8 @@ final class HerramientasDeTinta {
         // bajan lo que mide para que no las tape.
         let colocar: @MainActor () -> Void = { [weak contenedor] in
             guard let v = contenedor?.window, let pantalla = v.screen else { return }
-            let dentro = v.frame.maxY + BarraFlotante.separacion + 48 > pantalla.visibleFrame.maxY
-            let baja: CGFloat = dentro ? 48 + BarraFlotante.separacion : 0
+            let dentro = v.frame.maxY + BarraFlotante.separacion + BarraFlotante.alto > pantalla.visibleFrame.maxY
+            let baja: CGFloat = dentro ? BarraFlotante.alto + BarraFlotante.separacion : 0
             arriba.constant = MedidasBarraLienzo.distanciaBorde + baja
             arribaPanel.constant = MedidasBarraLienzo.yPanel + baja
         }
@@ -143,8 +145,13 @@ private struct BarraDeTinta: View {
 
     var body: some View {
         if lector.anotando, let m = herramientas.modelo {
-            BarraHerramientasLienzo(modelo: m, botones: BotonBarraLienzo.barraDelLector,
-                                    corte: BotonBarraLienzo.barraDelLector.count)
+            // En una ventana estrecha no se corta: se desliza de lado.
+            let barra = BarraHerramientasLienzo(modelo: m, botones: BotonBarraLienzo.barraDelLector,
+                                                corte: BotonBarraLienzo.barraDelLector.count)
+            ViewThatFits(in: .horizontal) {
+                barra
+                ScrollView(.horizontal, showsIndicators: false) { barra.padding(.horizontal, 2) }
+            }
         }
     }
 }
@@ -154,7 +161,13 @@ private struct PanelDeTinta: View {
     let herramientas: HerramientasDeTinta
 
     var body: some View {
-        if lector.anotando, let m = herramientas.modelo { PanelSiDibuja(modelo: m) }
+        if lector.anotando, let m = herramientas.modelo {
+            // Si no cabe a lo alto, se desliza en vez de cortarse.
+            ViewThatFits(in: .vertical) {
+                PanelSiDibuja(modelo: m)
+                ScrollView(.vertical, showsIndicators: false) { PanelSiDibuja(modelo: m) }
+            }
+        }
     }
 }
 
