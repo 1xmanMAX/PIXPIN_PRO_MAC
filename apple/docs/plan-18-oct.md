@@ -61,6 +61,22 @@ nota de archivos con su fecha. El aspecto de la tabla de una foto
 Pruebas al acabar: 551 de Swift, 429 del nucleo, 447 de pixpin-ia, 17 del
 MCP, todas en verde; la app montada, instalada en /Applications y arrancada.
 
+### Estado (noche del 18-oct, segunda tanda)
+
+Windows avanzo otros 18 commits (hasta `0de0eef`); ya en el Mac:
+`pixpin-frase` (urgencia en vez de prioridad, mismos emoticonos), el horario
+nuevo (ventana semanal, «avisar N», asignaturas como listas de tareas),
+Google Calendar (avisos y `ver_calendario`) y la pagina nueva de la nota.
+Ademas: imagenes en una tarea, el PDF con la tinta quemada al compartir,
+el aspecto de la tabla de una foto y la extension del navegador
+(`nucleo/pixpin-puente`, `extension-navegador/`,
+`herramientas/registrar-navegador.sh`).
+
+Queda: **hoja → lienzo** del asistente (`hoja_a_lienzo.rs` de Windows, unas
+1.500 lineas): hace falta llevar al lienzo del chat las fotos recortadas de
+cada zona y pintar lo hecho para compararlo; con PDFKit y Vision ya hay
+con que leer la hoja.
+
 ## Cómo se prueba
 
 `cargo test -p <crate>` en `apple/`, `swift build` y `swift test` en
