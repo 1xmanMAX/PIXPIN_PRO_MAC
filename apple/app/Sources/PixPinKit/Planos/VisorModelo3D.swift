@@ -93,7 +93,7 @@ public final class VisorModelo3D: ObservableObject {
     /// El fondo elegido con B (`nil`: el del croquis o el del sistema).
     @Published public private(set) var claro: Bool?
     /// El panel (niveles, categorias, lo elegido): L.
-    @Published public var verPanel = true
+    @Published public var verPanel = false
     /// Siempre encima (T).
     @Published public private(set) var siempreEncima = false
     /// Las vistas guardadas del croquis (1 a 9).
@@ -641,11 +641,11 @@ public struct VentanaModeloView: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
+            ZStack {
                 contenido
+                // Niveles y categorias, un menu flotante al pulsar su boton.
                 if visor.verPanel && visor.datos != nil {
-                    Divider()
-                    panel.frame(width: 260)
+                    PanelFlotantePlano { panel.listStyle(.plain).scrollContentBackground(.hidden) }
                 }
             }
         }

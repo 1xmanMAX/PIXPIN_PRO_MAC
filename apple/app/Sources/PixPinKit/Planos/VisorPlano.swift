@@ -58,7 +58,7 @@ public final class VisorPlano: ObservableObject {
     /// Siempre encima (T).
     @Published public private(set) var siempreEncima = false
     /// El panel de las capas a la derecha.
-    @Published public var verCapas = true
+    @Published public var verCapas = false
     /// El buscador de textos (⌘F) a la vista, lo hallado y si se busca.
     @Published public var buscando = false
     @Published public private(set) var hallados: [TextoHallado] = []
@@ -1021,10 +1021,10 @@ public struct VentanaPlanoView: View {
                         HerramientasDelPlano(modelo: a.modelo)
                     }
                     if visor.buscando { busqueda.padding(10).frame(maxWidth: .infinity, alignment: .topTrailing) }
-                }
-                if visor.verCapas && visor.datos != nil {
-                    Divider()
-                    panelCapas.frame(width: 230)
+                    // Las capas, un menu flotante (no una columna fija).
+                    if visor.verCapas && visor.datos != nil {
+                        PanelFlotantePlano(alto: min(380, 52 + CGFloat(visor.capas.count) * 26)) { panelCapas }
+                    }
                 }
             }
         }
@@ -1105,7 +1105,8 @@ public struct VentanaPlanoView: View {
                 }
                 .toggleStyle(.checkbox)
             }
-            .listStyle(.sidebar)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
     }
 }
@@ -1240,5 +1241,24 @@ struct BarraPlanoPin: View {
             BotonFlotante(simbolo: "square.3.layers.3d", ayuda: "Capas", encendido: visor.verCapas) { visor.verCapas.toggle() }
         }
         .disabled(visor.datos == nil)
+    }
+}
+
+/// Un panel que flota arriba a la derecha, bajo la barra del visor: las
+/// capas del plano o los niveles del modelo, solo al pedirlos.
+struct PanelFlotantePlano<Contenido: View>: View {
+    var alto: CGFloat = 380
+    @ViewBuilder let contenido: () -> Contenido
+
+    var body: some View {
+        contenido()
+            .frame(width: 240)
+            .frame(height: alto)
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.separator))
+            .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+            .padding(.top, BarraFlotante.alto + 2 * BarraFlotante.separacion)
+            .padding(.trailing, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
     }
 }
