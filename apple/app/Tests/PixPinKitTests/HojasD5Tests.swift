@@ -70,6 +70,8 @@ final class HojasD5Tests: XCTestCase {
         XCTAssertEqual(hoja.contenido(fila: 2, columna: 1), "40")
 
         let c = ControladorHoja(hoja: hoja, titulo: "datos.csv")
+        // Abre para ver, como en Windows: el lapiz de la barra pasa a editar.
+        c.ponerEditando(true)
         // A1:B3 en negrita de una vez, y un deshacer lo quita todo.
         hoja.elegir(s: SeleccionHoja(anclaFila: 0, anclaColumna: 0, fila: 2, columna: 1))
         c.hacer(.formato(.negrita))
