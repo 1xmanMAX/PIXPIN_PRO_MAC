@@ -45,6 +45,22 @@ nota de archivos con su fecha. El aspecto de la tabla de una foto
 - G5 Compartir desde los lectores, PDF anotado.
 - G6 E8: MCP y extensión del navegador.
 
+### Estado (18-oct, fin del grupo G)
+
+- G1: hecho con F5 (buscar, mover, borrar con deshacer, F2). Falta pegar
+  imagenes en la tarea.
+- G2: hecho (marcar lo elegido con Live Text: resaltar, subrayar, tachar,
+  tapar).
+- G3: «Unir PDF» hecho («Anotar encima» ya estaba).
+- G4: «Proyecto entero» hecho; falta «Página de un proyecto» (`paginas`).
+- G5: Compartir (hoja comun) en el lector y el visor reflujado. Falta el PDF
+  con la tinta quemada.
+- G6: MCP hecho (`nucleo/pixpin-mcp`, dentro de la app, `docs/mcp.md`). La
+  extension del navegador queda.
+
+Pruebas al acabar: 551 de Swift, 429 del nucleo, 447 de pixpin-ia, 17 del
+MCP, todas en verde; la app montada, instalada en /Applications y arrancada.
+
 ## Cómo se prueba
 
 `cargo test -p <crate>` en `apple/`, `swift build` y `swift test` en
