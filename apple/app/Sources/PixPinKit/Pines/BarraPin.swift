@@ -70,7 +70,7 @@ enum ReglasBarra {
     /// Las piezas de la barra de un tipo de pin, en orden.
     static func piezas(_ t: TipoBarraPin) -> [PiezaBarra] {
         if t.anotando {
-            var v = HerramientaAnotacion.allCases.map { PiezaBarra.boton(.herramienta($0)) }
+            var v = HerramientaAnotacion.deBarra.map { PiezaBarra.boton(.herramienta($0)) }
             v.append(.separador)
             v += ReglasAnotacion.colores.indices.map { PiezaBarra.boton(.color($0)) }
             v += [.separador, .boton(.deshacer), .boton(.fijar), .separador, .boton(.listo)]

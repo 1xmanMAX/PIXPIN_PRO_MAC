@@ -19,6 +19,15 @@ import CoreText
 /// Con que se anota.
 enum HerramientaAnotacion: String, CaseIterable, Equatable {
     case lapiz, flecha, rectangulo, texto, marcador
+    /// Las marcas sobre el texto reconocido (Windows, `marcas_texto.rs`):
+    /// no son de la barra; las pone el menu con texto elegido.
+    case resaltado, subrayado, tachado, tapado
+
+    /// Las de la barra y las teclas 1-5.
+    static let deBarra: [HerramientaAnotacion] = [.lapiz, .flecha, .rectangulo, .texto, .marcador]
+
+    /// Si es una marca sobre el texto (sus dos puntos son la caja).
+    var esMarcaDeTexto: Bool { [.resaltado, .subrayado, .tachado, .tapado].contains(self) }
 
     var titulo: String {
         switch self {
@@ -27,6 +36,10 @@ enum HerramientaAnotacion: String, CaseIterable, Equatable {
         case .rectangulo: "Rectángulo"
         case .texto: "Texto"
         case .marcador: "Marcador"
+        case .resaltado: "Resaltar"
+        case .subrayado: "Subrayar"
+        case .tachado: "Tachar"
+        case .tapado: "Tapar"
         }
     }
 
@@ -37,6 +50,10 @@ enum HerramientaAnotacion: String, CaseIterable, Equatable {
         case .rectangulo: "rectangle"
         case .texto: "textformat"
         case .marcador: "highlighter"
+        case .resaltado: "highlighter"
+        case .subrayado: "underline"
+        case .tachado: "strikethrough"
+        case .tapado: "rectangle.fill"
         }
     }
 
@@ -48,6 +65,7 @@ enum HerramientaAnotacion: String, CaseIterable, Equatable {
         case .rectangulo: "3"
         case .texto: "4"
         case .marcador: "5"
+        default: ""
         }
     }
 }
@@ -151,6 +169,26 @@ enum ReglasAnotacion {
                 guard let ultimo = pts.last, pts.count >= 2 else { break }
                 ctx.setStrokeColor(color(t.color))
                 ctx.stroke(rectangulo(primero, ultimo))
+            case .resaltado, .tapado:
+                // La caja con un poco de aire (las del OCR van justas).
+                guard let ultimo = pts.last, pts.count >= 2 else { break }
+                let r = rectangulo(primero, ultimo)
+                let aire = r.height * 0.12
+                ctx.setFillColor(color(t.color, alfa: t.herramienta == .tapado ? 1 : 0.4))
+                ctx.fill(r.insetBy(dx: -aire, dy: -aire))
+            case .subrayado, .tachado:
+                guard let ultimo = pts.last, pts.count >= 2 else { break }
+                let r = rectangulo(primero, ultimo)
+                let g = max(1.5, r.height * 0.09)
+                // Hacia arriba: la raya de subrayar va por debajo de la caja.
+                let y = t.herramienta == .tachado ? r.midY - r.height * 0.05 : r.minY - g
+                ctx.setLineWidth(g)
+                ctx.setLineCap(.butt)
+                ctx.setStrokeColor(color(t.color))
+                ctx.beginPath()
+                ctx.move(to: CGPoint(x: r.minX, y: y))
+                ctx.addLine(to: CGPoint(x: r.maxX, y: y))
+                ctx.strokePath()
             case .texto:
                 guard !t.texto.isEmpty else { break }
                 let letra = NSFont.boldSystemFont(ofSize: tamLetra(lado: lado))
@@ -303,4 +341,48 @@ final class VistaAnotacion: NSView {
 
     /// Si se esta escribiendo un texto (las teclas son suyas).
     var escribiendo: Bool { campo != nil }
+}
+
+
+// MARK: - Las marcas sobre el texto
+
+enum MarcasDeTexto {
+    /// Las cajas (de 0 a 1, desde abajo) de las palabras de `palabras` que
+    /// forman `elegido`, en orden; una por renglon. Vision da cada palabra
+    /// en ese mismo sistema. Vacio si no se encuentra.
+    static func cajas(de elegido: String, en palabras: [(texto: String, caja: CGRect, renglon: Int)]) -> [CGRect] {
+        func plano(_ s: String) -> String {
+            s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+                .filter { $0.isLetter || $0.isNumber }
+        }
+        let buscadas = elegido.split(whereSeparator: \.isWhitespace).map { plano(String($0)) }.filter { !$0.isEmpty }
+        guard !buscadas.isEmpty else { return [] }
+        let lista = palabras.map { (plano($0.texto), $0.caja, $0.renglon) }
+        // La primera ventana de palabras seguidas que encaja (la primera y la
+        // ultima pueden ir cortadas: se eligio desde media palabra).
+        for i in lista.indices where i + buscadas.count <= lista.count {
+            var ok = true
+            for (k, b) in buscadas.enumerated() {
+                let w = lista[i + k].0
+                let vale = (k == 0 || k == buscadas.count - 1) ? (w.contains(b) || b.contains(w)) : w == b
+                if !vale { ok = false; break }
+            }
+            guard ok else { continue }
+            var porRenglon: [Int: CGRect] = [:]
+            var orden: [Int] = []
+            for k in 0 ..< buscadas.count {
+                let (_, c, r) = lista[i + k]
+                if let ya = porRenglon[r] { porRenglon[r] = ya.union(c) } else { porRenglon[r] = c; orden.append(r) }
+            }
+            return orden.compactMap { porRenglon[$0] }
+        }
+        return []
+    }
+
+    /// Los trazos de una marca sobre esas cajas.
+    static func trazos(_ h: HerramientaAnotacion, color: Int, cajas: [CGRect]) -> [TrazoAnotacion] {
+        cajas.map { c in
+            TrazoAnotacion(herramienta: h, color: color, puntos: [CGPoint(x: c.minX, y: c.minY), CGPoint(x: c.maxX, y: c.maxY)])
+        }
+    }
 }

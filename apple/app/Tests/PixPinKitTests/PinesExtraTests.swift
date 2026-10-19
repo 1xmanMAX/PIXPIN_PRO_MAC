@@ -187,7 +187,7 @@ final class BarraPinTests: XCTestCase {
 
     func testAnotandoLaBarraLlevaLasHerramientas() {
         let p = ReglasBarra.piezas(TipoBarraPin(propio: .zoom, copiable: true, anotable: true, anotando: true))
-        XCTAssertEqual(Array(p.prefix(5)), HerramientaAnotacion.allCases.map { PiezaBarra.boton(.herramienta($0)) })
+        XCTAssertEqual(Array(p.prefix(5)), HerramientaAnotacion.deBarra.map { PiezaBarra.boton(.herramienta($0)) })
         XCTAssertTrue(p.contains(.boton(.fijar)))
         XCTAssertEqual(p.last, .boton(.listo))
         XCTAssertFalse(p.contains(.boton(.cerrar)))

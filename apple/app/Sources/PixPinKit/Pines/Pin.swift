@@ -552,7 +552,7 @@ final class Pin: NSObject {
                 fijarAnotacion()
                 return true
             }
-            if let h = HerramientaAnotacion.allCases.first(where: { $0.tecla == letra }) {
+            if let h = HerramientaAnotacion.deBarra.first(where: { $0.tecla == letra }) {
                 elegir(h)
                 return true
             }
@@ -786,7 +786,7 @@ final class Pin: NSObject {
             break
         }
         if anotando, let a = anotacion {
-            for h in HerramientaAnotacion.allCases { barra.marcar(.herramienta(h), activo: h == a.herramienta) }
+            for h in HerramientaAnotacion.deBarra { barra.marcar(.herramienta(h), activo: h == a.herramienta) }
             for i in ReglasAnotacion.colores.indices { barra.marcar(.color(i), activo: i == a.color) }
         }
     }
@@ -1426,6 +1426,18 @@ final class Pin: NSObject {
             let todo = elemento("Copiar todo el texto", #selector(teclaDesdeMenu(_:)), tecla: "C", conMando: false)
             todo.tag = Pin.teclaCopiarTexto
             menu.addItem(todo)
+            // Lo elegido con Live Text, marcado (Windows, `marcas_texto.rs`).
+            if let capa = superposicion, capa.hasActiveTextSelection, !capa.selectedText.isEmpty {
+                let marcar = NSMenuItem(title: "Marcar lo elegido", action: nil, keyEquivalent: "")
+                let sub = NSMenu()
+                for h in [HerramientaAnotacion.resaltado, .subrayado, .tachado, .tapado] {
+                    let i = elemento(h.titulo, #selector(marcarDesdeMenu(_:)))
+                    i.representedObject = h.rawValue
+                    sub.addItem(i)
+                }
+                marcar.submenu = sub
+                menu.addItem(marcar)
+            }
         }
         let paso = elemento("Dejar pasar el clic", #selector(pasanteDesdeMenu(_:)), tecla: "t")
         paso.state = pasante ? .on : .off
@@ -1433,6 +1445,41 @@ final class Pin: NSObject {
         menu.addItem(.separator())
         menu.addItem(elemento("Cerrar", #selector(cerrarDesdeMenu(_:))))
         return menu
+    }
+
+    @objc private func marcarDesdeMenu(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let h = HerramientaAnotacion(rawValue: raw) else { return }
+        marcarTexto(h)
+    }
+
+    /// **Marca lo elegido**: busca sus palabras con Vision en la foto y pone
+    /// la marca en la capa de anotar (se ve, se deshace con ⌘Z y se quema al
+    /// fijar, como lo dibujado).
+    func marcarTexto(_ h: HerramientaAnotacion) {
+        guard let capa = superposicion, !capa.selectedText.isEmpty, let img = imagenMostrada,
+              let vista = vistaImagen else { return NSSound.beep() }
+        let elegido = capa.selectedText
+        let (w, alto) = (CGFloat(img.width), CGFloat(img.height))
+        let palabras = ManosDelAsistente.palabras(img).map { p in
+            (texto: p.texto,
+             caja: CGRect(x: CGFloat(p.x) / w, y: 1 - CGFloat(p.y + p.alto) / alto,
+                          width: CGFloat(p.ancho) / w, height: CGFloat(p.alto) / alto),
+             renglon: Int(p.renglon))
+        }
+        let cajas = MarcasDeTexto.cajas(de: elegido, en: palabras)
+        guard !cajas.isEmpty else { return avisar("No encuentro lo elegido en la foto") }
+        let a: VistaAnotacion
+        if let ya = anotacion {
+            a = ya
+        } else {
+            a = VistaAnotacion(frame: vista.bounds)
+            a.autoresizingMask = [.width, .height]
+            vista.addSubview(a)
+            anotacion = a
+        }
+        let color = h == .tapado ? 4 : (h == .resaltado ? 1 : 0)
+        a.trazos += MarcasDeTexto.trazos(h, color: color, cajas: cajas)
+        a.alCambiar?()
     }
 
     // Las acciones de teclado que tambien salen en el menu (su `tag`).
