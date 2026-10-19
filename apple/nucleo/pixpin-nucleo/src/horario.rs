@@ -1017,16 +1017,37 @@ impl Nucleo {
     pub fn avisos_del_horario(&self, desfase_ms: i64) -> Vec<AvisoHorario> {
         let ahora = crate::ahora_ms() + desfase_ms;
         let h = de_disco(self.ruta(), Momento::de_ms_locales(ahora));
-        avisos(&h, ahora, DIAS_A_LA_VISTA)
+        let mut v: Vec<AvisoHorario> = avisos(&h, ahora, DIAS_A_LA_VISTA)
             .iter()
             .map(|a| aviso_mac(&h, a, self.ruta(), desfase_ms))
-            .collect()
+            .collect();
+        // Los eventos de Google Calendar (Windows, 18-oct), con la misma
+        // antelacion que las clases. Los de todo el dia no llaman.
+        if crate::calendario_google::conectado() {
+            let ahora_utc = crate::ahora_ms();
+            for e in crate::calendario_google::eventos_entre(self.ruta(), ahora_utc, ahora_utc + DIAS_A_LA_VISTA * DIA) {
+                let cuando = e.inicio_ms - i64::from(h.antelacion) * MINUTO;
+                if e.todo_el_dia || cuando <= ahora_utc {
+                    continue;
+                }
+                v.push(aviso_de_evento(&e, cuando, desfase_ms));
+            }
+            v.sort_by_key(|a| a.cuando_utc_ms);
+        }
+        v
     }
 
     /// El aviso de un id (al sonar, o uno pospuesto con `|<ms>` detras),
     /// leido otra vez del horario: si cambio, sale lo de ahora. `None` si ya
     /// no esta.
     pub fn aviso_del_horario(&self, id: String, desfase_ms: i64) -> Option<AvisoHorario> {
+        // Uno de Google Calendar: `horario:gcal:<id>:<titulo>`.
+        if let Some(resto) = id.strip_prefix(PREFIJO).and_then(|x| x.strip_prefix("gcal:")) {
+            let ev = resto.split_once(':').map_or(resto, |(i, _)| i);
+            let ev = ev.split('|').next().unwrap_or(ev);
+            let e = crate::calendario_google::evento(self.ruta(), ev)?;
+            return Some(aviso_de_evento(&e, e.inicio_ms, desfase_ms));
+        }
         let ahora = crate::ahora_ms() + desfase_ms;
         let h = de_disco(self.ruta(), Momento::de_ms_locales(ahora));
         aviso_de(&h, &id, ahora).map(|a| aviso_mac(&h, &a, self.ruta(), desfase_ms))
@@ -1061,6 +1082,24 @@ impl Nucleo {
             ruta: carpeta.join(fichero_de_voz(&nombre)).display().to_string(),
             clase: nombre,
         })
+    }
+}
+
+/// El aviso de un evento de Google Calendar: su titulo, su hora, su lugar
+/// y su calendario.
+fn aviso_de_evento(e: &pixpin_ia::conexiones::calendario::Evento, cuando_utc_ms: i64, desfase_ms: i64) -> AvisoHorario {
+    let detalle = [crate::calendario_google::tramo_legible(e, desfase_ms), e.lugar.clone(), e.calendario.clone()]
+        .into_iter()
+        .filter(|x| !x.is_empty())
+        .collect::<Vec<_>>()
+        .join(" · ");
+    AvisoHorario {
+        id: format!("{PREFIJO}gcal:{}:{}", e.id, e.titulo),
+        cuando_utc_ms,
+        nombre: format!("📅 {}", e.titulo),
+        detalle,
+        texto: None,
+        audio: None,
     }
 }
 

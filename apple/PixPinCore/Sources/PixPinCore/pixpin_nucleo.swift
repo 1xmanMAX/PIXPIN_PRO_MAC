@@ -5940,6 +5940,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func ponerTextoDeDocumento(ruta: String, texto: String) throws 
     
     /**
+     * **Lee Google Calendar** (de hace dos dias a tres semanas) y lo deja
+     * en `calendario-google.json`. Bloquea (red): Swift lo llama en un hilo
+     * de fondo cada 15 min y al conectar. Devuelve si cambio algo (para
+     * releer los avisos). Sin conectar no hace nada.
+     */
+    func calendarioLeer() throws  -> Bool
+    
+    /**
      * **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
      * Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
      * **la marca de cada uno** para sincronizar (sin ella, la vuelta
@@ -7925,6 +7933,21 @@ open func ponerTextoDeDocumento(ruta: String, texto: String)throws   {try rustCa
         FfiConverterString.lower(texto),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * **Lee Google Calendar** (de hace dos dias a tres semanas) y lo deja
+     * en `calendario-google.json`. Bloquea (red): Swift lo llama en un hilo
+     * de fondo cada 15 min y al conectar. Devuelve si cambio algo (para
+     * releer los avisos). Sin conectar no hace nada.
+     */
+open func calendarioLeer()throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_calendario_leer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -40751,6 +40774,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_texto_de_documento() != 3914) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_calendario_leer() != 39044) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_mensajes() != 49997) {

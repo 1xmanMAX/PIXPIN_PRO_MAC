@@ -149,6 +149,7 @@ public final class Recordatorios {
     /// La huella del horario y el dia: si cambia, se relee la agenda.
     private var firmaHorario: String = ""
     private var vigiaHorario: Timer?
+    private var vigiaCalendario: Timer?
 
     /// El chat de mentira de los avisos del horario (no son de ningun chat).
     nonisolated static let chatHorario = ""
@@ -195,7 +196,26 @@ public final class Recordatorios {
         }
         RunLoop.main.add(t, forMode: .common)
         vigiaHorario = t
+        // Google Calendar (Windows, 18-oct): se lee cada 15 min, en su hilo;
+        // si trajo algo nuevo, los avisos se releen.
+        let c = Timer(timeInterval: 15 * 60, repeats: true) { _ in
+            MainActor.assumeIsolated { Recordatorios.compartido.leerCalendario() }
+        }
+        RunLoop.main.add(c, forMode: .common)
+        vigiaCalendario = c
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { Recordatorios.compartido.leerCalendario() }
         releer()
+    }
+
+    /// Lee Google Calendar ya (al arrancar, cada 15 min y al conectarlo).
+    public func leerCalendario() {
+        guard let nucleo else { return }
+        TransporteHttps.instalar()
+        LlaveroDelSistema.instalar()
+        Task {
+            let cambio = await Task.detached(priority: .utility) { (try? nucleo.calendarioLeer()) ?? false }.value
+            if cambio { self.releer() }
+        }
     }
 
     /// La fecha y el tamano de `horario.md` y el dia de hoy.

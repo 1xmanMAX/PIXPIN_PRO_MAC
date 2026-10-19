@@ -100,6 +100,7 @@ fn abrir_por_su_nombre_busca_entre_los_adjuntos_de_los_chats_y_lo_pide_a_la_app(
         adjuntos: &[],
         app: Some(manos.as_ref()),
         parar: &|| false,
+        desfase_ms: 0,
     };
     let a = accion(ABRIR, json!({"descripcion": "el plan de senalizacion"}));
     let r = hacer(&a, &cx).unwrap();

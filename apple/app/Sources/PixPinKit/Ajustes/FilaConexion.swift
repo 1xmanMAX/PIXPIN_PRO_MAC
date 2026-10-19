@@ -67,6 +67,7 @@ struct FilaConexion: View {
             let r = await Task.detached { Result { try iaConectar(servicioId: id) } }.value
             conectando = false
             if case let .failure(e) = r { aviso = "\(e)" }
+            if case .success = r, id == "google_calendar" { Recordatorios.compartido.leerCalendario() }
             leer()
         }
     }

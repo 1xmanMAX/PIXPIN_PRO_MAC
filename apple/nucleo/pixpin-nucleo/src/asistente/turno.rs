@@ -1035,6 +1035,7 @@ impl EjecutorDelMac {
                 adjuntos: &self.adjuntos,
                 app: self.app.as_deref(),
                 parar: &|| false,
+                desfase_ms: self.desfase_ms,
             };
             if de_conexiones {
                 return super::conexiones::hacer(a, &cx);

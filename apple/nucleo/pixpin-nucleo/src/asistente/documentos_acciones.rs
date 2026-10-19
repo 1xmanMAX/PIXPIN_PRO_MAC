@@ -53,6 +53,8 @@ pub struct Contexto<'a> {
     pub app: Option<&'a dyn AppIa>,
     /// Si el usuario pulso «Parar».
     pub parar: &'a dyn Fn() -> bool,
+    /// Hora local menos UTC (las fechas de lo que se le cuenta).
+    pub desfase_ms: i64,
 }
 
 impl Contexto<'_> {

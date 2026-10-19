@@ -56,6 +56,10 @@ impl Chat for DelChat<'_, '_> {
 
 /// **Hace una herramienta de las conexiones** (en el hilo del turno).
 pub fn hacer(a: &AccionApp, cx: &Contexto) -> Result<String, String> {
+    // «¿Que tengo hoy?»: de lo ya leido de Google Calendar (sin red).
+    if a.herramienta == conexiones::acciones::VER_CALENDARIO {
+        return Ok(crate::calendario_google::ver_calendario(cx.nucleo.ruta(), &a.pedido, cx.desfase_ms));
+    }
     conexiones::acciones::hacer(a, &|s| conexiones::Conexion::abrir(s), &DelChat { cx })
 }
 
