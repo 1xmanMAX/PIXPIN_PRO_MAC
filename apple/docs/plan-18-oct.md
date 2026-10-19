@@ -72,10 +72,11 @@ el aspecto de la tabla de una foto y la extension del navegador
 (`nucleo/pixpin-puente`, `extension-navegador/`,
 `herramientas/registrar-navegador.sh`).
 
-Queda: **hoja → lienzo** del asistente (`hoja_a_lienzo.rs` de Windows, unas
-1.500 lineas): hace falta llevar al lienzo del chat las fotos recortadas de
-cada zona y pintar lo hecho para compararlo; con PDFKit y Vision ya hay
-con que leer la hoja.
+Hoja → lienzo, hecho en una version del Mac: una pasada en orden (sin el
+planificador de laminas ni la comparacion final de Windows), la nube solo
+para formulas, zonas dudosas y graficas, y todo en un paso con sus fotos
+(`al_lienzo::Trabajo::DibujarHoja`). Queda, para afinar: el planificador
+de laminas, rehacer las zonas que no se parecen y la tabla como tabla.
 
 ## Cómo se prueba
 
