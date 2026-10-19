@@ -13,7 +13,12 @@ local con el mismo protocolo y el mismo formato de carpetas. Después vendrán i
 
 ## Descargar y probar
 
-Cada cambio compila la app en un Mac de GitHub (`.github/workflows/apple.yml`), pasa las
+**Lo más fácil: Releases.** En [Releases](https://github.com/1xmanMAX/PIXPIN_PRO_MAC/releases)
+está la última versión, **PixPin-mac.zip** (Apple Silicon e Intel). Se descomprime, se mueve
+**PixPin.app** a **Aplicaciones** y se sigue desde el paso 3 de abajo. Lo nuevo de cada versión
+está en [`docs/releases/`](docs/releases).
+
+También, cada cambio compila la app en un Mac de GitHub (`.github/workflows/apple.yml`), pasa las
 pruebas, comprueba que arranca y deja la app para descargar:
 
 1. **Actions** > la última ejecución verde de **Apple** > **Artifacts** >
@@ -35,9 +40,11 @@ Windows; al abrirla sale la ventana de Proyectos.
 |---|---|
 | [`apple/`](apple) | Todo lo de Apple; su [README](apple/README.md) explica las zonas, las reglas y lo que falta. |
 | [`apple/nucleo/`](apple/nucleo) | Los crates de Rust que compilan fuera de Windows y el puente `pixpin-nucleo`. |
-| [`apple/app/`](apple/app) | La app de Mac (SwiftPM) y sus 190 pruebas. |
+| [`apple/app/`](apple/app) | La app de Mac (SwiftPM) y sus 554 pruebas. |
 | [`apple/xcode/`](apple/xcode) | El proyecto de Xcode (XcodeGen) con las extensiones. |
-| [`apple/herramientas/`](apple/herramientas) | `xcframework.sh` (núcleo → xcframework) y `app.sh` (monta y firma la app). |
+| [`apple/herramientas/`](apple/herramientas) | `xcframework.sh` (núcleo → xcframework), `app.sh` (monta y firma la app), `registrar-navegador.sh` (extensión del navegador) y `subir-release.sh` (sube la rama y la release). |
+| [`apple/extension-navegador/`](apple/extension-navegador) | La extensión de Chrome que habla con PixPin por `pixpin-puente`. |
+| [`docs/releases/`](docs/releases) | Las notas de cada versión. |
 | [`apple/por-adaptar/`, `apple/por-traducir/`](apple) | Referencia de Windows aún sin pasar (no se compila aquí). |
 | [`docs/investigacion/`](docs/investigacion) | El plan: evaluación, herramientas de Apple, sincronización y fases. |
 
@@ -48,6 +55,37 @@ cd apple
 herramientas/xcframework.sh        # núcleo de Rust -> PixPinCore (necesita Xcode y rustup)
 cd app && swift test && cd ..      # pruebas de la app
 herramientas/app.sh                # PixPin.app (con extensiones si hay xcodegen)
+```
+
+## Qué trae (resumen)
+
+- **Capturas y pines**: zona, ventana, pantalla, texto (Live Text), en vivo, anotar encima;
+  pines flotantes con su barra, marcas sobre el texto, Live Text.
+- **Visores como pin**, todos con la misma barra que en Windows (asa, tipo y nombre, botones
+  propios, luna/sol, pantalla completa, fijar y cerrar), sin bordes, y **⎋**: a pantalla
+  completa sale de ella, si no cierra:
+  - **PDF, Word y PowerPoint** (paginados), **EPUB y Word reflujados**: abren para leer; el
+    **lápiz** pasa a anotar con **las herramientas del lienzo** (su barra y su panel de
+    estilo); **leer en voz alta** con la palabra resaltada, marcadores, desplazar sola.
+  - **Excel/CSV**: abre para ver; el lápiz trae la barra de fórmulas y el formato.
+  - **Markdown**: leer o escribir (lápiz/ojo), comentarios, buscar, voz.
+  - **HTML**, **planos CAD** (DXF, DWG…) con medir, marcos y anotar, **modelos BIM/IFC** en 3D,
+    el **pin de Office** (Quick Look) y el **lienzo**.
+- **Chats de proyecto** con lienzo, notas, tareas (urgencia, etiquetas, Kanban), horario de
+  clases que llama, asignaturas como listas, Google Calendar (solo ver), galería, timeline,
+  lecciones y búsqueda.
+- **Asistente** con Claude o DeepSeek: herramientas sobre documentos, hoja → lienzo con
+  supervisor, tablas desde una foto, conexiones (Google Drive, Calendar).
+- **MCP** (`docs/mcp.md`) y **extensión del navegador**.
+- **Sincronización** por la red local con Windows y Android, y envío a los aparatos del grupo.
+
+## Subir una versión
+
+Con la sesión de GitHub iniciada (`~/bin/gh auth login -h github.com -p https -w`):
+
+```sh
+cd apple
+herramientas/subir-release.sh          # sube mac-desarrollo, crea el tag y la release con el .zip
 ```
 
 ## Sincronizar con Windows y Android
