@@ -197,6 +197,11 @@ public enum BotonBarraLienzo: Hashable {
     /// con las acciones de la captura). Cerrar descarta la captura.
     public static let barraDeCaptura: [BotonBarraLienzo] = barra.filter { $0 != .figuras && $0 != .grupo(.sacar) }
 
+    /// **Encima de un documento** (`Anfitrion::Lector` de Windows): sin las
+    /// figuras, sin sacar el dibujo y sin salir (se sale con el ojo de la
+    /// barra del pin).
+    public static let barraDelLector: [BotonBarraLienzo] = barraDeCaptura.filter { $0 != .salir }
+
     /// Si entre este y el siguiente de `botones` va un separador.
     static func corte(tras i: Int, en botones: [BotonBarraLienzo] = barra) -> Bool {
         i + 1 < botones.count && botones[i].seccion != botones[i + 1].seccion

@@ -233,37 +233,35 @@ struct BarraReflujo: View {
     static let grosores = ["Fina", "Normal", "Gruesa", "Negra"]
 
     var body: some View {
-        HStack(spacing: 8) {
-            AsaBarra()
-            Button { visor?.empezarRenombrar() } label: {
-                Text(modelo.nombre)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: 240, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-            .buttonStyle(.plain)
-            .help("Cambiar el nombre (F2)")
-            Divider().frame(height: 22)
-            Picker("", selection: Binding(get: { modelo.herramienta }, set: { visor?.elegir($0) })) {
-                Image(systemName: "book").help("Leer").tag("leer")
-                Image(systemName: "pencil.tip").help("Lápiz (P)").tag("lapiz")
-                Image(systemName: "highlighter").help("Resaltador (H)").tag("resaltador")
-                Image(systemName: "eraser").help("Goma (E)").tag("borrador")
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 180)
-            HStack(spacing: 4) {
-                ForEach(ColorTinta.todos) { c in
-                    Circle().fill(c.color).frame(width: 16, height: 16)
-                        .overlay(Circle().stroke(Color.primary, lineWidth: modelo.color == c ? 2 : 0))
-                        .onTapGesture { visor?.ponerColor(c) }
-                        .help(c.id)
+        BarraVisor(nombre: modelo.nombre, ext: visor?.url.pathExtension ?? "",
+                   renombrar: { visor?.empezarRenombrar() },
+                   oscuro: modelo.oscuro, alternarOscuro: { visor?.alternarOscuro() },
+                   fijar: { visor?.ponerEncima($0) }) {
+            // Lo propio del libro, como en Windows: indice, escuchar, la
+            // pagina que sube sola y los ajustes; y el lapiz para anotar.
+            if !reflujo.indice.isEmpty {
+                Menu {
+                    ForEach(Array(reflujo.indice.enumerated()), id: \.offset) { _, e in
+                        Button(String(repeating: "   ", count: max(Int(e.nivel) - 1, 0)) + e.titulo) {
+                            visor?.ir(aBloque: e.bloque)
+                        }
+                    }
+                } label: {
+                    Image(systemName: "list.bullet")
                 }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .frame(width: 40)
+                .help("Índice (I)")
             }
-            Divider().frame(height: 18)
+            BotonVerEditar(editando: modelo.anotando) { visor?.alternarEditar() }
+            BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Leer en voz alta (L)",
+                          encendido: visor?.voz.activa == true && voz.vivo) {
+                visor?.voz.escuchar()
+            }
+            BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
+                visor?.alternarAvance()
+            }
             Menu {
                 Button("Letra más grande (+)") { visor?.cambiarTamano(true) }
                 Button("Letra más pequeña (−)") { visor?.cambiarTamano(false) }
@@ -284,7 +282,7 @@ struct BarraReflujo: View {
             }
             .menuStyle(.button)
             .buttonStyle(.borderless)
-            .frame(width: 34)
+            .frame(width: 40)
             .help(reflujo.fijada ? "La letra está fijada: hay tinta encima" : "La letra (+ / −, T, B) · \(reflujo.tamano) %")
             Menu {
                 Section("Poner aquí") {
@@ -306,38 +304,8 @@ struct BarraReflujo: View {
             }
             .menuStyle(.button)
             .buttonStyle(.borderless)
-            .frame(width: 34)
+            .frame(width: 40)
             .help("Marcadores (M)")
-            if !reflujo.indice.isEmpty {
-                Menu {
-                    ForEach(Array(reflujo.indice.enumerated()), id: \.offset) { _, e in
-                        Button(String(repeating: "   ", count: max(Int(e.nivel) - 1, 0)) + e.titulo) {
-                            visor?.ir(aBloque: e.bloque)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "list.bullet")
-                }
-                .menuStyle(.button)
-                .buttonStyle(.borderless)
-                .frame(width: 34)
-                .help("Índice (I)")
-            }
-            Button { visor?.deshacer() } label: { Image(systemName: "arrow.uturn.backward") }
-                .help("Deshacer (⌘Z)")
-            if reflujo.colocando { ProgressView().controlSize(.small) }
-            if modelo.donde == .chat {
-                Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(Color(white: 0.78))
-                    .help("Lo anotado viaja con el mensaje a tus otros aparatos")
-            }
-            Divider().frame(height: 22)
-            BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Escuchar (L)",
-                          encendido: visor?.voz.activa == true && voz.vivo) {
-                visor?.voz.escuchar()
-            }
-            BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
-                visor?.alternarAvance()
-            }
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
                 if let u = visor?.url {
                     HojaCompartir.abrir(.ficheros(titulo: u.deletingPathExtension().lastPathComponent, [u]), almacen: nil)
@@ -346,23 +314,7 @@ struct BarraReflujo: View {
             BotonFlotante(simbolo: "gearshape", ayuda: "Ajustes (G)") {
                 visor?.mostrarAjustes(evento: NSApp.currentEvent)
             }
-            BotonFlotante(simbolo: modelo.oscuro ? "sun.max" : "moon",
-                          ayuda: modelo.oscuro ? "Modo claro" : "Modo oscuro") {
-                visor?.alternarOscuro()
-            }
-            BotonFlotante(simbolo: "arrow.up.left.and.arrow.down.right", ayuda: "Pantalla completa (⌃⌘F)") {
-                visor?.ventana.toggleFullScreen(nil)
-            }
-            BotonFlotante(simbolo: modelo.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
-                          encendido: modelo.encima) {
-                visor?.ponerEncima(!modelo.encima)
-            }
-            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar (⌘W)") {
-                VentanaLisa.cerrar(visor?.ventana)
-            }
         }
-        .fixedSize()
-        .buttonStyle(.borderless)
         .overlay(alignment: .bottom) {
             if let aviso = modelo.aviso {
                 Text(aviso).font(.caption).padding(4)
@@ -588,6 +540,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             v.translatesAutoresizingMaskIntoConstraints = false
             contenedor.addSubview(v)
         }
+        tinta.montar(en: contenedor, modelo: modelo)
         NSLayoutConstraint.activate([
             desplazar.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
             desplazar.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
@@ -772,7 +725,12 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         let renglon = CGFloat(16 * Float(lectura?.tamano ?? 100) / 100 * 1.45)
         let alto = CGFloat(m.alto) + renglon * 4
         let ancho = der - izq
-        let antes = desplazar.contentView.bounds.origin
+        var antes = desplazar.contentView.bounds.origin
+        // Con los margenes de anotar abiertos o cerrados, la columna de texto
+        // queda en medio de lo que se ve: el texto no salta de lado.
+        if pagina.bounds.minX != izq || pagina.bounds.width != ancho {
+            antes.x = -izq - (desplazar.contentView.bounds.width - CGFloat(m.columna)) / 2
+        }
         pagina.frame = NSRect(x: 0, y: 0, width: ancho, height: alto)
         pagina.bounds = NSRect(x: izq, y: 0, width: ancho, height: alto)
         desplazar.minMagnification = CGFloat(aumentoMinimoDeLectura(anchoDoc: Float(ancho),
@@ -1097,9 +1055,24 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     }
 
     private func aplicarHerramienta(_ ed: EditorLienzo) {
-        try? ed.herramienta(nombre: modelo.anotando ? modelo.herramienta : "lapiz")
-        let c = modelo.color
-        ed.tintaColor(r: c.r, g: c.g, b: c.b, a: 1)
+        tinta.aplicar(a: ed, herramienta: modelo.anotando ? modelo.herramienta : "lapiz", color: modelo.color)
+    }
+
+    /// Las herramientas del lienzo al editar (`HerramientasDeTinta`).
+    private(set) lazy var tinta: HerramientasDeTinta = {
+        let t = HerramientasDeTinta(nucleo: nucleo)
+        t.editores = { [weak self] in self?.editor.map { [$0] } ?? [] }
+        t.elegir = { [weak self] h in self?.elegir(h) }
+        t.deshacer = { [weak self] in self?.deshacer() }
+        t.rehacer = { [weak self] in self?.rehacer() }
+        t.repintar = { [weak self] in self?.pagina.needsDisplay = true }
+        return t
+    }()
+
+    /// **El lapiz de la barra**: a editar con las herramientas del lienzo; el
+    /// ojo vuelve a leer.
+    func alternarEditar() {
+        elegir(modelo.anotando ? "leer" : tinta.alEmpezar)
     }
 
     /// **Elegir una herramienta**. La primera vez que se anota se fija la
@@ -1112,6 +1085,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             guardarLecturaYa()
         }
         modelo.herramienta = h
+        tinta.ensenar(h)
         if h == "resaltador", modelo.color == ColorTinta.todos[0] { modelo.color = ColorTinta.todos[4] }
         if h != "leer" {
             modelo.poniendoMarca = false

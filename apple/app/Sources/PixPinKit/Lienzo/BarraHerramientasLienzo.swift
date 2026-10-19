@@ -203,7 +203,7 @@ struct BarraHerramientasLienzo: View {
                 modelo.abrirFiguras()
             }
         case .deshacer:
-            BotonIslaLienzo(icono: .undo, tema: tema, apagado: !modelo.puedeDeshacer, ayuda: "Deshacer (⌘Z)") {
+            BotonIslaLienzo(icono: .undo, tema: tema, apagado: !modelo.puedeDeshacer && modelo.alDeshacer == nil, ayuda: "Deshacer (⌘Z)") {
                 modelo.deshacer()
             }
             .keyboardShortcut("z", modifiers: .command)

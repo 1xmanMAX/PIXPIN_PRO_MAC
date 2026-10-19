@@ -95,7 +95,15 @@ public final class ModeloEditorLienzo: ObservableObject {
         papelOscuro = papel.map { 0.299 * $0.r + 0.587 * $0.g + 0.114 * $0.b < 0.5 } ?? false
     }
 
+    /// **Para quien usa esta barra con otros editores** (los lectores: un
+    /// editor por hoja): lo elegido, el estilo y deshacer van tambien a ellos.
+    public var alElegir: ((String) -> Void)?
+    public var alCambiarEstilo: ((CambioDeEstilo) -> Void)?
+    public var alDeshacer: (() -> Void)?
+    public var alRehacer: (() -> Void)?
+
     public func elegir(_ nombre: String) {
+        alElegir?(nombre)
         do {
             try editor.herramienta(nombre: nombre)
             herramienta = editor.herramientaActual()
@@ -110,6 +118,7 @@ public final class ModeloEditorLienzo: ObservableObject {
     /// Un mando de la barra de estilo: queda para lo proximo y, si hay algo
     /// elegido, se le aplica (un paso de deshacer).
     public func cambiarEstilo(_ cambio: CambioDeEstilo) {
+        alCambiarEstilo?(cambio)
         _ = editor.cambiarEstilo(cambio: cambio)
         estilo = editor.estilo()
         vista?.trasCambio()
@@ -149,11 +158,13 @@ public final class ModeloEditorLienzo: ObservableObject {
     }
 
     public func deshacer() {
+        if let alDeshacer { return alDeshacer() }
         _ = editor.deshacer()
         vista?.trasCambio()
     }
 
     public func rehacer() {
+        if let alRehacer { return alRehacer() }
         _ = editor.rehacer()
         vista?.trasCambio()
     }

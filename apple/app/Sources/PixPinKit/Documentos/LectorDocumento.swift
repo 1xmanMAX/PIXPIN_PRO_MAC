@@ -103,47 +103,29 @@ struct BarraLector: View {
     @ObservedObject var avance: AvanceLector
     @ObservedObject var voz = LeerEnVoz.compartida
 
+    /// El nombre con la hoja que se ve: «Tema 3 · 4/20» (como Windows).
+    private var nombre: String {
+        modelo.paginas > 1 ? "\(modelo.nombre) · \(modelo.pagina + 1)/\(modelo.paginas)" : modelo.nombre
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
-            AsaBarra()
-            Button { modelo.controlador?.empezarRenombrar() } label: {
-                Text(modelo.nombre)
-                    .font(.system(size: 13))
-                    .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    .frame(maxWidth: 260, alignment: .leading)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-            .buttonStyle(.plain)
-            .help("Cambiar el nombre (F2)")
-            Divider().frame(height: 22)
-            Picker("", selection: Binding(get: { modelo.herramienta },
-                                          set: { modelo.controlador?.elegir($0) })) {
-                Image(systemName: "book").help("Leer (elegir texto)").tag("leer")
-                Image(systemName: "pencil.tip").help("Lápiz (P)").tag("lapiz")
-                Image(systemName: "highlighter").help("Resaltador (H)").tag("resaltador")
-                Image(systemName: "eraser").help("Goma (E)").tag("borrador")
-            }
-            .pickerStyle(.segmented)
-            .frame(width: 180)
-            HStack(spacing: 4) {
-                ForEach(ColorTinta.todos) { c in
-                    Circle().fill(c.color).frame(width: 16, height: 16)
-                        .overlay(Circle().stroke(Color.primary, lineWidth: modelo.color == c ? 2 : 0))
-                        .onTapGesture { modelo.controlador?.ponerColor(c) }
-                        .help(c.id)
+        BarraVisor(nombre: nombre, ext: modelo.controlador?.url.pathExtension ?? "",
+                 renombrar: { modelo.controlador?.empezarRenombrar() },
+                 oscuro: modelo.oscuro, alternarOscuro: { modelo.controlador?.alternarOscuro() },
+                 fijar: { modelo.controlador?.ponerEncima($0) }) {
+            if modelo.esPresentacion {
+                BotonFlotante(simbolo: "play.fill", ayuda: "Presentar (F5)", encendido: modelo.presentando) {
+                    modelo.controlador?.presentar()
                 }
             }
-            Divider().frame(height: 18)
-            Button { modelo.controlador?.alternarEspacio(1) } label: {
-                Image(systemName: modelo.espacios & 1 != 0 ? "rectangle.lefthalf.inset.filled" : "rectangle.lefthalf.inset.filled.arrow.left")
+            BotonVerEditar(editando: modelo.anotando) { modelo.controlador?.alternarEditar() }
+            BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Leer en voz alta (L)",
+                          encendido: modelo.controlador?.voz.activa == true && voz.vivo) {
+                modelo.controlador?.voz.escuchar()
             }
-            .help("Espacio para anotar a la izquierda (⌘[)")
-            Button { modelo.controlador?.alternarEspacio(2) } label: {
-                Image(systemName: modelo.espacios & 2 != 0 ? "rectangle.righthalf.inset.filled" : "rectangle.righthalf.inset.filled.arrow.right")
+            BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
+                modelo.controlador?.alternarAvance()
             }
-            .help("Espacio para anotar a la derecha (⌘])")
             Menu {
                 Section("Poner aquí") {
                     ForEach(emojisDeMarcas(), id: \.self) { e in
@@ -163,55 +145,15 @@ struct BarraLector: View {
             }
             .menuStyle(.button)
             .buttonStyle(.borderless)
-            .frame(width: 34)
+            .frame(width: 40)
             .help("Marcadores (M)")
-            Button { modelo.controlador?.deshacer() } label: { Image(systemName: "arrow.uturn.backward") }
-                .help("Deshacer (⌘Z)")
-            if modelo.maquetando { ProgressView().controlSize(.small) }
-            Text(modelo.paginas > 0 ? "\(modelo.pagina + 1) / \(modelo.paginas)" : "")
-                .font(.caption.monospacedDigit()).foregroundStyle(Color(white: 0.78))
-                .fixedSize()
-            if modelo.donde == .chat {
-                Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(Color(white: 0.78))
-                    .help("Lo anotado viaja con el mensaje a tus otros aparatos")
-            }
-            Divider().frame(height: 22)
-            if modelo.esPresentacion {
-                BotonFlotante(simbolo: "play.fill", ayuda: "Presentar (F5)", encendido: modelo.presentando) {
-                    modelo.controlador?.presentar()
-                }
-            }
-            BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Escuchar (L)",
-                          encendido: modelo.controlador?.voz.activa == true && voz.vivo) {
-                modelo.controlador?.voz.escuchar()
-            }
-            BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
-                modelo.controlador?.alternarAvance()
-            }
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
                 modelo.controlador?.compartir()
             }
             BotonFlotante(simbolo: "gearshape", ayuda: "Ajustes (G)") {
                 modelo.controlador?.mostrarAjustes(evento: NSApp.currentEvent)
             }
-            BotonFlotante(simbolo: modelo.oscuro ? "sun.max" : "moon",
-                          ayuda: modelo.oscuro ? "Modo claro" : "Modo oscuro") {
-                modelo.controlador?.alternarOscuro()
-            }
-            BotonFlotante(simbolo: "arrow.up.left.and.arrow.down.right", ayuda: "Pantalla completa (⌃⌘F)") {
-                modelo.controlador?.pantallaCompleta()
-            }
-            BotonFlotante(simbolo: modelo.encima ? "pin.fill" : "pin", ayuda: "Siempre encima, como un pin",
-                       encendido: modelo.encima) {
-                modelo.controlador?.ponerEncima(!modelo.encima)
-            }
-            BotonFlotante(simbolo: "xmark", ayuda: "Cerrar (⌘W)") {
-                VentanaLisa.cerrar(modelo.controlador?.ventana)
-            }
         }
-        .fixedSize()
-        // Planos, como los de la barra de Windows.
-        .buttonStyle(.borderless)
         .overlay(alignment: .bottom) {
             if let aviso = modelo.aviso {
                 Text(aviso).font(.caption).padding(4)
@@ -323,6 +265,20 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     /// Al cambiar de ruta (renombrar un documento suelto).
     var alCambiarRuta: (@MainActor (ControladorLector, URL) -> Void)?
 
+    /// **Las herramientas del lienzo al editar** (el lapiz de la barra): su
+    /// barra y su panel de estilo mandan sobre la tinta de todas las hojas
+    /// (`lector_tinta.rs` de Windows: «la misma barra, el mismo panel de
+    /// propiedades y las mismas teclas que el lienzo»).
+    private(set) lazy var tinta: HerramientasDeTinta = {
+        let t = HerramientasDeTinta(nucleo: nucleo)
+        t.editores = { [weak self] in Array(self?.editores.values ?? [:].values) }
+        t.elegir = { [weak self] h in self?.elegir(h) }
+        t.deshacer = { [weak self] in self?.deshacer() }
+        t.rehacer = { [weak self] in self?.rehacer() }
+        t.repintar = { [weak self] in self?.capa.needsDisplay = true }
+        return t
+    }()
+
     /// La tinta de cada hoja abierta, y lo ultimo leido de ella.
     private var editores: [Int: EditorLienzo] = [:]
     private var leidos: [Int: (version: UInt64, lienzo: LienzoLeido)] = [:]
@@ -413,6 +369,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             abajo.centerXAnchor.constraint(equalTo: contenedor.centerXAnchor),
             abajo.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor, constant: -22),
         ])
+        tinta.montar(en: contenedor, modelo: modelo)
         riel.ir = { [weak self] m in self?.ir(a: m) }
         // El riel sigue a los marcadores, los ponga quien los ponga.
         modelo.$marcas.sink { [weak riel] m in riel?.marcas = m }.store(in: &suscripciones)
@@ -738,14 +695,23 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     // MARK: Anotar
 
     private func aplicarHerramienta(_ ed: EditorLienzo) {
-        let h = modelo.anotando ? modelo.herramienta : "lapiz"
-        try? ed.herramienta(nombre: h)
-        let c = modelo.color
-        ed.tintaColor(r: c.r, g: c.g, b: c.b, a: 1)
+        tinta.aplicar(a: ed, herramienta: modelo.anotando ? modelo.herramienta : "lapiz", color: modelo.color)
+    }
+
+    /// **El lapiz de la barra**: pasa a editar con las herramientas del
+    /// lienzo; el ojo vuelve a ver.
+    func alternarEditar() {
+        if modelo.anotando {
+            elegir("leer")
+        } else {
+            elegir(tinta.alEmpezar)
+        }
     }
 
     func elegir(_ h: String) {
         modelo.herramienta = h
+        // La barra del lienzo ensena la misma (si se cambio con una tecla).
+        tinta.ensenar(h)
         if h == "resaltador", modelo.color == ColorTinta.todos[0] {
             modelo.color = ColorTinta.todos[4]
         }
@@ -797,7 +763,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         }
     }
 
-    private func rehacer() {
+    func rehacer() {
         guard let i = ultimaAnotada, let ed = editores[i] else { return }
         if ed.rehacer() {
             capa.needsDisplay = true
