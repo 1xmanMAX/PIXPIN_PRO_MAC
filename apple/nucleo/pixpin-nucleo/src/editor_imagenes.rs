@@ -241,6 +241,22 @@ impl EditorLienzo {
     /// Guarda `png` en la carpeta temporal y mete la figura que da
     /// `figura(id_objeto)` en un paso de deshacer, elegida; el `bool` dice si
     /// se pasa a la mano para moverla.
+    /// **Registra un PNG con su `id_objeto`** (las fotos recortadas de una
+    /// hoja pasada al lienzo, `hoja_a_lienzo`): sin figura ni paso de
+    /// deshacer; la figura que lo nombra llega luego con su documento y al
+    /// guardar se copia a `imagenes/` como lo pegado.
+    pub(crate) fn registrar_png(&self, id_objeto: u64, png: &[u8]) -> Result<(), ErrorNucleo> {
+        let mut guarda = self.tomar();
+        let st = &mut *guarda;
+        let carpeta = st.temporal.get_or_insert_with(carpeta_temporal_nueva).clone();
+        std::fs::create_dir_all(&carpeta)?;
+        let temporal = carpeta.join(pixpin_motor2d::enlace::id_de_texto(id_objeto));
+        std::fs::write(&temporal, png)?;
+        st.pegadas.retain(|p| p.id_objeto != id_objeto);
+        st.pegadas.push(Pegada { id_objeto, temporal });
+        Ok(())
+    }
+
     fn meter_png(
         &self,
         png: &[u8],

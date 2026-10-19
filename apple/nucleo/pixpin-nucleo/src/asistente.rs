@@ -48,6 +48,7 @@ pub mod chat;
 pub mod conexiones;
 pub mod documentos;
 pub mod documentos_acciones;
+pub mod hoja_a_lienzo;
 pub mod letras;
 pub mod en_la_conversacion;
 pub mod local;

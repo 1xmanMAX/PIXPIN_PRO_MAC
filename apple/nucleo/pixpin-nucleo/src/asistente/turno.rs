@@ -116,6 +116,16 @@ pub enum MotorIa {
 }
 
 /// La eleccion de los ajustes: un proveedor de la nube o el local.
+/// **El motor de vision para pasar una hoja** (`motor_de_vision` de
+/// Windows): la nube de los ajustes, en modo ligero (sin pensar). `None`:
+/// sin nube, sin clave o sin HTTPS.
+fn motor_de_vision(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
+    let a = pixpin_store::ajustes::cargar(&nucleo.ubicacion()).ok()?;
+    let p = Proveedor::por_id(&a.asistente.motor)?;
+    let clave = claves::leer(p)?;
+    pixpin_ia::nube::http::hay_transporte().then(|| Arc::new(MotorNube::nuevo(p, clave).pensando(false)) as Arc<dyn Motor>)
+}
+
 fn proveedor(a: &AjustesIa) -> Option<Proveedor> {
     Proveedor::por_id(&a.motor)
 }
@@ -266,8 +276,10 @@ fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
     if nombre == pixpin_ia::figuras::NOMBRE || pixpin_ia::edicion::herramientas().iter().any(|h| h.nombre == nombre) {
         return en_chat;
     }
-    !(nombre == pixpin_ia::hoja::NOMBRE
-        || nombre == pixpin_ia::anotacion::NOMBRE
+    if nombre == pixpin_ia::hoja::NOMBRE {
+        return en_chat;
+    }
+    !(nombre == pixpin_ia::anotacion::NOMBRE
         || acciones::es_en_el_chat(nombre))
 }
 
@@ -832,6 +844,47 @@ impl EjecutorDelMac {
         Ok(r.texto)
     }
 
+    /// **Una foto o una pagina de PDF al lienzo del chat** (`hoja_a_lienzo`):
+    /// leerla, pasarla zona a zona y meterla en un paso, con sus fotos.
+    fn hoja_a_lienzo(&mut self, args: &Value) -> Result<String, String> {
+        use super::hoja_a_lienzo as h;
+        let c = self.chat.as_ref().ok_or("aqui no hay lienzo")?;
+        let vision = motor_de_vision(&c.nucleo).ok_or(pixpin_ia::hoja::SOLO_NUBE)?;
+        let app = self.app.clone().ok_or("aqui no se pueden leer adjuntos")?;
+        let pedido = pixpin_ia::hoja::Pedido::de(args);
+        let validos: Vec<AdjuntoIa> = self
+            .adjuntos
+            .iter()
+            .filter(|a| es_imagen(&a.ruta) || a.ruta.to_lowercase().ends_with(".pdf"))
+            .cloned()
+            .collect();
+        if validos.is_empty() {
+            return Err("no hay ninguna foto ni PDF adjunto que pasar al lienzo".into());
+        }
+        let a = match pedido.archivo.as_deref() {
+            Some(n) => {
+                let n = pixpin_ia::acciones::normalizar(n);
+                validos.iter().find(|a| pixpin_ia::acciones::normalizar(&a.nombre).contains(&n)).unwrap_or(&validos[validos.len() - 1])
+            }
+            None => &validos[validos.len() - 1],
+        };
+        let pagina = h::leer(app.as_ref(), Path::new(&a.ruta), pedido.pagina)?;
+        let mut o = pixpin_ia::hoja::Opciones::default();
+        if let Some(w) = pedido.ancho {
+            o.ancho = w;
+        }
+        self.semilla += 1;
+        let pasada = h::pasar(&pagina, Some(vision.as_ref()), &o, pedido.fiel, self.semilla, &|| false, &mut |_, _| {})?;
+        let (documento, imagenes) = h::documento_de(&pasada.hechos)?;
+        let c = self.chat.as_mut().ok_or("aqui no hay lienzo")?;
+        let marco = c.con_marco.then_some(c.ctx.marco);
+        let trabajo = super::al_lienzo::Trabajo::DibujarHoja { documento: documento.clone(), imagenes };
+        let (r, referencia) = super::al_lienzo::en_el_chat(&c.nucleo, &c.chat, c.destino.as_deref(), &trabajo, marco)?;
+        c.ultimo_dibujo = Some(documento);
+        c.apuntar(&r.ids, referencia);
+        Ok(format!("{} — {}", h::contar(&pasada), r.texto))
+    }
+
     /// **Editar lo que ya hay** (`pixpin_ia::edicion`).
     fn editar(&mut self, e: &pixpin_ia::edicion::Edicion) -> Result<String, String> {
         if self.chat.as_ref().is_some_and(|c| !c.con_marco) {
@@ -1090,6 +1143,7 @@ impl Ejecutor for EjecutorDelMac {
             Llamada::Figuras(p) if self.chat.is_some() => self.figuras(p),
             Llamada::Ayuda(pregunta) => Ok(pixpin_ia::conocimiento::responder(pregunta)),
             Llamada::Buscar(p) => self.buscar(p),
+            Llamada::App(a) if a.herramienta == pixpin_ia::hoja::NOMBRE && self.chat.is_some() => self.hoja_a_lienzo(&a.pedido),
             Llamada::App(a) if el_mac_lo_hace(a.herramienta, self.chat.is_some()) => self.accion(a),
             otra => Err(format!("{} aun no se puede hacer en PixPin para Mac", otra.nombre())),
         }

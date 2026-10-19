@@ -42,6 +42,9 @@ const HUECO: f32 = 80.0;
 pub enum Trabajo {
     /// Meter un `.excalidraw` hecho por `pixpin_ia::lienzo::documento`.
     Dibujar(String),
+    /// Una hoja pasada al lienzo (`hoja_a_lienzo`): su documento y las
+    /// fotos recortadas que nombra (id, PNG), todo en un paso.
+    DibujarHoja { documento: String, imagenes: Vec<(u64, Vec<u8>)> },
     /// Editar lo que ya hay, con lo que el turno sabe del lienzo.
     Editar { edicion: Box<Edicion>, ctx: Contexto },
     /// El resumen del lienzo destino, al empezar el turno.
@@ -186,7 +189,7 @@ pub fn trabajar(escena: &mut Escena, trabajo: &Trabajo, elegidos: &[u64], marco:
             elegido: escena.visibles().filter(|e| elegidos.contains(&e.id)).cloned().collect(),
             ..Default::default()
         }),
-        Trabajo::Dibujar(_) => Err("eso no es un trabajo de editar".into()),
+        Trabajo::Dibujar(_) | Trabajo::DibujarHoja { .. } => Err("eso no es un trabajo de editar".into()),
     }
 }
 
@@ -195,6 +198,7 @@ pub const DESTINO_VACIO: &str = "Lienzo destino: vacio (aun no hay lienzo del as
 
 /// **El trabajo en un lienzo abierto**: centrado en lo que se ve.
 fn en_el_abierto(editor: &EditorLienzo, trabajo: &Trabajo, marco: Option<(f32, f32)>) -> Result<Respuesta, String> {
+    registrar_fotos(editor, trabajo)?;
     let elegidos = editor.elegidos();
     let fotos = editor.imagenes();
     editor.con_la_escena(|escena, vista| {
@@ -203,7 +207,7 @@ fn en_el_abierto(editor: &EditorLienzo, trabajo: &Trabajo, marco: Option<(f32, f
             (c.0, c.1, c.0 + 800.0, c.1 + 600.0)
         });
         match trabajo {
-            Trabajo::Dibujar(doc) => {
+            Trabajo::Dibujar(doc) | Trabajo::DibujarHoja { documento: doc, .. } => {
                 let centro = ((vista.0 + vista.2) / 2.0, (vista.1 + vista.3) / 2.0);
                 let ids = meter_ids(escena, doc, centro)?;
                 Ok(resumen_con_ids(escena, ids, marco))
@@ -211,6 +215,16 @@ fn en_el_abierto(editor: &EditorLienzo, trabajo: &Trabajo, marco: Option<(f32, f
             otro => trabajar(escena, otro, &elegidos, (vista.0.floor(), vista.1.floor()), &fotos),
         }
     })
+}
+
+/// Las fotos de una hoja, al editor antes de meter su documento.
+fn registrar_fotos(editor: &EditorLienzo, trabajo: &Trabajo) -> Result<(), String> {
+    if let Trabajo::DibujarHoja { imagenes, .. } = trabajo {
+        for (id, png) in imagenes {
+            editor.registrar_png(*id, png).map_err(|e| format!("no se pudo guardar una foto de la hoja: {e}"))?;
+        }
+    }
+    Ok(())
 }
 
 /// El lienzo de un mensaje del chat, su fichero y sus fotos.
@@ -287,7 +301,7 @@ pub fn en_el_chat(
             Trabajo::Elegido => return Ok((Respuesta::default(), None)),
             Trabajo::Ver { .. } => return Err("todavia no hay ningun lienzo en este chat: no hay nada que ver".into()),
             Trabajo::Editar { .. } => return Err("todavia no hay ningun lienzo en este chat: dibuja algo primero".into()),
-            Trabajo::Dibujar(_) => {
+            Trabajo::Dibujar(_) | Trabajo::DibujarHoja { .. } => {
                 let m = nucleo
                     .crear_lienzo_con(chat.to_string(), Some(NOMBRE_LIENZO_PROPIO.into()), |m| {
                         m.aparato = Some(ia_chat::APARATO.into());
@@ -305,8 +319,9 @@ pub fn en_el_chat(
         return Ok((con_nombre(r, Some(&mensaje), nuevo), Some(referencia)));
     }
     let ed = EditorLienzo::sin_ventana(ruta, carpeta, imagenes.clone()).map_err(|e| format!("no se pudo abrir el lienzo: {e}"))?;
+    registrar_fotos(&ed, trabajo)?;
     let respuesta = ed.con_la_escena(|escena, _| match trabajo {
-        Trabajo::Dibujar(doc) => {
+        Trabajo::Dibujar(doc) | Trabajo::DibujarHoja { documento: doc, .. } => {
             let ids = meter_al_lado_ids(escena, doc)?;
             Ok(resumen_con_ids(escena, ids, marco))
         }
