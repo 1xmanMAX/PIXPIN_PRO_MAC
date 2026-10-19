@@ -11,7 +11,7 @@ import PixPinCore
 import XCTest
 
 /// Un PDF de `hojas` hojas con texto de verdad (se puede buscar en el).
-private func pdfConTexto(_ hojas: [String]) -> Data {
+func pdfConTexto(_ hojas: [String]) -> Data {
     let datos = NSMutableData()
     var caja = CGRect(x: 0, y: 0, width: 300, height: 400)
     let consumidor = CGDataConsumer(data: datos as CFMutableData)!

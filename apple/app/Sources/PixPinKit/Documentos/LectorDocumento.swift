@@ -1312,9 +1312,58 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     /// ⇧⌘S: compartir el documento con la hoja comun (D1: el original, su
-    /// PDF, sus paginas como imagen; la del Mac en «Más…»).
+    /// PDF, sus paginas como imagen; la del Mac en «Más…»). Si tiene tinta,
+    /// va tambien el PDF con lo anotado encima (G5).
     func compartir() {
-        HojaCompartir.abrir(.ficheros(titulo: url.deletingPathExtension().lastPathComponent, [url]), almacen: nil)
+        var ficheros = [url]
+        if !conTinta.isEmpty || !editores.isEmpty, let anotado = pdfConTinta() { ficheros.append(anotado) }
+        HojaCompartir.abrir(.ficheros(titulo: url.deletingPathExtension().lastPathComponent, ficheros), almacen: nil)
+    }
+
+    /// **El PDF con la tinta quemada**: cada hoja como esta y su tinta
+    /// encima (la de la capa, en unidades de 1400 de ancho y Y hacia abajo).
+    /// En una carpeta temporal; `nil` si no se pudo.
+    func pdfConTinta() -> URL? {
+        guard let doc = vistaPDF.document else { return nil }
+        let (nucleo, ruta) = (self.nucleo, url.path)
+        return ControladorLector.pdfConTinta(doc, nombre: url.deletingPathExtension().lastPathComponent) { i, p in
+            let ed = self.editores[i] ?? (self.conTinta.contains(i)
+                ? try? nucleo.anotarHoja(documento: ruta, pagina: UInt32(i), alto: self.alto(p)) : nil)
+            return ed.flatMap { try? leerLienzo($0.plano()) }
+        }
+    }
+
+    /// Lo puro de [`pdfConTinta`]: cada hoja de `doc` con la tinta que diga
+    /// `tinta` encima.
+    static func pdfConTinta(_ doc: PDFDocument, nombre: String,
+                            tinta: (Int, PDFPage) -> LienzoLeido?) -> URL? {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("anotado-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let salida = dir.appendingPathComponent("\(nombre) (anotado).pdf")
+        guard let ctx = CGContext(salida as CFURL, mediaBox: nil, nil) else { return nil }
+        for i in 0 ..< doc.pageCount {
+            guard let p = doc.page(at: i) else { continue }
+            var caja = p.bounds(for: .cropBox)
+            if p.rotation % 180 != 0 { caja = CGRect(x: 0, y: 0, width: caja.height, height: caja.width) }
+            var marco = CGRect(origin: .zero, size: caja.size)
+            ctx.beginPage(mediaBox: &marco)
+            ctx.saveGState()
+            p.draw(with: .cropBox, to: ctx)
+            ctx.restoreGState()
+            if let l = tinta(i, p), !l.figuras.isEmpty {
+                let k = caja.width / GeometriaHoja.ancho
+                ctx.saveGState()
+                ctx.clip(to: marco)
+                ctx.translateBy(x: 0, y: caja.height)
+                ctx.scaleBy(x: k, y: -k)
+                PintorLienzo(lienzo: l).pintar(en: ctx, limites: CGRect(x: 0, y: 0, width: GeometriaHoja.ancho,
+                                                                         height: caja.height / k))
+                ctx.restoreGState()
+            }
+            ctx.endPage()
+        }
+        ctx.closePDF()
+        return FileManager.default.fileExists(atPath: salida.path) ? salida : nil
     }
 
     // MARK: Cambiar el nombre (F2)
