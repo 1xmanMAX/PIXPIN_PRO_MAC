@@ -655,7 +655,11 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         case 51, 117: // borrar, suprimir
             modelo.borrarSeleccion()
             return
-        case 53: // Esc: suelta lo elegido / lo que iba a medias
+        case 53: // Esc: suelta lo elegido / lo que iba a medias; si no hay nada, sale
+            if modelo.desplegado == nil, editor.cuantosElegidos() == 0, rayaDeCalibrar == nil {
+                VentanaLisa.escapar(window)
+                return
+            }
             modelo.desplegado = nil
             reloj.soltar()
             rayaDeCalibrar = nil
@@ -982,7 +986,7 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         // Lisa como en Windows, donde el lienzo en ventana lleva la barra de
         // los pines: una franja fina con −, ☐ y ✕ planos (por ella se arrastra)
         // y el lienzo debajo, sin semaforo ni titulo.
-        VentanaLisa.vestir(ventana)
+        VentanaLisa.vestirEntera(ventana)
         ventana.isReleasedWhenClosed = false
         ventana.contentViewController = NSHostingController(rootView: EditorLienzoView(modelo: modelo))
         ventana.setContentSize(NSSize(width: 1000, height: 720))

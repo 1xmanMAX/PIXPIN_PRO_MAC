@@ -224,8 +224,9 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
                            backing: .buffered, defer: false)
         super.init()
         ventana.title = titulo
-        // Lisa, como en Windows: sin titulo ni semaforo, −, ☐ y ✕ planos.
-        VentanaLisa.vestir(ventana)
+        // Como un pin: sin encabezado; ⎋ sale de pantalla completa y cierra.
+        VentanaLisa.vestirEntera(ventana)
+        ventana.collectionBehavior.insert(.fullScreenPrimary)
         ventana.isReleasedWhenClosed = false
         ventana.delegate = self
         montar()
@@ -559,7 +560,13 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
         if selector == #selector(NSResponder.cancelOperation(_:)) {
-            barra.stringValue = hoja.contenido(fila: UInt32(fila), columna: UInt32(columna))
+            let original = hoja.contenido(fila: UInt32(fila), columna: UInt32(columna))
+            // Sin nada escrito, ⎋ es el del visor: sale de pantalla completa o cierra.
+            if barra.stringValue == original {
+                VentanaLisa.escapar(ventana)
+                return true
+            }
+            barra.stringValue = original
             ventana.makeFirstResponder(rejilla)
             return true
         }
@@ -587,6 +594,11 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     /// Las teclas con ⌘ (antes que los menus). `true` si era suya.
     func atajo(_ e: NSEvent) -> Bool {
+        let m = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        if m == [.control, .command], e.keyCode == 3, ventana.isKeyWindow {
+            ventana.toggleFullScreen(nil)
+            return true
+        }
         guard e.modifierFlags.contains(.command) || e.modifierFlags.contains(.control),
               ventana.isKeyWindow, let a = accion(e) else { return false }
         hacer(a)
@@ -601,6 +613,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             return true
         }
         let ext = m.contains(.shift)
+        if e.keyCode == 53, m.isEmpty { VentanaLisa.escapar(ventana); return true }
         switch e.keyCode {
         case 123: elegir(fila, columna - 1, extender: ext); return true
         case 124: elegir(fila, columna + 1, extender: ext); return true

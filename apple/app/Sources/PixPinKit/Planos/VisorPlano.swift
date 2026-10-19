@@ -313,7 +313,7 @@ public final class VisorPlano: ObservableObject {
     public func verEn3D() { alVerEn3D?() }
 
     /// Cierra la ventana del plano.
-    public func cerrar() { vista?.window?.performClose(nil) }
+    public func cerrar() { VentanaLisa.escapar(vista?.window) }
 
     // MARK: Anotar (A)
 

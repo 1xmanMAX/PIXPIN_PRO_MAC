@@ -148,7 +148,7 @@ public final class VisorModelo3D: ObservableObject {
         } else if elegido != nil {
             elegir(nil)
         } else {
-            vista?.window?.performClose(nil)
+            VentanaLisa.escapar(vista?.window)
         }
     }
 

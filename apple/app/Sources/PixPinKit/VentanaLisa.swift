@@ -53,6 +53,40 @@ public enum VentanaLisa {
         vestir(ventana, botones: false)
     }
 
+    /// **⎋ de los visores**: a pantalla completa, el primero sale de ella; si
+    /// no, se cierra (el segundo ⎋ en pantalla completa).
+    static func escapar(_ ventana: NSWindow?) {
+        guard let ventana else { return }
+        if ventana.styleMask.contains(.fullScreen) { ventana.toggleFullScreen(nil) } else { cerrar(ventana) }
+    }
+
+    /// Para los visores cuyo contenido no ve el ⎋ (QuickLook, paginas web):
+    /// un vigia de la app se lo da a `escapar` mientras la ventana es la activa.
+    /// `escape: false`: solo ⌃⌘F (la ventana ya trata su ⎋).
+    static func escaparConVigia(_ ventana: NSWindow, escape: Bool = true) {
+        conVigia.add(ventana)
+        if !escape { soloCompleta.add(ventana) }
+        guard vigiaEscape == nil else { return }
+        vigiaEscape = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { e in
+            let m = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+            guard let v = e.window ?? NSApp.keyWindow, conVigia.contains(v) else { return e }
+            if e.keyCode == 53, m.isEmpty, !soloCompleta.contains(v) {
+                escapar(v)
+                return nil
+            }
+            // ⌃⌘F: pantalla completa, para luego salir con ⎋.
+            if m == [.control, .command], e.keyCode == 3, v.collectionBehavior.contains(.fullScreenPrimary) {
+                v.toggleFullScreen(nil)
+                return nil
+            }
+            return e
+        }
+    }
+
+    private static let conVigia = NSHashTable<NSWindow>.weakObjects()
+    private static let soloCompleta = NSHashTable<NSWindow>.weakObjects()
+    private static var vigiaEscape: Any?
+
     /// Cerrar como la ✕ del sistema: preguntando antes al delegado.
     static func cerrar(_ ventana: NSWindow?) {
         guard let ventana else { return }

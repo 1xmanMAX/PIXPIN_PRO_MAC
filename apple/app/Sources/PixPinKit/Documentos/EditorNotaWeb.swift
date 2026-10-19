@@ -137,6 +137,8 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         // La pagina lleva su cabecera (titulo, compartir, −, ☐, ✕): la ventana
         // va entera, sin franja del Mac.
         VentanaLisa.vestirEntera(ventana)
+        VentanaLisa.escaparConVigia(ventana)
+        ventana.collectionBehavior.insert(.fullScreenPrimary)
         ventana.center()
         _ = ventana.setFrameAutosaveName("PixPinNotaWeb")
         web.loadHTMLString(notaPagina(), baseURL: URL(string: "pixpin-nota://nota/"))

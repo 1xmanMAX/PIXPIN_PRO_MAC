@@ -105,8 +105,10 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
                                styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                backing: .buffered, defer: false)
         ventana.title = titulo
-        // Lisa, como el visor de planos de Windows: sin titulo ni semaforo.
-        VentanaLisa.vestir(ventana)
+        // Como un pin: sin encabezado; ⎋ sale de pantalla completa y cierra.
+        VentanaLisa.vestirEntera(ventana)
+        ventana.collectionBehavior.insert(.fullScreenPrimary)
+        VentanaLisa.escaparConVigia(ventana, escape: false)
         ventana.isReleasedWhenClosed = false
         ventana.contentViewController = controlador
         ventana.setContentSize(NSSize(width: 1100, height: 760))
