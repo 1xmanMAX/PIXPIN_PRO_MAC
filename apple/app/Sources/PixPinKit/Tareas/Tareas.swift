@@ -326,7 +326,7 @@ public struct VentanaTareas: View {
                     .keyboardShortcut("r")
             }
             HStack {
-                TextField("Apuntar en el Inbox (prioridad alta, #etiqueta, recordar a las 5)", text: $nueva)
+                TextField("Apuntar en el Inbox (urgente, #etiqueta, recordar a las 5)", text: $nueva)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(apuntar)
                 Button("Apuntar", action: apuntar)
