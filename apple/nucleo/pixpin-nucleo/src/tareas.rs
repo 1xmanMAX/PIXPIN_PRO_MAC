@@ -444,7 +444,20 @@ impl Nucleo {
         texto: String,
         desfase_ms: i64,
     ) -> Result<ListaTareas, ErrorNucleo> {
-        if mini::saneado(&texto).is_empty() {
+        self.apuntar_tarea_con_imagenes(texto, Vec::new(), desfase_ms)
+    }
+
+    /// **Apunta una tarea con imagenes** (pegadas o soltadas en la caja,
+    /// Windows `apuntar_con`): cada una se copia a `archivos/` de «Mensajes
+    /// guardados» con nombre propio y va dentro del texto como
+    /// `![img 01](pixpin:files/…)`, que es lo que viaja al movil.
+    pub fn apuntar_tarea_con_imagenes(
+        &self,
+        texto: String,
+        imagenes: Vec<String>,
+        desfase_ms: i64,
+    ) -> Result<ListaTareas, ErrorNucleo> {
+        if mini::saneado(&texto).is_empty() && imagenes.is_empty() {
             return Err(ErrorNucleo::Argumento {
                 detalle: "tarea vacia".into(),
             });
@@ -466,6 +479,11 @@ impl Nucleo {
                 .ok_or(ErrorNucleo::NoExiste { que: g.id })?
         };
         let raiz = self.ruta();
+        let mut enlaces = Vec::with_capacity(imagenes.len());
+        for (i, r) in imagenes.iter().enumerate() {
+            enlaces.push((i as u32 + 1, guardar_imagen_de_tarea(raiz, &ficha.id, Path::new(r))?));
+        }
+        let texto = if enlaces.is_empty() { texto } else { mini::fichas_a_imagenes(mini::saneado(&texto).as_str(), &enlaces) };
         let carpeta = almacen::carpeta(raiz, &ficha.id);
         let fichero = carpeta.join("guardados.jsonl");
         let ahora = crate::ahora_ms();
@@ -595,4 +613,29 @@ mod pruebas {
         assert_eq!(de_id_de_recordatorio("m7"), None);
         assert_eq!(de_id_de_recordatorio("tarea:L1:mañana"), None);
     }
+}
+
+/// Copia una imagen a `archivos/` del chat y devuelve su enlace portatil
+/// (`pixpin:files/…/archivos/tarea-<ms>-<n>.<ext>`), como `guardar_imagen`
+/// de Windows: con nombre propio, porque el enlace va dentro de un `![](…)`
+/// y la sincronizacion corta la ruta en el primer `)` o blanco.
+fn guardar_imagen_de_tarea(raiz: &Path, proyecto: &str, origen: &Path) -> Result<String, ErrorNucleo> {
+    let ext = origen.extension().and_then(|e| e.to_str()).unwrap_or("png").to_ascii_lowercase();
+    if !origen.is_file() || !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp" | "heic" | "bmp" | "tif" | "tiff") {
+        return Err(ErrorNucleo::Argumento { detalle: format!("no es una imagen: {}", origen.display()) });
+    }
+    let carpeta = almacen::carpeta(raiz, proyecto).join("archivos");
+    std::fs::create_dir_all(&carpeta)?;
+    let ahora = crate::ahora_ms();
+    let nombre = (1..10_000)
+        .map(|n| format!("tarea-{ahora}-{n:02}.{ext}"))
+        .find(|n| !carpeta.join(n).exists())
+        .ok_or_else(|| ErrorNucleo::Argumento { detalle: "demasiadas imagenes a la vez".into() })?;
+    std::fs::copy(origen, carpeta.join(&nombre))?;
+    let chat = pixpin_proyecto::vista::chat_de_ficha(raiz, proyecto).unwrap_or_else(|| proyecto.to_string());
+    Ok(format!(
+        "{}{}",
+        pixpin_sincro::disco::PORTATIL,
+        pixpin_proyecto::vista::virtual_de(&chat, &format!("archivos/{nombre}"))
+    ))
 }

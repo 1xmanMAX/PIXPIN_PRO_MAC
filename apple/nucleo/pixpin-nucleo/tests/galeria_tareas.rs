@@ -562,3 +562,23 @@ fn un_proyecto_entero_se_adjunta_como_puerta_sin_copiarlo() {
     // Caso negativo: un proyecto que no esta.
     assert!(n.adjuntar_proyecto(a.id.clone(), "no-esta".into()).is_err());
 }
+
+#[test]
+fn una_tarea_con_imagen_la_copia_al_chat_y_la_lleva_en_su_texto() {
+    let tmp = Temporal::nueva("tarea-imagen");
+    let n = tmp.nucleo();
+    let foto = tmp.0.join("foto (1).png");
+    std::fs::write(&foto, b"\x89PNG de mentira").unwrap();
+    let l = n
+        .apuntar_tarea_con_imagenes("revisar yeso".into(), vec![foto.display().to_string()], 0)
+        .unwrap();
+    let t = &l.tareas[0];
+    assert!(t.crudo.contains("![img 01](pixpin:files/"), "{}", t.crudo);
+    assert!(t.crudo.contains("/archivos/tarea-"), "{}", t.crudo);
+    assert_eq!(t.imagenes.len(), 1, "se ve como imagen de la tarea");
+    // Casos negativos: algo que no es imagen, y nada de nada.
+    let txt = tmp.0.join("nota.txt");
+    std::fs::write(&txt, b"x").unwrap();
+    assert!(n.apuntar_tarea_con_imagenes("x".into(), vec![txt.display().to_string()], 0).is_err());
+    assert!(n.apuntar_tarea_con_imagenes("  ".into(), vec![], 0).is_err());
+}

@@ -6854,6 +6854,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func apuntarTarea(texto: String, desfaseMs: Int64) throws  -> ListaTareas
     
     /**
+     * **Apunta una tarea con imagenes** (pegadas o soltadas en la caja,
+     * Windows `apuntar_con`): cada una se copia a `archivos/` de «Mensajes
+     * guardados» con nombre propio y va dentro del texto como
+     * `![img 01](pixpin:files/…)`, que es lo que viaja al movil.
+     */
+    func apuntarTareaConImagenes(texto: String, imagenes: [String], desfaseMs: Int64) throws  -> ListaTareas
+    
+    /**
      * **Pone una tarea como hecha o pendiente** en su mensaje (pone, no
      * alterna: repetirlo no deshace). `crudo` es el texto que se ve en
      * pantalla ([`Tarea::crudo`]): si la tarea numero `indice` ya no es esa
@@ -9925,6 +9933,24 @@ open func apuntarTarea(texto: String, desfaseMs: Int64)throws  -> ListaTareas  {
     uniffi_pixpin_nucleo_fn_method_nucleo_apuntar_tarea(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(texto),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Apunta una tarea con imagenes** (pegadas o soltadas en la caja,
+     * Windows `apuntar_con`): cada una se copia a `archivos/` de «Mensajes
+     * guardados» con nombre propio y va dentro del texto como
+     * `![img 01](pixpin:files/…)`, que es lo que viaja al movil.
+     */
+open func apuntarTareaConImagenes(texto: String, imagenes: [String], desfaseMs: Int64)throws  -> ListaTareas  {
+    return try  FfiConverterTypeListaTareas_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_apuntar_tarea_con_imagenes(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(texto),
+        FfiConverterSequenceString.lower(imagenes),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
     )
 })
@@ -41608,6 +41634,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_tarea() != 9907) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_tarea_con_imagenes() != 25179) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_marcar_tarea() != 3885) {

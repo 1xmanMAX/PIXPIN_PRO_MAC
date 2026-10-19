@@ -271,15 +271,17 @@ public final class ModeloTareas: ObservableObject {
         if let aviso { error = aviso }
     }
 
-    /// Apunta una tarea en el Inbox de «Mensajes guardados».
-    public func apuntar(_ texto: String) async {
+    /// Apunta una tarea en el Inbox de «Mensajes guardados», con sus
+    /// imagenes (pegadas o soltadas en la caja) si las hay.
+    public func apuntar(_ texto: String, imagenes: [URL] = []) async {
         let limpio = texto.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !limpio.isEmpty else { return }
+        guard !limpio.isEmpty || !imagenes.isEmpty else { return }
+        let rutas = imagenes.map(\.path)
         let nucleo = self.nucleo
         let desfase = desfaseLocalMs()
         do {
             let lista = try await Task.detached(priority: .userInitiated) {
-                try nucleo.apuntarTarea(texto: limpio, desfaseMs: desfase)
+                try nucleo.apuntarTareaConImagenes(texto: limpio, imagenes: rutas, desfaseMs: desfase)
             }.value
             error = nil
             // Con hora: directamente su pin en la pantalla (Windows).
@@ -312,6 +314,8 @@ public struct VentanaTareas: View {
     @AppStorage("PixPinTareasVista") private var vista: Vista = .porFecha
     @State private var nueva = ""
     @State private var verHechas = false
+    /// Las imagenes que iran con la tarea que se apunta.
+    @State private var imagenes: [URL] = []
 
     public init(almacen: Almacen) {
         _modelo = StateObject(wrappedValue: ModeloTareas(nucleo: almacen.nucleo))
@@ -329,13 +333,25 @@ public struct VentanaTareas: View {
                 TextField("Apuntar en el Inbox (urgente, #etiqueta, recordar a las 5)", text: $nueva)
                     .textFieldStyle(.roundedBorder)
                     .onSubmit(apuntar)
+                if !imagenes.isEmpty {
+                    Label("\(imagenes.count)", systemImage: "photo")
+                        .help(imagenes.map(\.lastPathComponent).joined(separator: "\n"))
+                        .onTapGesture { imagenes = [] }
+                }
+                Button { pegarImagen() } label: { Image(systemName: "photo.badge.plus") }
+                    .help("Pegar una imagen del portapapeles (o suelta imágenes en la caja)")
                 Button("Apuntar", action: apuntar)
-                    .disabled(nueva.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .disabled(nueva.trimmingCharacters(in: .whitespaces).isEmpty && imagenes.isEmpty)
                 TextField("Buscar", text: $modelo.busqueda)
                     .textFieldStyle(.roundedBorder)
                     .frame(maxWidth: 180)
             }
             .padding(10)
+            .dropDestination(for: URL.self) { urls, _ in
+                let fotos = urls.filter { ["png", "jpg", "jpeg", "gif", "heic", "webp", "tiff", "bmp"].contains($0.pathExtension.lowercased()) }
+                imagenes += fotos
+                return !fotos.isEmpty
+            }
             Divider()
             Group {
                 switch vista {
@@ -420,8 +436,20 @@ public struct VentanaTareas: View {
 
     private func apuntar() {
         let texto = nueva
+        let fotos = imagenes
         nueva = ""
-        Task { await modelo.apuntar(texto) }
+        imagenes = []
+        Task { await modelo.apuntar(texto, imagenes: fotos) }
+    }
+
+    /// La imagen del portapapeles, a un PNG temporal para la tarea.
+    private func pegarImagen() {
+        guard let img = NSImage(pasteboard: .general), let tiff = img.tiffRepresentation,
+              let png = NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]) else {
+            return NSSound.beep()
+        }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("pegada-\(UUID().uuidString).png")
+        if (try? png.write(to: url)) != nil { imagenes.append(url) }
     }
 }
 
