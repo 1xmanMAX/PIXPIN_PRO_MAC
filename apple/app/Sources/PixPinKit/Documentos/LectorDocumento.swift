@@ -932,6 +932,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     /// Las teclas que llegan antes que a quien tenga el teclado (ver
     /// `VentanaLectorNS.sendEvent`): F2, F3, F5 y F11, y ↩ / ⎋ en las cajas.
     func teclaAntes(_ e: NSEvent) -> Bool {
+        // Escribiendo un texto de la tinta, las teclas son del texto.
+        if modelo.anotando, tinta.teclaAlTexto(e) { return true }
         switch e.keyCode {
         case 120, 99, 96, 103: return tecla(e)
         default: break

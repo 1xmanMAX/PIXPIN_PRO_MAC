@@ -1395,6 +1395,8 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     /// Las que llegan antes que a quien tenga el teclado: F2, F3 y F11, y
     /// ↩ / ⎋ en las cajas.
     func teclaAntes(_ e: NSEvent) -> Bool {
+        // Escribiendo un texto de la tinta, las teclas son del texto.
+        if modelo.anotando, tinta.teclaAlTexto(e) { return true }
         switch e.keyCode {
         case 120, 99, 103: return tecla(e)
         default: break

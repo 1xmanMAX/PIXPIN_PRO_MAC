@@ -70,6 +70,34 @@ final class HerramientasDeTinta {
         return h.isEmpty || h == "seleccion" ? "lapiz" : h
     }
 
+    /// **Escribir un texto de la tinta** (la herramienta de texto, como en el
+    /// lienzo): mientras una hoja esta escribiendo, el teclado es suyo.
+    /// `true` si la tecla era para ella.
+    func teclaAlTexto(_ e: NSEvent) -> Bool {
+        guard let ed = editores().first(where: { $0.escribiendo() }) else { return false }
+        let m = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function, .shift])
+        let nombre: String?
+        switch e.keyCode {
+        case 51: nombre = "retroceso"
+        case 117: nombre = "suprimir"
+        case 123: nombre = "izquierda"
+        case 124: nombre = "derecha"
+        case 115: nombre = "inicio"
+        case 119: nombre = "fin"
+        case 36, 76: nombre = "entrar"
+        case 53: nombre = "escape"
+        default: nombre = nil
+        }
+        if let nombre {
+            if ed.tecla(nombre: nombre) { repintar() }
+            return true
+        }
+        // Con ⌘ son atajos (⌘Z, ⌘C…): no son letras.
+        guard !m.contains(.command), !m.contains(.control), let t = e.characters, !t.isEmpty else { return false }
+        if ed.teclear(texto: t) { repintar() }
+        return true
+    }
+
     /// Las dos vistas que van encima del documento.
     func montar(en contenedor: NSView, modelo lector: ModeloLector) {
         let barra = NSHostingView(rootView: BarraDeTinta(lector: lector, herramientas: self))
@@ -78,13 +106,35 @@ final class HerramientasDeTinta {
             v.translatesAutoresizingMaskIntoConstraints = false
             contenedor.addSubview(v)
         }
+        let arriba = barra.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: MedidasBarraLienzo.distanciaBorde)
+        let arribaPanel = panel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: MedidasBarraLienzo.yPanel)
         NSLayoutConstraint.activate([
             barra.centerXAnchor.constraint(equalTo: contenedor.centerXAnchor),
-            barra.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: MedidasBarraLienzo.distanciaBorde),
+            arriba,
             panel.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor, constant: MedidasBarraLienzo.distanciaBorde),
-            panel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: MedidasBarraLienzo.yPanel),
+            arribaPanel,
         ])
+        // Si la barra del pin no cabe encima de la ventana (pegada arriba de
+        // la pantalla o a pantalla completa) va dentro: las herramientas
+        // bajan lo que mide para que no las tape.
+        let colocar: @MainActor () -> Void = { [weak contenedor] in
+            guard let v = contenedor?.window, let pantalla = v.screen else { return }
+            let dentro = v.frame.maxY + BarraFlotante.separacion + 48 > pantalla.visibleFrame.maxY
+            let baja: CGFloat = dentro ? 48 + BarraFlotante.separacion : 0
+            arriba.constant = MedidasBarraLienzo.distanciaBorde + baja
+            arribaPanel.constant = MedidasBarraLienzo.yPanel + baja
+        }
+        for n in [NSWindow.didMoveNotification, NSWindow.didResizeNotification, NSWindow.didBecomeKeyNotification,
+                  NSWindow.didExitFullScreenNotification, NSWindow.didEnterFullScreenNotification] {
+            vigias.append(NotificationCenter.default.addObserver(forName: n, object: nil, queue: .main) { [weak contenedor] aviso in
+                guard (aviso.object as? NSWindow) === contenedor?.window else { return }
+                MainActor.assumeIsolated { colocar() }
+            })
+        }
+        DispatchQueue.main.async { colocar() }
     }
+
+    private var vigias: [NSObjectProtocol] = []
 }
 
 private struct BarraDeTinta: View {
