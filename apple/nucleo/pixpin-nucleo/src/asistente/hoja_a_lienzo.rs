@@ -14,11 +14,18 @@
 //!   (`al_lienzo::Trabajo::DibujarHoja`), con las fotos recortadas.
 //!
 //! Solo con la nube, como en Windows (`hoja::SOLO_NUBE`).
+//!
+//! **El supervisor** (`supervisor.rs`, el mismo de Windows del 18-oct): al
+//! final se pinta lo hecho (con PDFKit, `AppIa::pintar_pagina`) y las zonas
+//! que peor se parecen al papel se le ensenan al modelo lado a lado; se
+//! rehacen con lo que dice si la prueba de los pixeles lo deja.
+
+pub(crate) mod supervisor;
 
 use std::path::Path;
 
 use pixpin_ia::hoja::montaje::{self, Entrada, Hecho, Leido, Via};
-use pixpin_ia::hoja::{self, Caja, Mapa, Opciones, PalabraHoja, Seccionado, Tipo, imagen, vision};
+use pixpin_ia::hoja::{self, Caja, Mapa, Opciones, PalabraHoja, Seccionado, Tipo, comparar, imagen, vision};
 use pixpin_ia::motor::Motor;
 
 use super::turno::AppIa;
@@ -154,12 +161,55 @@ pub struct Pasada {
     pub hechos: Vec<Hecho>,
     /// Cuantas zonas se preguntaron a la nube.
     pub preguntadas: usize,
+    /// Cuantas rehizo el supervisor.
+    pub rehechas: usize,
+}
+
+/// Lo que pinta lo hecho (`hechos`, en una hoja de `tam`) a `ancho` pixeles.
+pub type Pintor<'a> = &'a dyn Fn(&[Hecho], (f32, f32), u32) -> Option<(Vec<u8>, u32, u32)>;
+
+/// **Lo hecho, pintado** como queda en el lienzo: un PDF de la hoja a su
+/// medida (`pixpin_pdf`) que pinta PDFKit (Windows lo pinta su lector).
+pub fn pintar(app: &dyn AppIa, hechos: &[Hecho], tam: (f32, f32), ancho: u32) -> Option<(Vec<u8>, u32, u32)> {
+    use std::collections::HashMap;
+    let elementos: Vec<serde_json::Value> = hechos.iter().flat_map(|h| h.elementos.iter().cloned()).collect();
+    let imagenes: HashMap<u64, &montaje::ImagenNueva> = hechos.iter().flat_map(|h| h.imagenes.iter()).map(|i| (i.id, i)).collect();
+    let alto = ((ancho as f32 * tam.1 / tam.0.max(1.0)) as u32).max(1);
+    let mut escena = pixpin_motor2d::Escena::nueva();
+    if !elementos.is_empty() {
+        let l = pixpin_motor2d::excalidraw::leer(&pixpin_ia::lienzo::documento(elementos)).ok()?;
+        for e in l.elementos() {
+            escena.anadir(e);
+        }
+    }
+    let mut hojas = pixpin_motor2d::exportar::hojas(&escena, pixpin_motor2d::exportar::Alcance::Todo, &[], None);
+    if hojas.is_empty() {
+        return Some((vec![255; (ancho * alto * 4) as usize], ancho, alto));
+    }
+    hojas.truncate(1);
+    hojas[0].caja = (0.0, 0.0, tam.0, tam.1);
+    let resolver = |id: u64| imagenes.get(&id).map(|i| pixpin_pdf::escribir::Pixeles { ancho: i.ancho, alto: i.alto, rgba: i.rgba.clone() });
+    let pdf = pixpin_pdf::escribir::de_hojas_a_medida(&hojas, &[tam], &resolver, None)?;
+    static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    let ruta = std::env::temp_dir().join(format!("pixpin-hoja-{}-{n}.pdf", std::process::id()));
+    std::fs::write(&ruta, pdf).ok()?;
+    let png = app.pintar_pagina(ruta.display().to_string(), 0, ancho);
+    let _ = std::fs::remove_file(&ruta);
+    let png = png?;
+    let tmp = std::env::temp_dir().join(format!("pixpin-hoja-{}-{n}.png", std::process::id()));
+    std::fs::write(&tmp, png).ok()?;
+    let img = pixpin_codec::imagen::cargar(&tmp);
+    let _ = std::fs::remove_file(&tmp);
+    let img = img.ok()?;
+    Some((img.pixeles, img.ancho, img.alto))
 }
 
 /// **Pasa la hoja**: seccionar (por recuadros, sin la marca de agua) y
 /// montar cada zona en orden; `vision` contesta lo que necesita modelo (si
 /// falla, la zona sale por el camino sin modelo). `parar` corta.
-pub fn pasar(p: &Pagina, vision: Option<&dyn Motor>, o: &Opciones, fiel: bool, semilla: u64, parar: &dyn Fn() -> bool, progreso: &mut dyn FnMut(usize, usize)) -> Result<Pasada, String> {
+#[allow(clippy::too_many_arguments)] // lo mismo que pide la pasada de Windows
+pub fn pasar(p: &Pagina, vision: Option<&dyn Motor>, pintor: Option<Pintor<'_>>, o: &Opciones, fiel: bool, semilla: u64, parar: &dyn Fn() -> bool, progreso: &mut dyn FnMut(usize, usize)) -> Result<Pasada, String> {
     let (s, limpia) = hoja::paneles::seccionar_limpia(&p.rgba, p.ancho, p.alto, p.palabras.clone(), false);
     let rgba = limpia.unwrap_or_else(|| p.rgba.clone());
     let pagina = Pagina { rgba, ancho: p.ancho, alto: p.alto, palabras: Vec::new() };
@@ -198,8 +248,135 @@ pub fn pasar(p: &Pagina, vision: Option<&dyn Motor>, o: &Opciones, fiel: bool, s
         };
         hechos.push(montaje::hacer(&e, leido.as_ref(), via(z)));
     }
+    let entrada = |z: usize| Entrada {
+        zona: &s.zonas[z],
+        mapa,
+        opciones: o,
+        pagina: (&pagina.rgba, pagina.ancho, pagina.alto),
+        alto_letra: s.alto_letra,
+        semilla,
+        lector: None,
+        ajenas: &ajenas,
+        pistas: &pistas,
+    };
+    let mut rehechas = 0;
+    if let (Some(m), Some(pintor)) = (vision, pintor)
+        && o.rico
+        && o.comprobar
+        && !parar()
+        && std::env::var_os("PIXPIN_SIN_SUPERVISOR").is_none()
+    {
+        rehechas = supervisar(p, &s, m, pintor, mapa, &mut hechos, &entrada);
+    }
     progreso(total, total);
-    Ok(Pasada { seccionado: s, hechos, preguntadas })
+    Ok(Pasada { seccionado: s, hechos, preguntadas, rehechas })
+}
+
+/// **El supervisor** (paso 7 de la pasada de Windows): las zonas que peor
+/// se parecen al papel, lado a lado al modelo; las que dice que estan mal se
+/// rehacen con lo que dice, si la prueba de los pixeles lo deja. Devuelve
+/// cuantas rehizo.
+fn supervisar<'a>(p: &Pagina, s: &Seccionado, m: &dyn Motor, pintor: Pintor<'_>, mapa: Mapa, hechos: &mut [Hecho],
+                  entrada: &dyn Fn(usize) -> Entrada<'a>) -> usize {
+    let (hw, hh) = mapa.hoja(s);
+    let tam = (hw as f32, hh as f32);
+    let Some(pintado) = pintor(hechos, tam, p.ancho) else { return 0 };
+    let aire = s.alto_letra * 0.6;
+    let pares: Vec<(usize, f64)> = hechos
+        .iter()
+        .filter(|h| !h.elementos.is_empty())
+        .map(|h| {
+            let c = s.zonas[h.zona].caja;
+            let a = supervisor::recorte(&p.rgba, p.ancho, p.alto, &c, aire);
+            let b = supervisor::recorte(&pintado.0, pintado.1, pintado.2, &c, aire);
+            (h.zona, comparar::parecido((&a.0, a.1, a.2), (&b.0, b.1, b.2)))
+        })
+        .collect();
+    let cand = supervisor::candidatas(&pares, |z| hechos.iter().find(|h| h.zona == z).map(|h| h.tipo));
+    let veredictos: Vec<(usize, Option<supervisor::Veredicto>)> = cand
+        .iter()
+        .map(|&z| {
+            let c = s.zonas[z].caja;
+            let a = supervisor::recorte(&p.rgba, p.ancho, p.alto, &c, aire);
+            let b = supervisor::recorte(&pintado.0, pintado.1, pintado.2, &c, aire);
+            let que_es = match s.zonas[z].tipo {
+                Tipo::Formula => "una formula",
+                Tipo::Tabla => "una tabla",
+                Tipo::Dibujo | Tipo::Diagrama => "un dibujo o una figura",
+                _ => "texto",
+            };
+            (z, supervisor::mirar(m, (&a.0, a.1, a.2), (&b.0, b.1, b.2), que_es))
+        })
+        .collect();
+    let mut arregladas = 0;
+    for (z, v) in veredictos {
+        let zona = &s.zonas[z];
+        let dice: String = match &v {
+            Some(supervisor::Veredicto::Renglones(r, _)) => r.join(" "),
+            _ => String::new(),
+        };
+        let nuevo = match v {
+            Some(supervisor::Veredicto::Renglones(r, _)) if matches!(zona.tipo, Tipo::Parrafo | Tipo::Encabezado) && !zona.renglones.is_empty() => {
+                let ocr: Vec<String> = zona.renglones.iter().map(|x| x.texto.clone()).collect();
+                let json = serde_json::to_string(&r).unwrap_or_default();
+                vision::leer_renglones(&json, &ocr)
+                    .or_else(|| vision::renglones_libres(&json, &ocr))
+                    .or_else(|| Some(supervisor::limpio(&r)))
+                    .map(|bien| montaje::hacer(&entrada(z), Some(&Leido::Renglones(bien)), Via::Fiel))
+            }
+            Some(supervisor::Veredicto::Renglones(r, _))
+                if zona.tipo == Tipo::Formula && r.len() == 1 && r[0].trim().starts_with('$') && r[0].trim().ends_with('$') && r[0].matches('$').count() == 2 =>
+            {
+                let l = r[0].trim().trim_matches('$').to_string();
+                Some(montaje::hacer(&entrada(z), Some(&Leido::Latex(vec![l])), Via::Editable))
+            }
+            Some(supervisor::Veredicto::Renglones(r, _)) if !zona.renglones.is_empty() && matches!(zona.tipo, Tipo::Dibujo | Tipo::Dudosa | Tipo::Formula) => {
+                let mut como_texto = zona.clone();
+                como_texto.tipo = Tipo::Parrafo;
+                let ocr: Vec<String> = zona.renglones.iter().map(|x| x.texto.clone()).collect();
+                let json = serde_json::to_string(&r).unwrap_or_default();
+                vision::leer_renglones(&json, &ocr).or_else(|| Some(supervisor::limpio(&r))).map(|bien| {
+                    let e = Entrada { zona: &como_texto, ..entrada(z) };
+                    let mut h = montaje::hacer(&e, Some(&Leido::Renglones(bien)), Via::Fiel);
+                    h.tipo = Tipo::Parrafo;
+                    h
+                })
+            }
+            Some(supervisor::Veredicto::Recorte(_)) if !matches!(zona.tipo, Tipo::Parrafo | Tipo::Encabezado) => {
+                Some(montaje::hacer(&entrada(z), None, Via::Imagen))
+            }
+            _ => None,
+        };
+        let Some(nuevo) = nuevo else { continue };
+        if nuevo.elementos.is_empty() {
+            continue;
+        }
+        // La prueba de los pixeles: la zona sola, antes y despues.
+        let c = zona.caja;
+        let a = supervisor::recorte(&p.rgba, p.ancho, p.alto, &c, aire);
+        let cuanto = |h: &Hecho| {
+            pintor(std::slice::from_ref(h), tam, p.ancho).map(|q| {
+                let b = supervisor::recorte(&q.0, q.1, q.2, &c, aire);
+                comparar::parecido((&a.0, a.1, a.2), (&b.0, b.1, b.2))
+            })
+        };
+        let antes = hechos.iter().find(|h| h.zona == z).and_then(cuanto).unwrap_or(0.0);
+        let despues = cuanto(&nuevo).unwrap_or(0.0);
+        let ocr: String = zona.renglones.iter().map(|x| x.texto.as_str()).collect::<Vec<_>>().join(" ");
+        let solo_forma = !dice.is_empty() && supervisor::mismas_letras(&dice, &ocr);
+        let vale = if supervisor::repite(&dice, &ocr) {
+            false
+        } else if solo_forma || dice.is_empty() {
+            despues + 0.01 >= antes
+        } else {
+            despues >= antes * 0.3
+        };
+        if vale && let Some(h) = hechos.iter_mut().find(|h| h.zona == z) {
+            *h = nuevo;
+            arregladas += 1;
+        }
+    }
+    arregladas
 }
 
 /// El documento de todas las zonas y sus fotos (id, PNG), como van al
@@ -223,6 +400,9 @@ pub fn contar(p: &Pasada) -> String {
     let mut r = hoja::resumen(&p.seccionado, p.hechos.len(), 0, 0);
     if p.preguntadas > 0 {
         r.push_str(&format!("; {} zona(s) leidas con la nube", p.preguntadas));
+    }
+    if p.rehechas > 0 {
+        r.push_str(&format!("; el supervisor rehizo {} zona(s)", p.rehechas));
     }
     r
 }
@@ -255,7 +435,7 @@ mod pruebas {
     fn una_hoja_sale_al_lienzo_con_sus_fotos_sin_preguntar_a_la_nube() {
         let p = hoja_de_prueba();
         let mut vistos = Vec::new();
-        let pasada = pasar(&p, None, &Opciones::default(), false, 7, &|| false, &mut |i, t| vistos.push((i, t))).unwrap();
+        let pasada = pasar(&p, None, None, &Opciones::default(), false, 7, &|| false, &mut |i, t| vistos.push((i, t))).unwrap();
         assert!(!pasada.hechos.is_empty());
         assert_eq!(pasada.preguntadas, 0);
         assert_eq!(vistos.last(), Some(&(pasada.hechos.len(), pasada.hechos.len())));
@@ -268,13 +448,13 @@ mod pruebas {
         assert!(con_foto == 0 || fotos.iter().all(|(_, png)| png.starts_with(b"\x89PNG")));
         assert!(contar(&pasada).contains("zona"));
         // Caso negativo: parada al empezar.
-        assert!(pasar(&p, None, &Opciones::default(), false, 7, &|| true, &mut |_, _| {}).is_err());
+        assert!(pasar(&p, None, None, &Opciones::default(), false, 7, &|| true, &mut |_, _| {}).is_err());
     }
 
     #[test]
     fn una_hoja_en_blanco_no_pasa() {
         let p = Pagina { rgba: vec![255u8; 200 * 200 * 4], ancho: 200, alto: 200, palabras: Vec::new() };
-        assert!(pasar(&p, None, &Opciones::default(), false, 1, &|| false, &mut |_, _| {}).is_err());
+        assert!(pasar(&p, None, None, &Opciones::default(), false, 1, &|| false, &mut |_, _| {}).is_err());
     }
 }
 
@@ -299,7 +479,7 @@ mod pruebas_lienzo {
             }
         }
         let p = Pagina { rgba, ancho: w, alto: h, palabras: Vec::new() };
-        let pasada = pasar(&p, None, &Opciones::default(), false, 11, &|| false, &mut |_, _| {}).unwrap();
+        let pasada = pasar(&p, None, None, &Opciones::default(), false, 11, &|| false, &mut |_, _| {}).unwrap();
         let (documento, imagenes) = documento_de(&pasada.hechos).unwrap();
         assert!(!imagenes.is_empty(), "la foto sale recortada");
         let trabajo = super::super::al_lienzo::Trabajo::DibujarHoja { documento, imagenes: imagenes.clone() };

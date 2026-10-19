@@ -874,7 +874,8 @@ impl EjecutorDelMac {
             o.ancho = w;
         }
         self.semilla += 1;
-        let pasada = h::pasar(&pagina, Some(vision.as_ref()), &o, pedido.fiel, self.semilla, &|| false, &mut |_, _| {})?;
+        let pintor = |hechos: &[pixpin_ia::hoja::montaje::Hecho], tam: (f32, f32), ancho: u32| h::pintar(app.as_ref(), hechos, tam, ancho);
+        let pasada = h::pasar(&pagina, Some(vision.as_ref()), Some(&pintor), &o, pedido.fiel, self.semilla, &|| false, &mut |_, _| {})?;
         let (documento, imagenes) = h::documento_de(&pasada.hechos)?;
         let c = self.chat.as_mut().ok_or("aqui no hay lienzo")?;
         let marco = c.con_marco.then_some(c.ctx.marco);

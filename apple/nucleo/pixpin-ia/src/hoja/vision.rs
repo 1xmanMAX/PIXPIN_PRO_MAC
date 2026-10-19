@@ -205,7 +205,43 @@ pub fn pedir_renglones(motor: &dyn Motor, png: Vec<u8>, ocr: &[String], contexto
     let lista: String = ocr.iter().enumerate().map(|(i, r)| format!("{}. {r}\n", i + 1)).collect();
     let contexto = if contexto.is_empty() { String::new() } else { format!("{contexto}\n") };
     let t = preguntar_con(motor, SISTEMA_RENGLONES, png, &format!("{contexto}Lo que leyo el OCR ({} renglones):\n{lista}", ocr.len()), 2500)?;
-    leer_renglones(&t, ocr).map(Leido::Renglones).ok_or_else(|| format!("el modelo no devolvio los renglones: «{}»", corto(&t)))
+    leer_renglones(&t, ocr)
+        .or_else(|| renglones_libres(&t, ocr))
+        .map(Leido::Renglones)
+        .ok_or_else(|| format!("el modelo no devolvio los renglones: «{}»", corto(&t)))
+}
+
+/// **Los renglones de la nube aunque no casen con los del OCR** (18-oct,
+/// Polinomios: el OCR partia «M = (x+2)/(y−1)» en tres y leia basura; la
+/// nube daba la lista bien, pero con otro numero de renglones, y se tiraba
+/// para poner el OCR crudo). Se aceptan si, en conjunto, dicen lo mismo:
+/// las letras de fuera de las formulas, parecidas a las del OCR. Quien los
+/// pinta los reparte por el alto de la zona.
+pub fn renglones_libres(t: &str, ocr: &[String]) -> Option<Vec<String>> {
+    let t = sin_bloque(t);
+    let (a, b) = (t.find('[')?, t.rfind(']')?);
+    let v: Vec<String> = serde_json::from_str::<Vec<Value>>(t.get(a..=b)?)
+        .ok()?
+        .into_iter()
+        .filter_map(|x| match x {
+            Value::String(s) => Some(s),
+            Value::Object(m) => ["texto", "text", "t"].iter().find_map(|k| m.get(*k).and_then(Value::as_str)).map(str::to_string),
+            _ => None,
+        })
+        .map(|s| pixpin_motor2d::texto_rico::sin_barras_dobles(s.trim()))
+        .filter(|s| !s.is_empty())
+        .collect();
+    if v.is_empty() || v.iter().any(|s| es_charla(s)) {
+        return None;
+    }
+    let todo_nuevo = v.join(" ");
+    let todo_viejo = ocr.join(" ");
+    let (n, o) = (cuantas_letras(&todo_nuevo) as f64, cuantas_letras(&todo_viejo).max(1) as f64);
+    let parecido = parecido_de_letras(&todo_nuevo, &todo_viejo).max(parecido_de_letras(&fuera_de_formulas(&todo_nuevo), &todo_viejo));
+    if parecido < 0.45 || n < o * 0.5 || n > o * 2.5 + 10.0 {
+        return None;
+    }
+    Some(v.into_iter().map(|s| leer_rico(&s).unwrap_or(s)).collect())
 }
 
 /// Lee la lista corregida: tiene que traer los mismos renglones; cada uno se
@@ -220,26 +256,124 @@ pub fn leer_renglones(t: &str, ocr: &[String]) -> Option<Vec<String>> {
         Value::Object(m) => ["texto", "text", "t", "renglon_corregido"].iter().find_map(|k| m.get(*k).and_then(Value::as_str)).or_else(|| m.values().find_map(Value::as_str)).unwrap_or_default().to_string(),
         otro => otro.to_string(),
     }).collect();
-    if v.len() != ocr.len() {
+    // **Menos renglones que el OCR** (18-oct, Polinomios: la fraccion
+    // «M = (x+2)/(y-1)» eran tres renglones del OCR y uno de verdad): cada
+    // renglon de la nube va, en orden, al del OCR que mas se le parece; los
+    // demas quedan vacios (lo suyo ya va en el otro).
+    let v = if v.len() < ocr.len() && !v.is_empty() {
+        let mut out = vec![String::new(); ocr.len()];
+        let mut desde = 0;
+        for (k, nuevo) in v.iter().enumerate() {
+            // (Que queden sitios para los que faltan.)
+            let hasta = ocr.len() - (v.len() - k - 1);
+            let mejor = (desde..hasta).max_by(|&i, &j| parecido_de_letras(nuevo, &ocr[i]).total_cmp(&parecido_de_letras(nuevo, &ocr[j])).then(j.cmp(&i)))?;
+            // (Que se parezca de verdad: si no, no es esa hoja.)
+            let p = parecido_de_letras(nuevo, &ocr[mejor]).max(parecido_de_letras(&fuera_de_formulas(nuevo), &ocr[mejor]));
+            if p < 0.4 {
+                return None;
+            }
+            out[mejor] = nuevo.clone();
+            desde = mejor + 1;
+        }
+        return Some(
+            out.into_iter()
+                .map(|nuevo| {
+                    if nuevo.trim().is_empty() {
+                        return String::new();
+                    }
+                    let n = pixpin_motor2d::texto_rico::sin_barras_dobles(nuevo.trim());
+                    leer_rico(&n).unwrap_or(n)
+                })
+                .collect(),
+        );
+    } else if v.len() != ocr.len() {
         return None;
-    }
-    Some(
-        v.into_iter()
-            .zip(ocr)
+    } else {
+        v
+    };
+    let mut hecho: Vec<String> = v
+        .into_iter()
+        .zip(ocr)
             .map(|(nuevo, viejo)| {
-                let nuevo = pixpin_motor2d::texto_rico::sin_barras_dobles(nuevo.trim());
+                let nuevo = sin_numero_inventado(&pixpin_motor2d::texto_rico::sin_barras_dobles(nuevo.trim()), viejo);
                 // (Ni uno mucho mas largo o mas corto: la frase entera para un
                 // renglon que era un trozo salia encima de la otra mitad.)
+                // (Lo de dentro de `$...$` no cuenta: el OCR no lee las
+                // formulas, «Sea» era «Sea $P_{(x)}=x^3+3x^2+3x+3$».)
+                // (Para lo de mas, solo cuenta lo de fuera; para lo de menos, todo.)
                 let (n, v) = (cuantas_letras(&nuevo) as f64, cuantas_letras(viejo).max(1) as f64);
-                if nuevo.is_empty() || es_charla(&nuevo) || parecido_de_letras(&nuevo, viejo) < 0.5 || n > v * 1.35 + 2.0 || n < v * 0.65 - 2.0 {
+                let n_fuera = cuantas_letras(&fuera_de_formulas(&nuevo)) as f64;
+                if nuevo.is_empty() || es_charla(&nuevo) || parecido_de_letras(&nuevo, viejo).max(parecido_de_letras(&fuera_de_formulas(&nuevo), viejo)) < 0.5 || n_fuera > v * 1.35 + 2.0 || n < v * 0.65 - 2.0 {
                     viejo.clone()
                 } else {
                     // (LaTeX sin `$` —«16,5^\circ»— se envuelve, como en `leer_rico`.)
                     leer_rico(&nuevo).unwrap_or(nuevo)
                 }
             })
-            .collect(),
-    )
+            .collect();
+    sin_lo_ya_dicho(&mut hecho, ocr);
+    Some(hecho)
+}
+
+/// **Lo que ya dice otro renglon** (19-oct, TikTok: el OCR partia «2 dia(s)
+/// | Responder» en dos y la nube daba «2 día(s) Responder» en uno; el otro
+/// se quedaba con lo del OCR y salia dos veces). Un renglon que se quedo con
+/// lo del OCR y cuyas letras ya van dentro del corregido de otro, vacio.
+fn sin_lo_ya_dicho(hecho: &mut [String], ocr: &[String]) {
+    let plano = |s: &str| -> String {
+        s.chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .map(|c| match c {
+                'á' => 'a',
+                'é' => 'e',
+                'í' => 'i',
+                'ó' => 'o',
+                'ú' => 'u',
+                _ => c,
+            })
+            .collect()
+    };
+    let n = hecho.len().min(ocr.len());
+    for j in 0..n {
+        let pj = plano(&ocr[j]);
+        if pj.chars().count() < 3 || hecho[j] != ocr[j] {
+            continue;
+        }
+        let dicho = (0..n).any(|i| i != j && hecho[i] != ocr[i] && plano(&hecho[i]).contains(&pj) && !plano(&ocr[i]).contains(&pj));
+        if dicho {
+            hecho[j].clear();
+        }
+    }
+}
+
+/// **Sin una numeracion que no estaba** (18-oct: la nube devolvia «1. Si le
+/// asignamos…», «2. tica y…» para un parrafo corrido). Si el renglon del OCR
+/// no empieza por una cifra, el «1. » de delante se quita.
+fn sin_numero_inventado(nuevo: &str, viejo: &str) -> String {
+    let n = nuevo.chars().take_while(|c| c.is_ascii_digit()).count();
+    let viejo_numerado = viejo.trim_start().starts_with(|c: char| c.is_ascii_digit());
+    if n > 0 && n <= 2 && !viejo_numerado {
+        let resto = &nuevo[n..];
+        if let Some(r) = resto.strip_prefix(". ").or_else(|| resto.strip_prefix(") ")) {
+            return r.to_string();
+        }
+    }
+    nuevo.to_string()
+}
+
+/// El texto sin lo que va entre `$...$`.
+fn fuera_de_formulas(s: &str) -> String {
+    let mut fuera = String::new();
+    let mut dentro = false;
+    for c in s.chars() {
+        if c == '$' {
+            dentro = !dentro;
+        } else if !dentro {
+            fuera.push(c);
+        }
+    }
+    fuera
 }
 
 /// Las letras y cifras de un texto, sin los mandatos de LaTeX.
@@ -458,5 +592,43 @@ mod pruebas_rotulos {
         assert!(leer_rotulos("No veo rotulos").is_none());
         // Fuera de 0-1: no.
         assert!(leer_rotulos("[{\"t\":\"A\",\"x\":3,\"y\":0.1}]").unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod pruebas_numeracion {
+    #[test]
+    fn la_numeracion_inventada_se_quita() {
+        assert_eq!(super::sin_numero_inventado("1. Si le asignamos valores", "Si Ie asignamos valores"), "Si le asignamos valores");
+        assert_eq!(super::sin_numero_inventado("1. Número de RFIs", "1. Nümero de RFIs"), "1. Número de RFIs");
+        assert_eq!(super::sin_numero_inventado("2026 fue el año", "2026 fue"), "2026 fue el año");
+    }
+}
+
+#[cfg(test)]
+mod pruebas_formula_que_el_ocr_no_leyo {
+    #[test]
+    fn lo_de_dentro_de_las_formulas_no_cuenta_como_de_mas() {
+        let ocr = vec!["Sea".to_string()];
+        let r = super::leer_renglones(r#"["Sea $P_{(x)}=x^{3}+3x^{2}+3x+3$."]"#, &ocr).unwrap();
+        assert!(r[0].contains("x^{3}"), "{r:?}");
+        // Pero una frase entera de texto para un trozo, no.
+        let r = super::leer_renglones(r#"["Sea la funcion que se define en todo el dominio real"]"#, &ocr).unwrap();
+        assert_eq!(r[0], "Sea");
+    }
+}
+
+#[cfg(test)]
+mod pruebas_lo_ya_dicho {
+    use super::*;
+
+    #[test]
+    fn un_trozo_que_ya_va_en_otro_renglon_no_sale_dos_veces() {
+        let ocr = vec!["Responder".to_string(), "2 dia(s)".to_string()];
+        let r = leer_renglones(r#"["2 día(s) Responder", "zz"]"#, &ocr).unwrap();
+        assert_eq!(r, vec!["2 día(s) Responder".to_string(), String::new()]);
+        // (Si cada uno dice lo suyo, los dos se quedan.)
+        let r = leer_renglones(r#"["Responder", "2 día(s)"]"#, &ocr).unwrap();
+        assert_eq!(r, vec!["Responder".to_string(), "2 día(s)".to_string()]);
     }
 }
