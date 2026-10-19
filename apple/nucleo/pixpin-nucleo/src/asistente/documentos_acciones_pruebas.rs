@@ -123,3 +123,28 @@ fn abrir_por_su_nombre_busca_entre_los_adjuntos_de_los_chats_y_lo_pide_a_la_app(
     assert!(hacer(&accion("dibujar", json!({})), &cx).is_err());
     let _ = std::fs::remove_dir_all(&d);
 }
+
+#[test]
+fn la_rejilla_de_la_foto_manda_y_el_excel_lleva_sus_fondos_y_anchos() {
+    let leida = TablaLeida { filas: vec![vec!["a".into(), "b".into()]], combinadas: Vec::new() };
+    let mut m = pixpin_ia::tabla_aspecto::Medida {
+        columnas: vec![0.0, 100.0, 300.0],
+        filas: vec![0.0, 20.0],
+        fondos: vec![vec![Some([255, 0, 0]), None]],
+        tam_letra: 15.0,
+        celdas: vec![vec!["Total".into(), "120".into()]],
+        ..Default::default()
+    };
+    let foto = Path::new("/x/tabla.png");
+    assert_eq!(filas_de(&leida, &m, foto), m.celdas, "en una foto, la rejilla");
+    let ruta = escribir_excel_con("T", &m.celdas, false, Some(&m)).unwrap();
+    assert!(std::fs::metadata(&ruta).unwrap().len() > 0);
+    // Caso negativo: sin rejilla, lo leido.
+    m.celdas = Vec::new();
+    assert_eq!(filas_de(&leida, &m, foto), leida.filas);
+    // Las rayas tenues se marcan (el papel sigue blanco, lo gris se oscurece).
+    let mut px = vec![255, 255, 255, 255, 200, 200, 200, 255];
+    rayas_marcadas(&mut px);
+    assert_eq!(px[0], 255);
+    assert!(px[4] < 120, "{}", px[4]);
+}

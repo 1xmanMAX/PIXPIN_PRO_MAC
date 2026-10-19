@@ -885,6 +885,86 @@ pub fn palabras_de(app: Option<&dyn AppIa>, ruta: &Path, pagina: Option<usize>) 
     Ok((palabras_de_ocr(&palabras), p))
 }
 
+/// Las rayas tenues marcadas (una tabla de tema oscuro leida en negativo):
+/// cada canal, a la cuarta respecto al fondo (Windows, 18-oct).
+fn rayas_marcadas(px: &mut [u8]) {
+    let mut g: Vec<u8> = px
+        .chunks_exact(4)
+        .step_by(5)
+        .map(|p| ((p[0] as u32 * 299 + p[1] as u32 * 587 + p[2] as u32 * 114) / 1000) as u8)
+        .collect();
+    g.sort_unstable();
+    let fondo = g.get(g.len() / 2).copied().unwrap_or(255).max(1) as f32;
+    for p in px.chunks_exact_mut(4) {
+        for c in &mut p[..3] {
+            *c = (255.0 * (*c as f32 / fondo).min(1.0).powi(4)).round() as u8;
+        }
+    }
+}
+
+/// Las palabras de unos pixeles por Vision (la app), pasandolos a PNG.
+fn palabras_de_pixeles(app: &dyn AppIa, rgba: &[u8], ancho: u32, alto: u32) -> Option<Vec<Palabra>> {
+    let png = pixpin_codec::imagen::codificar_png(&pixpin_codec::ImagenRgba { ancho, alto, pixeles: rgba.to_vec() }).ok()?;
+    Some(palabras_de_ocr(&app.palabras_de_imagen(png)))
+}
+
+/// **El aspecto de la tabla** (`pixpin_ia::tabla_aspecto`): en la foto, o
+/// en la hoja del PDF pintada por PDFKit, con las palabras de Vision en
+/// sus mismos pixeles. Con el ancho de esa imagen.
+pub fn aspecto_de_tabla(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> Option<pixpin_ia::tabla_aspecto::Medida> {
+    let img = if es_imagen(ruta) {
+        pixpin_codec::imagen::cargar(ruta).ok()?
+    } else {
+        let p = match pagina {
+            Some(p) => p,
+            None => palabras_de(Some(app), ruta, None).ok()?.1,
+        };
+        let png = app.pintar_pagina(ruta.display().to_string(), p as u32, ANCHO_OCR)?;
+        let tmp = carpeta_temporal().join(format!("aspecto-{}.png", crate::ahora_ms()));
+        std::fs::create_dir_all(tmp.parent()?).ok()?;
+        std::fs::write(&tmp, png).ok()?;
+        let i = pixpin_codec::imagen::cargar(&tmp).ok();
+        let _ = std::fs::remove_file(&tmp);
+        i?
+    };
+    let ps = palabras_de_pixeles(app, &img.pixeles, img.ancho, img.alto)?;
+    let mut m = pixpin_ia::tabla_aspecto::medir(&img.pixeles, img.ancho, img.alto, &ps)?;
+    if m.columnas.is_empty() {
+        let mut fuerte = img.pixeles.clone();
+        rayas_marcadas(&mut fuerte);
+        if let Some(mut m2) = pixpin_ia::tabla_aspecto::medir(&fuerte, img.ancho, img.alto, &ps)
+            && !m2.columnas.is_empty()
+        {
+            m2.texto = m.texto;
+            m = m2;
+        }
+    }
+    // Torcida: Vision otra vez sobre la foto enderezada, y la medida con esas.
+    if m.inclinacion != 0.0
+        && !m.columnas.is_empty()
+        && let derecha = pixpin_ia::tabla_aspecto::enderezar(&img.pixeles, img.ancho, img.alto, m.inclinacion)
+        && let Some(ps2) = palabras_de_pixeles(app, &derecha, img.ancho, img.alto)
+        && let Some(mut m2) = pixpin_ia::tabla_aspecto::medir(&derecha, img.ancho, img.alto, &ps2)
+    {
+        m2.inclinacion = m.inclinacion;
+        return Some(m2);
+    }
+    Some(m)
+}
+
+/// Las celdas que se usan: las de la rejilla medida en una foto o, si no
+/// hay rejilla o es un PDF que ya cuadra con ella, las leidas (Windows).
+pub fn filas_de(leida: &TablaLeida, m: &pixpin_ia::tabla_aspecto::Medida, ruta: &Path) -> Vec<Vec<String>> {
+    let rejilla = !m.celdas.is_empty() && m.celdas.iter().flatten().any(|c| !c.is_empty());
+    let pdf_que_cuadra = !es_imagen(ruta) && m.cuadra(leida.filas.len(), leida.columnas());
+    if rejilla && !pdf_que_cuadra { m.celdas.clone() } else { leida.filas.clone() }
+}
+
+/// La tabla con otras celdas: si cambian, sus combinadas ya no valen.
+fn con_filas(leida: TablaLeida, filas: Vec<Vec<String>>) -> TablaLeida {
+    if filas == leida.filas { leida } else { TablaLeida { filas, combinadas: Vec::new() } }
+}
+
 fn palabras_de_ocr(leidas: &[PalabraLeida]) -> Vec<Palabra> {
     leidas
         .iter()
@@ -920,11 +1000,21 @@ fn tabla(args: &Value, cx: &Contexto) -> Result<String, String> {
     let c = elegir(cx, texto_de(args, "archivo"), Sirve::Escaneado)?;
     let pagina = args.get("pagina").and_then(Value::as_u64).filter(|p| *p >= 1).map(|p| p as usize - 1);
     let leida = leer_tabla(cx.app, &c.ruta, pagina)?;
+    // El aspecto de la tabla en la foto (Windows, 16/18-oct): la rejilla,
+    // torcida o no, sus fondos y sus anchos.
+    let aspecto = cx.app.and_then(|app| aspecto_de_tabla(app, &c.ruta, pagina));
+    let leida = match &aspecto {
+        Some(m) => {
+            let filas = filas_de(&leida, m, &c.ruta);
+            con_filas(leida, filas)
+        }
+        None => leida,
+    };
     let cabecera = args.get("cabecera").and_then(Value::as_bool).unwrap_or_else(|| leida.parece_cabecera());
     let nombre = texto_de(args, "nombre").map(str::to_string).unwrap_or_else(|| pixpin_docs::sin_extension(&c.nombre));
     let excel = texto_de(args, "destino") == Some("excel");
     let hecha = if excel {
-        let ruta = escribir_excel(&nombre, &leida.filas, cabecera)?;
+        let ruta = escribir_excel_con(&nombre, &leida.filas, cabecera, aspecto.as_ref())?;
         mandar(
             cx,
             json!({"pixpin": 1, "accion": "chat", "proyecto": proyecto_del_pedido(cx),
@@ -1020,8 +1110,36 @@ pub fn tabla_de_filas(nombre: &str, filas: &[Vec<String>], cabecera: bool, ahora
 /// El `.xlsx` de la tabla, en una carpeta temporal (el pedido `chat` lo
 /// copia al chat).
 pub fn escribir_excel(nombre: &str, filas: &[Vec<String>], cabecera: bool) -> Result<PathBuf, String> {
+    escribir_excel_con(nombre, filas, cabecera, None)
+}
+
+/// Lo mismo con el aspecto medido en la foto: el fondo de cada celda y el
+/// ancho de cada columna, si la rejilla cuadra con la tabla (Windows).
+pub fn escribir_excel_con(
+    nombre: &str,
+    filas: &[Vec<String>],
+    cabecera: bool,
+    aspecto: Option<&pixpin_ia::tabla_aspecto::Medida>,
+) -> Result<PathBuf, String> {
     let ahora = crate::ahora_ms();
-    let t = tabla_de_filas(nombre, filas, cabecera, ahora);
+    let mut t = tabla_de_filas(nombre, filas, cabecera, ahora);
+    let columnas = filas.first().map_or(0, Vec::len);
+    if let Some(m) = aspecto.filter(|m| m.cuadra(filas.len(), columnas)) {
+        use pixpin_proyecto::tabla::{Ref, ref_a};
+        for (f, fila) in m.fondos.iter().enumerate() {
+            for (c, fondo) in fila.iter().enumerate() {
+                if let Some(color) = fondo {
+                    let r = ref_a(Ref { columna: c as u32, fila: f as u32 });
+                    t.estilos.entry(r).or_default().f = Some(pixpin_ia::tabla_aspecto::hex(*color));
+                }
+            }
+        }
+        let k = 15.0 / m.tam_letra.max(1.0);
+        for (c, a) in m.anchos().iter().enumerate() {
+            let letra = ref_a(Ref { columna: c as u32, fila: 0 }).trim_end_matches('1').to_string();
+            t.anchos.insert(letra, ((a * k).round() as u32).clamp(30, 600));
+        }
+    }
     let bytes = pixpin_proyecto::tabla_xlsx::a_xlsx(&[pixpin_proyecto::tabla_xlsx::HojaParaVer { nombre, tabla: &t, valores: None }], 0)
         .map_err(|e| e.to_string())?;
     static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
