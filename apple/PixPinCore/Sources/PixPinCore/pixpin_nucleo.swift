@@ -12456,6 +12456,263 @@ public func FfiConverterTypeRelojSincro_lower(_ value: RelojSincro) -> UInt64 {
 
 
 /**
+ * La semana abierta en la ventana.
+ */
+public protocol SemanaHorarioProtocol: AnyObject, Sendable {
+    
+    func alargar(i: UInt32, fin: UInt32) 
+    
+    /**
+     * Una asignatura nueva («Geometría @A-12»). `false`: ya estaba.
+     */
+    func anadirAsignatura(escrito: String)  -> Bool
+    
+    func asignaturas()  -> [AsignaturaHorario]
+    
+    func bloques()  -> [BloqueHorario]
+    
+    func borrar(i: UInt32) 
+    
+    func borrarAsignatura(i: UInt32) 
+    
+    func cambiarColor(i: UInt32) 
+    
+    /**
+     * **Guarda** en `horario.md` (solo las lineas de clases y asignaturas).
+     */
+    func guardar() throws 
+    
+    func mover(i: UInt32, dia: UInt8, inicio: Int64) 
+    
+    /**
+     * Suelta la asignatura `asignatura` en el dia y minuto: un bloque nuevo.
+     */
+    func soltar(asignatura: UInt32, dia: UInt8, minuto: UInt32) 
+    
+}
+/**
+ * La semana abierta en la ventana.
+ */
+open class SemanaHorario: SemanaHorarioProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_semanahorario(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_semanahorario(handle, $0) }
+    }
+
+    
+    /**
+     * Lee el horario (lo crea con la plantilla si no esta).
+     */
+public static func abrir(nucleo: Nucleo)throws  -> SemanaHorario  {
+    return try  FfiConverterTypeSemanaHorario_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_constructor_semanahorario_abrir(
+        FfiConverterTypeNucleo_lower(nucleo),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+open func alargar(i: UInt32, fin: UInt32)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_alargar(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(i),
+        FfiConverterUInt32.lower(fin),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Una asignatura nueva («Geometría @A-12»). `false`: ya estaba.
+     */
+open func anadirAsignatura(escrito: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_anadir_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(escrito),uniffiCallStatus
+    )
+})
+}
+    
+open func asignaturas() -> [AsignaturaHorario]  {
+    return try!  FfiConverterSequenceTypeAsignaturaHorario.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_asignaturas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func bloques() -> [BloqueHorario]  {
+    return try!  FfiConverterSequenceTypeBloqueHorario.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_bloques(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func borrar(i: UInt32)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_borrar(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(i),uniffiCallStatus
+    )
+}
+}
+    
+open func borrarAsignatura(i: UInt32)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_borrar_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(i),uniffiCallStatus
+    )
+}
+}
+    
+open func cambiarColor(i: UInt32)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_cambiar_color(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(i),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Guarda** en `horario.md` (solo las lineas de clases y asignaturas).
+     */
+open func guardar()throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_guardar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+open func mover(i: UInt32, dia: UInt8, inicio: Int64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_mover(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(i),
+        FfiConverterUInt8.lower(dia),
+        FfiConverterInt64.lower(inicio),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Suelta la asignatura `asignatura` en el dia y minuto: un bloque nuevo.
+     */
+open func soltar(asignatura: UInt32, dia: UInt8, minuto: UInt32)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_soltar(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(asignatura),
+        FfiConverterUInt8.lower(dia),
+        FfiConverterUInt32.lower(minuto),uniffiCallStatus
+    )
+}
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSemanaHorario: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = SemanaHorario
+
+    public static func lift(_ handle: UInt64) throws -> SemanaHorario {
+        return SemanaHorario(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: SemanaHorario) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SemanaHorario {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: SemanaHorario, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSemanaHorario_lift(_ handle: UInt64) throws -> SemanaHorario {
+    return try FfiConverterTypeSemanaHorario.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSemanaHorario_lower(_ value: SemanaHorario) -> UInt64 {
+    return FfiConverterTypeSemanaHorario.lower(value)
+}
+
+
+
+
+
+
+/**
  * **Una nota abierta en el editor web.**
  */
 public protocol SesionNotaProtocol: AnyObject, Sendable {
@@ -13967,6 +14224,70 @@ public func FfiConverterTypeArgAutomatizacion_lower(_ value: ArgAutomatizacion) 
 }
 
 
+public struct AsignaturaHorario: Equatable, Hashable {
+    public var nombre: String
+    public var aula: String?
+    /**
+     * `0xRRGGBB`.
+     */
+    public var color: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, aula: String?, 
+        /**
+         * `0xRRGGBB`.
+         */color: UInt32) {
+        self.nombre = nombre
+        self.aula = aula
+        self.color = color
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AsignaturaHorario: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAsignaturaHorario: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AsignaturaHorario {
+        return
+            try AsignaturaHorario(
+                nombre: FfiConverterString.read(from: &buf), 
+                aula: FfiConverterOptionString.read(from: &buf), 
+                color: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AsignaturaHorario, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterOptionString.write(value.aula, into: &buf)
+        FfiConverterUInt32.write(value.color, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsignaturaHorario_lift(_ buf: RustBuffer) throws -> AsignaturaHorario {
+    return try FfiConverterTypeAsignaturaHorario.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsignaturaHorario_lower(_ value: AsignaturaHorario) -> RustBuffer {
+    return FfiConverterTypeAsignaturaHorario.lower(value)
+}
+
+
 /**
  * **Un aviso del horario** para el vigia del Mac: cuando suena (UTC) y la
  * llamada que sale.
@@ -14161,6 +14482,88 @@ public func FfiConverterTypeAvisoMini_lift(_ buf: RustBuffer) throws -> AvisoMin
 #endif
 public func FfiConverterTypeAvisoMini_lower(_ value: AvisoMini) -> RustBuffer {
     return FfiConverterTypeAvisoMini.lower(value)
+}
+
+
+public struct BloqueHorario: Equatable, Hashable {
+    /**
+     * 0 lunes … 6 domingo.
+     */
+    public var dia: UInt8
+    /**
+     * Minutos del dia.
+     */
+    public var inicio: UInt32
+    public var fin: UInt32
+    public var nombre: String
+    public var aula: String?
+    public var color: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * 0 lunes … 6 domingo.
+         */dia: UInt8, 
+        /**
+         * Minutos del dia.
+         */inicio: UInt32, fin: UInt32, nombre: String, aula: String?, color: UInt32) {
+        self.dia = dia
+        self.inicio = inicio
+        self.fin = fin
+        self.nombre = nombre
+        self.aula = aula
+        self.color = color
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BloqueHorario: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBloqueHorario: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BloqueHorario {
+        return
+            try BloqueHorario(
+                dia: FfiConverterUInt8.read(from: &buf), 
+                inicio: FfiConverterUInt32.read(from: &buf), 
+                fin: FfiConverterUInt32.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                aula: FfiConverterOptionString.read(from: &buf), 
+                color: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BloqueHorario, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.dia, into: &buf)
+        FfiConverterUInt32.write(value.inicio, into: &buf)
+        FfiConverterUInt32.write(value.fin, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterOptionString.write(value.aula, into: &buf)
+        FfiConverterUInt32.write(value.color, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBloqueHorario_lift(_ buf: RustBuffer) throws -> BloqueHorario {
+    return try FfiConverterTypeBloqueHorario.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBloqueHorario_lower(_ value: BloqueHorario) -> RustBuffer {
+    return FfiConverterTypeBloqueHorario.lower(value)
 }
 
 
@@ -36039,6 +36442,31 @@ fileprivate struct FfiConverterSequenceTypeArgAutomatizacion: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeAsignaturaHorario: FfiConverterRustBuffer {
+    typealias SwiftType = [AsignaturaHorario]
+
+    public static func write(_ value: [AsignaturaHorario], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAsignaturaHorario.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AsignaturaHorario] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AsignaturaHorario]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAsignaturaHorario.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeAvisoHorario: FfiConverterRustBuffer {
     typealias SwiftType = [AvisoHorario]
 
@@ -36081,6 +36509,31 @@ fileprivate struct FfiConverterSequenceTypeAvisoMini: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeAvisoMini.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBloqueHorario: FfiConverterRustBuffer {
+    typealias SwiftType = [BloqueHorario]
+
+    public static func write(_ value: [BloqueHorario], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBloqueHorario.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BloqueHorario] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BloqueHorario]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBloqueHorario.read(from: &buf))
         }
         return seq
     }
@@ -41622,6 +42075,36 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_tocada() != 25435) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_alargar() != 39317) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_anadir_asignatura() != 34009) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_asignaturas() != 35524) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_bloques() != 37291) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_borrar() != 51798) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_borrar_asignatura() != 38634) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_cambiar_color() != 9888) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_guardar() != 39032) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_mover() != 29409) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_soltar() != 54008) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_lienzo_caja() != 1730) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -41848,6 +42331,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_editorlienzo_de_fichero() != 39861) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_constructor_semanahorario_abrir() != 55314) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_fichero() != 15288) {

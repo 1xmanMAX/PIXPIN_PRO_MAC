@@ -13,8 +13,13 @@ import SwiftUI
 
 @MainActor
 public enum HorarioClases {
-    /// Abre el horario en el editor de notas (lo crea con la plantilla).
+    /// Abre la ventana semanal (Windows, 18-oct); el texto, desde ella.
     public static func abrir(nucleo: Nucleo) {
+        VentanasDeHorario.abrir(nucleo: nucleo)
+    }
+
+    /// Abre el horario en el editor de notas (lo crea con la plantilla).
+    public static func abrirTexto(nucleo: Nucleo) {
         do {
             let ruta = try nucleo.ficheroDelHorario()
             EditoresDeNotas.compartidos.abrir(fichero: URL(fileURLWithPath: ruta), nucleo: nucleo)

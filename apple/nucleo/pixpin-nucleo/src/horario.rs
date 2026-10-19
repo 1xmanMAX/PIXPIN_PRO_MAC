@@ -77,6 +77,10 @@ use pixpin_ia::fechas::{self, Momento};
 
 use crate::Nucleo;
 
+// Lo puro de la ventana semanal (Windows, 18-oct).
+pub(crate) mod semana;
+pub mod ventana_mac;
+
 
 /// La llamada de un aviso (la de `llamada.rs` de Windows, solo lo que se
 /// usa aqui).
