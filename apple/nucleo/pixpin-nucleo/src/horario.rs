@@ -78,6 +78,7 @@ use pixpin_ia::fechas::{self, Momento};
 use crate::Nucleo;
 
 // Lo puro de la ventana semanal (Windows, 18-oct).
+pub mod asignaturas;
 pub(crate) mod semana;
 pub mod ventana_mac;
 

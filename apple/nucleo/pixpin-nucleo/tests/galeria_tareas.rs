@@ -582,3 +582,19 @@ fn una_tarea_con_imagen_la_copia_al_chat_y_la_lleva_en_su_texto() {
     assert!(n.apuntar_tarea_con_imagenes("x".into(), vec![txt.display().to_string()], 0).is_err());
     assert!(n.apuntar_tarea_con_imagenes("  ".into(), vec![], 0).is_err());
 }
+
+#[test]
+fn una_tarea_de_una_asignatura_va_a_su_lista_del_chat_asignaturas() {
+    let tmp = Temporal::nueva("asignaturas");
+    let n = tmp.nucleo();
+    let l = n.apuntar_en_asignatura("Geometría".into(), "repasar ángulos".into(), vec![], 0).unwrap();
+    assert_eq!(l.titulo, "Geometría");
+    assert!(l.tareas[0].crudo.starts_with("repasar ángulos"));
+    let otra = n.apuntar_en_asignatura("geometria".into(), "traer compás".into(), vec![], 0).unwrap();
+    assert_eq!(otra.mensaje, l.mensaje, "la misma lista sin mirar tildes");
+    let chats = n.chats().unwrap();
+    assert_eq!(chats.iter().filter(|c| c.nombre == "Asignaturas").count(), 1);
+    // Casos negativos.
+    assert!(n.apuntar_en_asignatura("".into(), "x".into(), vec![], 0).is_err());
+    assert!(n.apuntar_en_asignatura("Física".into(), " ".into(), vec![], 0).is_err());
+}

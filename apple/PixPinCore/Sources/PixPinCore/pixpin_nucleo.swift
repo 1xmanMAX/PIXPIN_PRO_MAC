@@ -6515,6 +6515,18 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func rutaDelHorario()  -> String
     
     /**
+     * **Apunta una tarea en la asignatura** `asignatura`: su lista en el
+     * chat «Asignaturas» (los dos se crean si no estan).
+     */
+    func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [String], desfaseMs: Int64) throws  -> ListaTareas
+    
+    /**
+     * Los nombres de las asignaturas del horario (la lista lateral y las de
+     * las clases), para elegir donde apuntar una tarea.
+     */
+    func nombresDeAsignaturas(desfaseMs: Int64)  -> [String]
+    
+    /**
      * **Las fotos y audios de una leccion** (`LeccionesStore.adjuntosDe`,
      * `almacen::adjuntos_de` de Windows): los de su lista, en su orden, y
      * **tambien los que le responden** (si dos aparatos le pusieron una
@@ -9200,6 +9212,37 @@ open func rutaDelHorario() -> String  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_nucleo_ruta_del_horario(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Apunta una tarea en la asignatura** `asignatura`: su lista en el
+     * chat «Asignaturas» (los dos se crean si no estan).
+     */
+open func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [String], desfaseMs: Int64)throws  -> ListaTareas  {
+    return try  FfiConverterTypeListaTareas_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_apuntar_en_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(asignatura),
+        FfiConverterString.lower(texto),
+        FfiConverterSequenceString.lower(imagenes),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Los nombres de las asignaturas del horario (la lista lateral y las de
+     * las clases), para elegir donde apuntar una tarea.
+     */
+open func nombresDeAsignaturas(desfaseMs: Int64) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nombres_de_asignaturas(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
     )
 })
 }
@@ -41499,6 +41542,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_del_horario() != 32022) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_en_asignatura() != 29781) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nombres_de_asignaturas() != 21994) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntos_de_leccion() != 13576) {

@@ -478,6 +478,22 @@ impl Nucleo {
                 .find(|f| f.id == g.id)
                 .ok_or(ErrorNucleo::NoExiste { que: g.id })?
         };
+        self.apuntar_en_lista(&ficha, INBOX, texto, &imagenes, desfase_ms)
+    }
+}
+
+impl Nucleo {
+    /// Apunta `texto` (ya entendido) con sus `imagenes` en la lista de
+    /// tareas `nombre_lista` del chat `ficha` (sin mirar mayusculas ni
+    /// tildes), creandola vacia si no esta. Devuelve la lista como quedo.
+    pub(crate) fn apuntar_en_lista(
+        &self,
+        ficha: &almacen::Ficha,
+        nombre_lista: &str,
+        texto: String,
+        imagenes: &[String],
+        desfase_ms: i64,
+    ) -> Result<ListaTareas, ErrorNucleo> {
         let raiz = self.ruta();
         let mut enlaces = Vec::with_capacity(imagenes.len());
         for (i, r) in imagenes.iter().enumerate() {
@@ -488,22 +504,23 @@ impl Nucleo {
         let fichero = carpeta.join("guardados.jsonl");
         let ahora = crate::ahora_ms();
         let hoy = mini::Fecha::de_ms_locales(ahora + desfase_ms);
+        let buscada = pixpin_ia::acciones::normalizar(nombre_lista.trim());
         let inbox = listas_del_cuaderno(&fichero)?
             .into_iter()
-            .find(|m| !m.en_buzon && nombre_de_lista(m).trim().eq_ignore_ascii_case(INBOX));
+            .find(|m| !m.en_buzon && pixpin_ia::acciones::normalizar(nombre_de_lista(m).trim()) == buscada);
         let inbox = match inbox {
             Some(m) => m,
             None => {
                 // Una lista nueva y vacia, como `pedidos::nueva_lista`.
                 let aparato = self.identidad()?.yo.codigo();
                 let documento =
-                    mini::documento_nuevo(mini::TAREAS, INBOX, &mini::gastos::Moneda::euro())
+                    mini::documento_nuevo(mini::TAREAS, nombre_lista, &mini::gastos::Moneda::euro())
                         .unwrap_or_default();
                 let mut cache = self.cache_tomada();
                 let numero = cache.indice(&fichero)?.map_or(0, |i| i.mayor_numero) + 1;
                 let m = Mensaje::miniapp(
                     mini::TAREAS,
-                    INBOX,
+                    nombre_lista,
                     &documento,
                     &Sello {
                         cuando: hora_unica(),
@@ -529,10 +546,10 @@ impl Nucleo {
         let mut indice = Indice::leer_si_esta(raiz)?;
         if let Some(f) = indice.proyectos.iter_mut().find(|f| f.id == ficha.id) {
             f.tocado = ahora;
-            f.resumen = INBOX.to_string();
+            f.resumen = nombre_lista.to_string();
             indice.guardar(raiz)?;
         }
-        Ok(self.lista_de(&ficha, &nuevo, hoy))
+        Ok(self.lista_de(ficha, &nuevo, hoy))
     }
 }
 

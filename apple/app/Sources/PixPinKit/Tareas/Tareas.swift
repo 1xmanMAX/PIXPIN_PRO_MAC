@@ -189,6 +189,9 @@ public final class ModeloTareas: ObservableObject {
         }
     }
 
+    /// Las asignaturas del horario (donde tambien se puede apuntar).
+    public var asignaturas: [String] { nucleo.nombresDeAsignaturas(desfaseMs: desfaseLocalMs()) }
+
     /// Fija la tarea en la pantalla (su pin, con la nota).
     public func pinear(_ t: TareaConLista) {
         let titulo = marcasDeTarea(texto: t.tarea.crudo, desfaseMs: desfaseLocalMs()).titulo
@@ -273,7 +276,7 @@ public final class ModeloTareas: ObservableObject {
 
     /// Apunta una tarea en el Inbox de «Mensajes guardados», con sus
     /// imagenes (pegadas o soltadas en la caja) si las hay.
-    public func apuntar(_ texto: String, imagenes: [URL] = []) async {
+    public func apuntar(_ texto: String, imagenes: [URL] = [], asignatura: String = "") async {
         let limpio = texto.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !limpio.isEmpty || !imagenes.isEmpty else { return }
         let rutas = imagenes.map(\.path)
@@ -281,7 +284,10 @@ public final class ModeloTareas: ObservableObject {
         let desfase = desfaseLocalMs()
         do {
             let lista = try await Task.detached(priority: .userInitiated) {
-                try nucleo.apuntarTareaConImagenes(texto: limpio, imagenes: rutas, desfaseMs: desfase)
+                asignatura.isEmpty
+                    ? try nucleo.apuntarTareaConImagenes(texto: limpio, imagenes: rutas, desfaseMs: desfase)
+                    : try nucleo.apuntarEnAsignatura(asignatura: asignatura, texto: limpio, imagenes: rutas,
+                                                     desfaseMs: desfase)
             }.value
             error = nil
             // Con hora: directamente su pin en la pantalla (Windows).
@@ -316,6 +322,8 @@ public struct VentanaTareas: View {
     @State private var verHechas = false
     /// Las imagenes que iran con la tarea que se apunta.
     @State private var imagenes: [URL] = []
+    /// Donde se apunta: vacio el Inbox, o una asignatura (Windows, 18-oct).
+    @State private var destino = ""
 
     public init(almacen: Almacen) {
         _modelo = StateObject(wrappedValue: ModeloTareas(nucleo: almacen.nucleo))
@@ -337,6 +345,16 @@ public struct VentanaTareas: View {
                     Label("\(imagenes.count)", systemImage: "photo")
                         .help(imagenes.map(\.lastPathComponent).joined(separator: "\n"))
                         .onTapGesture { imagenes = [] }
+                }
+                let asignaturas = modelo.asignaturas
+                if !asignaturas.isEmpty {
+                    Picker("", selection: $destino) {
+                        Text("Inbox").tag("")
+                        ForEach(asignaturas, id: \.self) { Text($0).tag($0) }
+                    }
+                    .labelsHidden()
+                    .frame(maxWidth: 150)
+                    .help("Apuntar en el Inbox o en la lista de una asignatura")
                 }
                 Button { pegarImagen() } label: { Image(systemName: "photo.badge.plus") }
                     .help("Pegar una imagen del portapapeles (o suelta imágenes en la caja)")
@@ -439,7 +457,8 @@ public struct VentanaTareas: View {
         let fotos = imagenes
         nueva = ""
         imagenes = []
-        Task { await modelo.apuntar(texto, imagenes: fotos) }
+        let donde = destino
+        Task { await modelo.apuntar(texto, imagenes: fotos, asignatura: donde) }
     }
 
     /// La imagen del portapapeles, a un PNG temporal para la tarea.
