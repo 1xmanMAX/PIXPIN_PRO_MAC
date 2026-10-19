@@ -21799,9 +21799,10 @@ public func FfiConverterTypeMarcadorReflujo_lower(_ value: MarcadorReflujo) -> R
 
 
 /**
- * **Lo que se ve de una tarea** (la tarjeta, la fila, el Kanban): el
- * titulo con sus `#etiquetas`, la hora legible y la nota, y sus chapitas
- * (la prioridad primero), como `tareas::frase` de Windows.
+ * **Lo que se ve de una tarea** (la tarjeta, la fila, el Kanban), como
+ * `tareas::frase::a_la_vista` de Windows (18-oct): el titulo limpio con la
+ * hora y la nota, los emoticonos en circulos y la urgencia y las
+ * `#etiquetas` en chapitas aparte.
  */
 public struct MarcasTarea: Equatable, Hashable {
     /**
@@ -21809,9 +21810,13 @@ public struct MarcasTarea: Equatable, Hashable {
      */
     public var titulo: String
     /**
-     * `alta`, `media`, `baja` o nada.
+     * `urgente`, `muy_urgente` o nada (normal).
      */
-    public var prioridad: String?
+    public var urgencia: String?
+    /**
+     * El emoticono de la urgencia (`🔼`, `⏫`), si la tiene.
+     */
+    public var marcaUrgencia: String?
     public var etiquetas: [String]
     /**
      * Por que no se esta haciendo (tras `💬`).
@@ -21826,7 +21831,7 @@ public struct MarcasTarea: Equatable, Hashable {
      */
     public var vista: String
     /**
-     * Las chapitas (emoticonos), la prioridad primero.
+     * Sus emoticonos (en circulos).
      */
     public var chapitas: [String]
 
@@ -21837,8 +21842,11 @@ public struct MarcasTarea: Equatable, Hashable {
          * Lo que hay que hacer, sin marcas.
          */titulo: String, 
         /**
-         * `alta`, `media`, `baja` o nada.
-         */prioridad: String?, etiquetas: [String], 
+         * `urgente`, `muy_urgente` o nada (normal).
+         */urgencia: String?, 
+        /**
+         * El emoticono de la urgencia (`🔼`, `⏫`), si la tiene.
+         */marcaUrgencia: String?, etiquetas: [String], 
         /**
          * Por que no se esta haciendo (tras `💬`).
          */nota: String?, 
@@ -21849,10 +21857,11 @@ public struct MarcasTarea: Equatable, Hashable {
          * El renglon que se ensena.
          */vista: String, 
         /**
-         * Las chapitas (emoticonos), la prioridad primero.
+         * Sus emoticonos (en circulos).
          */chapitas: [String]) {
         self.titulo = titulo
-        self.prioridad = prioridad
+        self.urgencia = urgencia
+        self.marcaUrgencia = marcaUrgencia
         self.etiquetas = etiquetas
         self.nota = nota
         self.horaMs = horaMs
@@ -21877,7 +21886,8 @@ public struct FfiConverterTypeMarcasTarea: FfiConverterRustBuffer {
         return
             try MarcasTarea(
                 titulo: FfiConverterString.read(from: &buf), 
-                prioridad: FfiConverterOptionString.read(from: &buf), 
+                urgencia: FfiConverterOptionString.read(from: &buf), 
+                marcaUrgencia: FfiConverterOptionString.read(from: &buf), 
                 etiquetas: FfiConverterSequenceString.read(from: &buf), 
                 nota: FfiConverterOptionString.read(from: &buf), 
                 horaMs: FfiConverterOptionInt64.read(from: &buf), 
@@ -21888,7 +21898,8 @@ public struct FfiConverterTypeMarcasTarea: FfiConverterRustBuffer {
 
     public static func write(_ value: MarcasTarea, into buf: inout [UInt8]) {
         FfiConverterString.write(value.titulo, into: &buf)
-        FfiConverterOptionString.write(value.prioridad, into: &buf)
+        FfiConverterOptionString.write(value.urgencia, into: &buf)
+        FfiConverterOptionString.write(value.marcaUrgencia, into: &buf)
         FfiConverterSequenceString.write(value.etiquetas, into: &buf)
         FfiConverterOptionString.write(value.nota, into: &buf)
         FfiConverterOptionInt64.write(value.horaMs, into: &buf)

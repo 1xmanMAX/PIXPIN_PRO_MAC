@@ -6,6 +6,8 @@ rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
+# Las palabras de fabrica de cada urgencia de las tareas (`[tareas]`).
+pixpin-frase = { path = "../pixpin-frase" }
 fluent-bundle = "0.16.0"
 pixpin-motor2d = { version = "0.1.0", path = "../pixpin-motor2d" }
 # Atajos y entorno, portables: sin arrastrar Win32 (ver pixpin-sistema).

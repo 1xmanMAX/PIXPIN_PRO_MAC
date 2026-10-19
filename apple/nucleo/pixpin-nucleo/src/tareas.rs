@@ -236,15 +236,18 @@ pub fn sin_marca(texto: &str) -> String {
     }
 }
 
-/// **Lo que se ve de una tarea** (la tarjeta, la fila, el Kanban): el
-/// titulo con sus `#etiquetas`, la hora legible y la nota, y sus chapitas
-/// (la prioridad primero), como `tareas::frase` de Windows.
+/// **Lo que se ve de una tarea** (la tarjeta, la fila, el Kanban), como
+/// `tareas::frase::a_la_vista` de Windows (18-oct): el titulo limpio con la
+/// hora y la nota, los emoticonos en circulos y la urgencia y las
+/// `#etiquetas` en chapitas aparte.
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct MarcasTarea {
     /// Lo que hay que hacer, sin marcas.
     pub titulo: String,
-    /// `alta`, `media`, `baja` o nada.
-    pub prioridad: Option<String>,
+    /// `urgente`, `muy_urgente` o nada (normal).
+    pub urgencia: Option<String>,
+    /// El emoticono de la urgencia (`🔼`, `⏫`), si la tiene.
+    pub marca_urgencia: Option<String>,
     pub etiquetas: Vec<String>,
     /// Por que no se esta haciendo (tras `💬`).
     pub nota: Option<String>,
@@ -252,7 +255,7 @@ pub struct MarcasTarea {
     pub hora_ms: Option<i64>,
     /// El renglon que se ensena.
     pub vista: String,
-    /// Las chapitas (emoticonos), la prioridad primero.
+    /// Sus emoticonos (en circulos).
     pub chapitas: Vec<String>,
 }
 
@@ -260,22 +263,21 @@ pub struct MarcasTarea {
 #[uniffi::export]
 pub fn marcas_de_tarea(texto: String, desfase_ms: i64) -> MarcasTarea {
     let m = frase::marcas(&texto);
-    let (vista, chapitas) = frase::a_la_vista(&texto, Some(frase::ahora(desfase_ms)));
+    let v = frase::a_la_vista(&texto, Some(frase::ahora(desfase_ms)));
+    let urgencia = match m.urgencia {
+        frase::Urgencia::Normal => None,
+        frase::Urgencia::Urgente => Some("urgente".to_string()),
+        frase::Urgencia::MuyUrgente => Some("muy_urgente".to_string()),
+    };
     MarcasTarea {
         titulo: m.titulo,
-        prioridad: m.prioridad.map(|p| {
-            match p {
-                frase::Prioridad::Alta => "alta",
-                frase::Prioridad::Media => "media",
-                frase::Prioridad::Baja => "baja",
-            }
-            .to_string()
-        }),
+        urgencia,
+        marca_urgencia: m.urgencia.marca().map(str::to_string),
         etiquetas: m.etiquetas,
         nota: m.nota,
-        hora_ms: m.hora,
-        vista,
-        chapitas,
+        hora_ms: m.hora.map(frase::ms_de),
+        vista: v.texto,
+        chapitas: v.emos,
     }
 }
 

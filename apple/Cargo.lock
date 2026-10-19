@@ -1643,6 +1643,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "pixpin-frase"
+version = "0.1.0"
+
+[[package]]
 name = "pixpin-geom"
 version = "0.1.0"
 
@@ -1662,6 +1666,7 @@ dependencies = [
  "image",
  "pixpin-codec",
  "pixpin-docs",
+ "pixpin-frase",
  "pixpin-geom",
  "pixpin-motor2d",
  "pixpin-pdf",
@@ -1724,6 +1729,7 @@ dependencies = [
  "pixpin-cad",
  "pixpin-codec",
  "pixpin-docs",
+ "pixpin-frase",
  "pixpin-ia",
  "pixpin-lecciones",
  "pixpin-motor2d",
@@ -1816,6 +1822,7 @@ name = "pixpin-store"
 version = "0.1.0"
 dependencies = [
  "fluent-bundle",
+ "pixpin-frase",
  "pixpin-motor2d",
  "pixpin-sistema",
  "serde",

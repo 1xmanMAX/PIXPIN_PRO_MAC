@@ -488,6 +488,13 @@ struct FilaTarea: View {
                         Text(m.vista.isEmpty ? "(sin texto)" : m.vista)
                             .strikethrough(t.tarea.hecha)
                             .foregroundStyle(t.tarea.hecha ? Color.secondary : Color.primary)
+                        // La urgencia y las #etiquetas, en chapitas aparte
+                        // (Windows, 18-oct).
+                        if let u = m.urgencia {
+                            ChapitaTarea(texto: (m.marcaUrgencia ?? "") + (u == "muy_urgente" ? " muy urgente" : " urgente"),
+                                    color: u == "muy_urgente" ? .red : .orange)
+                        }
+                        ForEach(m.etiquetas, id: \.self) { ChapitaTarea(texto: "#\($0)", color: .accentColor) }
                     }
                     .onTapGesture(count: 2) { empezar() }
                 }
@@ -612,5 +619,20 @@ struct ColumnaKanban: View {
         .padding(8)
         .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
         .draggable(x.id)
+    }
+}
+
+
+/// Una chapita de una tarea (su urgencia o una etiqueta).
+struct ChapitaTarea: View {
+    let texto: String
+    let color: Color
+
+    var body: some View {
+        Text(texto)
+            .font(.caption)
+            .padding(.horizontal, 6).padding(.vertical, 1)
+            .background(color.opacity(0.18), in: Capsule())
+            .foregroundStyle(color)
     }
 }

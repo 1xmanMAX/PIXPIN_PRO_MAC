@@ -88,7 +88,7 @@ fn corregido(crudo: &str, nuevo: &str, desfase_ms: i64) -> String {
     if f.hora.is_none()
         && let Some(h) = antes.hora
     {
-        texto = super::con_hora(&texto, h);
+        texto = super::con_hora(&texto, frase::ms_de(h));
     }
     let mut s = mini::con_imagenes(&texto, &imagenes);
     if let Some(n) = antes.nota {

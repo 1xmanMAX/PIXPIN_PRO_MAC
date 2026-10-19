@@ -66,7 +66,7 @@ struct VistaPinTarea: View {
             HStack(alignment: .top, spacing: 6) {
                 Toggle("", isOn: Binding(get: { modelo.hecha }, set: { modelo.marcar($0) }))
                     .toggleStyle(.checkbox).labelsHidden()
-                if let p = modelo.marcas?.chapitas.first, modelo.marcas?.prioridad != nil { Text(p) }
+                if let u = modelo.marcas?.marcaUrgencia { Text(u) }
                 Text(modelo.seFue ? "\(modelo.titulo) (ya no está)" : modelo.titulo)
                     .font(.system(size: 14, weight: .semibold))
                     .strikethrough(modelo.hecha)

@@ -85,6 +85,11 @@ fn color_mediano(rgba: &[u8], w: u32, h: u32, caja: &Caja, paso: usize, vale: im
     Some(m)
 }
 
+/// La distancia entre dos colores (euclidea en RGB).
+fn dist(a: [f64; 3], b: [f64; 3]) -> f64 {
+    ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt()
+}
+
 fn gris(p: [u8; 3]) -> f64 {
     (p[0] as f64 * 299.0 + p[1] as f64 * 587.0 + p[2] as f64 * 114.0) / 1000.0
 }
@@ -128,26 +133,39 @@ fn por_fondo(rgba: &[u8], w: u32, h: u32, a: &Analisis, hm: f64) -> Vec<Panel> {
     if cw < 4 || ch < 4 {
         return Vec::new();
     }
-    let mut media = vec![0u8; cw * ch];
+    // **En color** (18-oct): el boton azul «ver Mapa», la barra oscura de un
+    // navegador, una tarjeta crema. Una celda vale si es lisa en sus tres
+    // canales y no es papel; da igual lo oscura que sea (el texto no forma
+    // rectangulos grandes con los cuatro lados llenos, que es lo que se pide).
+    let kp = CELDA as f64 / a.f;
+    let papel = [a.fondo as f64; 3];
+    let mut color = vec![[0f64; 3]; cw * ch];
     let mut vale = vec![false; cw * ch];
-    let tope = a.fondo.saturating_sub(5);
-    let suelo = a.umbral.saturating_add(25);
     for cy in 0..ch {
         for cx in 0..cw {
-            let (mut s, mut lo, mut hi) = (0u32, 255u8, 0u8);
-            for y in cy * CELDA..(cy + 1) * CELDA {
-                for x in cx * CELDA..(cx + 1) * CELDA {
-                    let g = a.gris[y * a.w + x];
-                    s += g as u32;
-                    lo = lo.min(g);
-                    hi = hi.max(g);
+            let (x0, y0) = ((cx as f64 * kp) as u32, (cy as f64 * kp) as u32);
+            let (x1, y1) = ((((cx + 1) as f64 * kp) as u32).min(w), (((cy + 1) as f64 * kp) as u32).min(h));
+            let (mut s, mut n) = ([0f64; 3], 0f64);
+            let (mut lo, mut hi) = ([255u8; 3], [0u8; 3]);
+            for y in y0..y1.max(y0 + 1).min(h) {
+                for x in x0..x1.max(x0 + 1).min(w) {
+                    let i = ((y * w + x) * 4) as usize;
+                    for c in 0..3 {
+                        let v = rgba[i + c];
+                        s[c] += v as f64;
+                        lo[c] = lo[c].min(v);
+                        hi[c] = hi[c].max(v);
+                    }
+                    n += 1.0;
                 }
             }
-            let m = (s / (CELDA * CELDA) as u32) as u8;
-            media[cy * cw + cx] = m;
-            vale[cy * cw + cx] = hi - lo <= 10 && m <= tope && m >= suelo;
+            let m = [s[0] / n.max(1.0), s[1] / n.max(1.0), s[2] / n.max(1.0)];
+            color[cy * cw + cx] = m;
+            let liso = (0..3).all(|c| hi[c] - lo[c] <= 12);
+            vale[cy * cw + cx] = liso && dist(m, papel) >= 7.0;
         }
     }
+    let media: Vec<u8> = color.iter().map(|m| gris([m[0] as u8, m[1] as u8, m[2] as u8]) as u8).collect();
     // Grupos de celdas vecinas del mismo gris.
     let mut padre: Vec<usize> = (0..cw * ch).collect();
     fn raiz(p: &mut [usize], mut i: usize) -> usize {
@@ -164,7 +182,7 @@ fn por_fondo(rgba: &[u8], w: u32, h: u32, a: &Analisis, hm: f64) -> Vec<Panel> {
                 continue;
             }
             for j in [if cx + 1 < cw { Some(i + 1) } else { None }, if cy + 1 < ch { Some(i + cw) } else { None }].into_iter().flatten() {
-                if vale[j] && media[i].abs_diff(media[j]) <= 6 {
+                if vale[j] && dist(color[i], color[j]) <= 8.0 {
                     let (ri, rj) = (raiz(&mut padre, i), raiz(&mut padre, j));
                     if ri != rj {
                         padre[rj] = ri;
@@ -222,7 +240,13 @@ fn por_fondo(rgba: &[u8], w: u32, h: u32, a: &Analisis, hm: f64) -> Vec<Panel> {
         let caja = Caja::de_esquinas(x0 as f64 * k, y0 as f64 * k, (x1 + 1) as f64 * k, (y1 + 1) as f64 * k);
         // El fondo: lo liso de dentro, en color.
         let g_medio = media.iter().zip(&de).filter(|(_, d)| **d == r).map(|(m, _)| *m as f64).sum::<f64>() / n as f64;
-        let relleno = color_mediano(rgba, w, h, &caja.crecer(-k * 2.0), 3, |p| (gris(p) - g_medio).abs() <= 8.0);
+        let mut suma = [0f64; 3];
+        for (c, _) in color.iter().zip(&de).filter(|(_, d)| **d == r) {
+            for k in 0..3 {
+                suma[k] += c[k];
+            }
+        }
+        let relleno = Some([(suma[0] / n as f64) as u8, (suma[1] / n as f64) as u8, (suma[2] / n as f64) as u8]);
         // El borde: una franja mas oscura justo por fuera, en tres lados o mas.
         let (borde, grosor, caja) = borde_de(rgba, w, h, &caja, g_medio, hm);
         salida.push(Panel { caja, estilo: Estilo { relleno, borde, grosor, redondo } });
@@ -408,7 +432,11 @@ pub fn quitar_adornos(s: &mut Seccionado, rgba: &[u8]) {
 /// **Lo escrito en blanco sobre oscuro** (la pestana «¡Tenga en cuenta
 /// que...!»): como imagen. Como texto salia minusculo y negro sobre blanco,
 /// sin su cartel.
-fn invertidos(s: &mut Seccionado, rgba: &[u8]) {
+fn invertidos(s: &mut Seccionado, rgba: &[u8], fondo: [u8; 3]) {
+    // (Sobre un fondo oscuro la letra blanca es lo normal: es texto.)
+    if gris(fondo) < 128.0 {
+        return;
+    }
     let (w, h) = (s.ancho, s.alto);
     for z in s.zonas.iter_mut().filter(|z| matches!(z.tipo, Tipo::Parrafo | Tipo::Encabezado | Tipo::Formula | Tipo::Dudosa)) {
         let Some(c) = color_mediano(rgba, w, h, &z.caja, 2, |_| true) else { continue };
@@ -429,6 +457,10 @@ fn limpiar(rgba: &[u8], w: u32, h: u32, paneles: &[Panel]) -> Option<Vec<u8>> {
     for p in paneles {
         let Some(f) = p.estilo.relleno else { continue };
         let gf = gris(f);
+        // (Solo en los claros: en un boton o una barra oscura no hay marca de agua.)
+        if gf < 150.0 {
+            continue;
+        }
         let c = p.interior().dentro(w as f64, h as f64);
         for y in c.y as u32..c.y1() as u32 {
             for x in c.x as u32..c.x1() as u32 {
@@ -493,6 +525,259 @@ fn juntar_formulas_al_renglon(s: &mut Seccionado) {
     }
 }
 
+/// **El color de cada renglon, que se vea sobre su fondo** (18-oct): sobre la
+/// barra oscura de un navegador o un boton azul, el OCR daba la letra
+/// «negra» (o ningun color) y salia invisible. Si el color leido casi no se
+/// distingue del fondo, se toma el de la tinta del renglon que mas se aparta
+/// de el (la mediana de esos pixeles).
+fn contrastar(s: &mut Seccionado, rgba: &[u8], fondo: [u8; 3]) {
+    let (w, h) = (s.ancho, s.alto);
+    for z in &mut s.zonas {
+        // El fondo de AQUI (un boton que no se vio como recuadro): lo que mas
+        // hay alrededor de la zona; si casi no hay, el de la region.
+        let marco = z.caja.crecer((z.caja.h * 0.25).clamp(3.0, 12.0));
+        let local = color_mediano(rgba, w, h, &marco, 2, |_| true).unwrap_or(fondo);
+        let f = [local[0] as f64, local[1] as f64, local[2] as f64];
+        let cerca = |c: Option<[u8; 3]>| {
+            let c = c.unwrap_or([20, 20, 20]);
+            dist([c[0] as f64, c[1] as f64, c[2] as f64], f) < 90.0
+        };
+        for r in &mut z.renglones {
+            // (El renglon o alguna palabra: de las palabras sale el color de
+            // la zona.)
+            if !cerca(r.color) && !r.palabras.iter().any(|p| cerca(p.color)) {
+                continue;
+            }
+            if let Some(c) = color_mediano(rgba, w, h, &r.caja, 1, |p| dist([p[0] as f64, p[1] as f64, p[2] as f64], f) >= 90.0) {
+                if cerca(r.color) {
+                    r.color = Some(c);
+                }
+                for p in r.palabras.iter_mut().filter(|p| cerca(p.color)) {
+                    p.color = Some(c);
+                }
+            }
+        }
+    }
+}
+
+/// **Una formula enmarcada que el OCR no leyo** (18-oct, «Cα=90°−α» de
+/// Reforzamiento): el marco sale como rayas sueltas (dos horizontales de la
+/// misma anchura, y a veces sus laterales) y lo de dentro, sin letras, se
+/// perdia. Las rayas y lo de dentro pasan a ser UNA zona de formula.
+fn cajitas(s: &mut Seccionado) {
+    let hm = s.alto_letra.max(4.0);
+    let horizontal = |z: &Zona| z.tipo == Tipo::Linea && z.caja.h <= 4.0 && z.caja.w >= hm * 2.0;
+    let mut i = 0;
+    while i < s.zonas.len() {
+        if !horizontal(&s.zonas[i]) {
+            i += 1;
+            continue;
+        }
+        let a = s.zonas[i].caja;
+        let pareja = (0..s.zonas.len()).find(|&j| {
+            let b = s.zonas[j].caja;
+            j != i && horizontal(&s.zonas[j]) && b.y > a.y && (b.y - a.y) >= hm * 1.2 && (b.y - a.y) <= hm * 4.5
+                && (b.x - a.x).abs() <= hm * 0.6 && (b.x1() - a.x1()).abs() <= hm * 0.6
+        });
+        let Some(j) = pareja else {
+            i += 1;
+            continue;
+        };
+        let marco = a.union(&s.zonas[j].caja).crecer(2.0);
+        // (Si dentro hay letras leidas, ya es texto: no se toca.)
+        let con_letras = s.zonas.iter().any(|z| z.renglones.iter().any(|r| marco.contiene(r.caja.cx(), r.caja.cy())));
+        if con_letras {
+            i += 1;
+            continue;
+        }
+        let dentro: Vec<usize> = (0..s.zonas.len()).filter(|&k| k != i && s.zonas[k].renglones.is_empty() && s.zonas[k].caja.dentro_de(&marco) >= 0.8).collect();
+        // (Solo lo de dentro, sin las rayas: el marco lo dibuja la formula.)
+        let b = s.zonas[j].caja;
+        let caja = Caja::de_esquinas(a.x + 3.0, a.y1() + 2.0, a.x1() - 3.0, b.y - 2.0);
+        let z = &mut s.zonas[i];
+        z.caja = caja;
+        z.tipo = Tipo::Formula;
+        z.rayas.clear();
+        for k in dentro.into_iter().rev() {
+            s.zonas.remove(k);
+            if k < i {
+                i -= 1;
+            }
+        }
+        i += 1;
+    }
+}
+
+/// **Los iconos de un boton** (18-oct: el mapa blanco sobre azul salia como
+/// cuatro rayas negras): sobre un fondo de color, lo que no lleva letras y
+/// esta junto (rayas, dudosas, trozos de dibujo) es UN simbolo: una imagen
+/// recortada con sus colores.
+fn iconos(s: &mut Seccionado) {
+    let hm0 = s.alto_letra.max(4.0);
+    let sin_letras = |z: &Zona| z.renglones.is_empty() && matches!(z.tipo, Tipo::Linea | Tipo::Dudosa | Tipo::Dibujo | Tipo::Foto) && z.caja.w <= hm0 * 8.0 && z.caja.h <= hm0 * 8.0;
+    let hm = s.alto_letra.max(4.0);
+    let mut i = 0;
+    while i < s.zonas.len() {
+        if !sin_letras(&s.zonas[i]) {
+            i += 1;
+            continue;
+        }
+        let mut caja = s.zonas[i].caja;
+        let mut j = i + 1;
+        while j < s.zonas.len() {
+            if sin_letras(&s.zonas[j]) && s.zonas[j].caja.crecer(hm * 0.6).comun(&caja.crecer(hm * 0.6)) > 0.0 {
+                caja = caja.union(&s.zonas[j].caja);
+                s.zonas.remove(j);
+                j = i + 1;
+            } else {
+                j += 1;
+            }
+        }
+        let z = &mut s.zonas[i];
+        z.caja = caja;
+        z.tipo = Tipo::Foto;
+        z.rayas.clear();
+        z.dentro.clear();
+        i += 1;
+    }
+}
+
+/// Una copia del recorte en la que el `fondo` es blanco y la tinta, oscura
+/// en proporcion a lo que se aparta de el (mas clara o mas oscura).
+pub fn entintada(rgba: &[u8], fondo: [u8; 3]) -> Vec<u8> {
+    let f = [fondo[0] as f64, fondo[1] as f64, fondo[2] as f64];
+    let mut v = rgba.to_vec();
+    for px in v.chunks_exact_mut(4) {
+        let d = dist([px[0] as f64, px[1] as f64, px[2] as f64], f);
+        let g = (255.0 - d * 1.6).clamp(0.0, 255.0) as u8;
+        px[0] = g;
+        px[1] = g;
+        px[2] = g;
+    }
+    v
+}
+
+/// Los colores de cada renglon y palabra, medidos en la imagen de verdad:
+/// la tinta que se aparta del fondo (despues de seccionar en la entintada).
+fn recolorear(s: &mut Seccionado, rgba: &[u8], fondo: [u8; 3]) {
+    let (w, h) = (s.ancho, s.alto);
+    let f = [fondo[0] as f64, fondo[1] as f64, fondo[2] as f64];
+    let lejos = |p: [u8; 3]| dist([p[0] as f64, p[1] as f64, p[2] as f64], f) >= 90.0;
+    for z in &mut s.zonas {
+        for r in &mut z.renglones {
+            if let Some(c) = color_mediano(rgba, w, h, &r.caja, 1, lejos) {
+                r.color = Some(c);
+            }
+            for p in &mut r.palabras {
+                if let Some(c) = color_mediano(rgba, w, h, &p.caja, 1, lejos) {
+                    p.color = Some(c);
+                }
+            }
+        }
+    }
+}
+
+/// **La negrita, por el grosor del trazo** (18-oct, «las palabras en negrita
+/// ponlas en negrita»): en cada palabra, lo que mide de ancho cada trozo de
+/// tinta en cada fila (la tinta es lo que se aparta de su fondo, sea claro u
+/// oscuro), partido por su alto. La negrita tiene el trazo un tercio mas
+/// grueso que la mediana de la pagina; asi no engañan las mayusculas (mas
+/// tinta por area) ni un boton con una sola palabra.
+fn negritas(rgba: &[u8], w: u32, h: u32, palabras: &mut [PalabraHoja]) {
+    let grosor = |c: &Caja| -> Option<f64> {
+        let c = c.dentro(w as f64, h as f64);
+        let (x0, y0, x1, y1) = (c.x as u32, c.y as u32, c.x1() as u32, c.y1() as u32);
+        if x1 <= x0 + 3 || y1 <= y0 + 4 {
+            return None;
+        }
+        let px = |x: u32, y: u32| {
+            let i = ((y * w + x) * 4) as usize;
+            [rgba[i] as f64, rgba[i + 1] as f64, rgba[i + 2] as f64]
+        };
+        // El fondo: el color mas comun del borde de la caja.
+        let mut borde: [Vec<u8>; 3] = Default::default();
+        for x in x0..x1 {
+            for y in [y0, y1 - 1] {
+                let p = px(x, y);
+                for k in 0..3 {
+                    borde[k].push(p[k] as u8);
+                }
+            }
+        }
+        let mut fondo = [0.0; 3];
+        for k in 0..3 {
+            borde[k].sort_unstable();
+            fondo[k] = borde[k][borde[k].len() / 2] as f64;
+        }
+        let lejos: Vec<f64> = (y0..y1).flat_map(|y| (x0..x1).map(move |x| (x, y))).map(|(x, y)| dist(px(x, y), fondo)).collect();
+        let tope = lejos.iter().cloned().fold(0.0, f64::max);
+        if tope < 60.0 {
+            return None;
+        }
+        // Cada trozo de tinta de cada fila (cortado a media tinta) y su
+        // anchura con fraccion: cada pixel cuenta lo que tiene de tinta.
+        let corte = tope * 0.5;
+        let ancho = (x1 - x0) as usize;
+        let (mut tinta, mut trozos) = (0.0f64, 0usize);
+        for fila in lejos.chunks(ancho) {
+            let mut dentro = false;
+            for &d in fila {
+                tinta += (d / (tope * 0.85)).clamp(0.0, 1.0) * f64::from(u8::from(d >= tope * 0.2));
+                if d >= corte && !dentro {
+                    trozos += 1;
+                }
+                dentro = d >= corte;
+            }
+        }
+        if trozos < 6 {
+            return None;
+        }
+        Some(tinta / trozos as f64 / c.h.max(1.0))
+    };
+    let g: Vec<Option<f64>> = palabras.iter().map(|p| if p.texto.chars().filter(|c| c.is_alphanumeric()).count() >= 2 { grosor(&p.caja) } else { None }).collect();
+    let validos: Vec<f64> = g.iter().flatten().copied().collect();
+    if validos.len() < 8 {
+        return;
+    }
+    let Some(media) = mediana(validos) else { return };
+    if std::env::var_os("PIXPIN_NEGRITA_DEPURAR").is_some() {
+        for (p, g) in palabras.iter().zip(&g) {
+            eprintln!("negrita? {:<24} {:?} media {media:.3}", p.texto, g.map(|g| (g / media * 100.0).round()));
+        }
+    }
+    // Por renglones (misma altura y seguidas): la media de sus palabras,
+    // pesada por letras. Una palabra sola mide con mucho ruido.
+    let mut orden: Vec<usize> = (0..palabras.len()).collect();
+    orden.sort_by(|&i, &j| palabras[i].caja.cy().total_cmp(&palabras[j].caja.cy()).then(palabras[i].caja.x.total_cmp(&palabras[j].caja.x)));
+    let mut renglones: Vec<Vec<usize>> = Vec::new();
+    for i in orden {
+        let p = &palabras[i].caja;
+        let sitio = renglones.iter_mut().find(|r| {
+            let u = &palabras[*r.last().unwrap()].caja;
+            (u.cy() - p.cy()).abs() < u.h.max(p.h) * 0.45 && p.x >= u.x && p.x - u.x1() < 1.6 * u.h.max(p.h)
+        });
+        match sitio {
+            Some(r) => r.push(i),
+            None => renglones.push(vec![i]),
+        }
+    }
+    for r in renglones {
+        let (mut suma, mut letras) = (0.0, 0.0);
+        for &i in &r {
+            if let Some(gi) = g[i] {
+                let n = palabras[i].texto.chars().count() as f64;
+                suma += gi * n;
+                letras += n;
+            }
+        }
+        if letras >= 3.0 && suma / letras > media * 1.15 {
+            for &i in &r {
+                palabras[i].negrita = true;
+            }
+        }
+    }
+}
+
 /// Mueve lo seccionado en un recorte a pixeles de la pagina.
 fn mover(z: &mut Zona, dx: f64, dy: f64) {
     let m = |c: &mut Caja| {
@@ -527,7 +812,8 @@ pub fn seccionar(rgba: &[u8], ancho: u32, alto: u32, palabras: Vec<PalabraHoja>,
 /// Lo mismo, y la hoja con lo palido de los recuadros borrado ([`limpiar`]):
 /// quien monte las zonas tiene que usar ESA (las figuras se vectorizan de
 /// ella). `None`: la de entrada vale.
-pub fn seccionar_limpia(rgba: &[u8], ancho: u32, alto: u32, palabras: Vec<PalabraHoja>, unir: bool) -> (Seccionado, Option<Vec<u8>>) {
+pub fn seccionar_limpia(rgba: &[u8], ancho: u32, alto: u32, mut palabras: Vec<PalabraHoja>, unir: bool) -> (Seccionado, Option<Vec<u8>>) {
+    negritas(rgba, ancho, alto, &mut palabras);
     let a = imagen::analizar(rgba, ancho, alto);
     let hm = mediana(palabras.iter().map(|p| p.caja.h).collect()).unwrap_or(alto as f64 * 0.012).max(4.0);
     let mut paneles = buscar(rgba, ancho, alto, &a, &palabras, hm);
@@ -543,7 +829,8 @@ pub fn seccionar_limpia(rgba: &[u8], ancho: u32, alto: u32, palabras: Vec<Palabr
             seccion::unir_dibujos(&mut s, rgba);
         }
         quitar_adornos(&mut s, rgba);
-        invertidos(&mut s, rgba);
+        cajitas(&mut s);
+        invertidos(&mut s, rgba, [a.fondo; 3]);
         if unir {
             juntar_formulas_al_renglon(&mut s);
         }
@@ -617,15 +904,29 @@ impl Region<'_> {
                 q
             })
             .collect();
-        let mut s = seccion::seccionar(&sub, sw, sh, suyas);
+        // **Sobre un fondo que no es papel blanco** (18-oct: un boton azul con
+        // su icono blanco, una tabla de tema oscuro), lo que es tinta es lo
+        // que se aparta del fondo, sea mas claro o mas oscuro: se secciona
+        // una copia «entintada» (fondo blanco, tinta oscura) y los colores
+        // se miden luego en la de verdad.
+        let entintar = dist([fondo[0] as f64, fondo[1] as f64, fondo[2] as f64], [255.0; 3]) > 90.0;
+        let tinta = entintar.then(|| entintada(&sub, fondo));
+        let ver: &[u8] = tinta.as_deref().unwrap_or(&sub);
+        let mut s = seccion::seccionar(ver, sw, sh, suyas);
         if self.unir {
-            seccion::unir_dibujos(&mut s, &sub);
+            seccion::unir_dibujos(&mut s, ver);
         }
-        quitar_adornos(&mut s, &sub);
-        invertidos(&mut s, &sub);
+        quitar_adornos(&mut s, ver);
+        cajitas(&mut s);
+        if entintar {
+            recolorear(&mut s, &sub, fondo);
+            iconos(&mut s);
+        }
+        invertidos(&mut s, &sub, fondo);
         if self.unir {
             juntar_formulas_al_renglon(&mut s);
         }
+        contrastar(&mut s, &sub, fondo);
         // Grupos: cada zona suelta (en el orden de lectura del seccionado), y
         // cada recuadro de dentro con lo suyo, antes de lo primero de su
         // columna que queda debajo de el.

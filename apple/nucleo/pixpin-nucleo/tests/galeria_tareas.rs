@@ -365,12 +365,13 @@ fn las_tareas_de_todos_los_chats_se_marcan_en_su_mensaje() {
     // van como marcas detras del titulo, y la vista las ensena.
     let con = n.apuntar_tarea("llamar al banco prioridad alta #casa".into(), 0).unwrap();
     let crudo = &con.tareas[2].crudo;
-    assert!(crudo.starts_with("llamar al banco ⏫ #casa ➕ "), "{crudo}");
+    assert!(crudo.starts_with("llamar al banco 🔼 #casa ➕ "), "{crudo}");
     let m = pixpin_nucleo::marcas_de_tarea(crudo.clone(), 0);
     assert_eq!(m.titulo, "llamar al banco");
-    assert_eq!(m.prioridad.as_deref(), Some("alta"));
+    assert_eq!(m.urgencia.as_deref(), Some("urgente"));
     assert_eq!(m.etiquetas, ["casa"]);
-    assert_eq!(m.chapitas.first().map(String::as_str), Some("⏫"));
+    assert_eq!(m.marca_urgencia.as_deref(), Some("🔼"));
+    assert_eq!(m.vista, "llamar al banco", "las #etiquetas van en chapitas aparte");
     // Caso negativo: lo que no se entiende se queda en el titulo.
     let raro = n.apuntar_tarea("comprar pan #".into(), 0).unwrap();
     assert!(raro.tareas[3].crudo.starts_with("comprar pan #"), "{}", raro.tareas[3].crudo);
@@ -509,7 +510,7 @@ fn el_pin_de_una_tarea_la_encuentra_por_su_titulo_y_le_pone_la_nota() {
         .poner_nota_tarea(chat.clone(), lista.clone(), "llamar al banco".into(), "no abren hasta el lunes".into())
         .unwrap()
         .unwrap();
-    assert!(crudo.contains("⏫ 💬 no abren hasta el lunes ➕ "), "{crudo}");
+    assert!(crudo.contains("🔼 💬 no abren hasta el lunes ➕ "), "{crudo}");
     let m = pixpin_nucleo::marcas_de_tarea(crudo, 0);
     assert_eq!(m.nota.as_deref(), Some("no abren hasta el lunes"));
     assert_eq!(m.titulo, "llamar al banco", "la nota no cambia el titulo");

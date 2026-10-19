@@ -14,9 +14,11 @@ final class TareasF5Tests: XCTestCase {
     func testLaFilaEnsenaLasChapitasYLaVista() {
         let m = marcasDeTarea(texto: "llamar al banco ⏫ #casa", desfaseMs: 0)
         XCTAssertEqual(m.titulo, "llamar al banco")
-        XCTAssertEqual(m.chapitas.first, "⏫")
-        XCTAssertEqual(m.vista, "llamar al banco #casa")
-        XCTAssertEqual(tareaEntendida(texto: "pan prioridad baja", desfaseMs: 0), "pan 🔽")
+        XCTAssertEqual(m.urgencia, "muy_urgente")
+        XCTAssertEqual(m.marcaUrgencia, "⏫")
+        XCTAssertEqual(m.etiquetas, ["casa"])
+        XCTAssertEqual(m.vista, "llamar al banco", "la etiqueta va aparte")
+        XCTAssertEqual(tareaEntendida(texto: "pan urgente", desfaseMs: 0), "pan 🔼")
     }
 
     @MainActor
@@ -28,7 +30,7 @@ final class TareasF5Tests: XCTestCase {
         let m = ModeloPinTarea(chat: l.chat, lista: l.mensaje, titulo: "llamar al banco", nucleo: nucleo)
         m.releer()
         XCTAssertFalse(m.seFue)
-        XCTAssertEqual(m.marcas?.prioridad, "alta")
+        XCTAssertEqual(m.marcas?.urgencia, "urgente")
         m.ponerNota("no abren")
         XCTAssertEqual(m.marcas?.nota, "no abren")
         m.marcar(true)

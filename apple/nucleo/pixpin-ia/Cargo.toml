@@ -12,6 +12,8 @@ license.workspace = true
 # «trabajo» que mata a llama-server si PixPin muere, DPAPI para las claves)
 # va en `[target.'cfg(windows)'.dependencies]` y en `#[cfg(windows)]`.
 [dependencies]
+# Las fechas dichas y lo que se reconoce al escribir una tarea (sin dependencias).
+pixpin-frase = { path = "../pixpin-frase" }
 thiserror = "2.0.20"
 tracing = "0.1.44"
 # El protocolo con el modelo es JSON de punta a punta (peticiones al estilo

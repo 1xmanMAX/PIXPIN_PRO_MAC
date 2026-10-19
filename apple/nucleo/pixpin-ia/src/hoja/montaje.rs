@@ -59,6 +59,10 @@ pub enum Leido {
     /// OCR, en el mismo orden, en texto rico. Cada uno va en el sitio de su
     /// renglon ([`Via::Fiel`]): nada se mueve, solo se arreglan las letras.
     Renglones(Vec<String>),
+    /// **Elementos ya hechos por un especialista** (la tabla del lienzo de
+    /// `tabla_de_fichero`), con su esquina en (0, 0) y, aparte, donde cae esa
+    /// esquina en el recorte de la zona (pixeles).
+    Elementos(Vec<Value>, (f64, f64)),
 }
 
 /// Una imagen que nace con la zona: va al almacen del lienzo con este id
@@ -156,10 +160,32 @@ pub fn hacer(e: &Entrada, leido: Option<&Leido>, via: Via) -> Hecho {
         return Hecho { zona: z.id, tipo, via: Via::Editable, elementos: recuadro(e), imagenes: Vec::new(), nota: "recuadro con su fondo y su borde".into() };
     }
     // Una «tabla» que es un recuadro de color con texto (un aviso, un dato).
+    // (No si el especialista de tablas ya la hizo: eso va primero.)
     if tipo == Tipo::Tabla && via != Via::Imagen
+        && !matches!(leido, Some(Leido::Elementos(v, _)) if !v.is_empty())
         && let Some(elementos) = caja_de_color(e)
     {
         return Hecho { zona: z.id, tipo, via, elementos, imagenes: Vec::new(), nota: "recuadro de color con su texto en su sitio".into() };
+    }
+    // Lo que hizo un especialista (la tabla): en el sitio de la zona.
+    if let Some(Leido::Elementos(v, (ox, oy))) = leido
+        && !v.is_empty()
+    {
+        let d = e.destino();
+        let (dx, dy) = (d.x + ox * e.mapa.escala, d.y + oy * e.mapa.escala);
+        let semilla = e.semilla_de_zona();
+        let elementos = v
+            .iter()
+            .enumerate()
+            .map(|(k, x)| {
+                let mut x = x.clone();
+                x["x"] = json!(x["x"].as_f64().unwrap_or(0.0) + dx);
+                x["y"] = json!(x["y"].as_f64().unwrap_or(0.0) + dy);
+                x["id"] = json!(format!("ia-{semilla:x}-t{k}"));
+                x
+            })
+            .collect();
+        return Hecho { zona: z.id, tipo, via: Via::Editable, elementos, imagenes: Vec::new(), nota: "tabla del lienzo, como en la foto".into() };
     }
     // Sus renglones corregidos por la nube: cada uno en su sitio.
     if let Some(Leido::Renglones(ls)) = leido
@@ -419,12 +445,26 @@ fn fiel_con(e: &Entrada, textos: Option<&[String]>) -> Vec<Value> {
         let tam = tam_de_letra(std::slice::from_ref(r), esc, familia, r.negrita);
         let d = e.mapa.caja(&r.caja);
         let t = textos.and_then(|v| v.get(i)).map_or(r.texto.as_str(), String::as_str);
-        let mut el = un_texto(t, d.x, d.cy() - tam * k / 2.0, tam, familia, r.negrita, Alineacion::Izquierda, r.color);
+        // Un renglon entero en negrita (`**...**`): negrita de verdad, no las
+        // marcas a la vista (18-oct, salia «*·IE ADVENTISTA PUNO**}»).
+        // (Unas marcas descuadradas no se ensenan nunca.)
+        let sin_sueltas;
+        let t = if t.matches("**").count() % 2 == 1 {
+            sin_sueltas = t.replace("**", "");
+            sin_sueltas.as_str()
+        } else {
+            t
+        };
+        let (t, negrita) = match t.trim().strip_prefix("**").and_then(|x| x.strip_suffix("**")).filter(|x| !x.contains("**")) {
+            Some(x) => (x.trim(), true),
+            None => (t, r.negrita),
+        };
+        let mut el = un_texto(t, d.x, d.cy() - tam * k / 2.0, tam, familia, negrita, Alineacion::Izquierda, r.color);
         // Corregido (con sus formulas compuestas) no puede pasar del ancho de
         // su renglon: se pisaba con lo de al lado.
         if textos.is_some() && el.ancho as f64 > d.w * 1.06 {
             let t2 = tam * (d.w * 1.02 / el.ancho as f64).max(0.6);
-            el = un_texto(t, d.x, d.cy() - t2 * k / 2.0, t2, familia, r.negrita, Alineacion::Izquierda, r.color);
+            el = un_texto(t, d.x, d.cy() - t2 * k / 2.0, t2, familia, negrita, Alineacion::Izquierda, r.color);
         }
         piezas.push(el);
     }
@@ -567,6 +607,9 @@ fn foto(e: &Entrada) -> (Vec<Value>, Vec<ImagenNueva>) {
         .iter()
         .filter(|w| w.comun(&caja) > 0.25 * w.area().max(1.0))
         .filter(|w| !suyas.iter().any(|s| s.comun(w) > 0.5 * w.area().max(1.0)))
+        // (Lo que cae de lleno dentro de la zona es suyo aunque el OCR lo
+        // apuntara en otra: tapado, la caja de «Cα=90°−α» salia vacia.)
+        .filter(|w| !(matches!(e.zona.tipo, Tipo::Formula | Tipo::Dudosa) && w.dentro_de(&e.zona.caja) >= 0.9))
         .copied()
         .collect();
     // (Un dibujo, una formula o una dudosa recortados: sin la marca de agua.)
@@ -659,6 +702,9 @@ fn foto_tapada(e: &Entrada, caja: &Caja, tapar: &[Caja], palido: bool) -> Option
             for x in x0..x1 {
                 let i = ((y * sw + x) * 4) as usize;
                 sub[i..i + 3].copy_from_slice(&fondo);
+                // (Transparente, no solo del color del fondo: si la imagen
+                // queda encima del texto de la otra zona, se ve a traves.)
+                sub[i + 3] = 0;
             }
         }
     }
@@ -801,6 +847,11 @@ fn formula(e: &Entrada, latex: &[String]) -> Option<Vec<Value>> {
     if lineas.len() == 1 && (h as f64) < 1.6 * ec.tam / k.max(1e-6) && e.zona.renglones.len() <= 1 {
         ec.tam = ec.tam.max(0.85 * d.h).min(120.0);
     }
+    // (Sin renglones del OCR, la caja puede ser la de su marco: no mas de la
+    // letra de la hoja y media.)
+    if e.zona.renglones.is_empty() {
+        ec.tam = ec.tam.min(e.alto_letra * e.mapa.escala * 1.5).max(8.0);
+    }
     let (_, (w, h)) = crate::ecuacion::piezas(&ec);
     // Centrada en la caja del papel.
     ec.donde = Some((d.cx() - w as f64 / 2.0, d.cy() - h as f64 / 2.0));
@@ -851,7 +902,11 @@ fn marco(e: &Entrada, f: &mut Fabrica) {
     d.recuadros.truncate(1);
     let solo = crate::diagrama::Diagrama { ancho: d.ancho, alto: d.alto, recuadros: d.recuadros, ..Default::default() };
     let dest = e.mapa.caja(&c);
+    // (Debajo de la formula: su relleno no la tapa.)
+    let n0 = f.salida.len();
     crate::diagrama::elementos(&solo, (dest.x, dest.y), e.mapa.escala, f, &e.opciones.familia);
+    let nuevos = f.salida.split_off(n0);
+    f.salida.splice(0..0, nuevos);
 }
 
 // ---------------------------------------------------------------------------
@@ -919,10 +974,11 @@ fn diagrama(e: &Entrada, leido: Option<&Leido>) -> Option<(Vec<Value>, String)> 
     let caja = e.zona.caja.crecer(12.0).dentro(pw as f64, ph as f64);
     // Lo que ve la nube (`png_del_recorte`): la zona con 6 px de aire.
     let de_la_nube = e.zona.caja.crecer(6.0).dentro(pw as f64, ph as f64);
-    let (rgba, w, h) = imagen::recortar(pagina, pw, ph, &caja);
+    let (mut rgba, w, h) = imagen::recortar(pagina, pw, ph, &caja);
     if w < 8 || h < 8 {
         return None;
     }
+    sin_marca_de_agua(&mut rgba);
     let z = e.zona;
     let palabras: Vec<super::PalabraHoja> = z
         .renglones
@@ -965,10 +1021,38 @@ fn diagrama(e: &Entrada, leido: Option<&Leido>) -> Option<(Vec<Value>, String)> 
     Some((f.salida, format!("diagrama: {}", d.resumen())))
 }
 
+/// **Sin la marca de agua** (18-oct, Practica: el «CÉSAR VALLEJO» gris
+/// detras de las figuras salia como rectas y letras de mas): sobre papel
+/// claro, lo gris y palido (poco color, poco mas oscuro que el papel) pasa
+/// a papel. Las rectas negras y los rellenos de la figura, mucho mas
+/// oscuros, se quedan.
+fn sin_marca_de_agua(rgba: &mut [u8]) {
+    let gris = |p: &[u8]| (p[0] as f64 * 299.0 + p[1] as f64 * 587.0 + p[2] as f64 * 114.0) / 1000.0;
+    let mut g: Vec<u8> = rgba.chunks_exact(4).step_by(3).map(|p| gris(p) as u8).collect();
+    if g.is_empty() {
+        return;
+    }
+    g.sort_unstable();
+    let papel = g[g.len() / 2] as f64;
+    if papel < 215.0 {
+        return;
+    }
+    for p in rgba.chunks_exact_mut(4) {
+        let sat = p[..3].iter().max().unwrap() - p[..3].iter().min().unwrap();
+        if sat < 30 && gris(p) >= papel - 70.0 {
+            let v = papel as u8;
+            p[0] = v;
+            p[1] = v;
+            p[2] = v;
+        }
+    }
+}
+
 /// Si la zona es un diagrama (sin leer sus letras: rapido), para saber de
 /// antemano que no hay que esperar a la nube para ponerla.
 pub fn es_diagrama(e: &Entrada) -> bool {
-    let (rgba, w, h) = e.recorte();
+    let (mut rgba, w, h) = e.recorte();
+    sin_marca_de_agua(&mut rgba);
     if w < 8 || h < 8 {
         return false;
     }

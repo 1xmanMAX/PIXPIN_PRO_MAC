@@ -35,6 +35,8 @@ pixpin-sistema = { version = "0.1.0", path = "../pixpin-sistema" }
 pixpin-store = { version = "0.1.0", path = "../pixpin-store" }
 pixpin-lecciones = { version = "0.1.0", path = "../pixpin-lecciones" }
 pixpin-ia = { version = "0.1.0", path = "../pixpin-ia" }
+# Lo que se entiende al escribir una tarea (#etiquetas, urgencia, hora).
+pixpin-frase = { path = "../pixpin-frase" }
 # El timeline (`momentos.jsonl`), el mismo crate que Windows.
 pixpin-timeline = { version = "0.1.0", path = "../pixpin-timeline" }
 # Los planos DWG/DXF y los modelos 3D (IFC, Revit, Civil 3D) para el visor de
