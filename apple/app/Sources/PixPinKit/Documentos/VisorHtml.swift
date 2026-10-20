@@ -125,6 +125,8 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         web.navigationDelegate = self
         web.uiDelegate = self
         web.allowsBackForwardNavigationGestures = false
+        // Zoom: pellizco y ⌘+ / ⌘− / ⌘0 (la tinta y los marcos lo siguen).
+        web.allowsMagnification = true
         ventana.title = url.lastPathComponent
         VentanaLisa.vestirEntera(ventana)
         ventana.isReleasedWhenClosed = false
@@ -370,6 +372,9 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
             if marcos.quitarUltimo() { capa.needsDisplay = true }
             return true
         }
+        if m.subtracting(.shift) == .command, c == "+" || c == "=" { web.pageZoom = min(web.pageZoom * 1.15, 5); capa.needsDisplay = true; return true }
+        if m == .command, c == "-" { web.pageZoom = max(web.pageZoom / 1.15, 0.3); capa.needsDisplay = true; return true }
+        if m == .command, c == "0" { web.pageZoom = 1; web.magnification = 1; capa.needsDisplay = true; return true }
         if m == .command, c == "e" { exportar(); return true }
         if m == .command, c == "r" { recargar(); return true }
         if m == .command, c == "w" { cerrar(); return true }
