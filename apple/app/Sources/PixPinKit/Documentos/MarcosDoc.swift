@@ -296,3 +296,46 @@ extension NSView {
         return u > 0.0001 ? abs(u) : 1
     }
 }
+
+/// **Las vistas de los marcadores de un documento** (Windows, 20-oct,
+/// `anot-<uid>.vistas.json`): id del marcador → `"zoom x y"` (el zoom en
+/// pixeles por unidad y la esquina de arriba a la izquierda, en unidades
+/// del documento). Un marcador sin vista vuelve solo a su sitio.
+@MainActor
+final class VistasDoc {
+    private(set) var vistas: [String: String] = [:]
+    private let fichero: URL?
+
+    init(documento: URL?, nucleo: Nucleo?) {
+        if let d = documento, let n = nucleo, let r = n.rutaAnotadaDelAdjunto(documento: d.path, terminacion: ".vistas.json") {
+            fichero = URL(fileURLWithPath: r)
+        } else {
+            fichero = documento.map { $0.appendingPathExtension("pixpin-vistas") }
+        }
+        if let f = fichero, let d = try? Data(contentsOf: f),
+           let o = try? JSONSerialization.jsonObject(with: d) as? [String: String] { vistas = o }
+    }
+
+    func vista(_ id: Int64) -> (zoom: CGFloat, x: CGFloat, y: CGFloat)? {
+        let p = (vistas[String(id)] ?? "").split(separator: " ").compactMap { Double($0) }
+        guard p.count == 3, p[0] > 0 else { return nil }
+        return (CGFloat(p[0]), CGFloat(p[1]), CGFloat(p[2]))
+    }
+
+    func poner(_ id: Int64, zoom: CGFloat, x: CGFloat, y: CGFloat) {
+        vistas[String(id)] = "\(zoom) \(x) \(y)"
+        guardar()
+    }
+
+    /// Solo los de `vivos` (los marcadores que quedan). Vaciar escribe `{}`.
+    func quedarse(con vivos: Set<String>) {
+        let antes = vistas.count
+        vistas = vistas.filter { vivos.contains($0.key) }
+        if vistas.count != antes { guardar() }
+    }
+
+    private func guardar() {
+        guard let f = fichero, let d = try? JSONSerialization.data(withJSONObject: vistas, options: [.sortedKeys]) else { return }
+        try? d.write(to: f, options: .atomic)
+    }
+}

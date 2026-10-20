@@ -871,14 +871,47 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         let g = geometria(p)
         let centro = CGPoint(x: g.rect.midX, y: max(capa.visibleRect.minY + 40, g.rect.minY))
         let (x, y) = g.sitio(de: centro, pagina: indice(p))
+        let antes = Set(modelo.marcas.map(\.id))
         modelo.marcas = conMarca(modelo.marcas, x: x, y: y, emoji: emoji,
                                  ahora: Int64(Date().timeIntervalSince1970 * 1000))
+        // Su vista (zoom y esquina, en unidades de Windows) al `.vistas.json`.
+        if let nueva = modelo.marcas.first(where: { !antes.contains($0.id) }), let v = vistaDeAhora() {
+            vistasDoc.poner(nueva.id, zoom: v.zoom, x: v.x, y: v.y)
+        }
         modelo.poniendoMarca = false
         capa.needsDisplay = true
         guardarLectura()
     }
 
+    private lazy var vistasDoc = VistasDoc(documento: url, nucleo: nucleo)
+
+    /// El zoom (pixeles por unidad del lector) y la esquina de arriba a la
+    /// izquierda de lo que se ve, en unidades del lector de Windows.
+    private func vistaDeAhora() -> (zoom: CGFloat, x: CGFloat, y: CGFloat)? {
+        guard let doc = vistaPDF.document, let docView = vistaPDF.documentView else { return nil }
+        let h = HojasDelLector(doc, caja: vistaPDF.displayBox)
+        let visible = docView.visibleRect
+        let esquina = vistaPDF.convert(NSPoint(x: visible.minX, y: docView.isFlipped ? visible.minY : visible.maxY), from: docView)
+        guard let p = vistaPDF.page(for: esquina, nearest: true) else { return nil }
+        let i = doc.index(for: p), b = p.bounds(for: vistaPDF.displayBox)
+        let u = h.unidades(vistaPDF.convert(esquina, to: p), hoja: i, bounds: b)
+        return (vistaPDF.scaleFactor * b.width / HojasDelLector.ancho, u.x, u.y)
+    }
+
     func ir(a m: MarcaDocumento) {
+        // Con su vista: el mismo zoom y la misma esquina.
+        if let v = vistasDoc.vista(m.id), let doc = vistaPDF.document {
+            let h = HojasDelLector(doc, caja: vistaPDF.displayBox)
+            let i = h.hoja(de: v.y)
+            if let p = doc.page(at: i) {
+                let b = p.bounds(for: vistaPDF.displayBox)
+                vistaPDF.autoScales = false
+                vistaPDF.scaleFactor = v.zoom * HojasDelLector.ancho / b.width
+                let q = h.punto(CGPoint(x: v.x, y: v.y), bounds: b, hoja: i)
+                vistaPDF.go(to: CGRect(x: q.x, y: q.y - 1, width: 1, height: 1), on: p)
+                return
+            }
+        }
         guard let doc = vistaPDF.document, let p = doc.page(at: Int(m.y.rounded(.down))) else { return }
         let b = p.bounds(for: vistaPDF.displayBox)
         let f = CGFloat(m.y - m.y.rounded(.down))

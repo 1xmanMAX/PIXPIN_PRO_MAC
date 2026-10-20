@@ -77,18 +77,20 @@ public final class VisorPlano: ObservableObject {
     public let ruta: String
     /// El riel (lapiz, marcador, marco) y los marcadores con su vista.
     let riel = ModeloLector()
-    private(set) lazy var marcadores = MarcadoresDeVista(documento: URL(fileURLWithPath: ruta))
+    private(set) lazy var marcadores = MarcadoresDeVista(documento: URL(fileURLWithPath: ruta), nucleo: nucleo)
 
-    /// Poner un marcador con la vista de ahora (centro y zoom).
-    func ponerMarcador(_ emoji: String) {
-        riel.poniendoMarca = false
-        guard let c = vista?.camara else { return }
-        marcadores.poner(emoji, vista: [c.centroX, c.centroY, c.px])
+    /// Poner un marcador con la vista de ahora: su centro y lo que se ve
+    /// (como `Marcador2d` de Windows).
+    func ponerMarcador() {
+        guard let v = vista else { return }
+        let c = v.camara
+        marcadores.poner(x: c.centroX, y: c.centroY, ancho: c.px * v.anchoPx, alto: c.px * v.altoPx)
     }
 
+    /// Volver a un marcador: cabe todo lo que se veia.
     func ir(a m: MarcadorDeVista) {
-        guard m.vista.count == 3 else { return }
-        vista?.ponerCamara(CamaraPlano(centroX: m.vista[0], centroY: m.vista[1], px: m.vista[2]))
+        guard let v = vista, v.anchoPx > 0, v.altoPx > 0 else { return }
+        v.ponerCamara(CamaraPlano(centroX: m.x, centroY: m.y, px: max(m.ancho / v.anchoPx, m.alto / v.altoPx)))
     }
 
 
@@ -1046,13 +1048,11 @@ public struct VentanaPlanoView: View {
                     if visor.buscando { busqueda.padding(10).frame(maxWidth: .infinity, alignment: .topTrailing) }
                     if visor.datos != nil && !visor.verCapas {
                         RielDeVistas(modelo: visor.riel, marcadores: visor.marcadores,
-                                     lapiz: { visor.alternarAnotar() }, marco: { visor.alternarMarcos() },
+                                     lapiz: { visor.alternarAnotar() }, marcar: { visor.ponerMarcador() },
+                                     marco: { visor.alternarMarcos() },
                                      ir: { visor.ir(a: $0) })
                     }
-                    TiraMarcas(modelo: visor.riel) { visor.ponerMarcador($0) }
-                        .fixedSize()
-                        .padding(.bottom, 22)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+
                     // Las capas, un menu flotante (no una columna fija).
                     if visor.verCapas && visor.datos != nil {
                         PanelFlotantePlano(alto: min(380, 52 + CGFloat(visor.capas.count) * 26)) { panelCapas }

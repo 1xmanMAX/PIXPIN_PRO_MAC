@@ -107,35 +107,59 @@ final class RielSobreVista {
     }
 }
 
-/// **Un marcador con su vista** (planos y modelos, Windows 19-oct): el
-/// emoticono y lo que hace falta para volver justo ahi.
-struct MarcadorDeVista: Codable, Equatable, Identifiable {
-    var id: Int64
-    var emoji: String
-    var vista: [Double]
+/// **Un marcador de un plano con su vista** (Windows, `Marcador2d` de
+/// `pixpin-cad/marcadores.rs`): el centro y lo que se ve, en coordenadas
+/// del dibujo (Y arriba). Van numerados (1, 2, 3…), sin emoticono.
+struct MarcadorDeVista: Equatable, Identifiable {
+    var id: String
+    var nombre: String
+    var x: Double, y: Double, ancho: Double, alto: Double
 }
 
-/// Los marcadores de vista de un fichero, junto a el (`.pixpin-vistas-mac`).
+/// Los marcadores de un plano en el `.vistas.json` de Windows
+/// (`{"version":1,"plano":[…],"modelo":[…]}`): en `anot-<uid>.vistas.json`
+/// si el plano es un adjunto (viaja), si no junto a el. Lo de `modelo` (3D)
+/// se conserva tal cual.
 @MainActor
 final class MarcadoresDeVista: ObservableObject {
     @Published private(set) var lista: [MarcadorDeVista] = []
     private let fichero: URL
+    private var resto: [String: Any] = ["version": 1]
 
-    init(documento: URL) {
-        fichero = documento.appendingPathExtension("pixpin-vistas-mac")
-        if let d = try? Data(contentsOf: fichero), let l = try? JSONDecoder().decode([MarcadorDeVista].self, from: d) { lista = l }
+    init(documento: URL, nucleo: Nucleo?) {
+        if let n = nucleo, let r = n.rutaAnotadaDelAdjunto(documento: documento.path, terminacion: ".vistas.json") {
+            fichero = URL(fileURLWithPath: r)
+        } else {
+            fichero = documento.appendingPathExtension("pixpin-vistas")
+        }
+        guard let d = try? Data(contentsOf: fichero),
+              let o = try? JSONSerialization.jsonObject(with: d) as? [String: Any] else { return }
+        resto = o
+        lista = (o["plano"] as? [[String: Any]] ?? []).compactMap { m in
+            guard let id = m["id"] as? String else { return nil }
+            func n(_ k: String) -> Double { (m[k] as? NSNumber)?.doubleValue ?? 0 }
+            return MarcadorDeVista(id: id, nombre: m["nombre"] as? String ?? "", x: n("x"), y: n("y"), ancho: n("ancho"), alto: n("alto"))
+        }
     }
 
-    func poner(_ emoji: String, vista: [Double]) {
-        lista.append(MarcadorDeVista(id: Int64(Date().timeIntervalSince1970 * 1000), emoji: emoji, vista: vista))
+    func poner(x: Double, y: Double, ancho: Double, alto: Double) {
+        let id = "m" + String(UInt64(Date().timeIntervalSince1970 * 1000), radix: 36)
+        lista.append(MarcadorDeVista(id: id, nombre: "", x: x, y: y, ancho: ancho, alto: alto))
         guardar()
     }
 
     func quitar(_ m: MarcadorDeVista) { lista.removeAll { $0.id == m.id }; guardar() }
 
+    /// Vaciar escribe la lista vacia: un fichero borrado volveria al sincronizar.
     private func guardar() {
-        if lista.isEmpty { try? FileManager.default.removeItem(at: fichero); return }
-        try? JSONEncoder().encode(lista).write(to: fichero, options: .atomic)
+        var o = resto
+        o["version"] = 1
+        o["plano"] = lista.map { ["id": $0.id, "nombre": $0.nombre, "x": $0.x, "y": $0.y, "ancho": $0.ancho, "alto": $0.alto] }
+        if o["modelo"] == nil { o["modelo"] = [Any]() }
+        resto = o
+        if let d = try? JSONSerialization.data(withJSONObject: o, options: [.prettyPrinted, .sortedKeys]) {
+            try? d.write(to: fichero, options: .atomic)
+        }
     }
 }
 
@@ -145,23 +169,25 @@ struct RielDeVistas: View {
     @ObservedObject var modelo: ModeloLector
     @ObservedObject var marcadores: MarcadoresDeVista
     var lapiz: (() -> Void)?
+    let marcar: () -> Void
     let marco: () -> Void
     let ir: (MarcadorDeVista) -> Void
-    @State private var encima: Int64?
+    @State private var encima: String?
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
-            IslaRiel(modelo: modelo, marcar: { modelo.poniendoMarca.toggle() }, lapiz: lapiz, imprimir: marco)
+            IslaRiel(modelo: modelo, marcar: marcar, lapiz: lapiz, imprimir: marco)
             ForEach(Array(marcadores.lista.enumerated()), id: \.element.id) { i, m in
                 Button { ir(m) } label: {
-                    Text(m.emoji)
-                        .font(.system(size: encima == m.id ? 20 : 13))
+                    Text("\(i + 1)")
+                        .font(.system(size: encima == m.id ? 14 : 11, weight: .semibold))
+                        .foregroundStyle(.white)
                         .frame(width: encima == m.id ? 36 : 22, height: encima == m.id ? 36 : 22)
                         .background(Circle().fill(Color(white: 0.12, opacity: encima == m.id ? 0.85 : 0.55)))
                         .offset(x: encima == m.id ? -8 : 0)
                 }
                 .buttonStyle(.plain)
-                .help("\(m.emoji)\(i < 9 ? "  (⌘\(i + 1))" : "")")
+                .help("Marcador \(i + 1)")
                 .onHover { encima = $0 ? m.id : (encima == m.id ? nil : encima) }
                 .contextMenu { Button("Quitar", role: .destructive) { marcadores.quitar(m) } }
                 .animation(.easeOut(duration: 0.12), value: encima)
