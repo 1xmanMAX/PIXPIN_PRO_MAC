@@ -26,6 +26,7 @@ pub mod gpu;
 pub mod gpu3d;
 pub mod leer;
 pub mod letras;
+pub mod marcadores;
 pub mod modelo;
 pub mod modelo3d;
 pub mod orbita;

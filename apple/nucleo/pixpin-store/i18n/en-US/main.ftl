@@ -2719,3 +2719,50 @@ tareas-asignatura-pista = Task subject
 tareas-sin-asignatura = No subject (to the Inbox)
 tareas-sin-asignaturas = No subjects yet: create them in “Class timetable…”
 tareas-apuntar-en-asignatura = New { $asignatura } task…
+
+# Viewers: the frame to print (2026-10-19)
+marco-imprimir-pista = Drag a box over what you want to print · Enter: everything · Esc: leave
+lector-marco = Frame to print (P)
+marcos-pista = Drag to frame · a number: go to that frame · Ctrl+P: print all · Del: remove the last one · I or Esc: leave
+marcos-imprimir = Print the frames (Ctrl+P)
+marcos-borrar = Clear frames
+riel-marcador = Bookmark (Ctrl+M)
+riel-anotar = Annotate (A)
+riel-marcos = Frames to print (I)
+barra-mover = Move (drag)
+barra-oscuro = Night mode
+barra-pantalla = Full screen (F11)
+barra-fijar = Always on top
+barra-cerrar = Close (Esc)
+visor-letra = Font and spacing (T / B)
+lector-mas = More options (G)
+visor-indice-pista = Contents (C)
+riel-hojita = Notepad (Ctrl+Shift+N)
+
+# Pin rail: the frame button of a pin that is not a photo (19-oct-2026).
+riel-imprimir-zona = Print an area (Ctrl+P)
+
+# The spreadsheet viewer bar: name and key of each button (19-oct-2026).
+hoja-pista-editar = Edit cells (F2)
+hoja-pista-ver = Back to viewing (Esc)
+hoja-pista-negrita = Bold (Ctrl+B)
+hoja-pista-cursiva = Italic (Ctrl+I)
+hoja-pista-subrayado = Underline (Ctrl+U)
+hoja-pista-tachado = Strikethrough (Ctrl+5)
+hoja-pista-resaltar = Fill color
+hoja-pista-letra = Font color
+hoja-pista-alinear = Align (Ctrl+Shift+L / E / R)
+hoja-pista-numero = Number format
+hoja-pista-ajustar = Wrap text
+hoja-pista-borrar-formato = Clear formatting
+## Tooltips of the web viewers' and Office pin bars (19-oct)
+web-recargar = Reload (F5)
+web-exportar = Export (Ctrl+E)
+web-navegador = Open in the browser
+nota-pista-ver = Read view
+nota-pista-editar = Edit
+nota-pista-buscar = Find (Ctrl+F)
+nota-pista-comentarios = Comments
+nota-pista-compartir = Share
+office-pista-abrir-con = Open with…
+office-pista-presentar = Present

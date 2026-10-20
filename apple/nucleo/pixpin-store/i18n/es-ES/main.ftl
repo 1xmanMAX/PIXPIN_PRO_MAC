@@ -2720,3 +2720,50 @@ tareas-asignatura-pista = Asignatura de la tarea
 tareas-sin-asignatura = Sin asignatura (al Inbox)
 tareas-sin-asignaturas = Aún no hay asignaturas: créalas en «Horario de clases…»
 tareas-apuntar-en-asignatura = Nueva tarea de { $asignatura }…
+
+# El marco para imprimir de los visores (19-oct-2026)
+marco-imprimir-pista = Arrastra un recuadro sobre lo que quieres imprimir · Enter: todo · Esc: salir
+lector-marco = Marco para imprimir (P)
+marcos-pista = Arrastra para marcar · un número: ir a ese marco · Ctrl+P: imprimir todos · Supr: quitar el último · I o Esc: salir
+marcos-imprimir = Imprimir los marcos (Ctrl+P)
+marcos-borrar = Borrar los marcos
+riel-marcador = Marcador (Ctrl+M)
+riel-anotar = Anotar (A)
+riel-marcos = Marcos para imprimir (I)
+barra-mover = Mover (arrastrar)
+barra-oscuro = Modo noche
+barra-pantalla = Pantalla completa (F11)
+barra-fijar = Siempre encima
+barra-cerrar = Cerrar (Esc)
+visor-letra = Letra y espaciado (T / B)
+lector-mas = Más opciones (G)
+visor-indice-pista = Índice (C)
+riel-hojita = Hojita (Ctrl+Mayús+N)
+
+# Riel del pin: el marco de un pin que no es una foto (19-oct-2026).
+riel-imprimir-zona = Imprimir una zona (Ctrl+P)
+
+# La barra del visor de hojas de calculo: nombre y tecla de cada boton (19-oct-2026).
+hoja-pista-editar = Editar celdas (F2)
+hoja-pista-ver = Volver a ver (Esc)
+hoja-pista-negrita = Negrita (Ctrl+N)
+hoja-pista-cursiva = Cursiva (Ctrl+K)
+hoja-pista-subrayado = Subrayado (Ctrl+S)
+hoja-pista-tachado = Tachado (Ctrl+5)
+hoja-pista-resaltar = Color de relleno
+hoja-pista-letra = Color de letra
+hoja-pista-alinear = Alinear (Ctrl+Mayús+L / E / R)
+hoja-pista-numero = Formato de número
+hoja-pista-ajustar = Ajustar texto
+hoja-pista-borrar-formato = Borrar formato
+## Globos de las barras de los visores web y del pin de Office (19-oct)
+web-recargar = Recargar (F5)
+web-exportar = Exportar (Ctrl+E)
+web-navegador = Abrir en el navegador
+nota-pista-ver = Ver como lectura
+nota-pista-editar = Editar
+nota-pista-buscar = Buscar (Ctrl+F)
+nota-pista-comentarios = Comentarios
+nota-pista-compartir = Compartir
+office-pista-abrir-con = Abrir con…
+office-pista-presentar = Presentar
