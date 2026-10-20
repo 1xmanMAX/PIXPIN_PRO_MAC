@@ -46,6 +46,7 @@ public final class PinesDeOffice: NSObject, NSWindowDelegate {
                             backing: .buffered, defer: false)
         panel.title = url.lastPathComponent
         VentanaLisa.vestirEntera(panel)
+        VentanaLisa.recordar(panel, clave: url.pathExtension)
         VentanaLisa.escaparConVigia(panel)
         panel.isFloatingPanel = true
         panel.level = .floating

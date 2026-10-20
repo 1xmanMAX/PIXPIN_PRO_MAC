@@ -67,10 +67,10 @@ final class RielSobreVista {
     var alCambiar: (([MarcaDocumento]) -> Void)?
     private var suscripcion: Any?
 
-    func montar(en contenedor: NSView, imprimir: @escaping () -> Void) {
+    func montar(en contenedor: NSView, lapiz: (() -> Void)? = nil, imprimir: @escaping () -> Void) {
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
-            imprimir: imprimir))
+            lapiz: lapiz, imprimir: imprimir))
         let tira = NSHostingView(rootView: TiraMarcas(modelo: modelo) { [weak self] e in self?.poner(e) }.fixedSize())
         puntos.paginas = 1
         puntos.rotulo = { m in "\(m.emoji)  \(Int((m.y * 100).rounded())) %" }

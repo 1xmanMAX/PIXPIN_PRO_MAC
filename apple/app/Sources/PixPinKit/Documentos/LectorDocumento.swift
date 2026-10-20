@@ -364,7 +364,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         ventana.contentView = contenedor
         ventana.setContentSize(NSSize(width: 900, height: 1000))
         ventana.center()
-        _ = ventana.setFrameAutosaveName("PixPinLector")
+        VentanaLisa.recordar(ventana, clave: url.pathExtension)
         capa.controlador = self
         let barra = BarraFlotante(ventana: ventana) { BarraLector(modelo: modelo, avance: avance) }
         barra.fija = { modelo.aviso != nil }

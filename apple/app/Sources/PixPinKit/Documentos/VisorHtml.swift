@@ -110,6 +110,8 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         let conf = WKWebViewConfiguration()
         conf.userContentController.addUserScript(WKUserScript(source: ControladorVisorHtml.puente,
                                                               injectionTime: .atDocumentStart, forMainFrameOnly: false))
+        conf.userContentController.addUserScript(WKUserScript(source: CapaTintaWeb.guion,
+                                                              injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         web = WKWebView(frame: .zero, configuration: conf)
         // El area de trabajo, como Windows: sin marco propio, la barra de
         // menus y el Dock siguen ahi para cambiar de ventana.
@@ -118,6 +120,7 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
                            backing: .buffered, defer: false)
         super.init()
         conf.userContentController.add(Debil(self), name: "pixpinVisor")
+        conf.userContentController.add(Debil(self), name: "pixpinScroll")
         web.navigationDelegate = self
         web.uiDelegate = self
         web.allowsBackForwardNavigationGestures = false
@@ -138,8 +141,18 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
             web.topAnchor.constraint(equalTo: contenedor.topAnchor),
             web.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
         ])
+        capa.translatesAutoresizingMaskIntoConstraints = false
+        capa.web = web
+        contenedor.addSubview(capa)
+        NSLayoutConstraint.activate([
+            capa.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
+            capa.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
+            capa.topAnchor.constraint(equalTo: contenedor.topAnchor),
+            capa.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
+        ])
         ventana.contentView = contenedor
         ventana.setFrame(marco, display: false)
+        VentanaLisa.recordar(ventana, clave: "html")
         modelo.nombre = url.lastPathComponent
         modelo.controlador = self
         montarRiel(en: contenedor, nucleo: nucleo)
@@ -159,9 +172,91 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     }
 
     private let riel = RielSobreVista()
+    private let capa = CapaTintaWeb()
+    private let alDia = AlDiaLector()
+    private var guardado: DispatchWorkItem?
+    private var nucleoTinta: Nucleo?
+
+    /// Lo que se ha anotado, ya (si lo hay), para verlo encima al abrir.
+    private func abrirTinta(_ nucleo: Nucleo, crear: Bool) {
+        let ruta = url.path
+        let ancho = UInt32(max(web.bounds.width, 320))
+        Task { [weak self] in
+            let ed = await Task.detached(priority: .userInitiated) { () -> EditorLienzo? in
+                if !crear, !nucleo.hayTintaDeReflujo(documento: ruta) { return nil }
+                // El nucleo pide la columna fijada antes de anotar (la del
+                // Word); en una pagina web, su ancho al empezar.
+                var l = nucleo.lecturaDeReflujo(documento: ruta)
+                if l.columna == 0 {
+                    l.columna = ancho
+                    try? nucleo.guardarLecturaDeReflujo(documento: ruta, lectura: l)
+                }
+                do { return try nucleo.anotarReflujo(documento: ruta) } catch {
+                    return nil
+                }
+            }.value
+            guard let self, let ed, self.capa.editor == nil else { return }
+            self.capa.editor = ed
+            if self.riel.modelo.anotando { self.tinta.aplicar(a: ed, herramienta: self.riel.modelo.herramienta, color: self.riel.modelo.color) }
+        }
+    }
+
+    /// El lapiz del riel: anotar encima con las herramientas del lienzo.
+    func alternarLapiz() {
+        let m = riel.modelo
+        if m.anotando {
+            m.herramienta = "leer"
+            capa.anotando = false
+            tinta.ensenar("leer")
+            guardarTinta()
+        } else {
+            guard let nucleo = nucleoTinta else { return }
+            m.poniendoMarca = false
+            m.herramienta = tinta.alEmpezar
+            capa.anotando = true
+            tinta.ensenar(m.herramienta)
+            if let ed = capa.editor { tinta.aplicar(a: ed, herramienta: m.herramienta, color: m.color) }
+            else { abrirTinta(nucleo, crear: true) }
+        }
+    }
+
+    private(set) lazy var tinta: HerramientasDeTinta = {
+        let t = HerramientasDeTinta(nucleo: nucleoTinta)
+        t.editores = { [weak self] in self?.capa.editor.map { [$0] } ?? [] }
+        t.elegir = { [weak self] h in
+            guard let self else { return }
+            if h == "leer" { if self.riel.modelo.anotando { self.alternarLapiz() }; return }
+            self.riel.modelo.herramienta = h
+            self.tinta.ensenar(h)
+            if let ed = self.capa.editor { self.tinta.aplicar(a: ed, herramienta: h, color: self.riel.modelo.color) }
+        }
+        t.deshacer = { [weak self] in if self?.capa.editor?.deshacer() == true { self?.capa.needsDisplay = true; self?.guardarTinta() } }
+        t.rehacer = { [weak self] in if self?.capa.editor?.rehacer() == true { self?.capa.needsDisplay = true; self?.guardarTinta() } }
+        t.repintar = { [weak self] in self?.capa.needsDisplay = true }
+        return t
+    }()
+
+    private func guardarTinta() {
+        guardado?.cancel()
+        guard let ed = capa.editor else { return }
+        let alDia = self.alDia, ruta = url.path
+        let w = DispatchWorkItem {
+            guard ed.sinGuardar(), let r = try? alDia.guardar(0, ed), r.escrito else { return }
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .pixpinDocumentoAnotado, object: ruta)
+                NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            }
+        }
+        guardado = w
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 0.8, execute: w)
+    }
 
     private func montarRiel(en contenedor: NSView, nucleo: Nucleo?) {
-        riel.montar(en: contenedor) { [weak self] in self?.imprimir() }
+        nucleoTinta = nucleo
+        riel.montar(en: contenedor, lapiz: nucleo == nil ? nil : { [weak self] in self?.alternarLapiz() }) { [weak self] in self?.imprimir() }
+        tinta.montar(en: contenedor, modelo: riel.modelo)
+        capa.alSoltar = { [weak self] in self?.guardarTinta() }
+        if let nucleo { abrirTinta(nucleo, crear: false) }
         riel.irA = { [weak self] f in
             self?.web.evaluateJavaScript("var m=Math.max(0,document.documentElement.scrollHeight-innerHeight);scrollTo({top:\(f)*m,behavior:'instant'})")
         }
@@ -248,7 +343,24 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     }
 
     private func ponerOscuro(_ oscuro: Bool) {
+        modelo.oscuro = oscuro
         web.appearance = NSAppearance(named: oscuro ? .darkAqua : .aqua)
+        // Como el Word oscuro de Windows: la pagina invertida y las fotos
+        // vueltas a su color.
+        let css = "html{filter:invert(1) hue-rotate(180deg);background:#fff}img,video,picture,canvas,svg image{filter:invert(1) hue-rotate(180deg)}"
+        web.evaluateJavaScript("""
+        (function(){var e=document.getElementById('pixpin-oscuro');
+        if(\(oscuro)){if(!e){e=document.createElement('style');e.id='pixpin-oscuro';document.documentElement.appendChild(e);}e.textContent='\(css)';}
+        else if(e){e.remove();}})();
+        """)
+    }
+
+    /// La luna o el sol de la barra: el modo noche de TODOS los visores.
+    func alternarOscuro() {
+        let o = !modelo.oscuro
+        ponerOscuro(o)
+        if let nucleo = nucleoTinta { DispatchQueue.global(qos: .utility).async { try? nucleo.guardarLectoresOscuros(oscuros: o) } }
+        NotificationCenter.default.post(name: .pixpinLectoresOscuros, object: o)
     }
 
     /// **Exportar la pagina** con la hoja comun (la pagina, el original, su
@@ -275,10 +387,19 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     }
 
     func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "pixpinScroll", let a = message.body as? [Double], a.count == 2 {
+            capa.desplazado = CGPoint(x: a[0], y: a[1])
+            return
+        }
         guard let d = message.body as? [String: Any], d["tipo"] as? String == "guardar",
               let b64 = d["datos"] as? String,
               let datos = Data(base64Encoded: b64, options: .ignoreUnknownCharacters) else { return }
         guardar(datos)
+    }
+
+    /// Al cargar (o recargar) la pagina, otra vez su modo noche.
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        if modelo.oscuro { ponerOscuro(true) }
     }
 
     // MARK: Descargas
@@ -379,6 +500,7 @@ private final class Debil: NSObject, WKScriptMessageHandler {
 final class ModeloVisorHtml: ObservableObject {
     @Published var nombre = ""
     @Published var encima = false
+    @Published var oscuro = false
     @Published var nota: String?
     weak var controlador: ControladorVisorHtml?
     private var tarea: DispatchWorkItem?
@@ -400,6 +522,7 @@ struct BarraVisorHtml: View {
 
     var body: some View {
         BarraVisor(nombre: modelo.nota ?? modelo.nombre, ext: "html",
+                   oscuro: modelo.oscuro, alternarOscuro: { modelo.controlador?.alternarOscuro() },
                    fijar: { si in
                        modelo.encima = si
                        modelo.controlador?.ventana.level = si ? .floating : .normal

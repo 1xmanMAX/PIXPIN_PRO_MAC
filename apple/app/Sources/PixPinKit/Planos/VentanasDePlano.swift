@@ -122,7 +122,7 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         ventana.contentViewController = controlador
         ventana.setContentSize(NSSize(width: 1100, height: 760))
         ventana.center()
-        _ = ventana.setFrameAutosaveName("PixPinPlano")
+        VentanaLisa.recordar(ventana, clave: "plano")
         ventana.delegate = self
         ventana.identifier = NSUserInterfaceItemIdentifier(clave)
         let flotante = BarraFlotante(ventana: ventana, contenido: barra)

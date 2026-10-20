@@ -551,7 +551,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         ventana.contentView = contenedor
         ventana.setContentSize(NSSize(width: 900, height: 1000))
         ventana.center()
-        _ = ventana.setFrameAutosaveName("PixPinVisorReflujo")
+        VentanaLisa.recordar(ventana, clave: url.pathExtension)
         let reflujo = self.reflujo
         let barra = BarraFlotante(ventana: ventana) { [weak self] in
             BarraReflujo(modelo: modelo, reflujo: reflujo, avance: avance, visor: self)

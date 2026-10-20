@@ -1003,7 +1003,7 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         ventana.contentViewController = NSHostingController(rootView: EditorLienzoView(modelo: modelo))
         ventana.setContentSize(NSSize(width: 1000, height: 720))
         ventana.center()
-        _ = ventana.setFrameAutosaveName("PixPinLienzo")
+        VentanaLisa.recordar(ventana, clave: "lienzo")
         ventana.delegate = self
         ventana.identifier = NSUserInterfaceItemIdentifier(clave)
         ventana.collectionBehavior.insert(.fullScreenPrimary)

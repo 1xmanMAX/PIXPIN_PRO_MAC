@@ -140,7 +140,7 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         VentanaLisa.escaparConVigia(ventana)
         ventana.collectionBehavior.insert(.fullScreenPrimary)
         ventana.center()
-        _ = ventana.setFrameAutosaveName("PixPinNotaWeb")
+        VentanaLisa.recordar(ventana, clave: "md")
         web.loadHTMLString(notaPagina(), baseURL: URL(string: "pixpin-nota://nota/"))
         estadoBarra.nombre = sesion.titulo()
         let estado = estadoBarra

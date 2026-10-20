@@ -393,7 +393,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         ventana.contentView = raiz
         ventana.setContentSize(NSSize(width: 980, height: 660))
         ventana.center()
-        _ = ventana.setFrameAutosaveName("PixPinHoja")
+        VentanaLisa.recordar(ventana, clave: "hoja")
         NotificationCenter.default.addObserver(self, selector: #selector(columnaCambiada(_:)),
                                                name: NSTableView.columnDidResizeNotification, object: rejilla)
         ponerPestanas()

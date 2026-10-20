@@ -78,6 +78,26 @@ public enum VentanaLisa {
         recorrer(raiz)
     }
 
+    /// **Recordar el tamano por tipo de archivo**: la ventana se abre como se
+    /// dejo la ultima de su tipo (`clave`: «pdf», «html», «xlsx»…) y lo
+    /// apunta al moverla, redimensionarla o cerrarla (no a pantalla completa).
+    static func recordar(_ ventana: NSWindow, clave: String) {
+        let k = "PixPinMarco-" + clave.lowercased()
+        if let t = UserDefaults.standard.string(forKey: k) {
+            let r = NSRectFromString(t)
+            if r.width > 120, r.height > 120, NSScreen.screens.contains(where: { $0.visibleFrame.intersects(r) }) {
+                ventana.setFrame(r, display: false)
+            }
+        }
+        let apuntar: (Notification) -> Void = { n in
+            guard let v = n.object as? NSWindow, !v.styleMask.contains(.fullScreen) else { return }
+            UserDefaults.standard.set(NSStringFromRect(v.frame), forKey: k)
+        }
+        for n in [NSWindow.didResizeNotification, NSWindow.didMoveNotification, NSWindow.willCloseNotification] {
+            NotificationCenter.default.addObserver(forName: n, object: ventana, queue: .main, using: apuntar)
+        }
+    }
+
     /// **⎋ de los visores**: a pantalla completa, el primero sale de ella; si
     /// no, se cierra (el segundo ⎋ en pantalla completa).
     static func escapar(_ ventana: NSWindow?) {
