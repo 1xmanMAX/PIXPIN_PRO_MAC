@@ -46,12 +46,12 @@ final class CapaTintaWeb: NSView {
             let r = aVista(marco.rect)
             CapaMarcosPDF.azul.setStroke()
             let c = NSBezierPath(rect: r)
-            c.lineWidth = 2
+            c.lineWidth = 1.2 / escalaDeMarcos
             c.stroke()
             let t = "\(i + 1)" as NSString
-            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .bold), .foregroundColor: NSColor.white]
+            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 9 / escalaDeMarcos, weight: .semibold), .foregroundColor: NSColor.white]
             let s = t.size(withAttributes: atr)
-            let caja = NSRect(x: r.minX, y: r.minY, width: max(20, s.width + 10), height: 20)
+            let caja = NSRect(x: r.minX, y: r.minY, width: max(14 / escalaDeMarcos, s.width + 6 / escalaDeMarcos), height: 14 / escalaDeMarcos)
             CapaMarcosPDF.azul.setFill()
             NSBezierPath(rect: caja).fill()
             t.draw(at: NSPoint(x: caja.midX - s.width / 2, y: caja.midY - s.height / 2), withAttributes: atr)
@@ -59,7 +59,7 @@ final class CapaTintaWeb: NSView {
         if let a = marcoInicio, let b = marcoActual {
             CapaMarcosPDF.azul.setStroke()
             let c = NSBezierPath(rect: NSRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)))
-            c.lineWidth = 1.5
+            c.lineWidth = 1 / escalaDeMarcos
             c.stroke()
         }
     }

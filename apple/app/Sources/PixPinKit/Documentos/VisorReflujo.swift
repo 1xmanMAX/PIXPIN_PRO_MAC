@@ -1432,6 +1432,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             return true
         default: break
         }
+        if m == .command, c == "m" { modelo.poniendoMarca.toggle(); return true }
         if m == [.control, .command], c == "f" { ventana.toggleFullScreen(nil); return true }
         if m == .command {
             switch c {
@@ -1499,7 +1500,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         case "m": modelo.poniendoMarca.toggle(); return true
         case "t": ponerTipo(UInt8((Int(reflujo.tipo) + 1) % BarraReflujo.tipos.count)); return true
         case "b": ponerGrosor(UInt8((Int(reflujo.grosor) + 1) % BarraReflujo.grosores.count)); return true
-        case "i": mostrarIndice(); return true
+        case "i": alternarMarcos(); return true
         case "d": alternarAvance(); return true
         case "g": mostrarAjustes(evento: nil); return true
         case "n": alternarNegativo(); return true

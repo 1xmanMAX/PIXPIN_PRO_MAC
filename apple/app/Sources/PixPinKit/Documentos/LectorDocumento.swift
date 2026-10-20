@@ -964,6 +964,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         case 96 where m.isEmpty: presentar(); return true // F5
         default: break
         }
+        if m == .command, c == "m" { modelo.poniendoMarca.toggle(); return true }
         if m == [.control, .command], c == "f" { pantallaCompleta(); return true }
         // Los marcos: I entra y sale; Supr quita el ultimo.
         if !escribiendo, !modelo.anotando, m.isEmpty, c == "i" { alternarMarcos(); return true }

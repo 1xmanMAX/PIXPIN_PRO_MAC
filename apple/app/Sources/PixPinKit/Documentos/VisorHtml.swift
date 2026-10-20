@@ -367,6 +367,11 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
             if ventana.styleMask.contains(.fullScreen) { ventana.toggleFullScreen(nil) } else { cerrar() }
             return true
         }
+        // Las teclas de Windows: ⌘M marcador, A anotar, I marcos (fuera de un campo).
+        if m == .command, c == "m" { riel.modelo.poniendoMarca.toggle(); return true }
+        let enCampo = ventana.firstResponder is NSText
+        if m.isEmpty, !enCampo, c == "i" { alternarMarcos(); return true }
+        if m.isEmpty, !enCampo, c == "a", nucleoTinta != nil { alternarLapiz(); return true }
         if m == .command, c == "p", !marcos.lista.isEmpty { imprimirMarcos(); return true }
         if marcos.activo, m.isEmpty, k == 51 || k == 117 {
             if marcos.quitarUltimo() { capa.needsDisplay = true }

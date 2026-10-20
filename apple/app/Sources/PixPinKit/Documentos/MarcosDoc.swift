@@ -82,13 +82,13 @@ final class CapaMarcosPDF: NSView {
             guard let p = doc.page(at: Int(marco.parte)), let r = enVista(marco.rect, p), r.intersects(sucio) else { continue }
             CapaMarcosPDF.azul.setStroke()
             let camino = NSBezierPath(rect: r)
-            camino.lineWidth = 2
+            camino.lineWidth = 1.2 / escalaDeMarcos
             camino.stroke()
             // Su numero blanco en un cuadrito azul, arriba a la izquierda.
             let t = "\(i + 1)" as NSString
-            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .bold), .foregroundColor: NSColor.white]
+            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 9 / escalaDeMarcos, weight: .semibold), .foregroundColor: NSColor.white]
             let s = t.size(withAttributes: atr)
-            let caja = NSRect(x: r.minX, y: r.minY, width: max(20, s.width + 10), height: 20)
+            let caja = NSRect(x: r.minX, y: r.minY, width: max(14 / escalaDeMarcos, s.width + 6 / escalaDeMarcos), height: 14 / escalaDeMarcos)
             CapaMarcosPDF.azul.setFill()
             NSBezierPath(rect: caja).fill()
             t.draw(at: NSPoint(x: caja.midX - s.width / 2, y: caja.midY - s.height / 2), withAttributes: atr)
@@ -96,7 +96,7 @@ final class CapaMarcosPDF: NSView {
         if let a = inicio?.punto, let b = actual {
             CapaMarcosPDF.azul.setStroke()
             let c = NSBezierPath(rect: NSRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)))
-            c.lineWidth = 1.5
+            c.lineWidth = 1 / escalaDeMarcos
             c.stroke()
         }
     }
@@ -166,12 +166,12 @@ final class CapaMarcosVista: NSView {
             let r = marco.rect
             CapaMarcosPDF.azul.setStroke()
             let c = NSBezierPath(rect: r)
-            c.lineWidth = 2
+            c.lineWidth = 1.2 / escalaDeMarcos
             c.stroke()
             let t = "\(i + 1)" as NSString
-            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .bold), .foregroundColor: NSColor.white]
+            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 9 / escalaDeMarcos, weight: .semibold), .foregroundColor: NSColor.white]
             let s = t.size(withAttributes: atr)
-            let caja = NSRect(x: r.minX, y: r.minY, width: max(20, s.width + 10), height: 20)
+            let caja = NSRect(x: r.minX, y: r.minY, width: max(14 / escalaDeMarcos, s.width + 6 / escalaDeMarcos), height: 14 / escalaDeMarcos)
             CapaMarcosPDF.azul.setFill()
             NSBezierPath(rect: caja).fill()
             t.draw(at: NSPoint(x: caja.midX - s.width / 2, y: caja.midY - s.height / 2), withAttributes: atr)
@@ -179,7 +179,7 @@ final class CapaMarcosVista: NSView {
         if let a = inicio, let b = actual {
             CapaMarcosPDF.azul.setStroke()
             let c = NSBezierPath(rect: NSRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)))
-            c.lineWidth = 1.5
+            c.lineWidth = 1 / escalaDeMarcos
             c.stroke()
         }
     }
@@ -209,5 +209,15 @@ final class CapaMarcosVista: NSView {
               let op = salida.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true)
         else { return }
         if let ventana { op.runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil) } else { op.run() }
+    }
+}
+
+extension NSView {
+    /// Cuantos puntos de pantalla mide una unidad de esta vista (con el
+    /// zoom de la vista que la desplaza): para que rayas y numeros midan
+    /// siempre lo mismo en pantalla.
+    var escalaDeMarcos: CGFloat {
+        let u = convert(NSSize(width: 1, height: 1), to: nil).width
+        return u > 0.0001 ? abs(u) : 1
     }
 }

@@ -14,25 +14,25 @@ struct IslaRiel: View {
     let imprimir: () -> Void
 
     /// Lo que ocupa a lo alto (para poner los puntos debajo).
-    static let alto: CGFloat = 3 * 34 + 2 * 2 + 2 * 4
+    static let alto: CGFloat = 3 * 28 + 2 * 2 + 2 * 3
 
     var body: some View {
         VStack(spacing: 2) {
-            BotonRiel(simbolo: "bookmark", ayuda: "Poner un marcador (M)", encendido: modelo.poniendoMarca, accion: marcar)
+            BotonRiel(simbolo: "bookmark", ayuda: "Poner un marcador (⌘M)", encendido: modelo.poniendoMarca, accion: marcar)
             if let lapiz {
-                BotonRiel(simbolo: "pencil", ayuda: modelo.anotando ? "Dejar de anotar" : "Anotar (lápiz)",
+                BotonRiel(simbolo: "pencil", ayuda: modelo.anotando ? "Dejar de anotar" : "Anotar (A)",
                           encendido: modelo.anotando, accion: lapiz)
             }
             BotonRiel(simbolo: "printer", ayuda: "Marcos para imprimir (I) · ⌘P los imprime", encendido: modelo.enmarcando, accion: imprimir)
         }
-        .padding(4)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .windowBackgroundColor)))
+        .padding(3)
+        .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: .windowBackgroundColor)))
         .shadow(color: .black.opacity(0.16), radius: 6, y: 2)
         .fixedSize()
     }
 }
 
-/// Un boton de la isla: 34 x 34, pulsado en azul como en Windows.
+/// Un boton de la isla: 28 x 28 (como los de la barra), pulsado en azul como en Windows.
 struct BotonRiel: View {
     let simbolo: String
     let ayuda: String
@@ -42,9 +42,9 @@ struct BotonRiel: View {
 
     var body: some View {
         Button(action: accion) {
-            Simbolo(nombre: simbolo, lado: 16)
+            Simbolo(nombre: simbolo, lado: 15)
                 .foregroundStyle(encendido ? Color.white : Color.primary)
-                .frame(width: 34, height: 34)
+                .frame(width: 28, height: 28)
                 .background(RoundedRectangle(cornerRadius: 7)
                     .fill(encendido ? Color(red: 0, green: 0.376, blue: 0.875)
                           : encima ? Color.primary.opacity(0.08) : .clear))
