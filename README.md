@@ -40,7 +40,7 @@ Windows; al abrirla sale la ventana de Proyectos.
 |---|---|
 | [`apple/`](apple) | Todo lo de Apple; su [README](apple/README.md) explica las zonas, las reglas y lo que falta. |
 | [`apple/nucleo/`](apple/nucleo) | Los crates de Rust que compilan fuera de Windows y el puente `pixpin-nucleo`. |
-| [`apple/app/`](apple/app) | La app de Mac (SwiftPM) y sus 554 pruebas. |
+| [`apple/app/`](apple/app) | La app de Mac (SwiftPM) y sus 555 pruebas. |
 | [`apple/xcode/`](apple/xcode) | El proyecto de Xcode (XcodeGen) con las extensiones. |
 | [`apple/herramientas/`](apple/herramientas) | `xcframework.sh` (núcleo → xcframework), `app.sh` (monta y firma la app), `registrar-navegador.sh` (extensión del navegador) y `subir-release.sh` (sube la rama y la release). |
 | [`apple/extension-navegador/`](apple/extension-navegador) | La extensión de Chrome que habla con PixPin por `pixpin-puente`. |
