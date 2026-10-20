@@ -240,7 +240,9 @@ struct FilaProyecto: View {
     @State private var encima = false
 
     private var debajo: String {
-        if !chat.resumen.isEmpty { return chat.resumen }
+        // Sin la sintaxis de la nota (`# `, `**`, `- [ ]`) ni caracteres de control.
+        let r = String(textoConFormato(chat.resumen).characters).trimmingCharacters(in: .whitespacesAndNewlines)
+        if !r.isEmpty { return r }
         return chat.hojas == 1 ? "1 hoja" : "\(chat.hojas) hojas"
     }
 
