@@ -178,6 +178,8 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     private let capa = CapaTintaWeb()
     private lazy var marcos = MarcosDoc(documento: url, nucleo: nucleoTinta)
 
+    func borrarMarcos() { marcos.borrar(); capa.needsDisplay = true }
+
     /// El boton del marco del riel: poner marcos numerados (Windows, 19-oct).
     func alternarMarcos() {
         if riel.modelo.anotando { alternarLapiz() }
@@ -291,6 +293,11 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         nucleoTinta = nucleo
         riel.montar(en: contenedor, lapiz: nucleo == nil ? nil : { [weak self] in self?.alternarLapiz() }) { [weak self] in self?.alternarMarcos() }
         capa.marcos = marcos
+        contenedor.ponerFichasDeMarcos(marcos) { [weak self] i in
+            guard let self, i < self.marcos.lista.count else { return }
+            let r = self.marcos.lista[i].rect
+            self.web.evaluateJavaScript("scrollTo({left:\(r.minX - 20),top:\(r.minY - 20),behavior:'instant'})")
+        }
         tinta.montar(en: contenedor, modelo: riel.modelo)
         capa.alSoltar = { [weak self] in self?.guardarTinta() }
         if let nucleo { abrirTinta(nucleo, crear: false) }
@@ -578,17 +585,17 @@ struct BarraVisorHtml: View {
                        modelo.encima = si
                        modelo.controlador?.ventana.level = si ? .floating : .normal
                    },
-                   cerrar: { modelo.controlador?.cerrar() }) {
+                   cerrar: { modelo.controlador?.cerrar() },
+                   menu: [
+                    EntradaMenuVisor("Exportar (⌘E)", "square.and.arrow.up") { modelo.controlador?.exportar() },
+                    EntradaMenuVisor("Abrir en el navegador", "globe") { modelo.controlador?.abrirEnElNavegador() },
+                    EntradaMenuVisor("Imprimir (⌘P)", "printer", separar: true) { modelo.controlador?.imprimir() },
+                    EntradaMenuVisor("Borrar los marcos", "rectangle.dashed", destructivo: true) { modelo.controlador?.borrarMarcos() },
+                   ]) {
             // Los de Windows (`visor_html::botones`): recargar, exportar y
             // el navegador. Sin lapiz: una pagina web no se edita aqui.
             BotonFlotante(simbolo: "arrow.clockwise", ayuda: "Recargar (⌘R)") {
                 modelo.controlador?.recargar()
-            }
-            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar (⌘E)") {
-                modelo.controlador?.exportar()
-            }
-            BotonFlotante(simbolo: "globe", ayuda: "Abrir en el navegador") {
-                modelo.controlador?.abrirEnElNavegador()
             }
         }
     }

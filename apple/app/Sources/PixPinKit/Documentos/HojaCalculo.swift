@@ -404,6 +404,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             self.elegir(f, c)
             self.rejilla.scrollColumnToVisible(c)
         }
+        riel.irAHoja = { [weak self] h in self?.irAHoja(h) }
         riel.celdaActiva = { [weak self] in
             guard let self else { return (0, 0, 0) }
             return (Int(self.hoja.activa()), self.fila, self.columna)
@@ -931,7 +932,7 @@ struct BarraHojaPin: View {
 
     var body: some View {
         BarraVisor(nombre: modelo.nombre, ext: (modelo.nombre as NSString).pathExtension) {
-            BotonVerEditar(editando: modelo.editando) {
+            BotonVerEditar(editando: modelo.editando, texto: true) {
                 modelo.controlador?.ponerEditando(!modelo.editando)
             }
         }

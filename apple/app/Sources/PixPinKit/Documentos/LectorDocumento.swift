@@ -114,7 +114,14 @@ struct BarraLector: View {
         BarraVisor(nombre: nombre, ext: modelo.controlador?.url.pathExtension ?? "",
                  renombrar: { modelo.controlador?.empezarRenombrar() },
                  oscuro: modelo.oscuro, alternarOscuro: { modelo.controlador?.alternarOscuro() },
-                 fijar: { modelo.controlador?.ponerEncima($0) }) {
+                 fijar: { modelo.controlador?.ponerEncima($0) },
+                 menu: [
+                    EntradaMenuVisor("Compartir…", "square.and.arrow.up") { modelo.controlador?.compartir() },
+                    EntradaMenuVisor("Imprimir (⌘P)", "printer") { modelo.controlador?.imprimir() },
+                    EntradaMenuVisor("Borrar los marcos", "rectangle.dashed", destructivo: true, separar: true) { modelo.controlador?.borrarMarcos() },
+                    EntradaMenuVisor("Quitar los marcadores", "bookmark.slash", activa: !modelo.marcas.isEmpty, destructivo: true) { modelo.controlador?.quitarMarcas() },
+                    EntradaMenuVisor("Ajustes (G)", "gearshape", separar: true) { modelo.controlador?.mostrarAjustes(evento: NSApp.currentEvent) },
+                 ]) {
             if modelo.esPresentacion {
                 BotonFlotante(simbolo: "play.fill", ayuda: "Presentar (F5)", encendido: modelo.presentando) {
                     modelo.controlador?.presentar()
@@ -126,12 +133,6 @@ struct BarraLector: View {
             }
             BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
                 modelo.controlador?.alternarAvance()
-            }
-            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
-                modelo.controlador?.compartir()
-            }
-            BotonFlotante(simbolo: "gearshape", ayuda: "Ajustes (G)") {
-                modelo.controlador?.mostrarAjustes(evento: NSApp.currentEvent)
             }
         }
         .overlay(alignment: .bottom) {
@@ -352,6 +353,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             abajo.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor, constant: -22),
         ])
         tinta.montar(en: contenedor, modelo: modelo)
+        contenedor.ponerFichasDeMarcos(marcos) { [weak self] i in self?.irAMarco(i) }
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
             lapiz: { [weak self] in self?.alternarEditar() },
@@ -1305,6 +1307,21 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     /// ⌘P: el dialogo de imprimir del Mac, con las hojas a su tamano.
+    /// La ficha de un marco: ir a el.
+    func irAMarco(_ i: Int) {
+        guard i < marcos.lista.count, let doc = vistaPDF.document else { return }
+        let m = marcos.lista[i]
+        let h = HojasDelLector(doc, caja: vistaPDF.displayBox)
+        let n = h.hoja(de: CGFloat(m.caja[1]))
+        guard let p = doc.page(at: n) else { return }
+        let b = p.bounds(for: vistaPDF.displayBox)
+        let a = h.punto(CGPoint(x: m.caja[0], y: m.caja[1]), bounds: b, hoja: n)
+        let z = h.punto(CGPoint(x: m.caja[2], y: m.caja[3]), bounds: b, hoja: n)
+        vistaPDF.go(to: CGRect(x: min(a.x, z.x), y: min(a.y, z.y), width: abs(a.x - z.x), height: abs(a.y - z.y)), on: p)
+    }
+
+    func borrarMarcos() { marcos.borrar(); capaMarcos.needsDisplay = true }
+
     /// El boton del marco del riel (o la I): poner marcos numerados.
     func alternarMarcos() {
         if modelo.anotando { alternarEditar() }

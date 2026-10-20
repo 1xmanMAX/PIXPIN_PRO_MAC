@@ -66,6 +66,7 @@ final class RielHoja {
             tira.bottomAnchor.constraint(equalTo: raiz.bottomAnchor, constant: -40),
         ])
         tinta.montar(en: raiz, modelo: modelo)
+        raiz.ponerFichasDeMarcos(marcos) { [weak self] i in self?.irAMarco(i) }
         leerMarcas()
         cambioDeHoja(0)
     }
@@ -112,6 +113,15 @@ final class RielHoja {
         capaMarcos.needsDisplay = true
         capaMarcos.window?.invalidateCursorRects(for: capaMarcos)
     }
+
+    /// La ficha de un marco: a su hoja y a el.
+    func irAMarco(_ i: Int) {
+        guard i < marcos.lista.count else { return }
+        let m = marcos.lista[i]
+        if Int(m.parte) != hoja { irAHoja?(Int(m.parte)) }
+        capaMarcos.scrollToVisible(m.rect.insetBy(dx: -20, dy: -20))
+    }
+    var irAHoja: ((Int) -> Void)?
 
     func quitarUltimoMarco() -> Bool {
         guard marcos.activo, marcos.quitarUltimo() else { return false }

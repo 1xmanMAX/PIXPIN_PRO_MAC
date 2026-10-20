@@ -1239,7 +1239,16 @@ struct BarraPlanoPin: View {
     var body: some View {
         BarraVisor(nombre: visor.titulo, ext: (visor.ruta as NSString).pathExtension,
                    oscuro: visor.oscuro, alternarOscuro: { visor.alternarOscuro() },
-                   fijar: { si in if si != visor.siempreEncima { visor.alternarEncima() } }) {
+                   fijar: { si in if si != visor.siempreEncima { visor.alternarEncima() } },
+                   menu: [
+                    EntradaMenuVisor("Buscar en los textos (⌘F)", "magnifyingglass") { visor.buscando.toggle() },
+                    EntradaMenuVisor(visor.faltan.isEmpty ? "Letras del plano (L)" : "Faltan \(visor.faltan.count) letras (L)", "textformat") { visor.verLetras = true },
+                    EntradaMenuVisor("Ver en 3D (3)", "cube") { visor.verEn3D() },
+                    EntradaMenuVisor("Exportar: HTML, PDF, PNG, DXF… (⌘E)", "square.and.arrow.up", separar: true) { visor.exportar() },
+                    EntradaMenuVisor("Imprimir (⌘P)", "printer") { visor.imprimir() },
+                    EntradaMenuVisor("Borrar las cotas", "ruler", activa: !visor.anotado.cotas.isEmpty, destructivo: true, separar: true) { visor.borrarCotas() },
+                    EntradaMenuVisor("Borrar los marcos", "rectangle.dashed", activa: !visor.anotado.marcos.isEmpty, destructivo: true) { visor.borrarMarcos() },
+                   ]) {
             BotonFlotante(simbolo: "hand.raised", ayuda: "Mover", encendido: visor.modo == .mover) { visor.modo = .mover }
             BotonFlotante(simbolo: "ruler", ayuda: "Medir (M)", encendido: visor.modo == .medir) { visor.modo = .medir }
             if !visor.medida.isEmpty {
@@ -1250,23 +1259,6 @@ struct BarraPlanoPin: View {
                     .fixedSize()
             }
             BotonFlotante(simbolo: "viewfinder", ayuda: "Ver el plano entero (F)") { visor.encuadrar() }
-            Menu {
-                Button("Borrar las cotas") { visor.borrarCotas() }
-                    .disabled(visor.anotado.cotas.isEmpty)
-                Button("Borrar los marcos") { visor.borrarMarcos() }
-                    .disabled(visor.anotado.marcos.isEmpty)
-            } label: { Image(systemName: "trash") }
-                .menuIndicator(.hidden)
-                .menuStyle(.button)
-                .buttonStyle(.borderless)
-                .frame(width: 28)
-            BotonFlotante(simbolo: "magnifyingglass", ayuda: "Buscar en los textos del plano (⌘F)",
-                          encendido: visor.buscando) { visor.buscando.toggle() }
-            BotonFlotante(simbolo: "textformat", ayuda: visor.faltan.isEmpty ? "Letras del plano (L)"
-                          : "Faltan \(visor.faltan.count) letras del plano (L)") { visor.verLetras = true }
-            BotonFlotante(simbolo: "cube", ayuda: "Ver el plano en 3D (3)") { visor.verEn3D() }
-            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar: HTML, PDF, PNG, DXF… (⌘E)") { visor.exportar() }
-            BotonFlotante(simbolo: "printer", ayuda: "Imprimir (el último marco, o lo que se ve)") { visor.imprimir() }
             BotonFlotante(simbolo: "square.3.layers.3d", ayuda: "Capas", encendido: visor.verCapas) { visor.verCapas.toggle() }
         }
         .disabled(visor.datos == nil)

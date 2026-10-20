@@ -236,7 +236,18 @@ struct BarraReflujo: View {
         BarraVisor(nombre: modelo.nombre, ext: visor?.url.pathExtension ?? "",
                    renombrar: { visor?.empezarRenombrar() },
                    oscuro: modelo.oscuro, alternarOscuro: { visor?.alternarOscuro() },
-                   fijar: { visor?.ponerEncima($0) }) {
+                   fijar: { visor?.ponerEncima($0) },
+                   menu: [
+                    EntradaMenuVisor("Compartir…", "square.and.arrow.up") {
+                        if let u = visor?.url {
+                            HojaCompartir.abrir(.ficheros(titulo: u.deletingPathExtension().lastPathComponent, [u]), almacen: nil)
+                        }
+                    },
+                    EntradaMenuVisor("Imprimir (⌘P)", "printer") { visor?.imprimir() },
+                    EntradaMenuVisor("Borrar los marcos", "rectangle.dashed", destructivo: true, separar: true) { visor?.borrarMarcos() },
+                    EntradaMenuVisor("Quitar los marcadores", "bookmark.slash", destructivo: true) { visor?.quitarMarcas() },
+                    EntradaMenuVisor("Ajustes (G)", "gearshape", separar: true) { visor?.mostrarAjustes(evento: NSApp.currentEvent) },
+                   ]) {
             // Lo propio del libro, como en Windows: indice, escuchar, la
             // pagina que sube sola y los ajustes; y el lapiz para anotar.
             if !reflujo.indice.isEmpty {
@@ -283,14 +294,6 @@ struct BarraReflujo: View {
             .buttonStyle(.borderless)
             .frame(width: 28)
             .help(reflujo.fijada ? "La letra está fijada: hay tinta encima" : "La letra (+ / −, T, B) · \(reflujo.tamano) %")
-            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
-                if let u = visor?.url {
-                    HojaCompartir.abrir(.ficheros(titulo: u.deletingPathExtension().lastPathComponent, [u]), almacen: nil)
-                }
-            }
-            BotonFlotante(simbolo: "gearshape", ayuda: "Ajustes (G)") {
-                visor?.mostrarAjustes(evento: NSApp.currentEvent)
-            }
         }
         .overlay(alignment: .bottom) {
             if let aviso = modelo.aviso {
@@ -525,6 +528,10 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             contenedor.addSubview(v)
         }
         tinta.montar(en: contenedor, modelo: modelo)
+        contenedor.ponerFichasDeMarcos(marcos) { [weak self] i in
+            guard let self, i < self.marcos.lista.count else { return }
+            self.pagina.scrollToVisible(self.capaMarcos.convert(self.marcos.lista[i].rect, to: self.pagina).insetBy(dx: -20, dy: -20))
+        }
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
             lapiz: { [weak self] in self?.alternarEditar() },
@@ -1641,6 +1648,8 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
 
     /// ⌘P: el documento entero como se ve (con su tinta), en las hojas que
     /// toquen.
+    func borrarMarcos() { marcos.borrar(); capaMarcos.needsDisplay = true }
+
     /// El boton del marco del riel (o la I): poner marcos numerados.
     func alternarMarcos() {
         if modelo.anotando { alternarEditar() }

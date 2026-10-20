@@ -102,6 +102,8 @@ public struct BarraVisor<Propios: View>: View {
     /// sube o baja la ventana.
     var fijar: ((Bool) -> Void)?
     var cerrar: (() -> Void)?
+    /// Lo del menu ⋮ (Windows: lo que no tiene boton, sin repetir).
+    var menu: [EntradaMenuVisor]
     let propios: Propios
     @State private var fijado = false
     @State private var completa = false
@@ -109,7 +111,9 @@ public struct BarraVisor<Propios: View>: View {
     public init(nombre: String, ext: String, renombrar: (() -> Void)? = nil,
                 oscuro: Bool? = nil, alternarOscuro: (() -> Void)? = nil,
                 fijar: ((Bool) -> Void)? = nil, cerrar: (() -> Void)? = nil,
+                menu: [EntradaMenuVisor] = [],
                 @ViewBuilder propios: () -> Propios) {
+        self.menu = menu
         self.nombre = nombre
         self.ext = ext
         self.renombrar = renombrar
@@ -142,6 +146,27 @@ public struct BarraVisor<Propios: View>: View {
             .disabled(renombrar == nil)
             .help(renombrar == nil ? nombre : "Cambiar el nombre (F2)")
             propios
+            if !menu.isEmpty {
+                Menu {
+                    ForEach(Array(menu.enumerated()), id: \.offset) { _, e in
+                        if e.separar { Divider() }
+                        Button(role: e.destructivo ? .destructive : nil, action: e.accion) {
+                            Label(e.titulo, systemImage: e.simbolo)
+                        }
+                        .disabled(!e.activa)
+                    }
+                } label: {
+                    IconoMaterial(nombre: "more_vert", lado: 17)
+                        .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .menuStyle(.button)
+                .menuIndicator(.hidden)
+                .buttonStyle(.plain)
+                .fixedSize()
+                .help("Más opciones")
+            }
             if let oscuro {
                 BotonFlotante(simbolo: oscuro ? "sun.max" : "moon", ayuda: oscuro ? "Modo claro" : "Modo oscuro") {
                     alternarOscuro?()
@@ -178,15 +203,40 @@ public struct BarraVisor<Propios: View>: View {
 /// (`EDIT` y `VISIBILITY` de Windows).
 public struct BotonVerEditar: View {
     let editando: Bool
+    /// Editar el TEXTO (celdas, nota): el `EDIT_NOTE` de Windows; el lapiz
+    /// solo es anotar.
+    var texto = false
     let accion: () -> Void
 
-    public init(editando: Bool, accion: @escaping () -> Void) {
+    public init(editando: Bool, texto: Bool = false, accion: @escaping () -> Void) {
         self.editando = editando
+        self.texto = texto
         self.accion = accion
     }
 
     public var body: some View {
-        BotonFlotante(simbolo: editando ? "eye" : "pencil",
+        BotonFlotante(simbolo: editando ? "eye" : texto ? "square.and.pencil" : "pencil",
                       ayuda: editando ? "Volver a ver" : "Editar (lápiz)", accion: accion)
+    }
+}
+
+/// Una entrada del menu ⋮ de la barra de un visor.
+public struct EntradaMenuVisor {
+    let titulo: String
+    let simbolo: String
+    var activa = true
+    var destructivo = false
+    /// Una raya antes de ella.
+    var separar = false
+    let accion: () -> Void
+
+    public init(_ titulo: String, _ simbolo: String, activa: Bool = true, destructivo: Bool = false,
+                separar: Bool = false, accion: @escaping () -> Void) {
+        self.titulo = titulo
+        self.simbolo = simbolo
+        self.activa = activa
+        self.destructivo = destructivo
+        self.separar = separar
+        self.accion = accion
     }
 }

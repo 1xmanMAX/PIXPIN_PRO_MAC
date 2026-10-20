@@ -111,18 +111,17 @@ public final class VisorModelo3D: ObservableObject {
     let riel = ModeloLector()
     var nucleoDeMarcadores: Nucleo?
     private(set) lazy var marcadores = MarcadoresDeVista(documento: URL(fileURLWithPath: ruta), nucleo: nucleoDeMarcadores)
+    private(set) lazy var marcos3d = Marcos3D(documento: URL(fileURLWithPath: ruta), nucleo: nucleoDeMarcadores)
 
     func ponerMarcador() {
-        guard let c = vista?.camara else { return }
-        marcadores.poner3d(objetivo: [c.objetivo.x, c.objetivo.y, c.objetivo.z], rumbo: c.rumbo, altura: c.altura, dist: c.dist)
+        guard let e = estado3d() else { return }
+        marcadores.poner3d(estado: e)
     }
 
     func irAMarcador(_ i: Int) {
         let l = marcadores.del3d
         guard i < l.count else { return }
-        let m = l[i]
-        vista?.ponerCamara(Camara3d(objetivo: Punto3d(x: m.objetivo[0], y: m.objetivo[1], z: m.objetivo[2]),
-                                    rumbo: m.rumbo, altura: m.altura, dist: m.dist))
+        aplicar(estado: l[i].estado)
     }
 
     /// Con `nucleo`, el modelo leido queda en su cache (`cache/bim`, como
@@ -244,6 +243,43 @@ public final class VisorModelo3D: ObservableObject {
     }
 
     public func verTodo() { filtrar(Filtro3d(nivelesOcultos: [], tiposOcultos: [], aislado: nil)) }
+
+    // MARK: El estado de la vista (Estado3d de Windows)
+
+    /// **Lo que se ve, como `Estado3d` de Windows**: camara, corte en
+    /// coordenadas absolutas, aislado y ocultos (`n:<i>`, `t:<Tipo>`).
+    func estado3d() -> [String: Any]? {
+        guard let c = vista?.camara else { return nil }
+        var e: [String: Any] = ["objetivo": [c.objetivo.x, c.objetivo.y, c.objetivo.z], "rumbo": c.rumbo,
+                                "altura": c.altura, "dist": c.dist, "claro": false, "aristas": true]
+        if let k = cajaDeCorte { e["seccion"] = [k.x0, k.y0, k.z0, k.x1, k.y1, k.z1].map { Double($0) } } else { e["seccion"] = NSNull() }
+        e["aislado"] = filtro.aislado.map { NSNumber(value: $0) } ?? NSNull()
+        e["ocultos"] = filtro.nivelesOcultos.map { "n:\($0)" } + filtro.tiposOcultos.map { "t:\($0)" }
+        return e
+    }
+
+    /// Vuelve a un `Estado3d`: camara, corte y filtros.
+    func aplicar(estado e: [String: Any]) {
+        func n(_ k: String) -> Double { (e[k] as? NSNumber)?.doubleValue ?? 0 }
+        if let o = (e["objetivo"] as? [NSNumber])?.map(\.doubleValue), o.count == 3 {
+            vista?.ponerCamara(Camara3d(objetivo: Punto3d(x: o[0], y: o[1], z: o[2]), rumbo: n("rumbo"), altura: n("altura"), dist: n("dist")))
+        }
+        if let k = (e["seccion"] as? [NSNumber])?.map(\.doubleValue), k.count == 6, let c = datos?.resumen.caja {
+            func f(_ v: Double, _ a0: Float, _ b0: Float) -> Double {
+                let a = Double(a0), b = Double(b0)
+                return b > a ? (v - a) / (b - a) : 0
+            }
+            corte = [f(k[0], c.x0, c.x1), f(k[1], c.y0, c.y1), f(k[2], c.z0, c.z1), f(k[3], c.x0, c.x1), f(k[4], c.y0, c.y1), f(k[5], c.z0, c.z1)]
+            conCorte = true
+        } else {
+            conCorte = false
+        }
+        let ocultos = e["ocultos"] as? [String] ?? []
+        let f = Filtro3d(nivelesOcultos: ocultos.compactMap { $0.hasPrefix("n:") ? UInt32($0.dropFirst(2)) : nil },
+                         tiposOcultos: ocultos.compactMap { $0.hasPrefix("t:") ? String($0.dropFirst(2)) : nil },
+                         aislado: (e["aislado"] as? NSNumber)?.uint32Value)
+        if f != filtro { filtrar(f) }
+    }
 
     /// Rehace los indices fuera del hilo principal; los vertices se quedan.
     private func filtrar(_ f: Filtro3d) {
@@ -616,6 +652,11 @@ public final class VistaModeloMetal: MTKView {
             .subtracting([.capsLock, .numericPad, .function])
         let letra = e.charactersIgnoringModifiers?.lowercased() ?? ""
         if mods == .command, letra == "e" { return visor.exportar() }
+        // Los marcos (Windows): I entra y sale, Supr quita el ultimo, ⌘P imprime.
+        if mods == .command, letra == "p", !visor.marcos3d.lista.isEmpty { return visor.imprimirMarcos3D() }
+        if mods == .command, letra == "m" { return visor.ponerMarcador() }
+        if mods.isEmpty, letra == "i" { return visor.alternarMarcos3D() }
+        if mods.isEmpty, visor.marcos3d.activo, e.keyCode == 51 || e.keyCode == 117 { visor.marcos3d.quitarUltimo(); return }
         guard mods.isEmpty || mods == .shift else { return super.keyDown(with: e) }
         switch e.keyCode {
         case 53: visor.escape()
@@ -631,7 +672,7 @@ public final class VistaModeloMetal: MTKView {
             case "c": visor.conCorte.toggle()
             case "i": if visor.elegido != nil || visor.filtro.aislado != nil { visor.aislar() }
             case "l": visor.verPanel.toggle()
-            case "a": visor.aristas.toggle()
+            case "e": visor.aristas.toggle()
             case "p": planta()
             case "t": visor.alternarEncima()
             case "1", "2", "3", "4", "5", "6", "7", "8", "9": irAVista(Int(letra)! - 1)
@@ -669,6 +710,9 @@ public struct VentanaModeloView: View {
         VStack(spacing: 0) {
             ZStack {
                 contenido
+                if visor.datos != nil {
+                    CapaMarcos3D(visor: visor, marcos: visor.marcos3d)
+                }
                 if visor.datos != nil && !visor.verPanel {
                     RielModelo(visor: visor, marcadores: visor.marcadores)
                 }
@@ -753,15 +797,18 @@ struct BarraModeloPin: View {
         let claro = visor.claro ?? visor.datos?.croquis?.claro ?? false
         BarraVisor(nombre: visor.titulo, ext: visor.original?.pathExtension ?? "ifc",
                    oscuro: !claro, alternarOscuro: { visor.vista.map { visor.alternarTema(actual: $0.claro) } },
-                   fijar: { si in if si != visor.siempreEncima { visor.alternarEncima() } }) {
+                   fijar: { si in if si != visor.siempreEncima { visor.alternarEncima() } },
+                   menu: [
+                    EntradaMenuVisor("Planta: desde arriba (P)", "square.grid.3x3.topleft.filled") { visor.vista?.planta() },
+                    EntradaMenuVisor(visor.filtro.aislado == nil ? "Aislar lo elegido" : "Ver todo", "scope") { visor.aislar() },
+                    EntradaMenuVisor("Exportar lo que se ve (⌘E)", "square.and.arrow.up", separar: true) { visor.exportar() },
+                    EntradaMenuVisor("Imprimir los marcos (⌘P)", "printer", activa: !visor.marcos3d.lista.isEmpty) { visor.imprimirMarcos3D() },
+                    EntradaMenuVisor("Borrar los marcos", "rectangle.dashed", destructivo: true, separar: true) { visor.marcos3d.borrar() },
+                   ]) {
             BotonFlotante(simbolo: "viewfinder", ayuda: "Ver el modelo entero (F)") { visor.encuadrar() }
-            BotonFlotante(simbolo: "cube.transparent", ayuda: "Aristas (A)", encendido: visor.aristas) { visor.aristas.toggle() }
+            BotonFlotante(simbolo: "cube.transparent", ayuda: "Aristas (E)", encendido: visor.aristas) { visor.aristas.toggle() }
             BotonFlotante(simbolo: "square.split.bottomrightquarter", ayuda: "Caja de sección (C)",
                           encendido: visor.conCorte) { visor.conCorte.toggle() }
-            BotonFlotante(simbolo: "square.grid.3x3.topleft.filled", ayuda: "Planta: desde arriba (P)") { visor.vista?.planta() }
-            BotonFlotante(simbolo: visor.filtro.aislado == nil ? "scope" : "eye",
-                          ayuda: visor.filtro.aislado == nil ? "Aislar lo elegido" : "Ver todo",
-                          encendido: visor.filtro.aislado != nil) { visor.aislar() }
             if !visor.vistas.isEmpty {
                 Menu {
                     ForEach(Array(visor.vistas.prefix(9).enumerated()), id: \.offset) { i, n in
@@ -773,7 +820,6 @@ struct BarraModeloPin: View {
                     .frame(width: 28)
                     .help("Las vistas guardadas en el móvil (1–9)")
             }
-            BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar lo que se ve, con el original (⌘E)") { visor.exportar() }
             BotonFlotante(simbolo: "sidebar.right", ayuda: "Niveles y categorías (L)", encendido: visor.verPanel) { visor.verPanel.toggle() }
         }
         .disabled(visor.datos == nil)
@@ -788,7 +834,7 @@ struct RielModelo: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 8) {
-            IslaRiel(modelo: visor.riel, marcar: { visor.ponerMarcador() }, imprimir: { visor.exportar() })
+            IslaRiel(modelo: visor.riel, marcar: { visor.ponerMarcador() }, imprimir: { visor.alternarMarcos3D() })
             ForEach(Array(marcadores.del3d.enumerated()), id: \.element.id) { i, m in
                 Button { visor.irAMarcador(i) } label: {
                     Text("\(i + 1)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)

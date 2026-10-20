@@ -20,7 +20,7 @@ struct IconoMaterial: View {
     /// SF Symbols); `nil` si no hay equivalente y se queda el del Mac.
     static func deSimbolo(_ s: String) -> String? {
         let tabla: [String: String] = [
-            "pencil": "edit", "eye": "visibility", "xmark": "close",
+            "pencil": "edit", "square.and.pencil": "edit_note", "eye": "visibility", "xmark": "close",
             "pin": "push_pin", "pin.fill": "push_pin",
             "moon": "dark_mode", "sun.max": "light_mode",
             "arrow.up.left.and.arrow.down.right": "fullscreen",

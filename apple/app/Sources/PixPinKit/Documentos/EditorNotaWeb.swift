@@ -411,7 +411,7 @@ struct BarraNotaPin: View {
             // Los de Windows (`notas_md::lector_web::botones`): leyendo, el
             // lapiz; escribiendo, el ojo, deshacer y rehacer; y siempre
             // buscar, los comentarios, compartir y el ⋯. Y escuchar.
-            BotonVerEditar(editando: !estado.leyendo) { orden(estado.leyendo ? "editar" : "leer") }
+            BotonVerEditar(editando: !estado.leyendo, texto: true) { orden(estado.leyendo ? "editar" : "leer") }
             if !estado.leyendo {
                 BotonFlotante(simbolo: "arrow.uturn.backward", ayuda: "Deshacer (⌘Z)") { orden("deshacer") }
                 BotonFlotante(simbolo: "arrow.uturn.forward", ayuda: "Rehacer (⇧⌘Z)") { orden("rehacer") }

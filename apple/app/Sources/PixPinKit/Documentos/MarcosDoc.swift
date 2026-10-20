@@ -1,6 +1,7 @@
 import AppKit
 import PDFKit
 import PixPinCore
+import SwiftUI
 
 /// **Los marcos numerados de los documentos** (Windows, 19-oct,
 /// `marcos_doc.rs`), con la logica de los marcos para imprimir del plano:
@@ -18,9 +19,9 @@ struct MarcoDoc: Codable, Equatable {
 }
 
 @MainActor
-final class MarcosDoc {
-    private(set) var lista: [MarcoDoc] = []
-    var activo = false
+final class MarcosDoc: ObservableObject {
+    @Published private(set) var lista: [MarcoDoc] = []
+    @Published var activo = false
     private let fichero: URL?
     /// Si viaja (es `anot-<uid>.marcos.json` de un adjunto): vaciar escribe
     /// `[]`, nunca borra (no hay lapidas de ficheros; volveria).
@@ -339,5 +340,55 @@ final class VistasDoc {
     private func guardar() {
         guard let f = fichero, let d = try? JSONSerialization.data(withJSONObject: vistas, options: [.sortedKeys]) else { return }
         try? d.write(to: f, options: .atomic)
+    }
+}
+
+/// **Las fichas de los marcos** (Windows, 20-oct): abajo a la izquierda, una
+/// de 28 por marco (1, 2, 3…); pulsar una va a ese marco. Poniendo marcos,
+/// a su derecha la pista de las teclas.
+struct FichasDeMarcos: View {
+    @ObservedObject var marcos: MarcosDoc
+    /// Solo las de esta parte (la hoja de un libro); `nil`, todas.
+    var parte: Int?
+    let ir: (Int) -> Void
+
+    var body: some View {
+        let visibles = marcos.lista.enumerated().filter { parte == nil || Int($0.element.parte) == parte }
+        if !visibles.isEmpty || marcos.activo {
+            HStack(spacing: 6) {
+                ForEach(visibles, id: \.offset) { i, _ in
+                    Button { ir(i) } label: {
+                        Text("\(i + 1)").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                            .frame(width: 28, height: 28)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: CapaMarcosPDF.azul)))
+                    }
+                    .buttonStyle(.plain)
+                    .help("Ir al marco \(i + 1)")
+                }
+                if marcos.activo {
+                    Text(visibles.isEmpty ? "Arrastra para poner un marco · I sale"
+                         : "Arrastra: otro marco · Supr quita el último · ⌘P imprime · I sale")
+                        .font(.system(size: 11)).foregroundStyle(.white)
+                        .padding(.horizontal, 10).frame(height: 28)
+                        .background(Capsule().fill(Color(white: 0.08, opacity: 0.9)))
+                }
+            }
+            .fixedSize()
+        }
+    }
+}
+
+extension NSView {
+    /// Pone las fichas de `marcos` abajo a la izquierda de esta vista.
+    @discardableResult
+    func ponerFichasDeMarcos(_ marcos: MarcosDoc, parte: (() -> Int?)? = nil, ir: @escaping (Int) -> Void) -> NSView {
+        let h = NSHostingView(rootView: FichasDeMarcos(marcos: marcos, parte: parte?(), ir: ir))
+        h.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(h)
+        NSLayoutConstraint.activate([
+            h.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+            h.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -14),
+        ])
+        return h
     }
 }
