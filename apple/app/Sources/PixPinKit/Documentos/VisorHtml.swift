@@ -228,26 +228,13 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     /// Lo que se ha anotado, ya (si lo hay), para verlo encima al abrir.
     private func abrirTinta(_ nucleo: Nucleo, crear: Bool) {
-        let ruta = url.path
-        let ancho = UInt32(max(web.bounds.width, 320))
-        Task { [weak self] in
-            let ed = await Task.detached(priority: .userInitiated) { () -> EditorLienzo? in
-                if !crear, !nucleo.hayTintaDeReflujo(documento: ruta) { return nil }
-                // El nucleo pide la columna fijada antes de anotar (la del
-                // Word); en una pagina web, su ancho al empezar.
-                var l = nucleo.lecturaDeReflujo(documento: ruta)
-                if l.columna == 0 {
-                    l.columna = ancho
-                    try? nucleo.guardarLecturaDeReflujo(documento: ruta, lectura: l)
-                }
-                do { return try nucleo.anotarReflujo(documento: ruta) } catch {
-                    return nil
-                }
-            }.value
-            guard let self, let ed, self.capa.editor == nil else { return }
-            self.capa.editor = ed
-            if self.riel.modelo.anotando { self.tinta.aplicar(a: ed, herramienta: self.riel.modelo.herramienta, color: self.riel.modelo.color) }
-        }
+        // La de Windows (`tinta_de_la_pagina`): `anot-<uid>` del adjunto, en
+        // pixeles CSS del documento, sin marco ni la regla de columnas.
+        let ruta = nucleo.rutaDeTintaDePagina(documento: url.path)
+        guard crear || FileManager.default.fileExists(atPath: ruta),
+              capa.editor == nil, let ed = try? EditorLienzo.deFichero(ruta: ruta, crear: true) else { return }
+        capa.editor = ed
+        if riel.modelo.anotando { tinta.aplicar(a: ed, herramienta: riel.modelo.herramienta, color: riel.modelo.color) }
     }
 
     /// El lapiz del riel: anotar encima con las herramientas del lienzo.

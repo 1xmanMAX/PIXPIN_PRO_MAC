@@ -6249,6 +6249,21 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func rutaAnotadaDelAdjunto(documento: String, terminacion: String)  -> String?
     
     /**
+     * **La tinta de la hoja `hoja` (desde 0) de un libro de calculo**
+     * (Windows, `tinta_de_la_hoja_del_libro`): `anot-<uid>-h<i>`, en
+     * pixeles de la hoja al 100 %, sin `.hoja`.
+     */
+    func rutaDeTintaDeHoja(libro: String, hoja: UInt32)  -> String
+    
+    /**
+     * **La tinta de una pagina web o de una nota** (Windows,
+     * `tinta_de_la_pagina`): de un adjunto, `anot-<uid>` (la que viaja), en
+     * pixeles CSS del documento, sin marco ni la regla de columnas del Word;
+     * si no, `<doc>.pixpin-anotado/capa.excalidraw`.
+     */
+    func rutaDeTintaDePagina(documento: String)  -> String
+    
+    /**
      * **Un lienzo nuevo en un chat**: el `.excalidraw` vacio en
      * `lienzos/<codigo>.excalidraw` y su mensaje `DIBUJO` al final del
      * cuaderno, como `ventana_chat::escribir_lienzo` de Windows. Se abre
@@ -8638,6 +8653,38 @@ open func rutaAnotadaDelAdjunto(documento: String, terminacion: String) -> Strin
             self.uniffiCloneHandle(),
         FfiConverterString.lower(documento),
         FfiConverterString.lower(terminacion),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La tinta de la hoja `hoja` (desde 0) de un libro de calculo**
+     * (Windows, `tinta_de_la_hoja_del_libro`): `anot-<uid>-h<i>`, en
+     * pixeles de la hoja al 100 %, sin `.hoja`.
+     */
+open func rutaDeTintaDeHoja(libro: String, hoja: UInt32) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ruta_de_tinta_de_hoja(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(libro),
+        FfiConverterUInt32.lower(hoja),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La tinta de una pagina web o de una nota** (Windows,
+     * `tinta_de_la_pagina`): de un adjunto, `anot-<uid>` (la que viaja), en
+     * pixeles CSS del documento, sin marco ni la regla de columnas del Word;
+     * si no, `<doc>.pixpin-anotado/capa.excalidraw`.
+     */
+open func rutaDeTintaDePagina(documento: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ruta_de_tinta_de_pagina(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(documento),uniffiCallStatus
     )
 })
 }
@@ -41456,6 +41503,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_anotada_del_adjunto() != 39355) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_de_tinta_de_hoja() != 37196) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_de_tinta_de_pagina() != 1001) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_lienzo() != 32607) {

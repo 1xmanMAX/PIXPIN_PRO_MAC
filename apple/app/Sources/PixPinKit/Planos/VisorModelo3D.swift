@@ -106,12 +106,31 @@ public final class VisorModelo3D: ObservableObject {
     /// Quien lee el modelo (fuera del hilo principal).
     private let abrir: @Sendable () throws -> Modelo3dApple
     weak var vista: VistaModeloMetal?
+    /// El riel (marcador y marco) y los marcadores con su camara, en el
+    /// `.vistas.json` de Windows (`modelo`).
+    let riel = ModeloLector()
+    var nucleoDeMarcadores: Nucleo?
+    private(set) lazy var marcadores = MarcadoresDeVista(documento: URL(fileURLWithPath: ruta), nucleo: nucleoDeMarcadores)
+
+    func ponerMarcador() {
+        guard let c = vista?.camara else { return }
+        marcadores.poner3d(objetivo: [c.objetivo.x, c.objetivo.y, c.objetivo.z], rumbo: c.rumbo, altura: c.altura, dist: c.dist)
+    }
+
+    func irAMarcador(_ i: Int) {
+        let l = marcadores.del3d
+        guard i < l.count else { return }
+        let m = l[i]
+        vista?.ponerCamara(Camara3d(objetivo: Punto3d(x: m.objetivo[0], y: m.objetivo[1], z: m.objetivo[2]),
+                                    rumbo: m.rumbo, altura: m.altura, dist: m.dist))
+    }
 
     /// Con `nucleo`, el modelo leido queda en su cache (`cache/bim`, como
     /// Windows): la segunda vez se abre casi al momento.
     public init(ruta: String, titulo: String, nucleo: Nucleo? = nil) {
         self.ruta = ruta
         self.titulo = titulo
+        nucleoDeMarcadores = nucleo
         if let nucleo {
             abrir = { try nucleo.abrirModelo(ruta: ruta) }
         } else {
@@ -284,6 +303,13 @@ public final class VistaModeloMetal: MTKView {
     override public var acceptsFirstResponder: Bool { true }
 
     func repintar() { needsDisplay = true }
+
+    /// Volver a una camara guardada (un marcador).
+    func ponerCamara(_ c: Camara3d) {
+        encuadrado = true
+        camara = c
+        repintar()
+    }
 
     private var escala: Double {
         bounds.width > 0 ? Double(drawableSize.width) / Double(bounds.width) : 2
@@ -643,6 +669,9 @@ public struct VentanaModeloView: View {
         VStack(spacing: 0) {
             ZStack {
                 contenido
+                if visor.datos != nil && !visor.verPanel {
+                    RielModelo(visor: visor, marcadores: visor.marcadores)
+                }
                 // Niveles y categorias, un menu flotante al pulsar su boton.
                 if visor.verPanel && visor.datos != nil {
                     PanelFlotantePlano { panel.listStyle(.plain).scrollContentBackground(.hidden) }
@@ -748,5 +777,31 @@ struct BarraModeloPin: View {
             BotonFlotante(simbolo: "sidebar.right", ayuda: "Niveles y categorías (L)", encendido: visor.verPanel) { visor.verPanel.toggle() }
         }
         .disabled(visor.datos == nil)
+    }
+}
+
+/// El riel del modelo: la isla (marcador y marco) y un punto numerado por
+/// marcador, que lleva a su camara.
+struct RielModelo: View {
+    @ObservedObject var visor: VisorModelo3D
+    @ObservedObject var marcadores: MarcadoresDeVista
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            IslaRiel(modelo: visor.riel, marcar: { visor.ponerMarcador() }, imprimir: { visor.exportar() })
+            ForEach(Array(marcadores.del3d.enumerated()), id: \.element.id) { i, m in
+                Button { visor.irAMarcador(i) } label: {
+                    Text("\(i + 1)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
+                        .frame(width: 22, height: 22)
+                        .background(Circle().fill(Color(white: 0.12, opacity: 0.7)))
+                }
+                .buttonStyle(.plain)
+                .help("Marcador \(i + 1)")
+                .contextMenu { Button("Quitar", role: .destructive) { marcadores.quitar3d(m.id) } }
+            }
+        }
+        .padding(.top, BarraFlotante.alto + 2 * BarraFlotante.separacion + 8)
+        .padding(.trailing, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
     }
 }

@@ -150,6 +150,35 @@ final class MarcadoresDeVista: ObservableObject {
 
     func quitar(_ m: MarcadorDeVista) { lista.removeAll { $0.id == m.id }; guardar() }
 
+    // MARK: Modelos 3D (`Marcador3d` con su `Estado3d`)
+
+    /// Los de un modelo: id y su camara (objetivo, rumbo, altura, dist).
+    var del3d: [(id: String, objetivo: [Double], rumbo: Double, altura: Double, dist: Double)] {
+        (resto["modelo"] as? [[String: Any]] ?? []).compactMap { m in
+            guard let id = m["id"] as? String, let e = m["estado"] as? [String: Any],
+                  let o = (e["objetivo"] as? [NSNumber])?.map(\.doubleValue), o.count == 3 else { return nil }
+            func n(_ k: String) -> Double { (e[k] as? NSNumber)?.doubleValue ?? 0 }
+            return (id, o, n("rumbo"), n("altura"), n("dist"))
+        }
+    }
+
+    func poner3d(objetivo: [Double], rumbo: Double, altura: Double, dist: Double) {
+        let id = "m" + String(UInt64(Date().timeIntervalSince1970 * 1000), radix: 36)
+        var l = resto["modelo"] as? [[String: Any]] ?? []
+        l.append(["id": id, "nombre": "", "estado": ["objetivo": objetivo, "rumbo": rumbo, "altura": altura, "dist": dist,
+                                                    "seccion": NSNull(), "aislado": NSNull(), "ocultos": [String](),
+                                                    "claro": false, "aristas": true]])
+        resto["modelo"] = l
+        objectWillChange.send()
+        guardar()
+    }
+
+    func quitar3d(_ id: String) {
+        resto["modelo"] = (resto["modelo"] as? [[String: Any]] ?? []).filter { ($0["id"] as? String) != id }
+        objectWillChange.send()
+        guardar()
+    }
+
     /// Vaciar escribe la lista vacia: un fichero borrado volveria al sincronizar.
     private func guardar() {
         var o = resto

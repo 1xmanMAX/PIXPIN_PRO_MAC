@@ -1047,6 +1047,37 @@ impl Nucleo {
         Some(f.display().to_string())
     }
 
+    /// **La tinta de una pagina web o de una nota** (Windows,
+    /// `tinta_de_la_pagina`): de un adjunto, `anot-<uid>` (la que viaja), en
+    /// pixeles CSS del documento, sin marco ni la regla de columnas del Word;
+    /// si no, `<doc>.pixpin-anotado/capa.excalidraw`.
+    pub fn ruta_de_tinta_de_pagina(&self, documento: String) -> String {
+        let doc = PathBuf::from(&documento);
+        let r = match an::base_del_documento(self.ruta(), &doc).filter(|_| !super::es_pdf(&doc)) {
+            Some(b) => b.tinta(),
+            None => PathBuf::from(format!("{documento}.pixpin-anotado")).join("capa.excalidraw"),
+        };
+        if let Some(c) = r.parent() {
+            let _ = std::fs::create_dir_all(c);
+        }
+        r.display().to_string()
+    }
+
+    /// **La tinta de la hoja `hoja` (desde 0) de un libro de calculo**
+    /// (Windows, `tinta_de_la_hoja_del_libro`): `anot-<uid>-h<i>`, en
+    /// pixeles de la hoja al 100 %, sin `.hoja`.
+    pub fn ruta_de_tinta_de_hoja(&self, libro: String, hoja: u32) -> String {
+        let doc = PathBuf::from(&libro);
+        let r = match an::base_del_documento(self.ruta(), &doc) {
+            Some(b) => Base { base: format!("{}-h{hoja}", b.base), ..b }.tinta(),
+            None => PathBuf::from(format!("{libro}.pixpin-anotado")).join(format!("hoja-{}.excalidraw", hoja + 1)),
+        };
+        if let Some(c) = r.parent() {
+            let _ = std::fs::create_dir_all(c);
+        }
+        r.display().to_string()
+    }
+
     /// Si `documento` ya tiene tinta (sin leerla: solo si su fichero esta).
     pub fn hay_tinta_de_reflujo(&self, documento: String) -> bool {
         let doc = PathBuf::from(&documento);

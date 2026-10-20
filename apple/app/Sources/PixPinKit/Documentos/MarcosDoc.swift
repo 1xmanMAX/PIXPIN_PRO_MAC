@@ -227,6 +227,8 @@ final class CapaMarcosPDF: NSView {
 final class CapaMarcosVista: NSView {
     weak var documento: NSView?
     var marcos: MarcosDoc? { didSet { needsDisplay = true } }
+    /// La parte que se ve (la hoja de un libro): solo sus marcos.
+    var parte = 0 { didSet { needsDisplay = true } }
     private var inicio: NSPoint?
     private var actual: NSPoint?
 
@@ -237,7 +239,7 @@ final class CapaMarcosVista: NSView {
 
     override func draw(_ sucio: NSRect) {
         guard let m = marcos else { return }
-        for (i, marco) in m.lista.enumerated() where marco.rect.intersects(sucio) {
+        for (i, marco) in m.lista.enumerated() where Int(marco.parte) == parte && marco.rect.intersects(sucio) {
             let r = marco.rect
             CapaMarcosPDF.azul.setStroke()
             let c = NSBezierPath(rect: r)
@@ -266,7 +268,7 @@ final class CapaMarcosVista: NSView {
         guard let a = inicio, let m = marcos else { return }
         let b = convert(e.locationInWindow, from: nil)
         guard abs(a.x - b.x) > 8, abs(a.y - b.y) > 8 else { return }
-        m.poner(NSRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)), parte: 0)
+        m.poner(NSRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)), parte: parte)
     }
 
     /// Los marcos en grupo: cada uno, el trozo de la pagina, una hoja.
@@ -276,7 +278,7 @@ final class CapaMarcosVista: NSView {
         // Lo impreso va sin la raya ni el numero.
         isHidden = true
         defer { isHidden = false }
-        for marco in m.lista {
+        for marco in m.lista where Int(marco.parte) == parte {
             let r = convert(marco.rect, to: doc)
             if let p = PDFDocument(data: doc.dataWithPDF(inside: r))?.page(at: 0) { salida.insert(p, at: salida.pageCount) }
         }

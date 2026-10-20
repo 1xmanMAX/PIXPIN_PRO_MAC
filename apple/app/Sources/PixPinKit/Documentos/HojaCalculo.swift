@@ -176,12 +176,14 @@ final class RejillaHoja: NSTableView {
     weak var controlador: ControladorHoja?
 
     override func keyDown(with event: NSEvent) {
+        if let c = controlador, c.teclaDelRiel(event) { return }
         if let c = controlador, c.tecla(event) { return }
         super.keyDown(with: event)
     }
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let c = controlador, c.atajo(event) { return true }
+        if let c = controlador, c.teclaDelRiel(event) { return true }
         // Zoom como en Excel: ⌘+ / ⌘= acerca, ⌘− aleja, ⌘0 al 100 %.
         let m = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         if m.subtracting(.shift) == .command, let s = enclosingScrollView {
@@ -252,8 +254,12 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     private var pestanasCerradas: NSLayoutConstraint?
     private var barraPin: BarraFlotante?
 
-    init(hoja: HojaDeCalculo, titulo: String) {
+    /// El riel (lapiz, marcador, marco), como en Windows.
+    let riel: RielHoja
+
+    init(hoja: HojaDeCalculo, titulo: String, url: URL? = nil, nucleo: Nucleo? = nil) {
         self.hoja = hoja
+        riel = RielHoja(url: url, nucleo: nucleo)
         ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
                            styleMask: [.titled, .closable, .miniaturizable, .resizable],
                            backing: .buffered, defer: false)
@@ -391,6 +397,17 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             pestanas.bottomAnchor.constraint(equalTo: raiz.bottomAnchor),
         ])
         ventana.contentView = raiz
+        riel.montar(en: raiz, rejilla: rejilla, arriba: BarraFlotante.alto + 2 * BarraFlotante.separacion + 30)
+        riel.irA = { [weak self] h, f, c in
+            guard let self else { return }
+            if Int(self.hoja.activa()) != h { self.irAHoja(h) }
+            self.elegir(f, c)
+            self.rejilla.scrollColumnToVisible(c)
+        }
+        riel.celdaActiva = { [weak self] in
+            guard let self else { return (0, 0, 0) }
+            return (Int(self.hoja.activa()), self.fila, self.columna)
+        }
         ventana.setContentSize(NSSize(width: 980, height: 660))
         ventana.center()
         VentanaLisa.recordar(ventana, clave: "hoja")
@@ -413,6 +430,19 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     }
 
     /// El lapiz y el ojo de la barra del pin.
+    /// Las teclas del riel (Windows): ⌘M marcador; viendo, I marcos y A
+    /// anotar; con los marcos, Supr quita el ultimo.
+    func teclaDelRiel(_ e: NSEvent) -> Bool {
+        let m = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
+        let c = e.charactersIgnoringModifiers?.lowercased() ?? ""
+        if m == .command, c == "m" { riel.modelo.poniendoMarca.toggle(); return true }
+        guard !modelo.editando, m.isEmpty, e.type == .keyDown else { return false }
+        if c == "i" { riel.alternarMarcos(); return true }
+        if c == "a" { riel.alternarLapiz(); return true }
+        if e.keyCode == 51 || e.keyCode == 117 { return riel.quitarUltimoMarco() }
+        return false
+    }
+
     func ponerEditando(_ si: Bool) {
         modelo.editando = si
         arriba?.isHidden = !si
@@ -452,6 +482,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     /// Otra hoja (o deshacer llevo a otra): todo lo que se ve es nuevo.
     private func trasCambioDeHoja() {
+        riel.cambioDeHoja(Int(hoja.activa()))
         bloques = [:]
         rejilla.tableColumns.forEach { rejilla.removeTableColumn($0) }
         recalcularTamano()
@@ -871,7 +902,8 @@ public final class HojasDeCalculo {
             }.value
             switch hecho {
             case let .success(hoja):
-                let c = ControladorHoja(hoja: hoja, titulo: titulo)
+                let url = mensaje.ruta.flatMap { almacen.urlResuelta(deRuta: $0, en: chat) }
+                let c = ControladorHoja(hoja: hoja, titulo: titulo, url: url, nucleo: nucleo)
                 c.alCerrar = { [weak self] _ in self?.abiertas[clave] = nil }
                 self.abiertas[clave] = c
                 c.ventana.makeKeyAndOrderFront(nil)
