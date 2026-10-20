@@ -106,3 +106,69 @@ final class RielSobreVista {
         }
     }
 }
+
+/// **Un marcador con su vista** (planos y modelos, Windows 19-oct): el
+/// emoticono y lo que hace falta para volver justo ahi.
+struct MarcadorDeVista: Codable, Equatable, Identifiable {
+    var id: Int64
+    var emoji: String
+    var vista: [Double]
+}
+
+/// Los marcadores de vista de un fichero, junto a el (`.pixpin-vistas-mac`).
+@MainActor
+final class MarcadoresDeVista: ObservableObject {
+    @Published private(set) var lista: [MarcadorDeVista] = []
+    private let fichero: URL
+
+    init(documento: URL) {
+        fichero = documento.appendingPathExtension("pixpin-vistas-mac")
+        if let d = try? Data(contentsOf: fichero), let l = try? JSONDecoder().decode([MarcadorDeVista].self, from: d) { lista = l }
+    }
+
+    func poner(_ emoji: String, vista: [Double]) {
+        lista.append(MarcadorDeVista(id: Int64(Date().timeIntervalSince1970 * 1000), emoji: emoji, vista: vista))
+        guardar()
+    }
+
+    func quitar(_ m: MarcadorDeVista) { lista.removeAll { $0.id == m.id }; guardar() }
+
+    private func guardar() {
+        if lista.isEmpty { try? FileManager.default.removeItem(at: fichero); return }
+        try? JSONEncoder().encode(lista).write(to: fichero, options: .atomic)
+    }
+}
+
+/// **El riel en SwiftUI** (planos y modelos): la isla de siempre y, debajo,
+/// un punto por marcador que crece al pasar el raton y lleva a su vista.
+struct RielDeVistas: View {
+    @ObservedObject var modelo: ModeloLector
+    @ObservedObject var marcadores: MarcadoresDeVista
+    var lapiz: (() -> Void)?
+    let marco: () -> Void
+    let ir: (MarcadorDeVista) -> Void
+    @State private var encima: Int64?
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 10) {
+            IslaRiel(modelo: modelo, marcar: { modelo.poniendoMarca.toggle() }, lapiz: lapiz, imprimir: marco)
+            ForEach(Array(marcadores.lista.enumerated()), id: \.element.id) { i, m in
+                Button { ir(m) } label: {
+                    Text(m.emoji)
+                        .font(.system(size: encima == m.id ? 20 : 13))
+                        .frame(width: encima == m.id ? 36 : 22, height: encima == m.id ? 36 : 22)
+                        .background(Circle().fill(Color(white: 0.12, opacity: encima == m.id ? 0.85 : 0.55)))
+                        .offset(x: encima == m.id ? -8 : 0)
+                }
+                .buttonStyle(.plain)
+                .help("\(m.emoji)\(i < 9 ? "  (⌘\(i + 1))" : "")")
+                .onHover { encima = $0 ? m.id : (encima == m.id ? nil : encima) }
+                .contextMenu { Button("Quitar", role: .destructive) { marcadores.quitar(m) } }
+                .animation(.easeOut(duration: 0.12), value: encima)
+            }
+        }
+        .padding(.top, BarraFlotante.alto + 2 * BarraFlotante.separacion + 8)
+        .padding(.trailing, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+    }
+}

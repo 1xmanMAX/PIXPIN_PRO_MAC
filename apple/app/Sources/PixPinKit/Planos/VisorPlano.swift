@@ -47,6 +47,7 @@ public final class VisorPlano: ObservableObject {
         didSet {
             // Medir y marcar no van a la vez que anotar.
             if modo != .mover, anotador != nil { terminarDeAnotar() }
+            riel.enmarcando = modo == .marco
             vista?.cambioDeModo()
         }
     }
@@ -54,7 +55,7 @@ public final class VisorPlano: ObservableObject {
     /// recuerda (`lectores_oscuros`, como el lector).
     @Published public private(set) var oscuro = false
     /// Anotando con el lienzo encima (A).
-    @Published public private(set) var anotando = false
+    @Published public private(set) var anotando = false { didSet { riel.herramienta = anotando ? "lapiz" : "leer" } }
     /// Siempre encima (T).
     @Published public private(set) var siempreEncima = false
     /// El panel de las capas a la derecha.
@@ -74,6 +75,22 @@ public final class VisorPlano: ObservableObject {
     @Published public private(set) var medida = ""
     public let titulo: String
     public let ruta: String
+    /// El riel (lapiz, marcador, marco) y los marcadores con su vista.
+    let riel = ModeloLector()
+    private(set) lazy var marcadores = MarcadoresDeVista(documento: URL(fileURLWithPath: ruta))
+
+    /// Poner un marcador con la vista de ahora (centro y zoom).
+    func ponerMarcador(_ emoji: String) {
+        riel.poniendoMarca = false
+        guard let c = vista?.camara else { return }
+        marcadores.poner(emoji, vista: [c.centroX, c.centroY, c.px])
+    }
+
+    func ir(a m: MarcadorDeVista) {
+        guard m.vista.count == 3 else { return }
+        vista?.ponerCamara(CamaraPlano(centroX: m.vista[0], centroY: m.vista[1], px: m.vista[2]))
+    }
+
 
     /// Los grupos que se ven.
     private(set) var visibles: Set<UInt32> = []
@@ -434,6 +451,12 @@ public final class VistaPlanoMetal: MTKView {
         didSet { seguirAnotador() }
     }
     private var encuadrado = false
+    /// Volver a una vista guardada (un marcador).
+    func ponerCamara(_ c: CamaraPlano) {
+        encuadrado = true
+        camara = c
+        needsDisplay = true
+    }
     private let encima = CapaEncimaPlano()
     private var seguimiento: NSTrackingArea?
 
@@ -1021,6 +1044,15 @@ public struct VentanaPlanoView: View {
                         HerramientasDelPlano(modelo: a.modelo)
                     }
                     if visor.buscando { busqueda.padding(10).frame(maxWidth: .infinity, alignment: .topTrailing) }
+                    if visor.datos != nil && !visor.verCapas {
+                        RielDeVistas(modelo: visor.riel, marcadores: visor.marcadores,
+                                     lapiz: { visor.alternarAnotar() }, marco: { visor.alternarMarcos() },
+                                     ir: { visor.ir(a: $0) })
+                    }
+                    TiraMarcas(modelo: visor.riel) { visor.ponerMarcador($0) }
+                        .fixedSize()
+                        .padding(.bottom, 22)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     // Las capas, un menu flotante (no una columna fija).
                     if visor.verCapas && visor.datos != nil {
                         PanelFlotantePlano(alto: min(380, 52 + CGFloat(visor.capas.count) * 26)) { panelCapas }
@@ -1208,11 +1240,8 @@ struct BarraPlanoPin: View {
         BarraVisor(nombre: visor.titulo, ext: (visor.ruta as NSString).pathExtension,
                    oscuro: visor.oscuro, alternarOscuro: { visor.alternarOscuro() },
                    fijar: { si in if si != visor.siempreEncima { visor.alternarEncima() } }) {
-            BotonVerEditar(editando: visor.anotando) { visor.alternarAnotar() }
             BotonFlotante(simbolo: "hand.raised", ayuda: "Mover", encendido: visor.modo == .mover) { visor.modo = .mover }
             BotonFlotante(simbolo: "ruler", ayuda: "Medir (M)", encendido: visor.modo == .medir) { visor.modo = .medir }
-            BotonFlotante(simbolo: "rectangle.dashed", ayuda: "Marcos para imprimir (I)",
-                          encendido: visor.modo == .marco) { visor.modo = .marco }
             if !visor.medida.isEmpty {
                 Text(visor.medida)
                     .font(.callout.monospacedDigit())
