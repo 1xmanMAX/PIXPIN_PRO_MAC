@@ -551,6 +551,8 @@ struct Burbuja: View {
             switch mensaje.clase {
             case "NOTA" where mensaje.esDelAsistente:
                 NotaDelAsistente(mensaje: mensaje, chat: chat, almacen: almacen)
+            case "NOTA" where BurbujaHojaNota.esHoja(mensaje):
+                BurbujaHojaNota(mensaje: mensaje, chat: chat, almacen: almacen)
             case "NOTA":
                 Text(textoResaltado(mensaje.texto, aguja: aguja)).textSelection(.enabled)
                     .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))

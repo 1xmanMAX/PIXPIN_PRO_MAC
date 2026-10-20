@@ -535,3 +535,67 @@ extension Notification.Name {
     /// Abrir la ventana de Tareas en una lista (su nombre en `object`).
     static let pixpinAbrirListaTareas = Notification.Name("PixPinAbrirListaTareas")
 }
+
+// MARK: - Hoja nota (transcripcion y notas del proyecto)
+
+/// Una hoja nota del proyecto (una transcripcion de voz, una nota de la
+/// galeria): una ficha con su titulo y el principio del texto, sin la
+/// sintaxis cruda; pulsarla la abre en el editor de notas, como Windows (H12).
+struct BurbujaHojaNota: View {
+    let mensaje: MensajeChat
+    let chat: String
+    let almacen: Almacen
+    @Environment(\.escalaChat) private var escala
+
+    static func esHoja(_ m: MensajeChat) -> Bool {
+        guard let r = m.referencia, !r.isEmpty else { return false }
+        return !m.esDelAsistente
+    }
+
+    /// Titulo y cuerpo, sin `# `, sin imagenes ni audios incrustados.
+    static func partes(_ m: MensajeChat) -> (titulo: String, cuerpo: String, audio: Bool) {
+        var titulo = m.nombre, cuerpo: [String] = [], audio = false
+        for l in m.texto.components(separatedBy: "\n") {
+            let t = l.trimmingCharacters(in: .whitespaces)
+            if t.hasPrefix("![") { if t.lowercased().contains("audio") || t.hasSuffix(".m4a)") { audio = true }; continue }
+            if t.hasPrefix("#") {
+                let h = t.drop { $0 == "#" }.trimmingCharacters(in: .whitespaces)
+                if titulo.isEmpty { titulo = h }
+                if h == titulo { continue }
+            }
+            cuerpo.append(l)
+        }
+        let c = cuerpo.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        return (titulo.isEmpty ? "Nota" : titulo, c, audio)
+    }
+
+    var body: some View {
+        let p = Self.partes(mensaje)
+        HStack(alignment: .top, spacing: 10 * escala) {
+            Image(systemName: p.audio ? "waveform.and.mic" : "doc.text")
+                .font(.system(size: 22 * escala))
+                .foregroundStyle(Color.accentColor)
+                .frame(width: 28 * escala)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(p.titulo).font(.system(size: 13 * escala, weight: .semibold))
+                if !p.cuerpo.isEmpty {
+                    Text(textoConFormato(p.cuerpo))
+                        .font(.system(size: 12 * escala))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(4)
+                }
+            }
+        }
+        .frame(maxWidth: 360, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { abrir() }
+        .help("Abrir la nota")
+        .contextMenu {
+            EntradasDeMensaje {
+                Button { abrir() } label: { Label("Abrir la nota", systemImage: "doc.text") }
+            }
+        }
+    }
+
+    private func abrir() { EditoresDeNotas.compartidos.abrir(mensaje, en: chat, almacen: almacen) }
+}

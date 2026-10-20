@@ -316,8 +316,9 @@ extension EnvironmentValues {
 
 /// `texto` con cada aparicion de `aguja` resaltada (sin mayusculas ni
 /// tildes), como `resaltado::coincidencias` de Windows.
-func textoResaltado(_ texto: String, aguja: String) -> AttributedString {
-    var a = AttributedString(texto)
+func textoResaltado(_ crudo: String, aguja: String) -> AttributedString {
+    var a = textoConFormato(crudo)
+    let texto = String(a.characters)
     conEnlaces(&a)
     let q = aguja.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !q.isEmpty else { return a }
@@ -333,6 +334,35 @@ func textoResaltado(_ texto: String, aguja: String) -> AttributedString {
     return a
 }
 
+/// **Una nota con su formato** (como en Windows y el movil): sin los
+/// caracteres de control que dejo el teclado (un DEL de ⌥⌫), los titulos en
+/// negrita, las vinetas como «•» y lo de dentro de la linea en Markdown
+/// (**negrita**, *cursiva*, `codigo`, [enlaces](…)).
+func textoConFormato(_ crudo: String) -> AttributedString {
+    let limpio = String(String.UnicodeScalarView(crudo.unicodeScalars.filter {
+        !(CharacterSet.controlCharacters.contains($0) && $0 != "\n" && $0 != "\t")
+    }))
+    var lineas: [String] = []
+    for l in limpio.components(separatedBy: "\n") {
+        let t = l.trimmingCharacters(in: .whitespaces)
+        if let r = t.range(of: #"^#{1,6}\s+"#, options: .regularExpression) {
+            let titulo = String(t[r.upperBound...])
+            lineas.append(titulo.isEmpty ? "" : "**\(titulo)**")
+        } else if let r = t.range(of: #"^[-*+]\s+\[[ xX]\]\s*"#, options: .regularExpression) {
+            let hecha = t[r].contains("x") || t[r].contains("X")
+            lineas.append((hecha ? "☑︎ ~~" : "☐ ") + t[r.upperBound...] + (hecha ? "~~" : ""))
+        } else if let r = t.range(of: #"^[-*+]\s+"#, options: .regularExpression) {
+            let sangria = String(l.prefix { $0 == " " }.prefix(6))
+            lineas.append(sangria + "• " + t[r.upperBound...])
+        } else {
+            lineas.append(l)
+        }
+    }
+    let md = lineas.joined(separator: "\n")
+    let op = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace,
+                                                     failurePolicy: .returnPartiallyParsedIfPossible)
+    return (try? AttributedString(markdown: md, options: op)) ?? AttributedString(limpio)
+}
 
 /// **Los enlaces pulsables** de una burbuja (Windows, 17-oct): `http`,
 /// `https` y `www.` subrayados y en color de enlace; un clic los abre.
