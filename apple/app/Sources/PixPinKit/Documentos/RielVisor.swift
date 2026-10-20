@@ -23,7 +23,7 @@ struct IslaRiel: View {
                 BotonRiel(simbolo: "pencil", ayuda: modelo.anotando ? "Dejar de anotar" : "Anotar (lápiz)",
                           encendido: modelo.anotando, accion: lapiz)
             }
-            BotonRiel(simbolo: "printer", ayuda: "Marco para imprimir (⌘P)", accion: imprimir)
+            BotonRiel(simbolo: "printer", ayuda: "Marcos para imprimir (I) · ⌘P los imprime", encendido: modelo.enmarcando, accion: imprimir)
         }
         .padding(4)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .windowBackgroundColor)))

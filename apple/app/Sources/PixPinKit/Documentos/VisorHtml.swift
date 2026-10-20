@@ -25,6 +25,7 @@
 import AppKit
 import PixPinCore
 import SwiftUI
+import PDFKit
 import WebKit
 
 public extension Notification.Name {
@@ -173,6 +174,52 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     private let riel = RielSobreVista()
     private let capa = CapaTintaWeb()
+    private lazy var marcos = MarcosDoc(documento: url)
+
+    /// El boton del marco del riel: poner marcos numerados (Windows, 19-oct).
+    func alternarMarcos() {
+        if riel.modelo.anotando { alternarLapiz() }
+        marcos.activo.toggle()
+        riel.modelo.enmarcando = marcos.activo
+        capa.needsDisplay = true
+        ventana.invalidateCursorRects(for: capa)
+    }
+
+    /// Los marcos en grupo: la pagina llevada a cada uno y fotografiada.
+    private func imprimirMarcos() {
+        let lista = marcos.lista
+        let antes = capa.desplazado
+        let salida = PDFDocument()
+        capa.ocultarMarcos = true
+        func siguiente(_ i: Int) {
+            guard i < lista.count else {
+                capa.ocultarMarcos = false
+                web.evaluateJavaScript("scrollTo(\(antes.x),\(antes.y))")
+                if salida.pageCount > 0,
+                   let op = salida.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true) {
+                    op.runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil)
+                }
+                return
+            }
+            let r = lista[i].rect
+            web.evaluateJavaScript("scrollTo(\(r.minX),\(r.minY))") { [weak self] _, _ in
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                        let conf = WKSnapshotConfiguration()
+                        conf.rect = self.capa.aVista(r)
+                        self.web.takeSnapshot(with: conf) { img, _ in
+                            MainActor.assumeIsolated {
+                                if let img, let p = PDFPage(image: img) { salida.insert(p, at: salida.pageCount) }
+                                siguiente(i + 1)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        siguiente(0)
+    }
     private let alDia = AlDiaLector()
     private var guardado: DispatchWorkItem?
     private var nucleoTinta: Nucleo?
@@ -253,7 +300,8 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     private func montarRiel(en contenedor: NSView, nucleo: Nucleo?) {
         nucleoTinta = nucleo
-        riel.montar(en: contenedor, lapiz: nucleo == nil ? nil : { [weak self] in self?.alternarLapiz() }) { [weak self] in self?.imprimir() }
+        riel.montar(en: contenedor, lapiz: nucleo == nil ? nil : { [weak self] in self?.alternarLapiz() }) { [weak self] in self?.alternarMarcos() }
+        capa.marcos = marcos
         tinta.montar(en: contenedor, modelo: riel.modelo)
         capa.alSoltar = { [weak self] in self?.guardarTinta() }
         if let nucleo { abrirTinta(nucleo, crear: false) }
@@ -286,6 +334,7 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     /// El boton de imprimir del riel: la pagina como se ve.
     func imprimir() {
+        if !marcos.lista.isEmpty { imprimirMarcos(); return }
         let op = web.printOperation(with: NSPrintInfo.shared)
         op.view?.frame = web.bounds
         op.runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil)
@@ -314,6 +363,11 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         if k == 53, m.isEmpty {
             // A pantalla completa, primero vuelve; si no, se cierra.
             if ventana.styleMask.contains(.fullScreen) { ventana.toggleFullScreen(nil) } else { cerrar() }
+            return true
+        }
+        if m == .command, c == "p", !marcos.lista.isEmpty { imprimirMarcos(); return true }
+        if marcos.activo, m.isEmpty, k == 51 || k == 117 {
+            if marcos.quitarUltimo() { capa.needsDisplay = true }
             return true
         }
         if m == .command, c == "e" { exportar(); return true }

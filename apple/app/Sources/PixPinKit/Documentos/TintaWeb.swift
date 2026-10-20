@@ -13,6 +13,10 @@ final class CapaTintaWeb: NSView {
     var editor: EditorLienzo? { didSet { leido = nil; needsDisplay = true } }
     var anotando = false { didSet { window?.invalidateCursorRects(for: self) } }
     var alSoltar: (() -> Void)?
+    /// Los marcos numerados, en px CSS del documento (como la tinta).
+    var marcos: MarcosDoc? { didSet { needsDisplay = true } }
+    private var marcoInicio: NSPoint?
+    private var marcoActual: NSPoint?
     /// Desplazamiento de la pagina (px CSS) y su zoom.
     var desplazado = CGPoint.zero { didSet { needsDisplay = true } }
     private var leido: (version: UInt64, lienzo: LienzoLeido)?
@@ -28,10 +32,40 @@ final class CapaTintaWeb: NSView {
     }
 
     override func hitTest(_ point: NSPoint) -> NSView? {
-        anotando ? super.hitTest(point) : nil
+        anotando || marcos?.activo == true ? super.hitTest(point) : nil
+    }
+
+    /// Del documento a la vista.
+    func aVista(_ r: CGRect) -> CGRect {
+        CGRect(x: (r.minX - desplazado.x) * zoom, y: (r.minY - desplazado.y) * zoom, width: r.width * zoom, height: r.height * zoom)
+    }
+
+    private func pintarMarcos() {
+        guard let m = marcos else { return }
+        for (i, marco) in m.lista.enumerated() {
+            let r = aVista(marco.rect)
+            CapaMarcosPDF.azul.setStroke()
+            let c = NSBezierPath(rect: r)
+            c.lineWidth = 2
+            c.stroke()
+            let t = "\(i + 1)" as NSString
+            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 12, weight: .bold), .foregroundColor: NSColor.white]
+            let s = t.size(withAttributes: atr)
+            let caja = NSRect(x: r.minX, y: r.minY, width: max(20, s.width + 10), height: 20)
+            CapaMarcosPDF.azul.setFill()
+            NSBezierPath(rect: caja).fill()
+            t.draw(at: NSPoint(x: caja.midX - s.width / 2, y: caja.midY - s.height / 2), withAttributes: atr)
+        }
+        if let a = marcoInicio, let b = marcoActual {
+            CapaMarcosPDF.azul.setStroke()
+            let c = NSBezierPath(rect: NSRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y)))
+            c.lineWidth = 1.5
+            c.stroke()
+        }
     }
 
     override func draw(_ sucio: NSRect) {
+        if !ocultarMarcos { pintarMarcos() }
         guard let ed = editor, let ctx = NSGraphicsContext.current?.cgContext else { return }
         let v = ed.version()
         if leido?.version != v, let l = try? leerLienzo(ed.plano()) { leido = (v, l) }
@@ -56,15 +90,36 @@ final class CapaTintaWeb: NSView {
         if fase == .soltar { alSoltar?() }
     }
 
-    override func mouseDown(with e: NSEvent) { puntero(.pulsar, e) }
-    override func mouseDragged(with e: NSEvent) { puntero(.mover, e) }
-    override func mouseUp(with e: NSEvent) { puntero(.soltar, e) }
+    var ocultarMarcos = false
+
+    override func mouseDown(with e: NSEvent) {
+        if marcos?.activo == true { marcoInicio = convert(e.locationInWindow, from: nil); marcoActual = marcoInicio; return }
+        puntero(.pulsar, e)
+    }
+    override func mouseDragged(with e: NSEvent) {
+        if marcoInicio != nil { marcoActual = convert(e.locationInWindow, from: nil); needsDisplay = true; return }
+        puntero(.mover, e)
+    }
+    override func mouseUp(with e: NSEvent) {
+        if let a = marcoInicio {
+            let b = convert(e.locationInWindow, from: nil)
+            marcoInicio = nil; marcoActual = nil
+            if abs(a.x - b.x) > 8, abs(a.y - b.y) > 8, let m = marcos {
+                let p = aDocumento(NSPoint(x: min(a.x, b.x), y: min(a.y, b.y)))
+                let q = aDocumento(NSPoint(x: max(a.x, b.x), y: max(a.y, b.y)))
+                m.poner(CGRect(x: p.x, y: p.y, width: q.x - p.x, height: q.y - p.y), parte: 0)
+            }
+            needsDisplay = true
+            return
+        }
+        puntero(.soltar, e)
+    }
     override func rightMouseDown(with e: NSEvent) {
         if editor?.deshacer() == true { needsDisplay = true; alSoltar?() }
     }
     /// La rueda sigue moviendo la pagina con el lapiz pulsado.
     override func scrollWheel(with e: NSEvent) { web?.scrollWheel(with: e) }
-    override func resetCursorRects() { if anotando { addCursorRect(bounds, cursor: .crosshair) } }
+    override func resetCursorRects() { if anotando || marcos?.activo == true { addCursorRect(bounds, cursor: .crosshair) } }
 
     /// El guion que avisa del desplazamiento de la pagina.
     static let guion = """

@@ -82,6 +82,8 @@ public final class ModeloLector: ObservableObject {
     @Published public var nota: String?
     /// Eligiendo el emoticono de un marcador nuevo (M).
     @Published public var poniendoMarca = false
+    /// Poniendo marcos numerados (el boton del marco del riel, en azul).
+    @Published public var enmarcando = false
     @Published public var negativo = false
     @Published public var oscuro = false
     @Published public var presentando = false
@@ -220,6 +222,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     let ventana: VentanaLectorNS
     let vistaPDF = PDFView()
     private let capa = CapaTintaNS()
+    private let capaMarcos = CapaMarcosPDF()
+    private lazy var marcos = MarcosDoc(documento: url)
     private let contenedor = NSView()
     private let riel = RielMarcasNS()
     /// La barra, fuera de la ventana (sale con el raton).
@@ -351,7 +355,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
             lapiz: { [weak self] in self?.alternarEditar() },
-            imprimir: { [weak self] in self?.imprimir() }))
+            imprimir: { [weak self] in self?.alternarMarcos() }))
         isla.translatesAutoresizingMaskIntoConstraints = false
         contenedor.addSubview(isla)
         NSLayoutConstraint.activate([
@@ -532,6 +536,14 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             capa.autoresizingMask = [.width, .height]
             doc.addSubview(capa)
         }
+        if capaMarcos.superview !== doc {
+            capaMarcos.removeFromSuperview()
+            capaMarcos.frame = doc.bounds
+            capaMarcos.autoresizingMask = [.width, .height]
+            capaMarcos.vistaPDF = vistaPDF
+            capaMarcos.marcos = marcos
+            doc.addSubview(capaMarcos)
+        }
         if let clip = doc.enclosingScrollView?.contentView, clip !== clipVigilado {
             clipVigilado = clip
             clip.postsBoundsChangedNotifications = true
@@ -666,17 +678,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
                     ctx.restoreGState()
                 }
             }
-            // Los marcadores de esta hoja, con su emoticono.
-            for m in modelo.marcas {
-                guard let punto = g.punto(de: m, pagina: i) else { continue }
-                let lado: CGFloat = 20
-                let r = CGRect(x: punto.x - lado / 2, y: punto.y - lado / 2, width: lado, height: lado)
-                guard r.intersects(sucio) else { continue }
-                NSGraphicsContext.saveGraphicsState()
-                NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: true)
-                (m.emoji as NSString).draw(in: r, withAttributes: [.font: NSFont.systemFont(ofSize: lado * 0.8)])
-                NSGraphicsContext.restoreGraphicsState()
-            }
+            // Los marcadores no van sobre la hoja: solo en el riel lateral
+            // (como Windows), sin tapar el texto.
         }
     }
 
@@ -962,6 +965,12 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         default: break
         }
         if m == [.control, .command], c == "f" { pantallaCompleta(); return true }
+        // Los marcos: I entra y sale; Supr quita el ultimo.
+        if !escribiendo, !modelo.anotando, m.isEmpty, c == "i" { alternarMarcos(); return true }
+        if marcos.activo, m.isEmpty, e.keyCode == 51 || e.keyCode == 117 {
+            if marcos.quitarUltimo() { capaMarcos.needsDisplay = true }
+            return true
+        }
         if m == .command {
             switch c {
             case "f":
@@ -1262,8 +1271,22 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     /// ⌘P: el dialogo de imprimir del Mac, con las hojas a su tamano.
+    /// El boton del marco del riel (o la I): poner marcos numerados.
+    func alternarMarcos() {
+        if modelo.anotando { alternarEditar() }
+        marcos.activo.toggle()
+        modelo.enmarcando = marcos.activo
+        capaMarcos.needsDisplay = true
+        ventana.invalidateCursorRects(for: capaMarcos)
+    }
+
     func imprimir() {
-        guard vistaPDF.document != nil else { return }
+        guard let doc = vistaPDF.document else { return }
+        // Con marcos, se imprimen ellos en grupo (una hoja por marco).
+        if !marcos.lista.isEmpty {
+            CapaMarcosPDF.imprimir(marcos, documento: doc, ventana: ventana)
+            return
+        }
         vistaPDF.print(with: NSPrintInfo.shared, autoRotate: true, pageScaling: .pageScaleToFit)
     }
 

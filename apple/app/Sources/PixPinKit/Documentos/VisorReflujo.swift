@@ -416,6 +416,8 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     let nucleo: Nucleo
     let modelo = ModeloLector()
     let reflujo = ModeloReflujo()
+    private let capaMarcos = CapaMarcosVista()
+    private lazy var marcos = MarcosDoc(documento: url)
     let buscador = BuscadorLector()
     let avance = AvanceLector()
     private(set) lazy var voz = VozDelReflujo(visor: self)
@@ -491,6 +493,11 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         clip.drawsBackground = true
         desplazar.contentView = clip
         desplazar.documentView = pagina
+        capaMarcos.frame = pagina.bounds
+        capaMarcos.autoresizingMask = [.width, .height]
+        capaMarcos.documento = pagina
+        capaMarcos.marcos = marcos
+        pagina.addSubview(capaMarcos)
         desplazar.hasVerticalScroller = true
         desplazar.hasHorizontalScroller = true
         desplazar.autohidesScrollers = true
@@ -521,7 +528,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
             lapiz: { [weak self] in self?.alternarEditar() },
-            imprimir: { [weak self] in self?.imprimir() }))
+            imprimir: { [weak self] in self?.alternarMarcos() }))
         isla.translatesAutoresizingMaskIntoConstraints = false
         contenedor.addSubview(isla)
         NSLayoutConstraint.activate([
@@ -1412,6 +1419,11 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         let m = e.modifierFlags.intersection(.deviceIndependentFlagsMask).subtracting([.capsLock, .numericPad, .function])
         let c = e.charactersIgnoringModifiers?.lowercased() ?? ""
         let escribiendo = ventana.firstResponder is NSText
+        // Poniendo marcos, Supr quita el ultimo.
+        if marcos.activo, m.isEmpty, e.keyCode == 51 || e.keyCode == 117 {
+            if marcos.quitarUltimo() { capaMarcos.needsDisplay = true }
+            return true
+        }
         switch e.keyCode {
         case 103: ventana.toggleFullScreen(nil); return true // F11
         case 120 where m.isEmpty: empezarRenombrar(); return true // F2
@@ -1628,8 +1640,18 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
 
     /// ⌘P: el documento entero como se ve (con su tinta), en las hojas que
     /// toquen.
+    /// El boton del marco del riel (o la I): poner marcos numerados.
+    func alternarMarcos() {
+        if modelo.anotando { alternarEditar() }
+        marcos.activo.toggle()
+        modelo.enmarcando = marcos.activo
+        capaMarcos.needsDisplay = true
+        ventana.invalidateCursorRects(for: capaMarcos)
+    }
+
     func imprimir() {
         guard maqueta != nil else { return }
+        if !marcos.lista.isEmpty { capaMarcos.imprimir(ventana: ventana); return }
         let info = NSPrintInfo.shared
         info.horizontalPagination = .fit
         info.verticalPagination = .automatic

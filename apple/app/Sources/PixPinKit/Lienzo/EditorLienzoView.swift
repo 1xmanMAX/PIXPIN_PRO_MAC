@@ -324,6 +324,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     override public var isFlipped: Bool { true }
     override public var acceptsFirstResponder: Bool { true }
     override public var isOpaque: Bool { !papelTransparente }
+
+    /// Los colores ya adaptados al papel oscuro.
+    private var coloresOscuros: [ColorLienzo: ColorLienzo] = [:]
     override public func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override public func viewDidMoveToWindow() {
@@ -400,7 +403,13 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             ctx.setFillColor(fondo)
             ctx.fill(dirtyRect)
         }
-        guard let leido else { return }
+        guard var leido else { return }
+        // Papel oscuro: la tinta adaptada para que se lea (el negro de la
+        // letra pasa a claro), como `contraste::adaptar` de Windows.
+        let p = leido.fondo
+        if 0.299 * p.r + 0.587 * p.g + 0.114 * p.b < 0.5 {
+            leido = leido.sobrePapel(p, cache: &coloresOscuros)
+        }
         ctx.saveGState()
         ctx.scaleBy(x: zoom, y: zoom)
         ctx.translateBy(x: -origen.x, y: -origen.y)
