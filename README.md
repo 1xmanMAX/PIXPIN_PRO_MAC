@@ -1,5 +1,47 @@
 # PixPin Max Pro para Mac
 
+## ¿Qué es PixPin?
+
+**PixPin Max** es una app para **capturar, anotar y organizar** todo lo que haces en la
+pantalla. Las capturas se convierten en **pines flotantes** encima de las demás ventanas.
+Cada proyecto es un **chat** donde se guardan fotos, notas, documentos, planos, lienzos y
+notas de voz. Todo funciona **sin cuentas ni servidores**: los aparatos se sincronizan
+directamente por la red Wi‑Fi de casa.
+
+### La familia PixPin
+
+| Versión | Repositorio | Estado |
+|---|---|---|
+| 🪟 **Windows** | [PIXPIN_PRO_WINDOWS](https://github.com/1xmanMAX/PIXPIN_PRO_WINDOWS) | La versión de referencia (Rust). |
+| 🤖 **Android** | [PIXPIN_PRO_ANDROID](https://github.com/1xmanMAX/PIXPIN_PRO_ANDROID) | Captura, anota y fija notas flotantes en el móvil. |
+| 🍎 **Mac** | este repositorio | Port nativo (Rust + Swift), sincronizado con los otros dos. |
+
+Las tres usan **el mismo protocolo de sincronización y el mismo formato de carpetas**. Un
+proyecto, una nota, una tinta o un marcador hecho en un aparato aparece en los demás.
+
+### Funciones principales
+
+- **Captura y pines**: captura de zona o de ventana, pines flotantes siempre encima, OCR
+  (texto de la imagen), lupa, regla, colores y anotar encima.
+- **Proyectos como chats**: fotos, archivos, notas con formato, listas de tareas, tablas,
+  notas de voz con transcripción, croquis y lienzos, con búsqueda en todo.
+- **Lienzo** (estilo Excalidraw): lápiz, marcador, formas, flechas, texto, fórmulas, capas
+  e imágenes, con las mismas herramientas en todos los visores.
+- **Visores sin bordes**, con una barra flotante común y un **riel lateral** con lápiz,
+  marcadores y marcos numerados para imprimir:
+  - PDF, Word, PowerPoint y EPUB, con **lectura en voz alta**.
+  - Excel y CSV, con fórmulas y formato.
+  - HTML y Markdown.
+  - **Planos CAD** (DWG/DXF) y **modelos BIM/IFC** en 3D.
+- **Tareas** con urgencia, etiquetas, fechas escritas a mano, Kanban y avisos; **horario de
+  clases** que te llama.
+- **Asistente de IA**: herramientas sobre tus documentos, tablas desde una foto y la
+  **hoja → lienzo** que calca una hoja escrita a mano.
+- **Galería y Timeline** de todo lo capturado; **modo noche** común a todos los visores.
+- **Sincronización local** con Windows y Android por Wi‑Fi, sin la nube.
+
+## Esta versión (Mac)
+
 La versión de **Mac** de PixPin Max: capturas, pines flotantes, chats de proyecto, lienzo,
 notas, documentos, planos y modelos 3D, sincronizada con **Windows y Android** por la red
 local con el mismo protocolo y el mismo formato de carpetas. Después vendrán iPad e iPhone.
