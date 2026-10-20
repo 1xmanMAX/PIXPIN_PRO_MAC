@@ -147,10 +147,11 @@ public struct AsaBarra: View {
     public init() {}
 
     public var body: some View {
-        Image(systemName: "line.3.horizontal")
-            .font(.system(size: 13))
+        // Seis puntos (2 x 3), como el asa de Windows: mas estrecha.
+        Image(systemName: "circle.grid.2x3.fill")
+            .font(.system(size: 10))
             .foregroundStyle(Color(white: 0.78))
-            .frame(width: 18, height: 28)
+            .frame(width: 14, height: 28)
             .contentShape(Rectangle())
             .help("Mover")
             .gesture(DragGesture(minimumDistance: 1, coordinateSpace: .global)

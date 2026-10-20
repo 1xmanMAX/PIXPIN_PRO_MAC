@@ -182,7 +182,33 @@ final class RejillaHoja: NSTableView {
 
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let c = controlador, c.atajo(event) { return true }
+        // Zoom como en Excel: ⌘+ / ⌘= acerca, ⌘− aleja, ⌘0 al 100 %.
+        let m = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if m.subtracting(.shift) == .command, let s = enclosingScrollView {
+            switch event.charactersIgnoringModifiers {
+            case "+", "=": RejillaHoja.zoom(s, s.magnification * 1.15); return true
+            case "-": RejillaHoja.zoom(s, s.magnification / 1.15); return true
+            case "0": RejillaHoja.zoom(s, 1); return true
+            default: break
+            }
+        }
         return super.performKeyEquivalent(with: event)
+    }
+
+    /// ⌘ o ⌃ con la rueda: zoom (el pellizco ya lo da la vista).
+    override func scrollWheel(with event: NSEvent) {
+        let m = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if (m.contains(.command) || m.contains(.control)), let s = enclosingScrollView {
+            let f = 1 + max(-0.3, min(0.3, event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 0.01 : 0.1)))
+            let p = s.contentView.convert(event.locationInWindow, from: nil)
+            s.setMagnification(min(max(s.magnification * f, s.minMagnification), s.maxMagnification), centeredAt: p)
+            return
+        }
+        super.scrollWheel(with: event)
+    }
+
+    static func zoom(_ s: NSScrollView, _ z: CGFloat) {
+        s.animator().magnification = min(max(z, s.minMagnification), s.maxMagnification)
     }
 
     // Los del menu Edicion, por si llegan por el.
@@ -222,6 +248,8 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     let modelo = ModeloHojaPin()
     private var arriba: NSStackView?
     private var arribaCerrada: NSLayoutConstraint?
+    private var avisoCerrado: NSLayoutConstraint?
+    private var pestanasCerradas: NSLayoutConstraint?
     private var barraPin: BarraFlotante?
 
     init(hoja: HojaDeCalculo, titulo: String) {
@@ -330,6 +358,10 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
         scroll.translatesAutoresizingMaskIntoConstraints = false
+        // Zoom: pellizco, ⌘ + rueda, ⌘+ / ⌘− / ⌘0.
+        scroll.allowsMagnification = true
+        scroll.minMagnification = 0.4
+        scroll.maxMagnification = 3
 
         // Las pestanas de las hojas, abajo como en Excel.
         pestanas.orientation = .horizontal
@@ -350,7 +382,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             aviso.topAnchor.constraint(equalTo: arriba.bottomAnchor),
             aviso.leadingAnchor.constraint(equalTo: raiz.leadingAnchor, constant: 10),
             aviso.trailingAnchor.constraint(lessThanOrEqualTo: raiz.trailingAnchor, constant: -10),
-            scroll.topAnchor.constraint(equalTo: aviso.bottomAnchor, constant: 2),
+            scroll.topAnchor.constraint(equalTo: aviso.bottomAnchor),
             scroll.leadingAnchor.constraint(equalTo: raiz.leadingAnchor),
             scroll.trailingAnchor.constraint(equalTo: raiz.trailingAnchor),
             scroll.bottomAnchor.constraint(equalTo: pestanas.topAnchor),
@@ -366,6 +398,11 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
                                                name: NSTableView.columnDidResizeNotification, object: rejilla)
         ponerPestanas()
         arribaCerrada = arriba.heightAnchor.constraint(equalToConstant: 0)
+        // Ocultos no ocupan sitio: sin franjas vacias arriba ni abajo.
+        avisoCerrado = aviso.heightAnchor.constraint(equalToConstant: 0)
+        avisoCerrado?.isActive = aviso.isHidden
+        pestanasCerradas = pestanas.heightAnchor.constraint(equalToConstant: 0)
+        pestanasCerradas?.isActive = pestanas.isHidden
         modelo.nombre = ventana.title
         modelo.controlador = self
         ponerEditando(false)
@@ -388,6 +425,8 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         for v in pestanas.arrangedSubviews { pestanas.removeArrangedSubview(v); v.removeFromSuperview() }
         let nombres = hoja.hojas()
         pestanas.isHidden = nombres.count < 2
+        pestanasCerradas?.isActive = pestanas.isHidden
+        pestanas.edgeInsets = pestanas.isHidden ? NSEdgeInsetsZero : NSEdgeInsets(top: 3, left: 8, bottom: 3, right: 8)
         let activa = Int(hoja.activa())
         for (i, n) in nombres.enumerated() {
             let b = NSButton(title: n, target: self, action: #selector(elegirPestana(_:)))
@@ -535,6 +574,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         if hoja.avisoAlEditar() {
             aviso.stringValue = "El archivo original no cambia: lo editado queda en el chat como tablas (el móvil las ve igual)."
             aviso.isHidden = false
+            avisoCerrado?.isActive = false
         }
     }
 

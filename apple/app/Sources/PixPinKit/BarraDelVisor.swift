@@ -67,15 +67,17 @@ public enum ColorDeExtension {
 /// El recuadro de 24 del tipo de archivo, con la extension dentro.
 struct CuadroDeTipo: View {
     let ext: String
+    /// 19 en la barra de un visor; mas grande en la burbuja del chat.
+    var lado: CGFloat = 19
 
     var body: some View {
         let f = ColorDeExtension.de(ext)
-        RoundedRectangle(cornerRadius: 5)
+        RoundedRectangle(cornerRadius: lado * 0.26)
             .fill(ColorDeExtension.color(f))
-            .frame(width: 19, height: 19)
+            .frame(width: lado, height: lado)
             .overlay {
                 Text(ColorDeExtension.rotulo(ext))
-                    .font(.system(size: 8, weight: .semibold))
+                    .font(.system(size: lado * 0.42, weight: .semibold))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
                     .padding(.horizontal, 2)

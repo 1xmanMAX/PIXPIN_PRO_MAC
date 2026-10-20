@@ -78,15 +78,20 @@ struct BurbujaArchivo: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
+                // La etiqueta de color con su extension (PDF rojo, HTML
+                // turquesa, Word azul...), la misma que en la barra del visor.
+                let ext = ((mensaje.nombre.isEmpty ? (mensaje.ruta ?? "") : mensaje.nombre) as NSString).pathExtension
                 Group {
-                    if let icono {
+                    if !ext.isEmpty {
+                        CuadroDeTipo(ext: ext, lado: 34)
+                    } else if let icono {
                         Image(nsImage: icono).resizable()
                     } else {
                         Image(systemName: Burbuja.icono(mensaje.clase)).resizable().scaledToFit()
                             .foregroundStyle(.secondary).padding(4)
                     }
                 }
-                .frame(width: 32, height: 32)
+                .frame(width: 34, height: 34)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(mensaje.nombre.isEmpty ? mensaje.resumen : mensaje.nombre)
                         .lineLimit(2).truncationMode(.middle)
@@ -227,7 +232,7 @@ private func resolver(_ m: MensajeChat, _ chat: String, _ almacen: Almacen) asyn
     return await almacen.url(deRuta: ruta, en: chat)
 }
 
-/// Doble clic: Vista Rapida (Quick Look). Menu: abrir con su app o
+/// Un clic (como en Windows): su visor o Vista Rapida (Quick Look). Menu: abrir con su app o
 /// ensenarlo en el Finder. Y se puede arrastrar fuera (al Finder, a Mail...)
 /// como una copia del fichero.
 struct AccionesDeFichero: ViewModifier {
@@ -242,7 +247,7 @@ struct AccionesDeFichero: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .onTapGesture(count: 2) { abrir() }
+            .onTapGesture { abrir() }
             .contextMenu {
                 // Lo de la burbuja va con lo diario del menu del mensaje.
                 EntradasDeMensaje {

@@ -87,16 +87,30 @@ struct ListaProyectos<Menu: View>: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
-                CapsulaBuscar(texto: $filtro)
+                Spacer(minLength: 0)
                 BotonRedondo(simbolo: "text.magnifyingglass", ayuda: "Buscar en todo (⌘F)") {
                     abrirVentana(id: IdVentana.buscar)
                 }
                 .keyboardShortcut("f")
+                // Como la cabecera de Windows: galeria, timeline y tareas a mano.
+                BotonRedondo(simbolo: "photo.on.rectangle", ayuda: "Galería") {
+                    abrirVentana(id: IdVentana.galeria)
+                }
+                BotonRedondo(simbolo: "clock.arrow.circlepath", ayuda: "Timeline") {
+                    abrirVentana(id: IdVentana.timeline)
+                }
+                BotonRedondo(simbolo: "checklist", ayuda: "Tareas") {
+                    abrirVentana(id: IdVentana.tareas)
+                }
                 BotonRedondo(simbolo: "arrow.triangle.2.circlepath", ayuda: "Sincronizar") {
                     abrirVentana(id: "sincronizar")
                 }
             }
-            .padding(7)
+            .padding(.horizontal, 7)
+            .padding(.top, 7)
+            CapsulaBuscar(texto: $filtro)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 6)
             Paleta.proyectos.separador.frame(height: 1)
             ScrollViewReader { lector in
                 ScrollView {
