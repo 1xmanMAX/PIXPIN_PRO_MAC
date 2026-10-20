@@ -118,7 +118,6 @@ struct BarraLector: View {
                     modelo.controlador?.presentar()
                 }
             }
-            BotonVerEditar(editando: modelo.anotando) { modelo.controlador?.alternarEditar() }
             BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Leer en voz alta (L)",
                           encendido: modelo.controlador?.voz.activa == true && voz.vivo) {
                 modelo.controlador?.voz.escuchar()
@@ -126,27 +125,6 @@ struct BarraLector: View {
             BotonFlotante(simbolo: "chevron.down.2", ayuda: "Desplazar sola (D)", encendido: avance.activo) {
                 modelo.controlador?.alternarAvance()
             }
-            Menu {
-                Section("Poner aquí") {
-                    ForEach(emojisDeMarcas(), id: \.self) { e in
-                        Button(e) { modelo.controlador?.ponerMarca(emoji: e) }
-                    }
-                }
-                if !modelo.marcas.isEmpty {
-                    Section("Ir a") {
-                        ForEach(modelo.marcas, id: \.id) { m in
-                            Button("\(m.emoji)  pág. \(Int(m.y) + 1)") { modelo.controlador?.ir(a: m) }
-                        }
-                    }
-                    Button("Quitar todos", role: .destructive) { modelo.controlador?.quitarMarcas() }
-                }
-            } label: {
-                Image(systemName: "bookmark")
-            }
-            .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .frame(width: 40)
-            .help("Marcadores (M)")
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
                 modelo.controlador?.compartir()
             }
@@ -362,7 +340,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             negro.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
             riel.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor, constant: -18),
             riel.widthAnchor.constraint(equalToConstant: RielMarcasNS.ancho),
-            riel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: 40),
+            riel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8 + IslaRiel.alto + 10),
             riel.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor, constant: -40),
             arriba.centerXAnchor.constraint(equalTo: contenedor.centerXAnchor),
             arriba.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: 14),
@@ -370,6 +348,16 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             abajo.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor, constant: -22),
         ])
         tinta.montar(en: contenedor, modelo: modelo)
+        let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
+            marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
+            lapiz: { [weak self] in self?.alternarEditar() },
+            imprimir: { [weak self] in self?.imprimir() }))
+        isla.translatesAutoresizingMaskIntoConstraints = false
+        contenedor.addSubview(isla)
+        NSLayoutConstraint.activate([
+            isla.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor, constant: -16),
+            isla.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
+        ])
         riel.ir = { [weak self] m in self?.ir(a: m) }
         // El riel sigue a los marcadores, los ponga quien los ponga.
         modelo.$marcas.sink { [weak riel] m in riel?.marcas = m }.store(in: &suscripciones)

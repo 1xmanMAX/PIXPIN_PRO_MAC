@@ -88,10 +88,6 @@ struct ListaProyectos<Menu: View>: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
-                BotonRedondo(simbolo: "text.magnifyingglass", ayuda: "Buscar en todo (⌘F)") {
-                    abrirVentana(id: IdVentana.buscar)
-                }
-                .keyboardShortcut("f")
                 // Como la cabecera de Windows: galeria, timeline y tareas a mano.
                 BotonRedondo(simbolo: "photo.on.rectangle", ayuda: "Galería") {
                     abrirVentana(id: IdVentana.galeria)

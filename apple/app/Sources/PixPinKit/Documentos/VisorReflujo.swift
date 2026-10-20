@@ -251,10 +251,9 @@ struct BarraReflujo: View {
                 }
                 .menuStyle(.button)
                 .buttonStyle(.borderless)
-                .frame(width: 40)
+                .frame(width: 28)
                 .help("Índice (I)")
             }
-            BotonVerEditar(editando: modelo.anotando) { visor?.alternarEditar() }
             BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Leer en voz alta (L)",
                           encendido: visor?.voz.activa == true && voz.vivo) {
                 visor?.voz.escuchar()
@@ -282,30 +281,8 @@ struct BarraReflujo: View {
             }
             .menuStyle(.button)
             .buttonStyle(.borderless)
-            .frame(width: 40)
+            .frame(width: 28)
             .help(reflujo.fijada ? "La letra está fijada: hay tinta encima" : "La letra (+ / −, T, B) · \(reflujo.tamano) %")
-            Menu {
-                Section("Poner aquí") {
-                    ForEach(emojisDeMarcas(), id: \.self) { e in
-                        Button(e) { visor?.ponerMarca(emoji: e) }
-                    }
-                }
-                let propias = modelo.marcas.filter { $0.emoji != VozAlta.emojiDeVoz }
-                if !propias.isEmpty {
-                    Section("Ir a") {
-                        ForEach(modelo.marcas, id: \.id) { m in
-                            Button("\(m.emoji)  \(Int((m.y * 100).rounded())) %") { visor?.ir(a: m) }
-                        }
-                    }
-                    Button("Quitar todos", role: .destructive) { visor?.quitarMarcas() }
-                }
-            } label: {
-                Image(systemName: "bookmark")
-            }
-            .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .frame(width: 40)
-            .help("Marcadores (M)")
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Compartir") {
                 if let u = visor?.url {
                     HojaCompartir.abrir(.ficheros(titulo: u.deletingPathExtension().lastPathComponent, [u]), almacen: nil)
@@ -541,6 +518,16 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             contenedor.addSubview(v)
         }
         tinta.montar(en: contenedor, modelo: modelo)
+        let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
+            marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
+            lapiz: { [weak self] in self?.alternarEditar() },
+            imprimir: { [weak self] in self?.imprimir() }))
+        isla.translatesAutoresizingMaskIntoConstraints = false
+        contenedor.addSubview(isla)
+        NSLayoutConstraint.activate([
+            isla.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor, constant: -16),
+            isla.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
+        ])
         NSLayoutConstraint.activate([
             desplazar.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
             desplazar.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
@@ -548,7 +535,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             desplazar.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
             riel.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor, constant: -18),
             riel.widthAnchor.constraint(equalToConstant: RielMarcasNS.ancho),
-            riel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: 40),
+            riel.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8 + IslaRiel.alto + 10),
             riel.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor, constant: -40),
             arriba.centerXAnchor.constraint(equalTo: contenedor.centerXAnchor),
             arriba.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: 14),

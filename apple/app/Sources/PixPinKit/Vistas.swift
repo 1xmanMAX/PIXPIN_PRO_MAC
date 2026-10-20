@@ -27,6 +27,9 @@ public struct VentanaProyectos: View {
     @ObservedObject private var peticion = PeticionDeChat.compartida
     @Environment(\.openWindow) private var abrirVentana
 
+    /// La ventana no cabe lista y chat: se ve como el movil.
+    @State private var estrecho = false
+
     public init(almacen: Almacen) { self.almacen = almacen }
 
     public var body: some View {
@@ -35,6 +38,8 @@ public struct VentanaProyectos: View {
         VStack(spacing: 0) {
             FranjaProyectos(ventana: ventana)
             HStack(spacing: 0) {
+                // Estrecha, como el movil: o la lista o el chat (con ← para volver).
+                if !estrecho || elegido == nil {
                 ListaProyectos(almacen: almacen, elegido: $elegido) { chat in
                     // Todo el proyecto en la hoja de compartir comun (D1):
                     // sus hojas en PDF, web..., sus originales y el .pixpin.
@@ -60,11 +65,16 @@ public struct VentanaProyectos: View {
                     Text("Se borra también en tus otros aparatos la próxima vez que sincronices. "
                         + "Queda una copia en la papelera de PixPin por si te arrepientes.")
                 }
-                .frame(width: anchoLista)
+                .frame(width: estrecho ? nil : anchoLista)
+                .frame(maxWidth: estrecho ? .infinity : nil)
+                }
+                if !estrecho {
                 Paleta.proyectos.separador
                     .frame(width: 1)
                     .overlay { asaLista }
-                ZStack {
+                }
+                if !estrecho || elegido != nil {
+                ZStack(alignment: .topLeading) {
                     PapelChat()
                     if let chat = elegido {
                         VistaChat(almacen: almacen, chat: chat).id(chat)
@@ -75,9 +85,22 @@ public struct VentanaProyectos: View {
                             .padding(.horizontal, 10).padding(.vertical, 4)
                             .background(.black.opacity(0.25), in: Capsule())
                     }
+                    if estrecho {
+                        Button { elegido = nil } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 13, weight: .semibold))
+                                .frame(width: 30, height: 30)
+                                .background(.regularMaterial, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Volver a los proyectos")
+                        .padding(8)
+                    }
                 }
-                .frame(minWidth: 380)
+                .frame(minWidth: estrecho ? 0 : 380, maxWidth: .infinity)
+                }
             }
+            .onGeometryChange(for: Bool.self) { $0.size.width < anchoLista + 380 } action: { estrecho = $0 }
         }
         .ignoresSafeArea(.container, edges: .top)
         .toolbar(removing: .title)

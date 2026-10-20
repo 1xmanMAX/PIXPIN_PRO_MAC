@@ -741,7 +741,7 @@ struct BarraModeloPin: View {
                 } label: { Image(systemName: "camera.viewfinder") }
                     .menuStyle(.button)
                     .buttonStyle(.borderless)
-                    .frame(width: 40)
+                    .frame(width: 28)
                     .help("Las vistas guardadas en el móvil (1–9)")
             }
             BotonFlotante(simbolo: "square.and.arrow.up", ayuda: "Exportar lo que se ve, con el original (⌘E)") { visor.exportar() }

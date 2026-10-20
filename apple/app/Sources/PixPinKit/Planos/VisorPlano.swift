@@ -1230,7 +1230,7 @@ struct BarraPlanoPin: View {
                 .menuIndicator(.hidden)
                 .menuStyle(.button)
                 .buttonStyle(.borderless)
-                .frame(width: 40)
+                .frame(width: 28)
             BotonFlotante(simbolo: "magnifyingglass", ayuda: "Buscar en los textos del plano (⌘F)",
                           encendido: visor.buscando) { visor.buscando.toggle() }
             BotonFlotante(simbolo: "textformat", ayuda: visor.faltan.isEmpty ? "Letras del plano (L)"
