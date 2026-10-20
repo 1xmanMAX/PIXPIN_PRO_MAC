@@ -203,9 +203,8 @@ struct BotonRedondo: View {
 
     var body: some View {
         Button(action: accion) {
-            Label(ayuda, systemImage: simbolo)
-                .labelStyle(.iconOnly)
-                .font(.system(size: 14, weight: .semibold))
+            Simbolo(nombre: simbolo, lado: 18)
+                .accessibilityLabel(ayuda)
                 .foregroundStyle(Color(claro: 0x3E2D00, oscuro: 0xFEE8B7))
                 .frame(width: 35, height: 35)
                 .background(Color(claro: 0xFFDEA6, oscuro: 0x493A11), in: Circle())

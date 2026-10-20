@@ -126,10 +126,23 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         ventana.isReleasedWhenClosed = false
         ventana.collectionBehavior.insert(.fullScreenPrimary)
         ventana.delegate = self
-        ventana.contentView = web
+        // La pagina entera y, encima, el riel (marcadores e imprimir), como
+        // el PDF y el Word (Windows, 19-oct): los marcadores van al
+        // `.pixpin-lectura` del fichero, en fraccion del desplazamiento.
+        let contenedor = NSView()
+        web.translatesAutoresizingMaskIntoConstraints = false
+        contenedor.addSubview(web)
+        NSLayoutConstraint.activate([
+            web.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
+            web.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
+            web.topAnchor.constraint(equalTo: contenedor.topAnchor),
+            web.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor),
+        ])
+        ventana.contentView = contenedor
         ventana.setFrame(marco, display: false)
         modelo.nombre = url.lastPathComponent
         modelo.controlador = self
+        montarRiel(en: contenedor, nucleo: nucleo)
         let modelo = self.modelo
         barra = BarraFlotante(ventana: ventana) { BarraVisorHtml(modelo: modelo) }
         // El modo oscuro de los visores: nunca tocado, el del Mac.
@@ -143,6 +156,44 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
             let oscuro = n.object as? Bool
             MainActor.assumeIsolated { if let oscuro { self?.ponerOscuro(oscuro) } }
         })
+    }
+
+    private let riel = RielSobreVista()
+
+    private func montarRiel(en contenedor: NSView, nucleo: Nucleo?) {
+        riel.montar(en: contenedor) { [weak self] in self?.imprimir() }
+        riel.irA = { [weak self] f in
+            self?.web.evaluateJavaScript("var m=Math.max(0,document.documentElement.scrollHeight-innerHeight);scrollTo({top:\(f)*m,behavior:'instant'})")
+        }
+        riel.fraccion = { [weak self] listo in
+            self?.web.evaluateJavaScript("(function(){var m=Math.max(1,document.documentElement.scrollHeight-innerHeight);return scrollY/m})()") { r, _ in
+                MainActor.assumeIsolated { listo(Float((r as? Double) ?? 0)) }
+            }
+        }
+        guard let nucleo else { return }
+        let ruta = url.path
+        riel.alCambiar = { marcas in
+            Task.detached(priority: .utility) {
+                var l = nucleo.lecturaDeReflujo(documento: ruta)
+                l.marcadores = marcas.filter { $0.id >= 0 }.map {
+                    MarcadorReflujo(id: UInt64($0.id), fraccion: Float($0.y), emoji: $0.emoji)
+                }
+                try? nucleo.guardarLecturaDeReflujo(documento: ruta, lectura: l)
+            }
+        }
+        Task { [weak self] in
+            let l = await Task.detached(priority: .utility) { nucleo.lecturaDeReflujo(documento: ruta) }.value
+            self?.riel.modelo.marcas = l.marcadores.map {
+                MarcaDocumento(id: Int64(bitPattern: $0.id), x: 0.5, y: Double($0.fraccion), emoji: $0.emoji)
+            }.sorted { $0.y < $1.y }
+        }
+    }
+
+    /// El boton de imprimir del riel: la pagina como se ve.
+    func imprimir() {
+        let op = web.printOperation(with: NSPrintInfo.shared)
+        op.view?.frame = web.bounds
+        op.runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil)
     }
 
     func mostrar() {

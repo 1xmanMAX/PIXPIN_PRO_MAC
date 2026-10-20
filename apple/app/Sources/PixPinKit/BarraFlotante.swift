@@ -148,8 +148,7 @@ public struct AsaBarra: View {
 
     public var body: some View {
         // Seis puntos (2 x 3), como el asa de Windows: mas estrecha.
-        Image(systemName: "circle.grid.2x3.fill")
-            .font(.system(size: 10))
+        IconoMaterial(nombre: "drag_indicator", lado: 16)
             .foregroundStyle(Color(white: 0.78))
             .frame(width: 14, height: 28)
             .contentShape(Rectangle())
@@ -188,9 +187,8 @@ public struct BotonFlotante: View {
 
     public var body: some View {
         Button(action: accion) {
-            Label(ayuda, systemImage: simbolo)
-                .labelStyle(.iconOnly)
-                .font(.system(size: 12.5))
+            Simbolo(nombre: simbolo, lado: 15)
+                .accessibilityLabel(ayuda)
                 .foregroundStyle(Color(red: 0.96, green: 0.96, blue: 0.97))
                 .frame(width: 28, height: 28)
                 .background {
