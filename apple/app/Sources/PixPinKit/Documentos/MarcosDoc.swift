@@ -131,13 +131,22 @@ final class CapaMarcosPDF: NSView {
     /// **Imprimir los marcos en grupo**: un PDF con una hoja por marco (su
     /// hoja recortada al marco), al dialogo de imprimir del Mac.
     static func imprimir(_ marcos: MarcosDoc, documento: PDFDocument, ventana: NSWindow?) {
-        let salida = PDFDocument()
+        // Cada marco, dibujado en su propia hoja de un PDF nuevo (copiar la
+        // hoja y recortarla dejaba la vista previa en blanco).
+        let datos = NSMutableData()
+        guard let consumidor = CGDataConsumer(data: datos as CFMutableData),
+              let ctx = CGContext(consumer: consumidor, mediaBox: nil, nil) else { return }
         for m in marcos.lista {
-            guard let p = documento.page(at: Int(m.parte))?.copy() as? PDFPage else { continue }
-            p.setBounds(m.rect, for: .cropBox)
-            p.setBounds(m.rect, for: .mediaBox)
-            salida.insert(p, at: salida.pageCount)
+            guard let p = documento.page(at: Int(m.parte)) else { continue }
+            var caja = CGRect(origin: .zero, size: m.rect.size)
+            ctx.beginPage(mediaBox: &caja)
+            ctx.translateBy(x: -m.rect.minX, y: -m.rect.minY)
+            ctx.clip(to: m.rect)
+            p.draw(with: .mediaBox, to: ctx)
+            ctx.endPage()
         }
+        ctx.closePDF()
+        guard let salida = PDFDocument(data: datos as Data) else { return }
         guard salida.pageCount > 0,
               let op = salida.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true)
         else { return }

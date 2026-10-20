@@ -1285,7 +1285,10 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         guard let doc = vistaPDF.document else { return }
         // Con marcos, se imprimen ellos en grupo (una hoja por marco).
         if !marcos.lista.isEmpty {
-            CapaMarcosPDF.imprimir(marcos, documento: doc, ventana: ventana)
+            // Con la tinta encima, como en Windows (lo anotado sale impreso).
+            var fuente = doc
+            if !conTinta.isEmpty || !editores.isEmpty, let u = pdfConTinta(), let d = PDFDocument(url: u) { fuente = d }
+            CapaMarcosPDF.imprimir(marcos, documento: fuente, ventana: ventana)
             return
         }
         vistaPDF.print(with: NSPrintInfo.shared, autoRotate: true, pageScaling: .pageScaleToFit)

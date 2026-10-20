@@ -3,7 +3,7 @@ import PixPinCore
 import SwiftUI
 
 /// **El riel de los visores** (Windows, 19-oct, `riel_marcas.rs`): una isla
-/// arriba a la derecha con poner un marcador, el lapiz (pulsado = azul,
+/// arriba a la derecha con el lapiz, poner un marcador (pulsado = azul,
 /// anotando) y el marco para imprimir. Debajo van los puntos de los
 /// marcadores (`RielMarcasNS`). Igual en todos los visores.
 struct IslaRiel: View {
@@ -18,11 +18,11 @@ struct IslaRiel: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            BotonRiel(simbolo: "bookmark", ayuda: "Poner un marcador (⌘M)", encendido: modelo.poniendoMarca, accion: marcar)
             if let lapiz {
                 BotonRiel(simbolo: "pencil", ayuda: modelo.anotando ? "Dejar de anotar" : "Anotar (A)",
                           encendido: modelo.anotando, accion: lapiz)
             }
+            BotonRiel(simbolo: "bookmark", ayuda: "Poner un marcador (⌘M)", encendido: modelo.poniendoMarca, accion: marcar)
             BotonRiel(simbolo: "printer", ayuda: "Marcos para imprimir (I) · ⌘P los imprime", encendido: modelo.enmarcando, accion: imprimir)
         }
         .padding(3)
