@@ -5253,6 +5253,17 @@ public protocol Modelo3dAppleProtocol: AnyObject, Sendable {
     func categorias()  -> [Categoria3d]
     
     /**
+     * La clave estable de un elemento (GlobalId o `~tipo|nombre|k`), la
+     * de `aislado_clave` en los marcadores de Windows y Android.
+     */
+    func claveDeElemento(id: UInt32)  -> String?
+    
+    /**
+     * La clave estable del nivel `k` (`n:=<clave>` en los marcadores).
+     */
+    func claveDeNivel(k: UInt32)  -> String?
+    
+    /**
      * **Lo que hay bajo el raton**: el triangulo mas cercano que corta el
      * rayo desde `origen` hacia `direccion` (respecto al origen del modelo;
      * ver [`camara_ojo`] y [`camara_rayo`]), entre lo que se ve con
@@ -5266,6 +5277,11 @@ public protocol Modelo3dAppleProtocol: AnyObject, Sendable {
     func elemento(id: UInt32)  -> InfoElemento3d?
     
     /**
+     * El elemento de esa clave en este modelo.
+     */
+    func elementoDeClave(clave: String)  -> UInt32?
+    
+    /**
      * Lo que pide un croquis (ver [`ExtrasCroquis`]); `None` si no lo es.
      */
     func extrasCroquis()  -> ExtrasCroquis?
@@ -5274,6 +5290,11 @@ public protocol Modelo3dAppleProtocol: AnyObject, Sendable {
      * Todos los indices.
      */
     func indices()  -> Indices3d
+    
+    /**
+     * El nivel de esa clave en este modelo.
+     */
+    func nivelDeClave(clave: String)  -> UInt32?
     
     /**
      * Los niveles, de abajo arriba (vacio si el modelo no los tiene).
@@ -5401,6 +5422,33 @@ open func categorias() -> [Categoria3d]  {
 }
     
     /**
+     * La clave estable de un elemento (GlobalId o `~tipo|nombre|k`), la
+     * de `aislado_clave` en los marcadores de Windows y Android.
+     */
+open func claveDeElemento(id: UInt32) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_modelo3dapple_clave_de_elemento(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La clave estable del nivel `k` (`n:=<clave>` en los marcadores).
+     */
+open func claveDeNivel(k: UInt32) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_modelo3dapple_clave_de_nivel(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(k),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Lo que hay bajo el raton**: el triangulo mas cercano que corta el
      * rayo desde `origen` hacia `direccion` (respecto al origen del modelo;
      * ver [`camara_ojo`] y [`camara_rayo`]), entre lo que se ve con
@@ -5433,6 +5481,19 @@ open func elemento(id: UInt32) -> InfoElemento3d?  {
 }
     
     /**
+     * El elemento de esa clave en este modelo.
+     */
+open func elementoDeClave(clave: String) -> UInt32?  {
+    return try!  FfiConverterOptionUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_modelo3dapple_elemento_de_clave(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clave),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Lo que pide un croquis (ver [`ExtrasCroquis`]); `None` si no lo es.
      */
 open func extrasCroquis() -> ExtrasCroquis?  {
@@ -5452,6 +5513,19 @@ open func indices() -> Indices3d  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_modelo3dapple_indices(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El nivel de esa clave en este modelo.
+     */
+open func nivelDeClave(clave: String) -> UInt32?  {
+    return try!  FfiConverterOptionUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_modelo3dapple_nivel_de_clave(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clave),uniffiCallStatus
     )
 })
 }
@@ -42294,16 +42368,28 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_categorias() != 20369) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_clave_de_elemento() != 978) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_clave_de_nivel() != 29584) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_elegir() != 14479) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_elemento() != 31572) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_elemento_de_clave() != 18931) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_extras_croquis() != 5801) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_indices() != 4408) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_nivel_de_clave() != 41018) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_niveles() != 24353) {

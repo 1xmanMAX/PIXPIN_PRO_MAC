@@ -225,10 +225,12 @@ final class CompartirTests: XCTestCase {
         XCTAssertEqual(paquete[0].pathExtension, "pixpin")
         XCTAssertEqual(try Data(contentsOf: paquete[0]).prefix(2), Data("PK".utf8))
 
-        // Solo el dibujo: con su Editable y el lienzo dentro de la web.
+        // Solo el dibujo: el lienzo dentro de la web; lo editable es el
+        // `.pixpin` (el `.excalidraw` suelto ya no se ofrece, como Windows).
         let solo = await PrepararCompartir.preparar(.mensajes(chat: chat, titulo: "Obra", [dibujo]), almacen: almacen)
         XCTAssertNotNil(solo.excalidraw)
-        XCTAssertTrue(solo.compartible().formatos.contains { $0.id == IdFormato.editable })
+        XCTAssertFalse(solo.compartible().formatos.contains { $0.id == IdFormato.editable })
+        XCTAssertTrue(solo.compartible().formatos.contains { $0.id == IdFormato.pixpin })
         let svg = try await solo.generar(IdFormato.svg, claves: [dibujo.id], en: carpeta)
         XCTAssertTrue(try String(contentsOf: svg[0], encoding: .utf8).contains("<svg"))
 

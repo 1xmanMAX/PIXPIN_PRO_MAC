@@ -254,7 +254,10 @@ public final class VisorModelo3D: ObservableObject {
                                 "altura": c.altura, "dist": c.dist, "claro": false, "aristas": true]
         if let k = cajaDeCorte { e["seccion"] = [k.x0, k.y0, k.z0, k.x1, k.y1, k.z1].map { Double($0) } } else { e["seccion"] = NSNull() }
         e["aislado"] = filtro.aislado.map { NSNumber(value: $0) } ?? NSNull()
-        e["ocultos"] = filtro.nivelesOcultos.map { "n:\($0)" } + filtro.tiposOcultos.map { "t:\($0)" }
+        // Claves estables (20-oct-2026): iguales en otro PC y en el movil.
+        if let a = filtro.aislado, let k = datos?.modelo.claveDeElemento(id: a) { e["aislado_clave"] = k }
+        e["ocultos"] = (filtro.nivelesOcultos.map { n in datos?.modelo.claveDeNivel(k: n).map { "n:=\($0)" } ?? "n:\(n)" }
+            + filtro.tiposOcultos.map { "t:\($0)" }).sorted()
         return e
     }
 
@@ -275,9 +278,18 @@ public final class VisorModelo3D: ObservableObject {
             conCorte = false
         }
         let ocultos = e["ocultos"] as? [String] ?? []
-        let f = Filtro3d(nivelesOcultos: ocultos.compactMap { $0.hasPrefix("n:") ? UInt32($0.dropFirst(2)) : nil },
+        let m = datos?.modelo
+        // `n:=<clave>` manda; `n:<i>` (de antes) se sigue entendiendo.
+        let niveles: [UInt32] = ocultos.compactMap { o -> UInt32? in
+            guard o.hasPrefix("n:"), o != "n:-" else { return nil }
+            let r = o.dropFirst(2)
+            return r.hasPrefix("=") ? m?.nivelDeClave(clave: String(r.dropFirst())) : UInt32(r)
+        }
+        let aislado: UInt32? = if let k = e["aislado_clave"] as? String { m?.elementoDeClave(clave: k) }
+            else { (e["aislado"] as? NSNumber)?.uint32Value }
+        let f = Filtro3d(nivelesOcultos: niveles,
                          tiposOcultos: ocultos.compactMap { $0.hasPrefix("t:") ? String($0.dropFirst(2)) : nil },
-                         aislado: (e["aislado"] as? NSNumber)?.uint32Value)
+                         aislado: aislado)
         if f != filtro { filtrar(f) }
     }
 

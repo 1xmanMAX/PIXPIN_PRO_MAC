@@ -357,6 +357,27 @@ impl Modelo3dApple {
         }
     }
 
+    /// La clave estable de un elemento (GlobalId o `~tipo|nombre|k`), la
+    /// de `aislado_clave` en los marcadores de Windows y Android.
+    pub fn clave_de_elemento(&self, id: u32) -> Option<String> {
+        self.m.clave_de_elemento(id)
+    }
+
+    /// El elemento de esa clave en este modelo.
+    pub fn elemento_de_clave(&self, clave: String) -> Option<u32> {
+        self.m.elemento_de_clave(&clave)
+    }
+
+    /// La clave estable del nivel `k` (`n:=<clave>` en los marcadores).
+    pub fn clave_de_nivel(&self, k: u32) -> Option<String> {
+        self.m.clave_de_nivel(k)
+    }
+
+    /// El nivel de esa clave en este modelo.
+    pub fn nivel_de_clave(&self, clave: String) -> Option<u32> {
+        self.m.nivel_de_clave(&clave)
+    }
+
     /// Los niveles, de abajo arriba (vacio si el modelo no los tiene).
     pub fn niveles(&self) -> Vec<Nivel3d> {
         let mut cuantos = vec![0u32; self.m.niveles.len()];

@@ -4,7 +4,7 @@
 //
 // - un **dibujo** (o una pagina de PDF anotada): el lienzo entero y cada
 //   marco debajo, sangrado; al abrir van marcados los marcos y no el
-//   entero, que los repetiria. Solo, tambien el «Editable» (`.excalidraw`);
+//   entero, que los repetiria. lo editable es el `.pixpin`;
 // - una **foto**: la foto;
 // - un **fichero**: solo, un PDF en paginas; entre otros mensajes va entero,
 //   en «Originales» (un PDF de trescientas paginas no puede colarse en el
@@ -205,14 +205,10 @@ enum PrepararCompartir {
             // Con marcos, van marcados los marcos y no el entero.
             p.anadir(PiezasCompartir.dibujo(h, pagina: pagina, fotos: fotos), marcada: i > 0 || !conMarcos)
         }
-        if let json {
-            p.excalidraw = json
-            let fichero = "\(p.base).excalidraw"
-            p.extras.append(ExtraCompartir(
-                formato: FormatoCompartir(id: IdFormato.editable, nombre: "Editable", cuantas: .ninguna,
-                                          simbolo: "pencil.and.outline"),
-                que: .escrito(nombre: fichero) { Data(json.utf8) }))
-        }
+        // El lienzo va dentro de la pagina web; fuera, lo editable es el
+        // `.pixpin` del chat (el `.excalidraw` suelto ya no se ofrece,
+        // como en Windows desde el 20-oct-2026).
+        if let json { p.excalidraw = json }
     }
 
     // MARK: Proyectos
