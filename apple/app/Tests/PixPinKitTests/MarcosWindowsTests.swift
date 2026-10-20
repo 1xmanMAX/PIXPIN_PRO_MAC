@@ -9,7 +9,9 @@ final class MarcosWindowsTests: XCTestCase {
     func testLasUnidadesDelLectorSonLasDeWindows() throws {
         let doc = PDFDocument()
         for _ in 0..<2 {
-            let img = NSImage(size: NSSize(width: 600, height: 800))
+            let img = NSImage(size: NSSize(width: 600, height: 800), flipped: false) { r in
+                NSColor.white.setFill(); r.fill(); return true
+            }
             doc.insert(PDFPage(image: img)!, at: doc.pageCount)
         }
         let h = HojasDelLector(doc, caja: .mediaBox)
