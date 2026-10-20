@@ -176,7 +176,7 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     private let riel = RielSobreVista()
     private let capa = CapaTintaWeb()
-    private lazy var marcos = MarcosDoc(documento: url)
+    private lazy var marcos = MarcosDoc(documento: url, nucleo: nucleoTinta)
 
     /// El boton del marco del riel: poner marcos numerados (Windows, 19-oct).
     func alternarMarcos() {

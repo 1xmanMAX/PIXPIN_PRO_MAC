@@ -223,7 +223,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     let vistaPDF = PDFView()
     private let capa = CapaTintaNS()
     private let capaMarcos = CapaMarcosPDF()
-    private lazy var marcos = MarcosDoc(documento: url)
+    private lazy var marcos = MarcosDoc(documento: url, nucleo: nucleo)
     private let contenedor = NSView()
     private let riel = RielMarcasNS()
     /// La barra, fuera de la ventana (sale con el raton).

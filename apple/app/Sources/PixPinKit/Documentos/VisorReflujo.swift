@@ -417,7 +417,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     let modelo = ModeloLector()
     let reflujo = ModeloReflujo()
     private let capaMarcos = CapaMarcosVista()
-    private lazy var marcos = MarcosDoc(documento: url)
+    private lazy var marcos = MarcosDoc(documento: url, nucleo: nucleo)
     let buscador = BuscadorLector()
     let avance = AvanceLector()
     private(set) lazy var voz = VozDelReflujo(visor: self)

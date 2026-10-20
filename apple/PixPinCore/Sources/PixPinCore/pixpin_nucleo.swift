@@ -6241,6 +6241,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func lecturaDeReflujo(documento: String)  -> LecturaReflujo
     
     /**
+     * **Donde viaja lo de un adjunto** (Windows, 20-oct): el fichero
+     * `anot-<uid><terminacion>` de `documento` si es un adjunto de un chat
+     * (`.marcos.json` o `.vistas.json`), o `None` si no lo es (entonces se
+     * queda junto al fichero, sin viajar).
+     */
+    func rutaAnotadaDelAdjunto(documento: String, terminacion: String)  -> String?
+    
+    /**
      * **Un lienzo nuevo en un chat**: el `.excalidraw` vacio en
      * `lienzos/<codigo>.excalidraw` y su mensaje `DIBUJO` al final del
      * cuaderno, como `ventana_chat::escribir_lienzo` de Windows. Se abre
@@ -8613,6 +8621,23 @@ open func lecturaDeReflujo(documento: String) -> LecturaReflujo  {
     uniffi_pixpin_nucleo_fn_method_nucleo_lectura_de_reflujo(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(documento),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Donde viaja lo de un adjunto** (Windows, 20-oct): el fichero
+     * `anot-<uid><terminacion>` de `documento` si es un adjunto de un chat
+     * (`.marcos.json` o `.vistas.json`), o `None` si no lo es (entonces se
+     * queda junto al fichero, sin viajar).
+     */
+open func rutaAnotadaDelAdjunto(documento: String, terminacion: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ruta_anotada_del_adjunto(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(documento),
+        FfiConverterString.lower(terminacion),uniffiCallStatus
     )
 })
 }
@@ -41428,6 +41453,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_lectura_de_reflujo() != 58012) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_anotada_del_adjunto() != 39355) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_lienzo() != 32607) {

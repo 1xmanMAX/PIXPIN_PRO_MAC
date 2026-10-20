@@ -1031,6 +1031,22 @@ impl Nucleo {
         Ok(Arc::new(abrir_tinta(self.ruta(), Path::new(&documento))?))
     }
 
+    /// **Donde viaja lo de un adjunto** (Windows, 20-oct): el fichero
+    /// `anot-<uid><terminacion>` de `documento` si es un adjunto de un chat
+    /// (`.marcos.json` o `.vistas.json`), o `None` si no lo es (entonces se
+    /// queda junto al fichero, sin viajar).
+    pub fn ruta_anotada_del_adjunto(&self, documento: String, terminacion: String) -> Option<String> {
+        if terminacion != pixpin_sincro::anotado::MARCOS && terminacion != pixpin_sincro::anotado::VISTAS {
+            return None;
+        }
+        let b = an::base_del_documento(self.ruta(), Path::new(&documento))?;
+        let f = b.fichero(&terminacion);
+        if let Some(c) = f.parent() {
+            let _ = std::fs::create_dir_all(c);
+        }
+        Some(f.display().to_string())
+    }
+
     /// Si `documento` ya tiene tinta (sin leerla: solo si su fichero esta).
     pub fn hay_tinta_de_reflujo(&self, documento: String) -> bool {
         let doc = PathBuf::from(&documento);
