@@ -181,6 +181,10 @@ public final class ModeloEditorLienzo: ObservableObject {
         let version = editor.version()
         return { [weak self] id in
             guard let self else { return nil }
+            // Primero las fotos: el id de una foto sale de su `fileId` y
+            // puede tener los bits altos puestos, como un mosaico o una lupa;
+            // tomarla por uno de ellos la dejaba en un recuadro gris.
+            if self.fotos[id] != nil { return self.foto(id) }
             if PintorDeTapados.esTapado(id) {
                 return self.tapados.imagen(id, version: version, escala: escala)
             }

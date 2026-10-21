@@ -148,8 +148,10 @@ enum PintorDeHojas {
         let escala = max(2, k)
         fondo?.pintar(en: ctx)
         PintorLienzo(lienzo: leido) { id in
+            // La foto primero: su id puede tener los bits del mosaico.
+            if let f = fotos(id) { return f }
             if PintorDeTapados.esTapado(id) { return tapados?.imagen(id, version: version, escala: escala) }
-            return fotos(id)
+            return nil
         }.pintar(en: ctx, limites: caja)
         ctx.restoreGState()
     }

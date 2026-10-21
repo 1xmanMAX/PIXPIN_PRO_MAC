@@ -360,13 +360,18 @@ struct VistaFotoAnotada: View {
         }
         lienzo.caja = cajaDeFotoAnotada(foto: foto, todo: lienzo.caja, soloLaFoto: soloLaFoto)
         let caja = lienzo.caja ?? CGRect(x: 0, y: 0, width: 4, height: 3)
-        let alto = min(max(caja.height / max(caja.width, 1), 0.4), 1.4)
+        // Con la forma de la foto, como una imagen normal: ancha, a lo
+        // ancho de la burbuja; alta, hasta 1,4 veces y mas estrecha.
+        let alto = caja.height / max(caja.width, 1)
+        let lado = ladoDeBurbuja * escala
+        let (w, h) = alto > 1.4 ? (lado * 1.4 / alto, lado * 1.4) : (lado, lado * alto)
         let fotos = leida.dibujo.fotos
         return VistaLienzo(lienzo: lienzo, version: version) { id in
             fotos[id].flatMap { Miniaturas.compartidas.enCache($0, lado: Int(ladoDeBurbuja * 2)) }
         }
+        .sinMargen()
         .alDobleClic(abrir)
-        .frame(width: ladoDeBurbuja * escala, height: ladoDeBurbuja * escala * alto)
+        .frame(width: w, height: h)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .help("Anotada · doble clic: seguir dibujando")
     }

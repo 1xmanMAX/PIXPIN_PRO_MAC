@@ -645,6 +645,9 @@ public final class VistaLienzoNS: NSView {
     /// El doble clic (abrir el dibujo para editarlo). Lo atiende la vista:
     /// un gesto de SwiftUI no siempre llega a traves de una `NSView`.
     public var alDobleClic: (() -> Void)?
+    /// Una foto en el chat: llena la vista entera, sin margen (bien cuadrada,
+    /// como una imagen normal).
+    public var aSangre = false { didSet { needsDisplay = true } }
 
     override public var isFlipped: Bool { true }
 
@@ -661,9 +664,11 @@ public final class VistaLienzoNS: NSView {
         ctx.setFillColor(lienzo.fondo.cg)
         ctx.fill(bounds)
         let caja = lienzo.caja ?? bounds
-        let margen: CGFloat = 16
-        let escala = min((bounds.width - margen * 2) / max(caja.width, 1),
-                         (bounds.height - margen * 2) / max(caja.height, 1), 4)
+        let margen: CGFloat = aSangre ? 0 : 16
+        let escala = aSangre
+            ? max(bounds.width / max(caja.width, 1), bounds.height / max(caja.height, 1))
+            : min((bounds.width - margen * 2) / max(caja.width, 1),
+                  (bounds.height - margen * 2) / max(caja.height, 1), 4)
         ctx.saveGState()
         ctx.translateBy(x: margen - caja.minX * escala, y: margen - caja.minY * escala)
         ctx.scaleBy(x: escala, y: escala)
@@ -691,6 +696,14 @@ public struct VistaLienzo: NSViewRepresentable {
 
     /// Lo que hace el doble clic (ver `VistaLienzoNS.alDobleClic`).
     var dobleClic: (() -> Void)?
+    /// Sin margen, llenando la vista (ver `VistaLienzoNS.aSangre`).
+    var aSangre = false
+
+    public func sinMargen() -> VistaLienzo {
+        var copia = self
+        copia.aSangre = true
+        return copia
+    }
 
     /// Con doble clic.
     public func alDobleClic(_ hacer: @escaping () -> Void) -> VistaLienzo {
@@ -701,6 +714,7 @@ public struct VistaLienzo: NSViewRepresentable {
 
     public func makeNSView(context: Context) -> VistaLienzoNS {
         let v = VistaLienzoNS()
+        v.aSangre = aSangre
         v.imagen = imagen
         v.alDobleClic = dobleClic
         v.lienzo = lienzo
@@ -708,6 +722,7 @@ public struct VistaLienzo: NSViewRepresentable {
     }
 
     public func updateNSView(_ v: VistaLienzoNS, context: Context) {
+        v.aSangre = aSangre
         v.imagen = imagen
         v.alDobleClic = dobleClic
         v.lienzo = lienzo
