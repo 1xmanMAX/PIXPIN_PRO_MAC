@@ -173,6 +173,24 @@ final class VentanaLectorNS: NSWindow {
     }
 }
 
+/// **El PDFView del lector**: con el lapiz, el marcador o los marcos, el
+/// raton va entero a su capa y no se elige texto (PDFKit pone sus hojas
+/// encima de las capas y se llevaba el clic: el marco no se dibujaba).
+final class VistaPDFLector: PDFView {
+    /// La capa que se lleva el raton ahora (nil: leyendo, es de PDFKit).
+    var capaActiva: (() -> NSView?)?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        if let capa = capaActiva?(), frame.contains(point) {
+            // Las barras de desplazamiento siguen siendo de PDFKit.
+            let dentro = super.hitTest(point)
+            if dentro is NSScroller { return dentro }
+            return capa
+        }
+        return super.hitTest(point)
+    }
+}
+
 /// **La capa de la tinta**, dentro de la vista del documento de PDFKit.
 final class CapaTintaNS: NSView {
     weak var controlador: ControladorLector?
@@ -221,7 +239,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     /// Escuchar en voz alta (L): los trozos y lo que suena (D2).
     private(set) lazy var voz = VozDelLector(lector: self)
     let ventana: VentanaLectorNS
-    let vistaPDF = PDFView()
+    let vistaPDF = VistaPDFLector()
     private let capa = CapaTintaNS()
     private let capaMarcos = CapaMarcosPDF()
     private lazy var marcos = MarcosDoc(documento: url, nucleo: nucleo)
@@ -545,6 +563,14 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             capaMarcos.vistaPDF = vistaPDF
             capaMarcos.marcos = marcos
             doc.addSubview(capaMarcos)
+        }
+        if vistaPDF.capaActiva == nil {
+            vistaPDF.capaActiva = { [weak self] in
+                guard let self else { return nil }
+                if self.marcos.activo { return self.capaMarcos }
+                if self.modelo.anotando { return self.capa }
+                return nil
+            }
         }
         if let clip = doc.enclosingScrollView?.contentView, clip !== clipVigilado {
             clipVigilado = clip
