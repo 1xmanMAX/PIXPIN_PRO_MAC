@@ -193,7 +193,7 @@ struct PuntosDeMarcas: View {
 /// capa en las coordenadas de esa vista (pixeles de la hoja al 100 %); con
 /// el lapiz suelto deja pasar los clics.
 @MainActor
-final class CapaTintaDoc: NSView {
+class CapaTintaDoc: NSView {
     var editor: EditorLienzo? { didSet { leido = nil; needsDisplay = true } }
     var anotando = false { didSet { window?.invalidateCursorRects(for: self) } }
     private var leido: (version: UInt64, lienzo: LienzoLeido)?

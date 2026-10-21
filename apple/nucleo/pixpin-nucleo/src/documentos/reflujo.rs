@@ -1078,6 +1078,33 @@ impl Nucleo {
         r.display().to_string()
     }
 
+    /// **La tinta de un marcador de un modelo 3D** (Windows,
+    /// `plano_cad::capa_de_marcador`): `anot-<uid>-m<id>.excalidraw.gz` con su
+    /// `.hoja` (`-2500,-2500,2500,2500`), en la pantalla desde el centro y en
+    /// milesimas de su alto. Fuera de un chat, junto al modelo.
+    pub fn ruta_de_tinta_de_marcador3d(&self, modelo: String, id: String) -> String {
+        let doc = PathBuf::from(&modelo);
+        let limpio: String = id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '-' { c } else { '_' }).collect();
+        let r = match an::base_del_documento(self.ruta(), &doc) {
+            Some(b) => {
+                let b = Base { base: format!("{}-m{limpio}", b.base), ..b };
+                let hoja = b.marco();
+                if !hoja.is_file() {
+                    if let Some(c) = hoja.parent() {
+                        let _ = std::fs::create_dir_all(c);
+                    }
+                    let _ = std::fs::write(&hoja, pixpin_sincro::anotado::MarcoDeLaHoja::nuevo(-2500.0, -2500.0, 2500.0, 2500.0).a_texto());
+                }
+                b.tinta()
+            }
+            None => PathBuf::from(format!("{modelo}.pixpin-anotado")).join(format!("marcador-{limpio}.excalidraw")),
+        };
+        if let Some(c) = r.parent() {
+            let _ = std::fs::create_dir_all(c);
+        }
+        r.display().to_string()
+    }
+
     /// Si `documento` ya tiene tinta (sin leerla: solo si su fichero esta).
     pub fn hay_tinta_de_reflujo(&self, documento: String) -> bool {
         let doc = PathBuf::from(&documento);

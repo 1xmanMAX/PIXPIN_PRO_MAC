@@ -322,7 +322,7 @@ public final class VistaModeloMetal: MTKView {
     private let motor: MotorMetal
     private let muestras: Int
     private(set) var camara = Camara3d(objetivo: Punto3d(x: 0, y: 0, z: 0), rumbo: -0.8, altura: 0.5, dist: 10)
-    private var radio = 10.0
+    var radio = 10.0
     private var encuadrado = false
     /// El arrastre: donde empezo, la camara de entonces, el pivote y si giraba.
     private var arrastre: (p: CGPoint, camara: Camara3d, pivote: Punto3d, girar: Bool, movido: Bool)?
@@ -343,6 +343,15 @@ public final class VistaModeloMetal: MTKView {
         // Para leer lo pintado al exportar la vista.
         framebufferOnly = false
         visor.vista = self
+        encima.vista = self
+        encima.frame = bounds
+        encima.autoresizingMask = [.width, .height]
+        addSubview(encima)
+        tinta.frame = bounds
+        tinta.autoresizingMask = [.width, .height]
+        tinta.isHidden = true
+        addSubview(tinta)
+        (layer as? CAMetalLayer)?.presentsWithTransaction = true
     }
 
     @available(*, unavailable)
@@ -350,7 +359,20 @@ public final class VistaModeloMetal: MTKView {
 
     override public var acceptsFirstResponder: Bool { true }
 
-    func repintar() { needsDisplay = true }
+    func repintar() {
+        needsDisplay = true
+        encima.needsDisplay = true
+        visor.alMoverLaCamara()
+    }
+
+    /// Lo de encima: el punto de giro y la caja de seccion con sus asas.
+    let encima = CapaEncimaModelo()
+    /// La tinta del marcador que es la vista de ahora.
+    let tinta = CapaTintaMarcador3D()
+    /// El punto sobre el que se gira mientras se arrastra (Windows lo ensena).
+    var pivoteVisible: Punto3d?
+    /// Moviendo una cara de la caja: cual y desde donde.
+    var arrastreAsa: (cara: Int, p: CGPoint, corte: [Double])?
 
     /// Volver a una camara guardada (un marcador).
     func ponerCamara(_ c: Camara3d) {
@@ -359,12 +381,12 @@ public final class VistaModeloMetal: MTKView {
         repintar()
     }
 
-    private var escala: Double {
+    var escala: Double {
         bounds.width > 0 ? Double(drawableSize.width) / Double(bounds.width) : 2
     }
 
-    private var ancho: UInt32 { UInt32(max(drawableSize.width, 1)) }
-    private var alto: UInt32 { UInt32(max(drawableSize.height, 1)) }
+    var ancho: UInt32 { UInt32(max(drawableSize.width, 1)) }
+    var alto: UInt32 { UInt32(max(drawableSize.height, 1)) }
     /// Claro u oscuro: el del croquis si lo dice (su fondo deja ver su
     /// tinta); si no, el del sistema.
     var claro: Bool {
@@ -485,8 +507,9 @@ public final class VistaModeloMetal: MTKView {
             pedidoDeFoto = nil
             leerFoto(dibujable.texture, cb, pedido)
         }
-        cb.present(dibujable)
         cb.commit()
+        cb.waitUntilScheduled()
+        dibujable.present()
     }
 
     /// Copia lo pintado a la memoria y, al terminar la tarjeta, lo da como
@@ -624,6 +647,10 @@ public final class VistaModeloMetal: MTKView {
     override public func mouseDown(with e: NSEvent) {
         window?.makeFirstResponder(self)
         let p = punto(e)
+        if let cara = asaBajo(p) {
+            arrastreAsa = (cara, p, visor.corte)
+            return
+        }
         let girar = !e.modifierFlags.contains(.shift)
         arrastre = (p, camara, girar ? puntoBajo(p) : camara.objetivo, girar, false)
     }
@@ -633,6 +660,7 @@ public final class VistaModeloMetal: MTKView {
     }
 
     private func arrastrar(_ e: NSEvent) {
+        if let a = arrastreAsa { return moverAsa(a, hasta: punto(e)) }
         guard var a = arrastre else { return }
         let p = punto(e)
         let dx = Double(p.x - a.p.x) * escala, dy = -Double(p.y - a.p.y) * escala
@@ -643,6 +671,7 @@ public final class VistaModeloMetal: MTKView {
             // Media vuelta por el lado corto de la ventana, sea del tamano que sea.
             let k = Double.pi / Double(max(min(ancho, alto), 1))
             camara = camaraGirar(camara: a.camara, dRumbo: -dx * k, dAltura: dy * k, pivote: a.pivote)
+            pivoteVisible = a.pivote
         } else {
             camara = camaraMover(camara: a.camara, dx: dx, dy: dy, alto: alto)
         }
@@ -654,7 +683,8 @@ public final class VistaModeloMetal: MTKView {
     override public func rightMouseUp(with e: NSEvent) { arrastre = nil }
 
     override public func mouseUp(with e: NSEvent) {
-        defer { arrastre = nil }
+        defer { arrastre = nil; arrastreAsa = nil; pivoteVisible = nil; encima.needsDisplay = true }
+        if arrastreAsa != nil { return }
         // Un clic sin arrastrar: que es.
         if let a = arrastre, !a.movido { visor.elegir(elegir(punto(e))) }
     }
@@ -685,6 +715,7 @@ public final class VistaModeloMetal: MTKView {
             case "i": if visor.elegido != nil || visor.filtro.aislado != nil { visor.aislar() }
             case "l": visor.verPanel.toggle()
             case "e": visor.aristas.toggle()
+            case "a": visor.alternarAnotar()
             case "p": planta()
             case "t": visor.alternarEncima()
             case "1", "2", "3", "4", "5", "6", "7", "8", "9": irAVista(Int(letra)! - 1)
@@ -846,7 +877,9 @@ struct RielModelo: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 8) {
-            IslaRiel(modelo: visor.riel, marcar: { visor.ponerMarcador() }, imprimir: { visor.alternarMarcos3D() })
+            IslaRiel(modelo: visor.riel, marcar: { visor.ponerMarcador() },
+                     lapiz: visor.nucleoDeMarcadores == nil ? nil : { visor.alternarAnotar() },
+                     imprimir: { visor.alternarMarcos3D() })
             ForEach(Array(marcadores.del3d.enumerated()), id: \.element.id) { i, m in
                 Button { visor.irAMarcador(i) } label: {
                     Text("\(i + 1)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)

@@ -6399,6 +6399,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func rutaDeTintaDeHoja(libro: String, hoja: UInt32)  -> String
     
     /**
+     * **La tinta de un marcador de un modelo 3D** (Windows,
+     * `plano_cad::capa_de_marcador`): `anot-<uid>-m<id>.excalidraw.gz` con su
+     * `.hoja` (`-2500,-2500,2500,2500`), en la pantalla desde el centro y en
+     * milesimas de su alto. Fuera de un chat, junto al modelo.
+     */
+    func rutaDeTintaDeMarcador3d(modelo: String, id: String)  -> String
+    
+    /**
      * **La tinta de una pagina web o de una nota** (Windows,
      * `tinta_de_la_pagina`): de un adjunto, `anot-<uid>` (la que viaja), en
      * pixeles CSS del documento, sin marco ni la regla de columnas del Word;
@@ -8812,6 +8820,23 @@ open func rutaDeTintaDeHoja(libro: String, hoja: UInt32) -> String  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(libro),
         FfiConverterUInt32.lower(hoja),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La tinta de un marcador de un modelo 3D** (Windows,
+     * `plano_cad::capa_de_marcador`): `anot-<uid>-m<id>.excalidraw.gz` con su
+     * `.hoja` (`-2500,-2500,2500,2500`), en la pantalla desde el centro y en
+     * milesimas de su alto. Fuera de un chat, junto al modelo.
+     */
+open func rutaDeTintaDeMarcador3d(modelo: String, id: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ruta_de_tinta_de_marcador3d(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(modelo),
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
@@ -41649,6 +41674,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_de_tinta_de_hoja() != 37196) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_de_tinta_de_marcador3d() != 9218) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_de_tinta_de_pagina() != 1001) {
