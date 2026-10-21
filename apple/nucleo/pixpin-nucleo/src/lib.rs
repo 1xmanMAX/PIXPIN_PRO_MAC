@@ -53,6 +53,7 @@ pub mod ajustes;
 pub mod aligerar;
 pub mod anotador_al_chat;
 pub mod aparatos;
+pub mod grafito_plano;
 pub mod asistente;
 pub mod automatizaciones;
 pub mod burbujas;

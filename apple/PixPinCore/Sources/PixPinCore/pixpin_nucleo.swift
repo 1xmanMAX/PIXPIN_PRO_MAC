@@ -22322,6 +22322,67 @@ public func FfiConverterTypeLlamadaSecreta_lower(_ value: LlamadaSecreta) -> Rus
 
 
 /**
+ * Los pixeles de un mapa de grafito, RGBA sin premultiplicar.
+ */
+public struct MapaGrafito: Equatable, Hashable {
+    public var rgba: Data
+    public var ancho: UInt32
+    public var alto: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(rgba: Data, ancho: UInt32, alto: UInt32) {
+        self.rgba = rgba
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MapaGrafito: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMapaGrafito: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MapaGrafito {
+        return
+            try MapaGrafito(
+                rgba: FfiConverterData.read(from: &buf), 
+                ancho: FfiConverterUInt32.read(from: &buf), 
+                alto: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MapaGrafito, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.rgba, into: &buf)
+        FfiConverterUInt32.write(value.ancho, into: &buf)
+        FfiConverterUInt32.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMapaGrafito_lift(_ buf: RustBuffer) throws -> MapaGrafito {
+    return try FfiConverterTypeMapaGrafito.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMapaGrafito_lower(_ value: MapaGrafito) -> RustBuffer {
+    return FfiConverterTypeMapaGrafito.lower(value)
+}
+
+
+/**
  * **El documento colocado** en una columna.
  */
 public struct MaquetaReflujo: Equatable, Hashable {
@@ -35997,6 +36058,30 @@ fileprivate struct FfiConverterOptionTypeLlamadaSecreta: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeMapaGrafito: FfiConverterRustBuffer {
+    typealias SwiftType = MapaGrafito?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMapaGrafito.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMapaGrafito.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeMensajeChat: FfiConverterRustBuffer {
     typealias SwiftType = MensajeChat?
 
@@ -40076,6 +40161,17 @@ public func tipoDeServicioRecibir() -> String  {
 })
 }
 /**
+ * **Los pixeles de un mapa de grafito** (el id de su orden de imagen).
+ */
+public func mapaDeGrafito(id: UInt64) -> MapaGrafito?  {
+    return try!  FfiConverterOptionTypeMapaGrafito.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mapa_de_grafito(
+        FfiConverterUInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+/**
  * Los colores de letra: los fuertes de la paleta de Excel.
  */
 public func hojaColoresDeLetra() -> [ColorHoja]  {
@@ -41161,6 +41257,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_recibir() != 11481) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mapa_de_grafito() != 28155) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_hoja_colores_de_letra() != 29542) {

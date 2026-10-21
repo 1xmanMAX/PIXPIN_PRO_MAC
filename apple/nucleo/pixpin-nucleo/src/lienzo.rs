@@ -163,7 +163,7 @@ impl Lienzo {
     /// Todas las ordenes de la escena, sin simplificar (para exportar o para
     /// una miniatura).
     pub fn plano(&self) -> LienzoPlano {
-        self.plano_de(&pintado::ordenes_de_escena(&self.escena))
+        self.plano_de(&crate::grafito_plano::ordenes_de_escena(&self.escena))
     }
 
     /// Las ordenes de lo que se ve con la camara en `(x, y)` (el punto del

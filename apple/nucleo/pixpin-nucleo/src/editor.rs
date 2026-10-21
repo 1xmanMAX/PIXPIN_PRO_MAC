@@ -1194,7 +1194,7 @@ impl EditorLienzo {
     pub fn plano(&self) -> LienzoPlano {
         let st = self.tomar();
         empaquetar(
-            &pintado::ordenes_de_escena(&st.escena),
+            &crate::grafito_plano::ordenes_de_escena(&st.escena),
             st.escena.fondo,
             st.escena.caja(),
         )
@@ -1229,7 +1229,10 @@ impl EditorLienzo {
             .a_la_vista()
             .filter(|e| se_cruzan(e.caja(), ventana))
         {
-            ordenes.extend_from_slice(st.cache.ordenes(e, zoom));
+            match crate::grafito_plano::orden(e) {
+                Some(o) => ordenes.push(o),
+                None => ordenes.extend_from_slice(st.cache.ordenes(e, zoom)),
+            }
             ordenes.extend_from_slice(st.cache.medibles(
                 e,
                 st.escena.escala.as_ref(),

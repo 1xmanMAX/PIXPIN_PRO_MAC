@@ -6,6 +6,35 @@
 
 import AppKit
 import CoreGraphics
+import PixPinCore
+
+/// **Los mapas de grafito ya hechos imagen** (`grafito_plano.rs`): su id
+/// lleva el bit alto y cambia cuando cambia el mapa, asi que se piden una
+/// vez al nucleo.
+enum GrafitosPintados {
+    static let bit: UInt64 = 1 << 61
+    nonisolated(unsafe) private static let cache: NSCache<NSNumber, CGImage> = {
+        let c = NSCache<NSNumber, CGImage>()
+        c.totalCostLimit = 128 << 20
+        return c
+    }()
+
+    static func imagen(_ id: UInt64) -> CGImage? {
+        guard id & bit != 0, id >> 62 == 0 else { return nil }
+        let k = NSNumber(value: id)
+        if let img = cache.object(forKey: k) { return img }
+        guard let m = mapaDeGrafito(id: id), m.ancho > 0, m.alto > 0,
+              m.rgba.count >= Int(m.ancho) * Int(m.alto) * 4,
+              let prov = CGDataProvider(data: m.rgba as CFData),
+              let img = CGImage(width: Int(m.ancho), height: Int(m.alto), bitsPerComponent: 8, bitsPerPixel: 32,
+                                bytesPerRow: Int(m.ancho) * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.last.rawValue),
+                                provider: prov, decode: nil, shouldInterpolate: true, intent: .defaultIntent)
+        else { return nil }
+        cache.setObject(img, forKey: k, cost: m.rgba.count)
+        return img
+    }
+}
 
 public struct PintorLienzo {
     public var lienzo: LienzoLeido
@@ -89,7 +118,7 @@ public struct PintorLienzo {
                 // un pelo mas grande: el borde suavizado dejaba asomar la
                 // banda maciza de debajo como un filo gris.
                 if PintorDeTapados.esTapado(id) { local = local.insetBy(dx: -0.75, dy: -0.75) }
-                if var bitmap = imagen(id) {
+                if var bitmap = imagen(id) ?? GrafitosPintados.imagen(id) {
                     if let r = recorte, let nat = natural, nat.width > 0, nat.height > 0 {
                         // El recorte viene en las medidas naturales de la foto.
                         let sx = CGFloat(bitmap.width) / nat.width
