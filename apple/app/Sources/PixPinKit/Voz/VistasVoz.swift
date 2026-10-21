@@ -44,6 +44,21 @@ struct BurbujaVoz: View {
 
                 Text(FormatoVoz.marca(ms: mensaje.duracionMs))
                     .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                // Pasar a texto, a la vista (como Windows y el movil): sin
+                // texto todavia, o para volver a pasarlo.
+                if url != nil {
+                    Button(action: transcribir) {
+                        if transcribiendo {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "captions.bubble").font(.system(size: 15))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .disabled(transcribiendo)
+                    .help(mensaje.transcripcion?.isEmpty == false ? "Volver a pasar a texto (T)" : "Pasar a texto (T)")
+                }
             }
             texto
         }

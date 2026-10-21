@@ -462,6 +462,8 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     /// Al cargar (o recargar) la pagina, otra vez su modo noche.
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         if modelo.oscuro { ponerOscuro(true) }
+        // La tinta va dentro de la pagina: al cargarla, otra vez.
+        capa.enviarALaPagina(forzar: true)
     }
 
     // MARK: Descargas
