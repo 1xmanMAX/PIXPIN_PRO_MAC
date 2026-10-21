@@ -495,6 +495,8 @@ public final class VistaPlanoMetal: MTKView {
         encima.frame = bounds
         encima.autoresizingMask = [.width, .height]
         addSubview(encima)
+        encima.wantsLayer = true
+        encima.layer?.actions = ["contents": NSNull()]
         visor.vista = self
         try? pintor.preparar()
     }
@@ -509,6 +511,21 @@ public final class VistaPlanoMetal: MTKView {
     func repintar() {
         needsDisplay = true
         encima.needsDisplay = true
+    }
+
+    /// **Al mover la camara**: el plano, lo de encima y la tinta que se esta
+    /// anotando se pintan YA y en la misma transaccion (la capa de Metal va
+    /// con ella): si cada uno esperaba a su ciclo, la tinta y los marcos
+    /// iban un paso por detras del plano.
+    func repintarYa() {
+        // Sin el fundido que Core Animation pone al cambiar el contenido de
+        // una capa: con el, la tinta dejaba un rastro detras del plano.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        draw()
+        encima.display()
+        if let a = visor.anotador?.vista { a.display() }
+        CATransaction.commit()
     }
 
     /// Pixeles por punto de la pantalla.
@@ -656,7 +673,7 @@ public final class VistaPlanoMetal: MTKView {
     /// Acercar `factor` dejando quieto el punto `p` de la vista.
     private func zoom(_ factor: Double, en p: CGPoint) {
         camara = camara.zoom(factor, x: Double(p.x) * escala, y: Double(p.y) * escala, ancho: anchoPx, alto: altoPx)
-        repintar()
+        repintarYa()
     }
 
     override public func scrollWheel(with e: NSEvent) {
@@ -664,7 +681,7 @@ public final class VistaPlanoMetal: MTKView {
         if e.hasPreciseScrollingDeltas && !e.modifierFlags.contains(.command) && !e.modifierFlags.contains(.control) {
             // Dos dedos en el trackpad: el plano sigue a los dedos.
             camara = camara.mover(dx: Double(e.scrollingDeltaX) * escala, dy: -Double(e.scrollingDeltaY) * escala)
-            repintar()
+            repintarYa()
         } else {
             // La rueda del raton (o ⌘ + dos dedos): acercar donde esta el puntero.
             let paso = e.hasPreciseScrollingDeltas ? Double(e.scrollingDeltaY) / 40 : Double(e.scrollingDeltaY)
@@ -741,7 +758,7 @@ public final class VistaPlanoMetal: MTKView {
             guard let a = arrastre else { return }
             camara = camara.mover(dx: Double(p.x - a.x) * escala, dy: Double(p.y - a.y) * escala)
             arrastre = p
-            repintar()
+            repintarYa()
         case .medir:
             mira = enganche(p)
             actualizarMedida()
@@ -778,7 +795,7 @@ public final class VistaPlanoMetal: MTKView {
         let p = punto(e)
         camara = camara.mover(dx: Double(p.x - a.x) * escala, dy: Double(p.y - a.y) * escala)
         arrastre = p
-        repintar()
+        repintarYa()
     }
 
     override public func rightMouseUp(with e: NSEvent) { arrastre = nil }

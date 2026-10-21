@@ -347,10 +347,14 @@ public final class VistaModeloMetal: MTKView {
         encima.frame = bounds
         encima.autoresizingMask = [.width, .height]
         addSubview(encima)
+        encima.wantsLayer = true
+        encima.layer?.actions = ["contents": NSNull()]
         tinta.frame = bounds
         tinta.autoresizingMask = [.width, .height]
         tinta.isHidden = true
         addSubview(tinta)
+        tinta.wantsLayer = true
+        tinta.layer?.actions = ["contents": NSNull(), "bounds": NSNull()]
         (layer as? CAMetalLayer)?.presentsWithTransaction = true
     }
 

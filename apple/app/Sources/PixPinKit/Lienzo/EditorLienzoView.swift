@@ -331,6 +331,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         // ninguna herramienta).
         clipsToBounds = true
         layerContentsRedrawPolicy = .onSetNeedsDisplay
+        // Que el contenido cambie de golpe (sin fundido): encima de un plano
+        // que se mueve, el fundido se veia como tinta que va detras.
+        layer?.actions = ["contents": NSNull(), "bounds": NSNull(), "position": NSNull()]
         registerForDraggedTypes(ImagenPegadaLienzo.tiposDelTablero)
         reloj.alPararse = { [weak self] in
             // Vence en la cola principal (`RelojFormaRapida.conDispatch`).
