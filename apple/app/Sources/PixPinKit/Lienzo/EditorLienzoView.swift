@@ -139,9 +139,40 @@ public final class ModeloEditorLienzo: ObservableObject {
         fotos[id] = url
     }
 
-    /// El bitmap de una foto del lienzo, si ya esta leido.
+    /// Las fotos ya leidas de este lienzo, suyas: la cache compartida la
+    /// vacia el sistema cuando quiere y la foto se quedaba en un recuadro
+    /// gris para siempre.
+    private var fotosLeidas: [UInt64: CGImage] = [:]
+    private var leyendo: Set<UInt64> = []
+    private var fotosReleidas = false
+
+    /// El bitmap de una foto del lienzo; si aun no esta, se lee y se repinta.
     func foto(_ id: UInt64) -> CGImage? {
-        fotos[id].flatMap { Miniaturas.compartidas.enCache($0, lado: 2048) }
+        if let img = fotosLeidas[id] { return img }
+        if fotos[id] == nil, !fotosReleidas {
+            // Una imagen que no se apunto al abrir (pegada en otro aparato,
+            // llegada al sincronizar): se vuelven a pedir sus rutas.
+            fotosReleidas = true
+            for f in editor.imagenes() where fotos[f.idObjeto] == nil { fotos[f.idObjeto] = URL(fileURLWithPath: f.ruta) }
+        }
+        guard let url = fotos[id] else { return nil }
+        if let img = Miniaturas.compartidas.enCache(url, lado: 2048) {
+            fotosLeidas[id] = img
+            return img
+        }
+        if !leyendo.contains(id) {
+            leyendo.insert(id)
+            Task { [weak self] in
+                let img = await Miniaturas.compartidas.cargar(url, lado: 2048)
+                guard let self else { return }
+                self.leyendo.remove(id)
+                if let img {
+                    self.fotosLeidas[id] = img
+                    self.vista?.repintarFotos()
+                }
+            }
+        }
+        return nil
     }
 
     /// Las imagenes del pintor: las fotos y lo de dentro de los mosaicos y
@@ -316,6 +347,12 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
                 if alguna { self?.clave = nil; self?.needsDisplay = true }
             }
         }
+    }
+
+    /// Llego una foto que faltaba: se pinta otra vez.
+    func repintarFotos() {
+        clave = nil
+        needsDisplay = true
     }
 
     @available(*, unavailable)
