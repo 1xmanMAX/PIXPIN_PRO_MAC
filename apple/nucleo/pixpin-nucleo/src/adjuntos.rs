@@ -55,7 +55,16 @@ impl Nucleo {
         if !ruta_valida(ruta) {
             return None;
         }
-        vista::ruta_real(self.ruta(), chat, ruta)
+        let r = vista::ruta_real(self.ruta(), chat, ruta)?;
+        if r.exists() || !ruta.starts_with("pixpin:files/") {
+            return Some(r);
+        }
+        // Una foto de un lienzo hecho en el PC cuya ruta volvio del movil
+        // como `pixpin:files/…/imagenes/<id>`: el fichero sigue en
+        // `imagenes/<id>` del chat (sin esto, un recuadro gris).
+        let nombre = std::path::Path::new(ruta).file_name()?;
+        let aqui = pixpin_proyecto::almacen::carpeta(self.ruta(), chat).join("imagenes").join(nombre);
+        Some(if aqui.is_file() { aqui } else { r })
     }
 }
 

@@ -109,6 +109,10 @@ public final class VisorModelo3D: ObservableObject {
     /// El riel (marcador y marco) y los marcadores con su camara, en el
     /// `.vistas.json` de Windows (`modelo`).
     let riel = ModeloLector()
+    /// Anotando sobre un marcador: el lienzo de verdad (barra, colores,
+    /// texto...), como en el plano.
+    @Published var anotador3d: ModeloEditorLienzo?
+    var vistaAnotar: VistaEditorLienzoNS?
     var nucleoDeMarcadores: Nucleo?
     private(set) lazy var marcadores = MarcadoresDeVista(documento: URL(fileURLWithPath: ruta), nucleo: nucleoDeMarcadores)
     private(set) lazy var marcos3d = Marcos3D(documento: URL(fileURLWithPath: ruta), nucleo: nucleoDeMarcadores)
@@ -449,6 +453,7 @@ public final class VistaModeloMetal: MTKView {
 
     override public func setFrameSize(_ newSize: NSSize) {
         super.setFrameSize(newSize)
+        visor.encajarAnotar()
         if !encuadrado { encuadrar() }
         repintar()
     }
@@ -759,6 +764,9 @@ public struct VentanaModeloView: View {
                 contenido
                 if visor.datos != nil {
                     CapaMarcos3D(visor: visor, marcos: visor.marcos3d)
+                }
+                if let a = visor.anotador3d {
+                    HerramientasDelPlano(modelo: a)
                 }
                 if visor.datos != nil && !visor.verPanel {
                     RielModelo(visor: visor, marcadores: visor.marcadores)

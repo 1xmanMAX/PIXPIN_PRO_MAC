@@ -1218,11 +1218,11 @@ public struct VentanaPlanoView: View {
 
 /// La barra del lienzo, su desplegable y el panel de estilo, encima del
 /// plano mientras se anota (los de `EditorLienzoView`).
-private struct HerramientasDelPlano: View {
+struct HerramientasDelPlano: View {
     @ObservedObject var modelo: ModeloEditorLienzo
-    /// Lo que bajan para no quedar debajo de la barra flotante del visor
-    /// (va dentro de la ventana cuando no cabe encima).
-    private let bajar = BarraFlotante.alto + 2 * BarraFlotante.separacion
+    /// Pegada al borde de arriba (la barra del visor flota fuera de la
+    /// ventana; dentro se esconde sola), como en Windows.
+    private let bajar: CGFloat = 0
 
     var body: some View {
         GeometryReader { geo in

@@ -170,35 +170,63 @@ extension VisorModelo3D {
         guard let v = vista else { return }
         let m = marcadorDeAhora()
         if m != v.tinta.marcador {
+            if anotador3d != nil { terminarAnotar() }
             v.tinta.marcador = m
             v.tinta.editor = nil
             if let m, let nucleo = nucleoDeMarcadores {
                 let r = nucleo.rutaDeTintaDeMarcador3d(modelo: ruta, id: m)
                 let hay = FileManager.default.fileExists(atPath: r) || FileManager.default.fileExists(atPath: r + ".gz")
-                if hay || riel.anotando { v.tinta.editor = try? EditorLienzo.deFichero(ruta: r, crear: true) }
+                if hay { v.tinta.editor = try? EditorLienzo.deFichero(ruta: r, crear: false) }
             }
-            if m == nil, riel.anotando { riel.herramienta = "leer"; v.tinta.anotando = false }
         }
-        v.tinta.isHidden = m == nil
+        v.tinta.isHidden = m == nil || anotador3d != nil
         v.tinta.needsDisplay = true
     }
 
-    /// El lapiz del riel (A): anota sobre la vista de ahora. Si no es la de
-    /// un marcador, se pone uno (lo anotado va siempre con su vista).
+    /// El lapiz del riel (A): anota sobre la vista de ahora con el lienzo
+    /// (su barra, sus colores, texto...). Si no es la de un marcador, se pone
+    /// uno: lo anotado va siempre con su vista.
     func alternarAnotar() {
-        guard nucleoDeMarcadores != nil, let v = vista else { return NSSound.beep() }
-        if riel.anotando {
-            riel.herramienta = "leer"
-            v.tinta.anotando = false
-            v.tinta.guardarLuego()
-            return
-        }
-        if marcadosDeAhoraFalta() { ponerMarcador() }
-        riel.herramienta = "lapiz"
-        v.tinta.marcador = nil // que se vuelva a abrir, ya para escribir
+        guard let nucleo = nucleoDeMarcadores, let v = vista else { return NSSound.beep() }
+        if anotador3d != nil { return terminarAnotar() }
+        if marcadorDeAhora() == nil { ponerMarcador() }
         alMoverLaCamara()
-        v.tinta.anotando = v.tinta.editor != nil
+        guard let m = marcadorDeAhora() else { return NSSound.beep() }
+        let r = nucleo.rutaDeTintaDeMarcador3d(modelo: ruta, id: m)
+        guard let ed = try? EditorLienzo.deFichero(ruta: r, crear: true) else { return NSSound.beep() }
+        let modelo = ModeloEditorLienzo(editor: ed, referencia: "modelo3d|" + r, nucleo: nucleo, titulo: titulo)
+        modelo.cambiarEstilo(.rugosidad(valor: 0))
+        modelo.alCerrar = { [weak self] in self?.terminarAnotar() }
+        let lienzo = VistaEditorLienzoNS(modelo: modelo)
+        lienzo.papelTransparente = true
+        lienzo.camaraDeFuera = v
+        lienzo.frame = v.bounds
+        lienzo.autoresizingMask = [.width, .height]
+        v.addSubview(lienzo)
+        vistaAnotar = lienzo
+        anotador3d = modelo
+        riel.herramienta = "lapiz"
+        encajarAnotar()
+        v.tinta.isHidden = true
+        v.window?.makeFirstResponder(lienzo)
     }
 
-    private func marcadosDeAhoraFalta() -> Bool { marcadorDeAhora() == nil }
+    /// El lienzo en las unidades de Windows: desde el centro, milesimas del alto.
+    func encajarAnotar() {
+        guard let l = vistaAnotar, let v = vista else { return }
+        let w = v.bounds.width, h = max(v.bounds.height, 1)
+        l.ponerCamara(origen: CGPoint(x: -500 * w / h, y: -500), zoom: h / 1000)
+    }
+
+    /// Deja de anotar: lo escrito se guarda y se ve con la capa de siempre.
+    func terminarAnotar() {
+        guard let modelo = anotador3d, let v = vista else { return }
+        modelo.guardarAlCerrar()
+        vistaAnotar?.removeFromSuperview()
+        vistaAnotar = nil
+        anotador3d = nil
+        riel.herramienta = "leer"
+        v.tinta.marcador = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.alMoverLaCamara() }
+    }
 }
