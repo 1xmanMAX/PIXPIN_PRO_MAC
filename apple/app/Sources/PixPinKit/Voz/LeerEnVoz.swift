@@ -128,7 +128,7 @@ public final class LeerEnVoz: ObservableObject {
 
     /// La de la app, con su barra flotante.
     private static func deLaApp() -> LeerEnVoz {
-        let v = LeerEnVoz(altavoz: AltavozDelMac())
+        let v = LeerEnVoz(altavoz: AltavozMicrosoft())
         PanelEscuchar.compartido.vigilar(v)
         return v
     }
@@ -164,7 +164,9 @@ public final class LeerEnVoz: ObservableObject {
         actual = 0
         leyendo = false
         reanudarEn = 0
-        nombreVoz = v.map(VozAlta.nombre(de:)) ?? ""
+        nombreVoz = altavoz is AltavozMicrosoft && EdgeVoz.activas
+            ? EdgeVoz.nombre(EdgeVoz.voz(para: v?.language ?? doc.idioma))
+            : v.map(VozAlta.nombre(de:)) ?? ""
         MandosDelSistema.compartidos.tomar(self, porPasos: true)
         alDia()
         return true
@@ -529,6 +531,18 @@ struct BarraEscuchar: View {
 @MainActor
 func menuDeVoces(idioma: String, puesta: String?, elegir: @escaping @MainActor (AVSpeechSynthesisVoice) -> Void) -> NSMenu {
     let menu = NSMenu()
+    // Las de Microsoft (como Windows y el movil): neuronales, por internet.
+    let ms = AccionMenuLector {
+        UserDefaults.standard.set(!EdgeVoz.activas, forKey: "PixPinVocesMicrosoft")
+    }
+    let im = NSMenuItem(title: "Voces de Microsoft (\(EdgeVoz.nombre(EdgeVoz.voz(para: idioma.isEmpty ? VozAlta.idiomaDeLaApp : idioma))))",
+                        action: #selector(AccionMenuLector.hacer(_:)), keyEquivalent: "")
+    im.target = ms
+    im.representedObject = ms
+    im.state = EdgeVoz.activas ? .on : .off
+    im.toolTip = "Voces neuronales de Microsoft, como en Windows y el móvil. El texto se manda a Microsoft; sin internet, la voz del Mac."
+    menu.addItem(im)
+    menu.addItem(.separator())
     let lengua = VozAlta.partes(idioma.isEmpty ? VozAlta.idiomaDeLaApp : idioma).lengua
     let voces = AVSpeechSynthesisVoice.speechVoices()
         .filter { VozAlta.partes($0.language).lengua == lengua }
@@ -540,7 +554,11 @@ func menuDeVoces(idioma: String, puesta: String?, elegir: @escaping @MainActor (
         menu.addItem(i)
     }
     for v in voces {
-        let a = AccionMenuLector { elegir(v) }
+        let a = AccionMenuLector {
+            // Elegir una del Mac es leer con ella: fuera las de Microsoft.
+            UserDefaults.standard.set(false, forKey: "PixPinVocesMicrosoft")
+            elegir(v)
+        }
         let i = NSMenuItem(title: "\(VozAlta.nombre(de: v))  (\(v.language))",
                            action: #selector(AccionMenuLector.hacer(_:)), keyEquivalent: "")
         i.target = a
