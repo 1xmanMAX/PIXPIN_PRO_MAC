@@ -409,16 +409,12 @@ struct BarraNotaPin: View {
                        ventana.ventana?.level = si ? .floating : .normal
                    }) {
             // Los de Windows (`notas_md::lector_web::botones`): leyendo, el
-            // lapiz; escribiendo, el ojo, deshacer y rehacer; y siempre
-            // buscar, los comentarios, compartir y el ⋯. Y escuchar.
+            // lapiz; escribiendo, el ojo; y siempre los comentarios,
+            // compartir y el ⋯. Y escuchar. Deshacer, rehacer y buscar ya no
+            // van en la barra (Windows, 20-oct-2026): ⌘Z, ⇧⌘Z y ⌘F.
             BotonVerEditar(editando: !estado.leyendo, texto: true) { orden(estado.leyendo ? "editar" : "leer") }
-            if !estado.leyendo {
-                BotonFlotante(simbolo: "arrow.uturn.backward", ayuda: "Deshacer (⌘Z)") { orden("deshacer") }
-                BotonFlotante(simbolo: "arrow.uturn.forward", ayuda: "Rehacer (⇧⌘Z)") { orden("rehacer") }
-            }
             BotonFlotante(simbolo: "speaker.wave.2", ayuda: "Leer en voz alta", encendido: voz.vivo,
                           accion: escuchar)
-            BotonFlotante(simbolo: "magnifyingglass", ayuda: "Buscar (⌘F)") { orden("buscar") }
             BotonFlotante(simbolo: "text.bubble", ayuda: "Comentarios", encendido: estado.comentarios) {
                 orden("comentarios")
             }
