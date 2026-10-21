@@ -7,7 +7,7 @@
 # Necesita la sesion de GitHub iniciada una vez:
 #   ~/bin/gh auth login -h github.com -p https -w
 # Monta la app con esa version (app.sh), sube `mac-desarrollo`, crea el tag
-# `v<version>` y la release con PixPin-mac.zip y las notas de
+# `v<version>` y la release con el instalador PixPin-Mac-<version>.dmg y las notas de
 # docs/releases/v<version>.md.
 set -euo pipefail
 
@@ -19,6 +19,7 @@ APPLE="$(cd "$(dirname "$0")/.." && pwd)"
 RAIZ="$(cd "$APPLE/.." && pwd)"
 NOTAS="$RAIZ/docs/releases/v$VERSION.md"
 ZIP="$APPLE/app/dist/PixPin-mac.zip"
+DMG="$APPLE/app/dist/PixPin-Mac-$VERSION.dmg"
 
 [[ -x "$GH" ]] || { echo "Falta gh: descargalo en ~/bin/gh (ver README)"; exit 1; }
 "$GH" auth status -h github.com >/dev/null 2>&1 || {
@@ -32,7 +33,18 @@ fi
 
 echo "==> Montando PixPin $VERSION"
 (cd "$APPLE" && PIXPIN_VERSION="$VERSION" herramientas/app.sh spm)
-[[ -f "$ZIP" ]] || { echo "No salio $ZIP"; exit 1; }
+[[ -d "$APPLE/app/dist/PixPin.app" ]] || { echo "No salio PixPin.app"; exit 1; }
+
+# **El instalador**: un .dmg con PixPin y un acceso a Aplicaciones (se
+# arrastra), no un comprimido.
+echo "==> Instalador $DMG"
+DIR="$(mktemp -d)/PixPin"
+mkdir -p "$DIR"
+ditto "$APPLE/app/dist/PixPin.app" "$DIR/PixPin.app"
+ln -s /Applications "$DIR/Aplicaciones"
+rm -f "$DMG"
+hdiutil create -volname "PixPin $VERSION" -srcfolder "$DIR" -fs HFS+ -format UDZO -ov "$DMG" >/dev/null
+rm -rf "$(dirname "$DIR")"
 
 echo "==> Subiendo $RAMA"
 "$GH" auth setup-git -h github.com
@@ -48,10 +60,10 @@ echo "==> Release $TAG"
 EXTRA=(--prerelease)
 [[ -n "${PIXPIN_ESTABLE:-}" ]] && EXTRA=()
 if "$GH" release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
-    "$GH" release upload "$TAG" "$ZIP" -R "$REPO" --clobber
+    "$GH" release upload "$TAG" "$DMG" -R "$REPO" --clobber
     "$GH" release edit "$TAG" -R "$REPO" --notes-file "$NOTAS"
 else
-    "$GH" release create "$TAG" "$ZIP" -R "$REPO" --target "$RAMA" \
+    "$GH" release create "$TAG" "$DMG" -R "$REPO" --target "$RAMA" \
         --title "PixPin Max Pro para Mac $VERSION" --notes-file "$NOTAS" "${EXTRA[@]}"
 fi
 echo "==> Listo: https://github.com/$REPO/releases/tag/$TAG"

@@ -15,6 +15,7 @@ directamente por la red Wi‑Fi de casa.
 | 🪟 **Windows** | [PIXPIN_PRO_WINDOWS](https://github.com/1xmanMAX/PIXPIN_PRO_WINDOWS) | La versión de referencia (Rust). |
 | 🤖 **Android** | [PIXPIN_PRO_ANDROID](https://github.com/1xmanMAX/PIXPIN_PRO_ANDROID) | Captura, anota y fija notas flotantes en el móvil. |
 | 🍎 **Mac** | este repositorio | Port nativo (Rust + Swift), sincronizado con los otros dos. |
+| 📱 **iPhone y iPad (iOS)** | este repositorio (`apple/`) | **En desarrollo**, sobre el mismo núcleo que el Mac. |
 
 Las tres usan **el mismo protocolo de sincronización y el mismo formato de carpetas**. Un
 proyecto, una nota, una tinta o un marcador hecho en un aparato aparece en los demás.
@@ -44,7 +45,8 @@ proyecto, una nota, una tinta o un marcador hecho en un aparato aparece en los d
 
 La versión de **Mac** de PixPin Max: capturas, pines flotantes, chats de proyecto, lienzo,
 notas, documentos, planos y modelos 3D, sincronizada con **Windows y Android** por la red
-local con el mismo protocolo y el mismo formato de carpetas. Después vendrán iPad e iPhone.
+local con el mismo protocolo y el mismo formato de carpetas. **iPhone y iPad están en
+desarrollo** sobre el mismo núcleo.
 
 - Núcleo en **Rust** (`apple/nucleo/`): el mismo código que la versión de Windows
   ([PIXPIN_PRO_WINDOWS](https://github.com/1xmanMAX/PIXPIN_PRO_WINDOWS)), compilado como
@@ -56,9 +58,9 @@ local con el mismo protocolo y el mismo formato de carpetas. Después vendrán i
 ## Descargar y probar
 
 **Lo más fácil: Releases.** En [Releases](https://github.com/1xmanMAX/PIXPIN_PRO_MAC/releases)
-está la última versión, **PixPin-mac.zip** (Apple Silicon e Intel). Se descomprime, se mueve
-**PixPin.app** a **Aplicaciones** y se sigue desde el paso 3 de abajo. Lo nuevo de cada versión
-está en [`docs/releases/`](docs/releases).
+está la última versión como **instalador `.dmg`** (Apple Silicon e Intel): se abre, se arrastra
+**PixPin** a **Aplicaciones** y se sigue desde el paso 3 de abajo. Lo nuevo de cada versión
+está en [`docs/releases/`](docs/releases) (la última: [v0.4.0](docs/releases/v0.4.0.md)).
 
 También, cada cambio compila la app en un Mac de GitHub (`.github/workflows/apple.yml`), pasa las
 pruebas, comprueba que arranca y deja la app para descargar:
@@ -135,3 +137,14 @@ herramientas/subir-release.sh          # sube mac-desarrollo, crea el tag y la r
 El formato de proyectos y el protocolo de sincronización tienen que seguir siendo idénticos a
 los de Windows y Android: un arreglo en `pixpin-sincro` o `pixpin-proyecto` se lleva también al
 repositorio de Windows. Lo que no se puede sincronizar está en el plan (§5).
+
+## Hoja de ruta (lo que falta pulir)
+
+PixPin para Mac ya es usable a diario, pero **todavía hay que pulirlo**:
+
+- **iPhone y iPad**: la app de iOS, en desarrollo sobre el mismo núcleo.
+- **Firma y notarización** de Apple (que macOS no pida permiso al abrirla).
+- **Sincronización** probada a fondo con Windows y Android, con proyectos grandes.
+- **Word y PowerPoint antiguos** (`.doc`, `.ppt`) en el visor propio, como Windows.
+- La tecla **G** para el menú ⋮, abrir desde otras apps sin poner el chat delante.
+- Exportar web y notas **en hojas**; pulir la interfaz para que sea idéntica a la de Windows.
