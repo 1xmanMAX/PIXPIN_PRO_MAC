@@ -2179,6 +2179,14 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
     func esDeDocumento()  -> Bool
     
     /**
+     * **Anotando un plano**: lo que nace (o cambia de grosor o letra desde
+     * el panel) con los tamanos de fabrica se pone a `k` (uno entre el zoom
+     * con que se ve el plano): un trazo «fino» se ve fino en la pantalla,
+     * como en Windows y Android. Lo que ya estaba no se toca.
+     */
+    func escalaDeLoNuevo(k: Float) 
+    
+    /**
      * Si se esta escribiendo un texto: entonces las teclas son del texto
      * (Swift se las manda con [`EditorLienzo::teclear`] y
      * [`EditorLienzo::tecla`]) y no atajos.
@@ -2248,6 +2256,11 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
     func planoDeVista(x: Float, y: Float, zoom: Float, anchoPx: Float, altoPx: Float)  -> LienzoPlano
     
     /**
+     * Ver [`EditorLienzo::escala_de_lo_nuevo`]. Dice si cambio algo.
+     */
+    func ponerAEscala()  -> Bool
+    
+    /**
      * Si hay algo que deshacer (para la barra).
      */
     func puedeDeshacer()  -> Bool
@@ -2260,6 +2273,8 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
      * pantalla). Devuelve la version: si cambio, hay que repintar.
      */
     func puntero(fase: FasePuntero, x: Float, y: Float, presion: Float?, modificadores: UInt32, zoom: Float)  -> UInt64
+    
+    func punteroSinEscala(fase: FasePuntero, x: Float, y: Float, presion: Float?, modificadores: UInt32, zoom: Float)  -> UInt64
     
     /**
      * Rehace lo ultimo deshecho.
@@ -2336,6 +2351,8 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
      * Devuelve si cambio el dibujo (entonces hay que guardar).
      */
     func cambiarEstilo(cambio: CambioDeEstilo)  -> Bool
+    
+    func cambiarEstiloSinEscala(cambio: CambioDeEstilo)  -> Bool
     
     /**
      * **El estilo que ensena la barra**: el de lo elegido (el primero que
@@ -2672,6 +2689,21 @@ open func esDeDocumento() -> Bool  {
 }
     
     /**
+     * **Anotando un plano**: lo que nace (o cambia de grosor o letra desde
+     * el panel) con los tamanos de fabrica se pone a `k` (uno entre el zoom
+     * con que se ve el plano): un trazo «fino» se ve fino en la pantalla,
+     * como en Windows y Android. Lo que ya estaba no se toca.
+     */
+open func escalaDeLoNuevo(k: Float)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_escala_de_lo_nuevo(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(k),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * Si se esta escribiendo un texto: entonces las teclas son del texto
      * (Swift se las manda con [`EditorLienzo::teclear`] y
      * [`EditorLienzo::tecla`]) y no atajos.
@@ -2809,6 +2841,18 @@ open func planoDeVista(x: Float, y: Float, zoom: Float, anchoPx: Float, altoPx: 
 }
     
     /**
+     * Ver [`EditorLienzo::escala_de_lo_nuevo`]. Dice si cambio algo.
+     */
+open func ponerAEscala() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_poner_a_escala(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Si hay algo que deshacer (para la barra).
      */
 open func puedeDeshacer() -> Bool  {
@@ -2831,6 +2875,21 @@ open func puntero(fase: FasePuntero, x: Float, y: Float, presion: Float?, modifi
     return try!  FfiConverterUInt64.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_editorlienzo_puntero(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeFasePuntero_lower(fase),
+        FfiConverterFloat.lower(x),
+        FfiConverterFloat.lower(y),
+        FfiConverterOptionFloat.lower(presion),
+        FfiConverterUInt32.lower(modificadores),
+        FfiConverterFloat.lower(zoom),uniffiCallStatus
+    )
+})
+}
+    
+open func punteroSinEscala(fase: FasePuntero, x: Float, y: Float, presion: Float?, modificadores: UInt32, zoom: Float) -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_puntero_sin_escala(
             self.uniffiCloneHandle(),
         FfiConverterTypeFasePuntero_lower(fase),
         FfiConverterFloat.lower(x),
@@ -3008,6 +3067,16 @@ open func cambiarEstilo(cambio: CambioDeEstilo) -> Bool  {
     return try!  FfiConverterBool.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_editorlienzo_cambiar_estilo(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCambioDeEstilo_lower(cambio),uniffiCallStatus
+    )
+})
+}
+    
+open func cambiarEstiloSinEscala(cambio: CambioDeEstilo) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_cambiar_estilo_sin_escala(
             self.uniffiCloneHandle(),
         FfiConverterTypeCambioDeEstilo_lower(cambio),uniffiCallStatus
     )
@@ -42077,6 +42146,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_es_de_documento() != 33015) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_escala_de_lo_nuevo() != 40157) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_escribiendo() != 58833) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -42104,10 +42176,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_plano_de_vista() != 17813) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_poner_a_escala() != 12378) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_puede_deshacer() != 15378) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_puntero() != 64575) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_puntero_sin_escala() != 23297) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_rehacer() != 33391) {
@@ -42147,6 +42225,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_cambiar_estilo() != 2206) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_cambiar_estilo_sin_escala() != 6247) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_estilo() != 48239) {

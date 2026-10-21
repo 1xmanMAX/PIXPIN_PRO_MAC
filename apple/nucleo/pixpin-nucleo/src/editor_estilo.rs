@@ -232,6 +232,11 @@ impl EditorLienzo {
     /// hay algo elegido que lo admite, se le aplica en un paso de deshacer.
     /// Devuelve si cambio el dibujo (entonces hay que guardar).
     pub fn cambiar_estilo(&self, cambio: CambioDeEstilo) -> bool {
+        let hecho = self.cambiar_estilo_sin_escala(cambio);
+        self.poner_a_escala() || hecho
+    }
+
+    fn cambiar_estilo_sin_escala(&self, cambio: CambioDeEstilo) -> bool {
         let (c, propiedad) = al_motor(cambio);
         let mut guarda = self.tomar();
         let st = &mut *guarda;

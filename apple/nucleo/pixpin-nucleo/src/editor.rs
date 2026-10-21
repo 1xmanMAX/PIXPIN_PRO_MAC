@@ -238,6 +238,11 @@ pub(crate) struct Estado {
     /// Lo que se ve ahora `(x0, y0, x1, y1)` en el mundo (el ultimo
     /// fotograma): lo que dibuja el asistente cae en su centro.
     pub(crate) vista: Option<(f32, f32, f32, f32)>,
+    /// **Lo nuevo a la escala del plano** (`plano_cad::anotar` de Windows,
+    /// `escalaDeLoNuevo` de Android): `k` (uno entre el zoom del plano) y lo
+    /// ultimo visto de cada elemento (grosor y letra). `None` fuera de un
+    /// plano: el lienzo de siempre.
+    pub(crate) a_escala: Option<(f32, std::collections::HashMap<u64, (f32, Option<f32>)>)>,
 }
 
 /// Lo que se toca al guardar (un cerrojo aparte: guardar no frena el
@@ -451,6 +456,7 @@ impl EditorLienzo {
                 mano: ManoHerramientas::default(),
                 papel: None,
                 vista: None,
+                a_escala: None,
             }),
             disco: Mutex::new(Disco {
                 ultimo: excalidraw::escribir(&abierto),
@@ -841,6 +847,66 @@ impl EditorLienzo {
     /// unidad del mundo, para las tolerancias del motor (que son de
     /// pantalla). Devuelve la version: si cambio, hay que repintar.
     pub fn puntero(
+        &self,
+        fase: FasePuntero,
+        x: f32,
+        y: f32,
+        presion: Option<f32>,
+        modificadores: u32,
+        zoom: f32,
+    ) -> u64 {
+        let v = self.puntero_sin_escala(fase, x, y, presion, modificadores, zoom);
+        if self.poner_a_escala() { self.subir_version() } else { v }
+    }
+
+    /// **Anotando un plano**: lo que nace (o cambia de grosor o letra desde
+    /// el panel) con los tamanos de fabrica se pone a `k` (uno entre el zoom
+    /// con que se ve el plano): un trazo «fino» se ve fino en la pantalla,
+    /// como en Windows y Android. Lo que ya estaba no se toca.
+    pub fn escala_de_lo_nuevo(&self, k: f32) {
+        if !(k.is_finite() && k > 0.0) {
+            return;
+        }
+        let mut st = self.tomar();
+        let visto = match st.a_escala.take() {
+            Some((_, v)) => v,
+            None => st.escena.elementos.iter().map(|e| (e.id, medidas_de(e))).collect(),
+        };
+        st.a_escala = Some((k, visto));
+    }
+
+    /// Ver [`EditorLienzo::escala_de_lo_nuevo`]. Dice si cambio algo.
+    pub(crate) fn poner_a_escala(&self) -> bool {
+        let mut guarda = self.tomar();
+        let st = &mut *guarda;
+        let letra = st.gesto.estilo.tamano_letra;
+        let Some((k, visto)) = st.a_escala.as_mut() else { return false };
+        let k = *k;
+        let mut cambio = false;
+        for e in st.escena.elementos.iter_mut() {
+            let antes = visto.get(&e.id).copied();
+            let (g, t) = medidas_de(e);
+            if antes.is_none_or(|(g0, _)| (g0 - g).abs() > 1e-6) && grosor_de_fabrica(g) && (k - 1.0).abs() > 1e-6 {
+                e.grosor *= k;
+                cambio = true;
+            }
+            let letra_nueva = antes.is_none_or(|(_, t0)| t0.is_none_or(|t0| t.is_some_and(|t| (t0 - t).abs() > 1e-6)));
+            if letra_nueva
+                && let pixpin_motor2d::Figura::Texto { tam, .. } = &mut e.figura
+                && letra_de_fabrica(*tam, letra)
+                && (k - 1.0).abs() > 1e-6
+            {
+                *tam *= k;
+                e.ancho *= k;
+                e.alto *= k;
+                cambio = true;
+            }
+            visto.insert(e.id, medidas_de(e));
+        }
+        cambio
+    }
+
+    fn puntero_sin_escala(
         &self,
         fase: FasePuntero,
         x: f32,
@@ -1645,4 +1711,24 @@ fn validar_nombre(parte: &str) -> Result<(), ErrorNucleo> {
         });
     }
     Ok(())
+}
+
+/// Los grosores del panel (fino, medio y grueso de formas, lapiz y
+/// resaltador): solo esos se ponen a la escala del plano.
+fn grosor_de_fabrica(g: f32) -> bool {
+    use pixpin_motor2d::estilo::NivelGrosor as N;
+    [N::Fino, N::Medio, N::Grueso].iter().any(|n| [n.de_forma(), n.de_tinta(), n.de_resaltador()].iter().any(|v| (v - g).abs() < 1e-4))
+}
+
+/// Lo mismo con la letra: los tamanos del panel y el elegido.
+fn letra_de_fabrica(t: f32, la_elegida: f32) -> bool {
+    (t - la_elegida).abs() < 1e-4 || [16.0f32, 20.0, 28.0, 36.0].iter().any(|v| (v - t).abs() < 1e-4)
+}
+
+fn medidas_de(e: &pixpin_motor2d::Elemento) -> (f32, Option<f32>) {
+    let letra = match &e.figura {
+        pixpin_motor2d::Figura::Texto { tam, .. } => Some(*tam),
+        _ => None,
+    };
+    (e.grosor, letra)
 }

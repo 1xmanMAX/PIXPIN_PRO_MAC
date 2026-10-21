@@ -997,6 +997,7 @@ mod pruebas {
             vec![pixpin_cad::modelo3d::Nivel {
                 nombre: "1ER PISO".into(),
                 cota: 0.0,
+                clave: String::new(),
             }],
             &[(a, 0)],
         );

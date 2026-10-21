@@ -76,6 +76,9 @@ final class AnotadorPlano {
         guard encaje.u > 0, camara.px > 0, escala > 0 else { return }
         let c = AnotadorPlano.camaraDelLienzo(camara, escala: escala, tamano: tamano, encaje: encaje)
         vista.ponerCamara(origen: c.origen, zoom: c.zoom)
+        // Lo nuevo, a la escala de lo que se ve (Windows): un trazo fino se
+        // ve fino aunque el plano este muy lejos o muy cerca.
+        if c.zoom > 0 { modelo.editor.escalaDeLoNuevo(k: Float(1 / c.zoom)) }
     }
 
     /// **Termina**: lo que se escribia se queda escrito y la capa se guarda

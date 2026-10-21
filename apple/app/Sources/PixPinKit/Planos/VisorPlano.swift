@@ -250,6 +250,14 @@ public final class VisorPlano: ObservableObject {
         guardar(a)
     }
 
+    /// Una ficha de abajo: mira el marco `i` entero, con un margen.
+    func irAMarco(_ i: Int) {
+        guard i < anotado.marcos.count, let v = vista else { return }
+        let m = anotado.marcos[i]
+        let ancho = max(m.x1 - m.x0, (m.y1 - m.y0) * v.anchoPx / max(v.altoPx, 1)) * 1.1
+        v.mirar(centroX: (m.x0 + m.x1) / 2, centroY: (m.y0 + m.y1) / 2, ancho: ancho)
+    }
+
     public func borrarMarcos() {
         var a = anotado
         a.marcos = []
@@ -480,6 +488,9 @@ public final class VistaPlanoMetal: MTKView {
         isPaused = true
         enableSetNeedsDisplay = true
         autoResizeDrawable = true
+        // El plano y lo de encima (tinta, marcos) en el mismo fotograma:
+        // sin esto la tinta iba un paso por detras al mover.
+        (layer as? CAMetalLayer)?.presentsWithTransaction = true
         encima.vista = self
         encima.frame = bounds
         encima.autoresizingMask = [.width, .height]
@@ -624,8 +635,9 @@ public final class VistaPlanoMetal: MTKView {
             }
         }
         enc.endEncoding()
-        cb.present(dibujable)
         cb.commit()
+        cb.waitUntilScheduled()
+        dibujable.present()
     }
 
     // MARK: Gestos
@@ -899,11 +911,27 @@ final class CapaEncimaPlano: NSView {
         pintarTinta(v, visor, ctx)
         // Los marcos para imprimir.
         ctx.setLineWidth(1.2)
-        ctx.setStrokeColor(CapaEncimaPlano.azul.cgColor)
+        ctx.setStrokeColor(CapaMarcosPDF.azul.cgColor)
         ctx.setLineDash(phase: 0, lengths: [6, 4])
         for m in visor.anotado.marcos {
             ctx.stroke(rect(v, m))
         }
+        ctx.setLineDash(phase: 0, lengths: [])
+        // Su numero abajo a la izquierda, como en los demas visores.
+        for (i, m) in visor.anotado.marcos.enumerated() {
+            let r = rect(v, m)
+            let t = "\(i + 1)" as NSString
+            let atr: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 10, weight: .semibold),
+                                                      .foregroundColor: NSColor.white]
+            let tam = t.size(withAttributes: atr)
+            let caja = CGRect(x: r.minX, y: r.minY, width: max(16, tam.width + 6), height: 16)
+            ctx.setFillColor(CapaMarcosPDF.azul.cgColor)
+            ctx.fill(caja)
+            NSGraphicsContext.saveGraphicsState()
+            t.draw(at: CGPoint(x: caja.midX - tam.width / 2, y: caja.midY - tam.height / 2), withAttributes: atr)
+            NSGraphicsContext.restoreGraphicsState()
+        }
+        ctx.setLineDash(phase: 0, lengths: [6, 4])
         if let m = v.marcoEnCurso {
             let (a, b) = m
             ctx.stroke(rect(v, CajaPlano(x0: min(a.x, b.x), y0: min(a.y, b.y), x1: max(a.x, b.x), y1: max(a.y, b.y))))
@@ -1053,6 +1081,13 @@ public struct VentanaPlanoView: View {
                                      ir: { visor.ir(a: $0) })
                     }
 
+                    // Las fichas 1, 2, 3… de los marcos, abajo a la izquierda.
+                    if visor.datos != nil && (!visor.anotado.marcos.isEmpty || visor.modo == .marco) {
+                        fichasDeMarcos
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            .padding(14)
+                    }
+
                     // Las capas, un menu flotante (no una columna fija).
                     if visor.verCapas && visor.datos != nil {
                         PanelFlotantePlano(alto: min(380, 52 + CGFloat(visor.capas.count) * 26)) { panelCapas }
@@ -1061,6 +1096,27 @@ public struct VentanaPlanoView: View {
             }
         }
         .sheet(isPresented: $visor.verLetras) { LetrasDelPlanoView(visor: visor) }
+    }
+
+    private var fichasDeMarcos: some View {
+        HStack(spacing: 6) {
+            ForEach(Array(visor.anotado.marcos.indices), id: \.self) { i in
+                Button { visor.irAMarco(i) } label: {
+                    Text("\(i + 1)").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white)
+                        .frame(width: 28, height: 28)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(Color(nsColor: CapaMarcosPDF.azul)))
+                }
+                .buttonStyle(.plain)
+                .help("Ir al marco \(i + 1)")
+            }
+            if visor.modo == .marco {
+                Text(visor.anotado.marcos.isEmpty ? "Arrastra para poner un marco · I sale"
+                     : "Arrastra: otro marco · Supr quita el último · ⌘P imprime · I sale")
+                    .font(.system(size: 11)).foregroundStyle(.white)
+                    .padding(.horizontal, 10).frame(height: 28)
+                    .background(Capsule().fill(Color(white: 0.08, opacity: 0.9)))
+            }
+        }
     }
 
     @ViewBuilder private var contenido: some View {
