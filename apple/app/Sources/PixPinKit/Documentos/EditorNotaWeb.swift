@@ -303,17 +303,19 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         NSWorkspace.shared.open(url)
     }
 
-    /// La hoja de compartir del Mac con la nota como `.md` (y su texto).
+    /// Compartir la nota: la hoja comun con sus paginas y el `.md`.
     private func compartir(titulo: String, texto: String) {
         let limpio = titulo.components(separatedBy: CharacterSet(charactersIn: "/:\\?%*|\"<>")).joined(separator: "_")
         let carpeta = FileManager.default.temporaryDirectory.appendingPathComponent("pixpin-notas", isDirectory: true)
         try? FileManager.default.createDirectory(at: carpeta, withIntermediateDirectories: true)
         let url = carpeta.appendingPathComponent((limpio.isEmpty ? "Nota" : limpio) + ".md")
-        var cosas: [Any] = [texto]
-        if (try? texto.write(to: url, atomically: true, encoding: .utf8)) != nil { cosas = [url] }
-        let picker = NSSharingServicePicker(items: cosas)
-        let ancla = NSRect(x: web.bounds.maxX - 220, y: web.bounds.maxY - 44, width: 1, height: 1)
-        picker.show(relativeTo: ancla, of: web, preferredEdge: .minY)
+        guard (try? texto.write(to: url, atomically: true, encoding: .utf8)) != nil else { return }
+        // La hoja comun (como Windows): sus paginas en HTML, PDF, PNG… y el `.md`.
+        let nombre = limpio.isEmpty ? "Nota" : limpio
+        web.createPDF { r in
+            let p = PrepararCompartir.deVisor(titulo: nombre, original: url, pdf: try? r.get())
+            HojaCompartir.abrir(.preparado(p), almacen: nil)
+        }
     }
 
     // MARK: Delegados

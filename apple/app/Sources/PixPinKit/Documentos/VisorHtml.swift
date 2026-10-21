@@ -424,7 +424,11 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     /// **Exportar la pagina** con la hoja comun (la pagina, el original, su
     /// PDF...).
     func exportar() {
-        HojaCompartir.abrir(.ficheros(titulo: url.deletingPathExtension().lastPathComponent, [url]), almacen: nil)
+        let titulo = url.deletingPathExtension().lastPathComponent, original = url
+        web.createPDF { r in
+            let p = PrepararCompartir.deVisor(titulo: titulo, original: original, pdf: try? r.get())
+            HojaCompartir.abrir(.preparado(p), almacen: nil)
+        }
     }
 
     // MARK: Guardar encima

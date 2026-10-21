@@ -63,6 +63,21 @@ enum PrepararCompartir {
         return p
     }
 
+    /// **Lo que se ve en un visor** (Word, web, notas…), como `de_visor` de
+    /// Windows: sus paginas (en `pdf`, ya paginado) para HTML, PDF, PNG, JPG
+    /// y SVG, y el original entero.
+    static func deVisor(titulo: String, original: URL, pdf: Data?) -> PreparadoCompartir {
+        let p = PreparadoCompartir(titulo: titulo)
+        if let pdf {
+            let tmp = FileManager.default.temporaryDirectory
+                .appendingPathComponent("pixpin-visor-\(UUID().uuidString).pdf")
+            if (try? pdf.write(to: tmp)) != nil { anadirPdf(p, tmp, clave: "v") }
+        }
+        anadirOriginales(p, [original])
+        p.originalPrimero = p.piezas.isEmpty
+        return p
+    }
+
     /// Las paginas de un PDF, con «Página n».
     static func anadirPdf(_ p: PreparadoCompartir, _ url: URL, clave: String) {
         guard let doc = PDFDocument(url: url), !doc.isLocked else { return }

@@ -1343,7 +1343,28 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         let b = p.bounds(for: vistaPDF.displayBox)
         let a = h.punto(CGPoint(x: m.caja[0], y: m.caja[1]), bounds: b, hoja: n)
         let z = h.punto(CGPoint(x: m.caja[2], y: m.caja[3]), bounds: b, hoja: n)
-        vistaPDF.go(to: CGRect(x: min(a.x, z.x), y: min(a.y, z.y), width: abs(a.x - z.x), height: abs(a.y - z.y)), on: p)
+        let r = CGRect(x: min(a.x, z.x), y: min(a.y, z.y), width: abs(a.x - z.x), height: abs(a.y - z.y))
+        centrar(r, en: p)
+    }
+
+    /// **El marco entero y en medio de la ventana** (como Windows): el zoom
+    /// para que quepa con un margen y su centro al centro de la vista (no en
+    /// la esquina, que dejaba un hueco). En el canto del documento, lo mas
+    /// cerca que se pueda.
+    private func centrar(_ r: CGRect, en p: PDFPage) {
+        guard r.width > 1, r.height > 1, let doc = vistaPDF.documentView,
+              let clip = doc.enclosingScrollView?.contentView else { return vistaPDF.go(to: r, on: p) }
+        let tam = vistaPDF.bounds.size
+        let k = min(tam.width / r.width, tam.height / r.height) * 0.9
+        vistaPDF.autoScales = false
+        vistaPDF.scaleFactor = min(max(k, vistaPDF.minScaleFactor), vistaPDF.maxScaleFactor)
+        vistaPDF.layoutDocumentView()
+        let enVista = vistaPDF.convert(r, from: p)
+        let enDoc = doc.convert(enVista, from: vistaPDF)
+        let visto = clip.bounds.size
+        let o = NSPoint(x: enDoc.midX - visto.width / 2, y: enDoc.midY - visto.height / 2)
+        clip.scroll(to: clip.constrainBoundsRect(NSRect(origin: o, size: visto)).origin)
+        doc.enclosingScrollView?.reflectScrolledClipView(clip)
     }
 
     func borrarMarcos() { marcos.borrar(); capaMarcos.needsDisplay = true }

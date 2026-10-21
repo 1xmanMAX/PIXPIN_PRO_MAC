@@ -239,9 +239,7 @@ struct BarraReflujo: View {
                    fijar: { visor?.ponerEncima($0) },
                    menu: [
                     EntradaMenuVisor("Compartir…", "square.and.arrow.up") {
-                        if let u = visor?.url {
-                            HojaCompartir.abrir(.ficheros(titulo: u.deletingPathExtension().lastPathComponent, [u]), almacen: nil)
-                        }
+                        visor?.exportar()
                     },
                     EntradaMenuVisor("Imprimir (⌘P)", "printer") { visor?.imprimir() },
                     EntradaMenuVisor("Borrar los marcos", "rectangle.dashed", destructivo: true, separar: true) { visor?.borrarMarcos() },
@@ -1666,6 +1664,24 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         info.horizontalPagination = .fit
         info.verticalPagination = .automatic
         NSPrintOperation(view: pagina, printInfo: info).runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+
+    /// **Exportar** con la hoja comun: sus paginas (HTML, PDF, PNG…) y el
+    /// original, como Windows.
+    func exportar() {
+        var pdf: Data?
+        if maqueta != nil {
+            let datos = NSMutableData()
+            let info = (NSPrintInfo.shared.copy() as? NSPrintInfo) ?? NSPrintInfo()
+            info.horizontalPagination = .fit
+            info.verticalPagination = .automatic
+            let op = NSPrintOperation.pdfOperation(with: pagina, inside: pagina.bounds, to: datos, printInfo: info)
+            op.showsPrintPanel = false
+            op.showsProgressPanel = false
+            if op.run() { pdf = datos as Data }
+        }
+        let p = PrepararCompartir.deVisor(titulo: url.deletingPathExtension().lastPathComponent, original: url, pdf: pdf)
+        HojaCompartir.abrir(.preparado(p), almacen: nil)
     }
 
     func compartir() {

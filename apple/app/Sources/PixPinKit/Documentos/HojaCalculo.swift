@@ -257,7 +257,36 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     /// El riel (lapiz, marcador, marco), como en Windows.
     let riel: RielHoja
 
+    /// El libro (para exportarlo entero); `nil` si no viene de un fichero.
+    private(set) var urlDelLibro: URL?
+
+    /// **Exportar** con la hoja comun: la rejilla en paginas (HTML, PDF,
+    /// PNG…) y el libro original, como Windows.
+    func exportar() {
+        let datos = NSMutableData()
+        let info = (NSPrintInfo.shared.copy() as? NSPrintInfo) ?? NSPrintInfo()
+        info.horizontalPagination = .automatic
+        info.verticalPagination = .automatic
+        let op = NSPrintOperation.pdfOperation(with: rejilla, inside: rejilla.bounds, to: datos, printInfo: info)
+        op.showsPrintPanel = false
+        op.showsProgressPanel = false
+        let pdf: Data? = op.run() ? datos as Data : nil
+        let titulo = modelo.nombre.isEmpty ? "Hoja" : (modelo.nombre as NSString).deletingPathExtension
+        let p: PreparadoCompartir
+        if let u = urlDelLibro {
+            p = PrepararCompartir.deVisor(titulo: titulo, original: u, pdf: pdf)
+        } else {
+            p = PreparadoCompartir(titulo: titulo)
+            if let pdf {
+                let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("pixpin-hoja-\(UUID().uuidString).pdf")
+                if (try? pdf.write(to: tmp)) != nil { PrepararCompartir.anadirPdf(p, tmp, clave: "v") }
+            }
+        }
+        HojaCompartir.abrir(.preparado(p), almacen: nil)
+    }
+
     init(hoja: HojaDeCalculo, titulo: String, url: URL? = nil, nucleo: Nucleo? = nil) {
+        urlDelLibro = url
         self.hoja = hoja
         riel = RielHoja(url: url, nucleo: nucleo)
         ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
@@ -931,7 +960,8 @@ struct BarraHojaPin: View {
     @ObservedObject var modelo: ModeloHojaPin
 
     var body: some View {
-        BarraVisor(nombre: modelo.nombre, ext: (modelo.nombre as NSString).pathExtension) {
+        BarraVisor(nombre: modelo.nombre, ext: (modelo.nombre as NSString).pathExtension,
+                   menu: [EntradaMenuVisor("Compartir…", "square.and.arrow.up") { modelo.controlador?.exportar() }]) {
             BotonVerEditar(editando: modelo.editando, texto: true) {
                 modelo.controlador?.ponerEditando(!modelo.editando)
             }
