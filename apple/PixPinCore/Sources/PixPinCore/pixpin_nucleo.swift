@@ -2431,6 +2431,14 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
      */
     func contenidoDeTapado(idObjeto: UInt64)  -> ContenidoTapado?
     
+    /**
+     * **El nombre que se propone al guardar lo elegido como figura**: si es
+     * una plantilla de serie (una alargada), su nombre con la categoria y
+     * un espacio («Planificación · Lista de tareas »), para que caiga en su
+     * categoria; si no, vacio (`guardar_seleccion` de Windows).
+     */
+    func nombrePropuestoDeFigura()  -> String
+    
 }
 /**
  * **Un lienzo abierto para editar.** Se usa desde varios hilos: el puntero
@@ -3262,6 +3270,21 @@ open func contenidoDeTapado(idObjeto: UInt64) -> ContenidoTapado?  {
 })
 }
     
+    /**
+     * **El nombre que se propone al guardar lo elegido como figura**: si es
+     * una plantilla de serie (una alargada), su nombre con la categoria y
+     * un espacio («Planificación · Lista de tareas »), para que caiga en su
+     * categoria; si no, vacio (`guardar_seleccion` de Windows).
+     */
+open func nombrePropuestoDeFigura() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_nombre_propuesto_de_figura(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
 
     
 }
@@ -3514,6 +3537,345 @@ public func FfiConverterTypeEscucha_lift(_ handle: UInt64) throws -> Escucha {
 #endif
 public func FfiConverterTypeEscucha_lower(_ value: Escucha) -> UInt64 {
     return FfiConverterTypeEscucha.lower(value)
+}
+
+
+
+
+
+
+/**
+ * **La biblioteca abierta en la ventana de las figuras**: se lee una vez
+ * al abrirla (el catalogo es grande) y se busca y se filtra en memoria.
+ * Renombrar y quitar se guardan al momento y viajan.
+ */
+public protocol GaleriaFigurasProtocol: AnyObject, Sendable {
+    
+    /**
+     * **Los campos del intervalo** de la figura `id`; ninguno si no es una
+     * plantilla que se alarga.
+     */
+    func campos(id: String)  -> [CampoDeIntervalo]
+    
+    /**
+     * **Las categorias de la izquierda** con su cuenta, en su orden: las
+     * que tienen alguna y siempre «Mis figuras» (al final). «Todas» la
+     * pone la ventana.
+     */
+    func categorias()  -> [CategoriaDeFiguras]
+    
+    /**
+     * Cuantas hay (el subtitulo: «N figuras y plantillas»).
+     */
+    func cuantas()  -> UInt32
+    
+    /**
+     * De que piezas esta hecha y los textos que lleva.
+     */
+    func detalle(id: String)  -> DetalleDeFigura?
+    
+    /**
+     * **Inserta la figura `id`** en `editor`, centrada en `(centro_x,
+     * centro_y)` y elegida, en un paso de deshacer; una plantilla con su
+     * intervalo, ya alargada (sus hojas en fila). Error con el aviso si el
+     * intervalo no vale.
+     */
+    func insertar(id: String, valores: [ValorDeCampo], editor: EditorLienzo, centroX: Float, centroY: Float) throws  -> Bool
+    
+    /**
+     * **La miniatura** de la figura `id`: el bufer plano de su lienzo
+     * (`lienzo.rs`), desde el origen. `None` si no esta o no tiene piezas.
+     */
+    func plano(id: String)  -> LienzoPlano?
+    
+    /**
+     * **Lo que saldria con ese intervalo** («4 hojas») o lo que falla;
+     * `None` con los campos vacios (la de serie, tal cual).
+     */
+    func previa(id: String, valores: [ValorDeCampo])  -> PreviaDeIntervalo?
+    
+    /**
+     * **Quita la figura `id`** de la biblioteca.
+     */
+    func quitar(id: String) throws  -> Bool
+    
+    /**
+     * Vuelve a leer la biblioteca (llego una por la sincro, se guardo una
+     * desde el lienzo).
+     */
+    func releer() throws 
+    
+    /**
+     * **Renombra la figura `id`** (el nombre entero: con «Categoria · »
+     * delante cae en esa categoria). `false` si no cambia nada.
+     */
+    func renombrar(id: String, nombre: String) throws  -> Bool
+    
+    /**
+     * **Las que se ven** en la categoria (`None`, todas) con lo buscado,
+     * en el orden de las categorias.
+     */
+    func visibles(categoria: String?, consulta: String)  -> [FichaDeFigura]
+    
+}
+/**
+ * **La biblioteca abierta en la ventana de las figuras**: se lee una vez
+ * al abrirla (el catalogo es grande) y se busca y se filtra en memoria.
+ * Renombrar y quitar se guardan al momento y viajan.
+ */
+open class GaleriaFiguras: GaleriaFigurasProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_galeriafiguras(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_galeriafiguras(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * **Los campos del intervalo** de la figura `id`; ninguno si no es una
+     * plantilla que se alarga.
+     */
+open func campos(id: String) -> [CampoDeIntervalo]  {
+    return try!  FfiConverterSequenceTypeCampoDeIntervalo.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_campos(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las categorias de la izquierda** con su cuenta, en su orden: las
+     * que tienen alguna y siempre «Mis figuras» (al final). «Todas» la
+     * pone la ventana.
+     */
+open func categorias() -> [CategoriaDeFiguras]  {
+    return try!  FfiConverterSequenceTypeCategoriaDeFiguras.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_categorias(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Cuantas hay (el subtitulo: «N figuras y plantillas»).
+     */
+open func cuantas() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_cuantas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * De que piezas esta hecha y los textos que lleva.
+     */
+open func detalle(id: String) -> DetalleDeFigura?  {
+    return try!  FfiConverterOptionTypeDetalleDeFigura.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_detalle(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Inserta la figura `id`** en `editor`, centrada en `(centro_x,
+     * centro_y)` y elegida, en un paso de deshacer; una plantilla con su
+     * intervalo, ya alargada (sus hojas en fila). Error con el aviso si el
+     * intervalo no vale.
+     */
+open func insertar(id: String, valores: [ValorDeCampo], editor: EditorLienzo, centroX: Float, centroY: Float)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_insertar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterSequenceTypeValorDeCampo.lower(valores),
+        FfiConverterTypeEditorLienzo_lower(editor),
+        FfiConverterFloat.lower(centroX),
+        FfiConverterFloat.lower(centroY),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La miniatura** de la figura `id`: el bufer plano de su lienzo
+     * (`lienzo.rs`), desde el origen. `None` si no esta o no tiene piezas.
+     */
+open func plano(id: String) -> LienzoPlano?  {
+    return try!  FfiConverterOptionTypeLienzoPlano.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_plano(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo que saldria con ese intervalo** («4 hojas») o lo que falla;
+     * `None` con los campos vacios (la de serie, tal cual).
+     */
+open func previa(id: String, valores: [ValorDeCampo]) -> PreviaDeIntervalo?  {
+    return try!  FfiConverterOptionTypePreviaDeIntervalo.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_previa(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterSequenceTypeValorDeCampo.lower(valores),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Quita la figura `id`** de la biblioteca.
+     */
+open func quitar(id: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_quitar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Vuelve a leer la biblioteca (llego una por la sincro, se guardo una
+     * desde el lienzo).
+     */
+open func releer()throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_releer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Renombra la figura `id`** (el nombre entero: con «Categoria · »
+     * delante cae en esa categoria). `false` si no cambia nada.
+     */
+open func renombrar(id: String, nombre: String)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_renombrar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las que se ven** en la categoria (`None`, todas) con lo buscado,
+     * en el orden de las categorias.
+     */
+open func visibles(categoria: String?, consulta: String) -> [FichaDeFigura]  {
+    return try!  FfiConverterSequenceTypeFichaDeFigura.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_visibles(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(categoria),
+        FfiConverterString.lower(consulta),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGaleriaFiguras: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = GaleriaFiguras
+
+    public static func lift(_ handle: UInt64) throws -> GaleriaFiguras {
+        return GaleriaFiguras(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: GaleriaFiguras) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GaleriaFiguras {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: GaleriaFiguras, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGaleriaFiguras_lift(_ handle: UInt64) throws -> GaleriaFiguras {
+    return try FfiConverterTypeGaleriaFiguras.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGaleriaFiguras_lower(_ value: GaleriaFiguras) -> UInt64 {
+    return FfiConverterTypeGaleriaFiguras.lower(value)
 }
 
 
@@ -6635,6 +6997,33 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func prorrogarCaptura(nombre: String, dias: Int64) throws  -> Int64?
     
     /**
+     * **Adjunta la figura `id` al chat**: un lienzo nuevo con la figura
+     * dentro y su nombre, para que el asistente la mejore
+     * (`adjuntar_figura` de Windows).
+     */
+    func adjuntarFigura(chat: String, id: String) throws  -> MensajeChat
+    
+    /**
+     * **Las figuras por grupos** para el menu de adjuntar del asistente:
+     * lo del usuario primero, con el nombre corto.
+     */
+    func figurasPorGrupos() throws  -> [GrupoDeFiguras]
+    
+    /**
+     * **Abre la biblioteca para la ventana de las figuras** (con las de
+     * serie puestas).
+     */
+    func galeriaDeFiguras() throws  -> GaleriaFiguras
+    
+    /**
+     * **«Guardar en mis figuras»** el lienzo `dibujo` del chat: lo que se
+     * ve en el, con `nombre` (el del mensaje; sin el, «Figura de
+     * <chat>»). Devuelve el nombre con que quedo, o `None` si el lienzo
+     * esta vacio (`guardar_en_figuras` de Windows).
+     */
+    func guardarLienzoEnFiguras(chat: String, dibujo: String, nombre: String, nombreDelChat: String) throws  -> String?
+    
+    /**
      * **Abre la hoja de calculo de un mensaje**: una tabla del PC (`MINIAPP`
      * tabla), una del movil (`TABLA`) o un libro del chat (Excel,
      * OpenDocument, CSV) con todas sus hojas. `NoExiste` si el mensaje no
@@ -9332,6 +9721,67 @@ open func prorrogarCaptura(nombre: String, dias: Int64)throws  -> Int64?  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(nombre),
         FfiConverterInt64.lower(dias),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Adjunta la figura `id` al chat**: un lienzo nuevo con la figura
+     * dentro y su nombre, para que el asistente la mejore
+     * (`adjuntar_figura` de Windows).
+     */
+open func adjuntarFigura(chat: String, id: String)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_adjuntar_figura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las figuras por grupos** para el menu de adjuntar del asistente:
+     * lo del usuario primero, con el nombre corto.
+     */
+open func figurasPorGrupos()throws  -> [GrupoDeFiguras]  {
+    return try  FfiConverterSequenceTypeGrupoDeFiguras.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_figuras_por_grupos(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Abre la biblioteca para la ventana de las figuras** (con las de
+     * serie puestas).
+     */
+open func galeriaDeFiguras()throws  -> GaleriaFiguras  {
+    return try  FfiConverterTypeGaleriaFiguras_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_galeria_de_figuras(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Guardar en mis figuras»** el lienzo `dibujo` del chat: lo que se
+     * ve en el, con `nombre` (el del mensaje; sin el, «Figura de
+     * <chat>»). Devuelve el nombre con que quedo, o `None` si el lienzo
+     * esta vacio (`guardar_en_figuras` de Windows).
+     */
+open func guardarLienzoEnFiguras(chat: String, dibujo: String, nombre: String, nombreDelChat: String)throws  -> String?  {
+    return try  FfiConverterOptionString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_guardar_lienzo_en_figuras(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(dibujo),
+        FfiConverterString.lower(nombre),
+        FfiConverterString.lower(nombreDelChat),uniffiCallStatus
     )
 })
 }
@@ -15481,6 +15931,86 @@ public func FfiConverterTypeCambioDeTurno_lower(_ value: CambioDeTurno) -> RustB
 
 
 /**
+ * Un campo del intervalo de una plantilla, con su rotulo y la pista de lo
+ * que trae la de serie.
+ */
+public struct CampoDeIntervalo: Equatable, Hashable {
+    /**
+     * `desde`, `hasta`, `de_a`, `semanas_desde`, `semanas_hasta`, `mes` o
+     * `meses`.
+     */
+    public var clave: String
+    public var rotulo: String
+    public var pista: String
+    /**
+     * Va solo en su fila (el «de … en …»); los demas, de dos en dos.
+     */
+    public var aLoAncho: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `desde`, `hasta`, `de_a`, `semanas_desde`, `semanas_hasta`, `mes` o
+         * `meses`.
+         */clave: String, rotulo: String, pista: String, 
+        /**
+         * Va solo en su fila (el «de … en …»); los demas, de dos en dos.
+         */aLoAncho: Bool) {
+        self.clave = clave
+        self.rotulo = rotulo
+        self.pista = pista
+        self.aLoAncho = aLoAncho
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CampoDeIntervalo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCampoDeIntervalo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CampoDeIntervalo {
+        return
+            try CampoDeIntervalo(
+                clave: FfiConverterString.read(from: &buf), 
+                rotulo: FfiConverterString.read(from: &buf), 
+                pista: FfiConverterString.read(from: &buf), 
+                aLoAncho: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CampoDeIntervalo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.clave, into: &buf)
+        FfiConverterString.write(value.rotulo, into: &buf)
+        FfiConverterString.write(value.pista, into: &buf)
+        FfiConverterBool.write(value.aLoAncho, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCampoDeIntervalo_lift(_ buf: RustBuffer) throws -> CampoDeIntervalo {
+    return try FfiConverterTypeCampoDeIntervalo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCampoDeIntervalo_lower(_ value: CampoDeIntervalo) -> RustBuffer {
+    return FfiConverterTypeCampoDeIntervalo.lower(value)
+}
+
+
+/**
  * Una capa de un fotograma de transicion: el trozo `origen` de la fuente
  * en `destino`, con su opacidad. En fracciones de la diapositiva (0..1:
  * izquierda, arriba, derecha, abajo; la Y hacia abajo). Se pintan en orden
@@ -16034,6 +16564,63 @@ public func FfiConverterTypeCategoria3d_lift(_ buf: RustBuffer) throws -> Catego
 #endif
 public func FfiConverterTypeCategoria3d_lower(_ value: Categoria3d) -> RustBuffer {
     return FfiConverterTypeCategoria3d.lower(value)
+}
+
+
+/**
+ * Una categoria de la barra de la izquierda con cuantas tiene.
+ */
+public struct CategoriaDeFiguras: Equatable, Hashable {
+    public var nombre: String
+    public var cuenta: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, cuenta: UInt32) {
+        self.nombre = nombre
+        self.cuenta = cuenta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CategoriaDeFiguras: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCategoriaDeFiguras: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CategoriaDeFiguras {
+        return
+            try CategoriaDeFiguras(
+                nombre: FfiConverterString.read(from: &buf), 
+                cuenta: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CategoriaDeFiguras, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterUInt32.write(value.cuenta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCategoriaDeFiguras_lift(_ buf: RustBuffer) throws -> CategoriaDeFiguras {
+    return try FfiConverterTypeCategoriaDeFiguras.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCategoriaDeFiguras_lower(_ value: CategoriaDeFiguras) -> RustBuffer {
+    return FfiConverterTypeCategoriaDeFiguras.lower(value)
 }
 
 
@@ -17570,6 +18157,89 @@ public func FfiConverterTypeCuentaMini_lower(_ value: CuentaMini) -> RustBuffer 
 
 
 /**
+ * De que esta hecha una figura (el previsualizador del chat de Windows).
+ */
+public struct DetalleDeFigura: Equatable, Hashable {
+    public var total: UInt32
+    public var trazos: UInt32
+    public var lineas: UInt32
+    public var formas: UInt32
+    public var textos: UInt32
+    public var otras: UInt32
+    /**
+     * Los textos que lleva, en orden de lectura.
+     */
+    public var letras: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(total: UInt32, trazos: UInt32, lineas: UInt32, formas: UInt32, textos: UInt32, otras: UInt32, 
+        /**
+         * Los textos que lleva, en orden de lectura.
+         */letras: [String]) {
+        self.total = total
+        self.trazos = trazos
+        self.lineas = lineas
+        self.formas = formas
+        self.textos = textos
+        self.otras = otras
+        self.letras = letras
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DetalleDeFigura: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDetalleDeFigura: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DetalleDeFigura {
+        return
+            try DetalleDeFigura(
+                total: FfiConverterUInt32.read(from: &buf), 
+                trazos: FfiConverterUInt32.read(from: &buf), 
+                lineas: FfiConverterUInt32.read(from: &buf), 
+                formas: FfiConverterUInt32.read(from: &buf), 
+                textos: FfiConverterUInt32.read(from: &buf), 
+                otras: FfiConverterUInt32.read(from: &buf), 
+                letras: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DetalleDeFigura, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.total, into: &buf)
+        FfiConverterUInt32.write(value.trazos, into: &buf)
+        FfiConverterUInt32.write(value.lineas, into: &buf)
+        FfiConverterUInt32.write(value.formas, into: &buf)
+        FfiConverterUInt32.write(value.textos, into: &buf)
+        FfiConverterUInt32.write(value.otras, into: &buf)
+        FfiConverterSequenceString.write(value.letras, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDetalleDeFigura_lift(_ buf: RustBuffer) throws -> DetalleDeFigura {
+    return try FfiConverterTypeDetalleDeFigura.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDetalleDeFigura_lower(_ value: DetalleDeFigura) -> RustBuffer {
+    return FfiConverterTypeDetalleDeFigura.lower(value)
+}
+
+
+/**
  * Un dia de «Momentos» (el archivo): sus momentos en el orden en que
  * pasaron.
  */
@@ -18988,6 +19658,115 @@ public func FfiConverterTypeFichaChat_lower(_ value: FichaChat) -> RustBuffer {
 
 
 /**
+ * Una figura en la rejilla.
+ */
+public struct FichaDeFigura: Equatable, Hashable {
+    public var id: String
+    /**
+     * El nombre entero («Diario · Gratitud»): el que se renombra.
+     */
+    public var nombre: String
+    /**
+     * El nombre sin la categoria («Gratitud»): el que se ensena.
+     */
+    public var corto: String
+    /**
+     * Su categoria («Diario»), o «Mis figuras».
+     */
+    public var categoria: String
+    public var deSerie: Bool
+    /**
+     * Si es una plantilla que se alarga con un intervalo.
+     */
+    public var alargable: Bool
+    public var piezas: UInt32
+    public var ancho: Float
+    public var alto: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, 
+        /**
+         * El nombre entero («Diario · Gratitud»): el que se renombra.
+         */nombre: String, 
+        /**
+         * El nombre sin la categoria («Gratitud»): el que se ensena.
+         */corto: String, 
+        /**
+         * Su categoria («Diario»), o «Mis figuras».
+         */categoria: String, deSerie: Bool, 
+        /**
+         * Si es una plantilla que se alarga con un intervalo.
+         */alargable: Bool, piezas: UInt32, ancho: Float, alto: Float) {
+        self.id = id
+        self.nombre = nombre
+        self.corto = corto
+        self.categoria = categoria
+        self.deSerie = deSerie
+        self.alargable = alargable
+        self.piezas = piezas
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FichaDeFigura: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFichaDeFigura: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FichaDeFigura {
+        return
+            try FichaDeFigura(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                corto: FfiConverterString.read(from: &buf), 
+                categoria: FfiConverterString.read(from: &buf), 
+                deSerie: FfiConverterBool.read(from: &buf), 
+                alargable: FfiConverterBool.read(from: &buf), 
+                piezas: FfiConverterUInt32.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FichaDeFigura, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.corto, into: &buf)
+        FfiConverterString.write(value.categoria, into: &buf)
+        FfiConverterBool.write(value.deSerie, into: &buf)
+        FfiConverterBool.write(value.alargable, into: &buf)
+        FfiConverterUInt32.write(value.piezas, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFichaDeFigura_lift(_ buf: RustBuffer) throws -> FichaDeFigura {
+    return try FfiConverterTypeFichaDeFigura.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFichaDeFigura_lower(_ value: FichaDeFigura) -> RustBuffer {
+    return FfiConverterTypeFichaDeFigura.lower(value)
+}
+
+
+/**
  * Una leccion en la lista o en la ficha.
  */
 public struct FichaLeccion: Equatable, Hashable {
@@ -20186,6 +20965,64 @@ public func FfiConverterTypeGrabacionVoz_lift(_ buf: RustBuffer) throws -> Graba
 #endif
 public func FfiConverterTypeGrabacionVoz_lower(_ value: GrabacionVoz) -> RustBuffer {
     return FfiConverterTypeGrabacionVoz.lower(value)
+}
+
+
+/**
+ * Un grupo del menu de adjuntar una figura: su nombre y sus figuras (con
+ * el nombre corto).
+ */
+public struct GrupoDeFiguras: Equatable, Hashable {
+    public var nombre: String
+    public var figuras: [FiguraDeBiblioteca]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, figuras: [FiguraDeBiblioteca]) {
+        self.nombre = nombre
+        self.figuras = figuras
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GrupoDeFiguras: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGrupoDeFiguras: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GrupoDeFiguras {
+        return
+            try GrupoDeFiguras(
+                nombre: FfiConverterString.read(from: &buf), 
+                figuras: FfiConverterSequenceTypeFiguraDeBiblioteca.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GrupoDeFiguras, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterSequenceTypeFiguraDeBiblioteca.write(value.figuras, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrupoDeFiguras_lift(_ buf: RustBuffer) throws -> GrupoDeFiguras {
+    return try FfiConverterTypeGrupoDeFiguras.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrupoDeFiguras_lower(_ value: GrupoDeFiguras) -> RustBuffer {
+    return FfiConverterTypeGrupoDeFiguras.lower(value)
 }
 
 
@@ -25795,6 +26632,63 @@ public func FfiConverterTypePreguntaSincro_lower(_ value: PreguntaSincro) -> Rus
 
 
 /**
+ * Lo que dice el panel bajo el intervalo: «4 hojas» o lo que falla.
+ */
+public struct PreviaDeIntervalo: Equatable, Hashable {
+    public var texto: String
+    public var error: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(texto: String, error: Bool) {
+        self.texto = texto
+        self.error = error
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PreviaDeIntervalo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePreviaDeIntervalo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PreviaDeIntervalo {
+        return
+            try PreviaDeIntervalo(
+                texto: FfiConverterString.read(from: &buf), 
+                error: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PreviaDeIntervalo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterBool.write(value.error, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePreviaDeIntervalo_lift(_ buf: RustBuffer) throws -> PreviaDeIntervalo {
+    return try FfiConverterTypePreviaDeIntervalo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePreviaDeIntervalo_lower(_ value: PreviaDeIntervalo) -> RustBuffer {
+    return FfiConverterTypePreviaDeIntervalo.lower(value)
+}
+
+
+/**
  * Lo que el etiquetador propone para un texto.
  */
 public struct PropuestaLeccion: Equatable, Hashable {
@@ -29028,6 +29922,63 @@ public func FfiConverterTypeTurnoVoz_lift(_ buf: RustBuffer) throws -> TurnoVoz 
 #endif
 public func FfiConverterTypeTurnoVoz_lower(_ value: TurnoVoz) -> RustBuffer {
     return FfiConverterTypeTurnoVoz.lower(value)
+}
+
+
+/**
+ * Lo tecleado en un campo del intervalo.
+ */
+public struct ValorDeCampo: Equatable, Hashable {
+    public var clave: String
+    public var texto: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(clave: String, texto: String) {
+        self.clave = clave
+        self.texto = texto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ValorDeCampo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeValorDeCampo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ValorDeCampo {
+        return
+            try ValorDeCampo(
+                clave: FfiConverterString.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ValorDeCampo, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.clave, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeValorDeCampo_lift(_ buf: RustBuffer) throws -> ValorDeCampo {
+    return try FfiConverterTypeValorDeCampo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeValorDeCampo_lower(_ value: ValorDeCampo) -> RustBuffer {
+    return FfiConverterTypeValorDeCampo.lower(value)
 }
 
 
@@ -35674,6 +36625,30 @@ fileprivate struct FfiConverterOptionTypeContenidoTapado: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeDetalleDeFigura: FfiConverterRustBuffer {
+    typealias SwiftType = DetalleDeFigura?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeDetalleDeFigura.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeDetalleDeFigura.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDireccionRecordada: FfiConverterRustBuffer {
     typealias SwiftType = DireccionRecordada?
 
@@ -36034,6 +37009,30 @@ fileprivate struct FfiConverterOptionTypeLecturaReflujo: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeLienzoPlano: FfiConverterRustBuffer {
+    typealias SwiftType = LienzoPlano?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeLienzoPlano.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeLienzoPlano.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeLlamadaSecreta: FfiConverterRustBuffer {
     typealias SwiftType = LlamadaSecreta?
 
@@ -36194,6 +37193,30 @@ fileprivate struct FfiConverterOptionTypePensadoIa: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypePensadoIa.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypePreviaDeIntervalo: FfiConverterRustBuffer {
+    typealias SwiftType = PreviaDeIntervalo?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypePreviaDeIntervalo.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypePreviaDeIntervalo.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -37036,6 +38059,31 @@ fileprivate struct FfiConverterSequenceTypeCambioDeTurno: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCampoDeIntervalo: FfiConverterRustBuffer {
+    typealias SwiftType = [CampoDeIntervalo]
+
+    public static func write(_ value: [CampoDeIntervalo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCampoDeIntervalo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CampoDeIntervalo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CampoDeIntervalo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCampoDeIntervalo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCapaDiapositiva: FfiConverterRustBuffer {
     typealias SwiftType = [CapaDiapositiva]
 
@@ -37178,6 +38226,31 @@ fileprivate struct FfiConverterSequenceTypeCategoria3d: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCategoria3d.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCategoriaDeFiguras: FfiConverterRustBuffer {
+    typealias SwiftType = [CategoriaDeFiguras]
+
+    public static func write(_ value: [CategoriaDeFiguras], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCategoriaDeFiguras.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CategoriaDeFiguras] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CategoriaDeFiguras]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCategoriaDeFiguras.read(from: &buf))
         }
         return seq
     }
@@ -37711,6 +38784,31 @@ fileprivate struct FfiConverterSequenceTypeFichaChat: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFichaDeFigura: FfiConverterRustBuffer {
+    typealias SwiftType = [FichaDeFigura]
+
+    public static func write(_ value: [FichaDeFigura], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFichaDeFigura.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FichaDeFigura] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FichaDeFigura]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFichaDeFigura.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFichaLeccion: FfiConverterRustBuffer {
     typealias SwiftType = [FichaLeccion]
 
@@ -37853,6 +38951,31 @@ fileprivate struct FfiConverterSequenceTypeGastoMini: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeGastoMini.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeGrupoDeFiguras: FfiConverterRustBuffer {
+    typealias SwiftType = [GrupoDeFiguras]
+
+    public static func write(_ value: [GrupoDeFiguras], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeGrupoDeFiguras.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [GrupoDeFiguras] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [GrupoDeFiguras]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeGrupoDeFiguras.read(from: &buf))
         }
         return seq
     }
@@ -39053,6 +40176,31 @@ fileprivate struct FfiConverterSequenceTypeTurnoVoz: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeTurnoVoz.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeValorDeCampo: FfiConverterRustBuffer {
+    typealias SwiftType = [ValorDeCampo]
+
+    public static func write(_ value: [ValorDeCampo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeValorDeCampo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ValorDeCampo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ValorDeCampo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeValorDeCampo.read(from: &buf))
         }
         return seq
     }
@@ -41871,6 +43019,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_prorrogar_captura() != 30433) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar_figura() != 12929) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_figuras_por_grupos() != 20581) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_galeria_de_figuras() != 50904) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_lienzo_en_figuras() != 19721) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_hoja_de_calculo() != 48889) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -42387,6 +43547,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_contenido_de_tapado() != 23023) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_nombre_propuesto_de_figura() != 52483) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_puertaenvio_anuncio() != 63203) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -42433,6 +43596,39 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_puertarecibir_texto_del_qr() != 34867) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_campos() != 3415) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_categorias() != 15298) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_cuantas() != 20789) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_detalle() != 59172) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_insertar() != 15385) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_plano() != 21916) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_previa() != 45791) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_quitar() != 20792) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_releer() != 41868) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_renombrar() != 388) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_visibles() != 44984) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_activa() != 19804) {

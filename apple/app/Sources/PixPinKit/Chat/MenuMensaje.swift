@@ -525,6 +525,13 @@ private struct MenuDeMensaje<Propias: View>: View {
             Button { c.hacerLeccion(m) } label: { Label("Hacer lección", systemImage: "lightbulb") }
                 .keyboardShortcut("l", modifiers: [])
         }
+        // Un lienzo (lo que hizo el asistente, o uno propio), a la biblioteca
+        // de figuras de un clic (`chat-guardar-en-figuras` de Windows).
+        if m.clase == "DIBUJO", m.referencia?.isEmpty == false {
+            Button { c.guardarEnFiguras(m) } label: {
+                Label("Guardar en mis figuras", systemImage: "rectangle.stack.badge.plus")
+            }
+        }
 
         // ── «Más»: lo que se usa poco ──
         Divider()

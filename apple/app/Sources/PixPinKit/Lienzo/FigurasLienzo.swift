@@ -3,10 +3,11 @@
 // blanco, pegar una tabla de Excel, los instrumentos de graficar (el plano,
 // la recta y el espacio) y la biblioteca de figuras guardadas.
 //
-// Como en Windows, el panel es el menu nativo (sabe de teclado y de bordes
-// de pantalla); los cajetines, aqui, hojas del Mac. La geometria y la
-// biblioteca son de Rust (`editor_figuras.rs`). Todo entra en medio de la
-// vista, agrupado, elegido y en un paso de deshacer.
+// Como en Windows desde el 22-oct, las figuras se eligen en su ventana
+// aparte (`VentanaFiguras.swift`); los cajetines, aqui, hojas del Mac. La
+// geometria y la biblioteca son de Rust (`editor_figuras.rs`,
+// `galeria_figuras.rs`). Todo entra en medio de la vista, agrupado, elegido
+// y en un paso de deshacer.
 //
 // Lo que falta respecto a Windows: editar una tabla ya dibujada, meter lo
 // elegido en su celda y las tablas de coordenadas.
@@ -15,8 +16,14 @@ import AppKit
 import PixPinCore
 
 extension ModeloEditorLienzo {
-    /// **El menu de las figuras**, bajo el raton.
+    /// **Las figuras**: la ventana aparte (`VentanaFiguras.swift`), con las
+    /// de serie, las propias y lo demas del menu de antes. Sin nucleo (un
+    /// lienzo suelto), solo lo que no necesita la biblioteca, en un menu.
     func abrirFiguras() {
+        if let nucleo {
+            VentanaFiguras.abrir(nucleo: nucleo, destino: self)
+            return
+        }
         guard let vista else { return }
         let menu = NSMenu(title: "Figuras")
         func item(_ titulo: String, _ accion: @escaping () -> Void) {
@@ -27,39 +34,17 @@ extension ModeloEditorLienzo {
         item("Pegar tabla (de Excel)") { [weak self] in self?.pegarTabla() }
         menu.addItem(.separator())
         for (ejes, titulo) in [(UInt8(2), "Plano de funciones"), (1, "Recta de funciones"), (3, "Espacio xyz")] {
-            item(titulo) { [weak self] in
-                guard let self else { return }
-                let c = vista.centroMundo
-                if self.editor.estamparInstrumento(ejes: ejes, centroX: Float(c.x), centroY: Float(c.y)) {
-                    vista.trasCambio()
-                }
-            }
+            item(titulo) { [weak self] in self?.estamparInstrumentoEnMedio(ejes) }
         }
-        let guardadas = (try? nucleo?.figurasGuardadas()) ?? []
-        if !guardadas.isEmpty {
-            menu.addItem(.separator())
-            for f in guardadas {
-                item(f.nombre) { [weak self] in self?.estamparGuardada(f.id) }
-            }
-        }
-        if nucleo != nil {
-            menu.addItem(.separator())
-            if editor.cuantosElegidos() > 0 {
-                item("Guardar lo elegido como figura…") { [weak self] in self?.guardarComoFigura() }
-            }
-            for f in guardadas {
-                item("Quitar «\(f.nombre)»") { [weak self] in _ = try? self?.nucleo?.quitarFigura(id: f.id) }
-            }
-        }
-        if menu.items.last?.isSeparatorItem == true { menu.removeItem(at: menu.items.count - 1) }
         let punto = vista.convert(vista.window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
         menu.popUp(positioning: nil, at: punto, in: vista)
     }
 
-    private func estamparGuardada(_ id: String) {
-        guard let vista, let nucleo else { return }
+    /// El instrumento de graficar con `ejes` ejes en medio de la vista.
+    func estamparInstrumentoEnMedio(_ ejes: UInt8) {
+        guard let vista else { return }
         let c = vista.centroMundo
-        if (try? nucleo.estamparFigura(editor: editor, id: id, centroX: Float(c.x), centroY: Float(c.y))) == true {
+        if editor.estamparInstrumento(ejes: ejes, centroX: Float(c.x), centroY: Float(c.y)) {
             vista.trasCambio()
         }
     }
@@ -159,10 +144,12 @@ extension ModeloEditorLienzo {
         }
     }
 
-    /// **Guardar lo elegido como figura**, con su nombre.
+    /// **Guardar lo elegido como figura**, con su nombre («Guardar lo
+    /// elegido» de la ventana de las figuras y «Guardar en figuras» del
+    /// panel). Una plantilla de serie trae ya su nombre con su categoria.
     func guardarComoFigura() {
-        guard let ventana = vista?.window, let nucleo else { return }
-        let nombre = NSTextField(string: "")
+        guard let ventana = vista?.window, let nucleo, editor.cuantosElegidos() > 0 else { return }
+        let nombre = NSTextField(string: editor.nombrePropuestoDeFigura())
         nombre.placeholderString = "Figura"
         let a = NSAlert()
         a.messageText = "Guardar como figura"
@@ -174,6 +161,7 @@ extension ModeloEditorLienzo {
             MainActor.assumeIsolated {
                 guard r == .alertFirstButtonReturn, let self else { return }
                 _ = try? nucleo.guardarFigura(editor: self.editor, nombre: nombre.stringValue)
+                VentanaFiguras.releer()
             }
         }
     }

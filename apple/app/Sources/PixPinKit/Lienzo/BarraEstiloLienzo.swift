@@ -339,6 +339,19 @@ struct PanelEstiloLienzo: View {
                     .controlSize(.small)
                     .tint(tema.menuIconoElegido)
             }
+            // Lo elegido, a la biblioteca de figuras (la fila «Acciones» del
+            // panel de Windows: «Guardar en figuras»).
+            if modelo.hayElegidos, modelo.nucleo != nil {
+                seccion("Acciones", tema) {
+                    Button { modelo.guardarComoFigura() } label: {
+                        Label("Guardar en figuras", systemImage: "rectangle.stack.badge.plus")
+                            .font(.system(size: 12))
+                            .foregroundStyle(tema.icono)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Guardar lo elegido en tus figuras")
+                }
+            }
         }
         .padding(8)
         .frame(width: MedidasBarraLienzo.anchoPanel, alignment: .leading)

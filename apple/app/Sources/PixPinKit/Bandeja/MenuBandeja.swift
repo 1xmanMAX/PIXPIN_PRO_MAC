@@ -47,6 +47,10 @@ enum MenuBandeja {
         // Las ventanas.
         menu.addItem(comando("Proyectos…", .abrirChat, siNo: KeyboardShortcut("p", modifiers: [.command, .option])))
         menu.addItem(comando("Sincronizar…", .sincronizar))
+        // Detras de Sincronizar, como la bandeja de Windows (`bandeja-figuras`).
+        if let nucleo = IconoBandeja.compartido.nucleo {
+            menu.addItem(cierre("Figuras…") { VentanaFiguras.abrir(nucleo: nucleo, destino: nil) })
+        }
         if let sincro { menu.addItem(enviarA(sincro)) }
         menu.addItem(comando("Enviar y recibir por Wi-Fi…", .recibirDelMovil))
         menu.addItem(ventana("Chats compartidos…", "compartidos"))

@@ -20,6 +20,9 @@ import UniformTypeIdentifiers
 enum AccionAdjuntar: Hashable, Sendable {
     case foto, archivo, lienzo, nota, tabla, conversacion, captura
     case pagina, proyecto, telepronter, pronunciar, delMovil
+    /// La hoja del asistente: una figura de la biblioteca, a un lienzo del
+    /// chat para que la mejore, y pedirle una nueva (`para_el_asistente`).
+    case figura, pedirFigura
     /// Una mini-app (`tareas`, `cronometro`...), por su nombre en el nucleo.
     case mini(String)
 
@@ -41,7 +44,7 @@ struct OpcionAdjuntar: Identifiable, Hashable, Sendable {
     let color: UInt32
     let simbolo: String
     /// Del 1 al 8 en las baldosas; `nil` en los chips.
-    let numero: Int?
+    var numero: Int?
 
     var id: String { rotulo }
     var esBaldosa: Bool { numero != nil }
@@ -92,6 +95,28 @@ enum HojaAdjuntar {
         .init("Traer del móvil", "movil telefono wifi phone", .delMovil),
     ]
 
+    /// **La hoja del chat del asistente** (`para_el_asistente` de Windows,
+    /// 25-oct-2026: «que pueda adjuntar figuras para que las mejore, o
+    /// decirle hazme una figura»): primero **Figura** y lo que se le suele
+    /// dar a mirar; en chips, pedir una figura nueva y lo demas que sirve.
+    static let delAsistente: [OpcionAdjuntar] = {
+        func de(_ a: AccionAdjuntar, _ numero: Int?) -> OpcionAdjuntar? {
+            guard var o = HojaAdjuntar.opciones.first(where: { $0.accion == a }) else { return nil }
+            o.numero = numero
+            return o
+        }
+        var v = [OpcionAdjuntar("Figura", "figura plantilla biblioteca mejorar shape", .figura,
+                                color: 0x8E44B8, simbolo: "paintpalette.fill", numero: 1)]
+        for a in [AccionAdjuntar.foto, .archivo, .captura, .lienzo, .nota] {
+            if let o = de(a, v.count + 1) { v.append(o) }
+        }
+        v.append(OpcionAdjuntar("Pedir una figura nueva", "nueva crear hazme dibuja", .pedirFigura))
+        for a in [AccionAdjuntar.pagina, .proyecto, .tabla, .delMovil] {
+            if let o = de(a, nil) { v.append(o) }
+        }
+        return v
+    }()
+
     /// Minusculas y sin tildes, para buscar sin pensar en acentos.
     static func normalizar(_ s: String) -> String {
         s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
@@ -136,12 +161,14 @@ enum HojaAdjuntar {
 struct VistaHojaAdjuntar: View {
     let elegir: (AccionAdjuntar) -> Void
     let cerrar: () -> Void
+    /// Las de siempre, o las del asistente (`HojaAdjuntar.delAsistente`).
+    var opciones: [OpcionAdjuntar] = HojaAdjuntar.opciones
     @State private var busqueda = ""
     /// Lo elegido con las flechas (indice en `visibles`).
     @State private var elegido: Int?
     @State private var encima: String?
 
-    private var visibles: [OpcionAdjuntar] { HojaAdjuntar.visibles(busqueda) }
+    private var visibles: [OpcionAdjuntar] { HojaAdjuntar.visibles(busqueda, en: opciones) }
 
     var body: some View {
         let visibles = self.visibles
@@ -379,6 +406,9 @@ enum AdjuntarEnChat {
             elegirProyecto(chat: chat, almacen: almacen, avisar: avisar)
         case .pagina:
             elegirPagina(chat: chat, almacen: almacen, avisar: avisar)
+        case .figura, .pedirFigura:
+            // Las hace el chat: tocan la caja de escribir (`FigurasDelChat.swift`).
+            break
         }
     }
 

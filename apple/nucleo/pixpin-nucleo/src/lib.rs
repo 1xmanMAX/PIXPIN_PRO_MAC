@@ -69,6 +69,7 @@ pub mod editor_construir;
 pub mod editor_estilo;
 pub mod editor_exportar;
 pub mod editor_figuras;
+pub mod galeria_figuras;
 pub mod editor_herramientas;
 pub mod editor_imagenes;
 pub mod editor_marcos;

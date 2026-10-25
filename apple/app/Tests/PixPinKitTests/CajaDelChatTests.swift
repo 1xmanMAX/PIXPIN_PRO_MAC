@@ -48,6 +48,20 @@ final class CajaDelChatTests: XCTestCase {
         XCTAssertEqual(AdjuntarEnChat.nombre(deMini: "cronometro"), "Cronómetro")
     }
 
+    func testLaHojaDelAsistenteEmpiezaPorLaFigura() {
+        let o = HojaAdjuntar.delAsistente
+        // Las seis baldosas de Windows, en su orden y numeradas.
+        XCTAssertEqual(o.filter(\.esBaldosa).map(\.accion), [.figura, .foto, .archivo, .captura, .lienzo, .nota])
+        XCTAssertEqual(o.compactMap(\.numero), [1, 2, 3, 4, 5, 6])
+        // En chips: pedir una nueva primero y lo demas que sirve.
+        XCTAssertEqual(o.filter { !$0.esBaldosa }.map(\.accion), [.pedirFigura, .pagina, .proyecto, .tabla, .delMovil])
+        XCTAssertEqual(HojaAdjuntar.visibles("plantilla", en: o).map(\.accion), [.figura])
+        XCTAssertEqual(HojaAdjuntar.visibles("hazme", en: o).map(\.accion), [.pedirFigura])
+        // Caso negativo: la hoja de siempre no las trae.
+        XCTAssertFalse(HojaAdjuntar.opciones.contains { $0.accion == .figura || $0.accion == .pedirFigura })
+        XCTAssertEqual(HojaAdjuntar.opciones.compactMap(\.numero), [1, 2, 3, 4, 5, 6, 7, 8], "sin tocar")
+    }
+
     func testElBuscadorFiltraSinTildesYPorSinonimos() {
         let crono = HojaAdjuntar.visibles("cronometro")
         XCTAssertEqual(crono.map(\.accion), [.mini("cronometro")])
