@@ -700,6 +700,8 @@ fn ordenes_encima(gesto: &Gesto, escena: &Escena, zoom: f32) -> Vec<Orden> {
     v.extend(pixpin_motor2d::nudos::ordenes_de_clavos(escena, zoom));
     v.extend(gesto.laser.ordenes(zoom));
     v.extend(gesto.bolita.orden(zoom));
+    // Los marcos, a trazos azules con su numero (22-oct, `editor_marcos`).
+    v.extend(crate::editor_marcos::ordenes(escena, zoom));
     v
 }
 

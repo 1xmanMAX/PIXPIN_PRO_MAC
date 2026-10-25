@@ -396,6 +396,21 @@ impl Nucleo {
     }
 
     /// Si `chat` es el chat fijo del asistente.
+    /// **Junta los chats del asistente en uno** (`vista::asistente_unico`,
+    /// el mas antiguo, el mismo en todos los aparatos): al arrancar (con
+    /// [`Nucleo::chat_asistente`]) y tras cada vuelta de sincronizar. Lo que
+    /// falle no para nada (la proxima vez se vuelve a probar, y `sellar` lo
+    /// hace tambien antes de cada vuelta). Devuelve cuantos se juntaron.
+    pub(crate) fn unificar_asistentes(&self) -> usize {
+        let n = pixpin_proyecto::vista::DiscoPc::nuevo(self.ruta())
+            .unificar_asistentes()
+            .unwrap_or(0);
+        if n > 0 {
+            self.vaciar_caches();
+        }
+        n
+    }
+
     fn es_chat_del_asistente(&self, chat: &str) -> bool {
         Indice::leer_si_esta(self.ruta())
             .ok()
@@ -437,7 +452,13 @@ impl Nucleo {
 impl Nucleo {
     /// **El chat «Asistente»**, creandolo si no esta (como «Mensajes
     /// guardados»: fijo, detras de el en la lista).
+    ///
+    /// **Uno solo en todos los aparatos** (Windows, 22-oct): antes de mirar
+    /// si hay que crearlo se juntan los que hayan llegado de otros aparatos
+    /// ([`Nucleo::unificar_asistentes`]); el que queda lleva la marca
+    /// (`"asistente": true`, que viaja en `proyecto.json`).
     pub fn chat_asistente(&self) -> Result<FichaChat, ErrorNucleo> {
+        self.unificar_asistentes();
         let aparato = self.identidad()?.yo.codigo();
         let f = almacen::asegurar_asistente(self.ruta(), crate::ahora_ms(), &aparato)?;
         Ok(FichaChat::from(&f))

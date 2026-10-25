@@ -49,6 +49,18 @@ public final class ModeloEditorLienzo: ObservableObject {
     @Published public private(set) var hayElegidos = false
     /// El grupo de la barra con su desplegable abierto, si hay uno.
     @Published public var desplegado: GrupoHerramientaLienzo?
+    /// **Solo mirar** (Windows, 24-oct, `mirar_editar`): arrastrar mueve el
+    /// dibujo y nada se elige ni se edita; sin barra ni panel. El lapiz del
+    /// riel (o ⌥R) pasa a editar donde se este, en ventana o a pantalla
+    /// completa (25-oct); el lapiz otra vez (o Esc) vuelve a mirar.
+    @Published public private(set) var soloMirar = false
+    /// **El lienzo de su ventana** (el del chat): abre mirando y lleva el
+    /// riel de la derecha (el lapiz y el marco) y el boton de quitar el
+    /// panel. El anotador de la captura, los planos y los lectores no: alli
+    /// se viene a pintar.
+    public private(set) var conRiel = false
+    /// La herramienta de antes de coger el marco con el boton del riel.
+    private var antesDelMarco: String?
     /// El papel es oscuro: la barra va con el tema oscuro de Excalidraw,
     /// como en Windows (`tema_barra`).
     public let papelOscuro: Bool
@@ -101,6 +113,43 @@ public final class ModeloEditorLienzo: ObservableObject {
     public var alCambiarEstilo: ((CambioDeEstilo) -> Void)?
     public var alDeshacer: (() -> Void)?
     public var alRehacer: (() -> Void)?
+
+    /// Lo pide la ventana del lienzo al abrirlo: con el riel y mirando.
+    public func abrirMirando() {
+        conRiel = true
+        soloMirar = true
+    }
+
+    /// **De mirar a editar** (`mirar = false`) **o al reves**
+    /// (`poner_solo_mirar` de Windows): el texto a medias entra y, al mirar,
+    /// lo elegido se suelta. La herramienta se queda para cuando se edite.
+    public func ponerSoloMirar(_ mirar: Bool) {
+        guard mirar != soloMirar else { return }
+        if editor.escribiendo() { _ = editor.terminarTexto() }
+        desplegado = nil
+        if mirar {
+            _ = editor.puntero(fase: .cancelar, x: 0, y: 0, presion: nil, modificadores: 0,
+                               zoom: Float(vista?.zoom ?? 1))
+        }
+        soloMirar = mirar
+        vista?.trasCambio()
+    }
+
+    /// El lapiz del riel (o ⌥R).
+    public func alternarMirar() { ponerSoloMirar(!soloMirar) }
+
+    /// **El boton del marco del riel** (`DestinoRiel::Imprimir` del lienzo
+    /// de Windows): coge el marco (mirando, pasa a editar) y, pulsado otra
+    /// vez, vuelve a la de antes.
+    public func alternarMarco() {
+        if herramienta == "marco" {
+            elegir(antesDelMarco.flatMap { $0 == "marco" ? nil : $0 } ?? "seleccion")
+            return
+        }
+        ponerSoloMirar(false)
+        antesDelMarco = herramienta
+        elegir("marco")
+    }
 
     public func elegir(_ nombre: String) {
         alElegir?(nombre)
@@ -600,6 +649,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     override public func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        // Mirando, arrastrar mueve el dibujo (la mano del «view mode» de
+        // Excalidraw): nada va al editor.
+        if modelo.soloMirar { return }
         presionTrackpad = nil
         // Un clic en el lienzo cierra el desplegable de la barra.
         if modelo.desplegado != nil { modelo.desplegado = nil }
@@ -618,6 +670,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     }
 
     override public func mouseDragged(with event: NSEvent) {
+        if modelo.soloMirar { return desplazar(dx: event.deltaX, dy: event.deltaY) }
         mandar(.mover, event)
         reloj.mover(a: convert(event.locationInWindow, from: nil))
         if let raya = rayaDeCalibrar {
@@ -627,6 +680,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     }
 
     override public func mouseUp(with event: NSEvent) {
+        if modelo.soloMirar { return }
         reloj.soltar()
         mandar(.soltar, event)
         presionTrackpad = nil
@@ -715,13 +769,22 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             return
         }
         if let teclaPrevia, teclaPrevia(event) { return }
+        // ⌥R (el Alt+R de Windows): de mirar a editar y vuelta. La R por su
+        // tecla (15): con ⌥ el caracter ya no es una erre.
+        if modelo.conRiel, teclas == .option, event.keyCode == 15 {
+            modelo.alternarMirar()
+            return
+        }
+        if modelo.soloMirar { return teclaMirando(event, teclas) }
         switch event.keyCode {
         case 51, 117: // borrar, suprimir
             modelo.borrarSeleccion()
             return
         case 53: // Esc: suelta lo elegido / lo que iba a medias; si no hay nada, sale
             if modelo.desplegado == nil, editor.cuantosElegidos() == 0, rayaDeCalibrar == nil {
-                VentanaLisa.escapar(window)
+                // Editando el lienzo, Esc vuelve antes a mirar
+                // (`escape_vuelve_a_mirar`); mirando, sale.
+                if modelo.conRiel { modelo.ponerSoloMirar(true) } else { VentanaLisa.escapar(window) }
                 return
             }
             modelo.desplegado = nil
@@ -777,12 +840,34 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         super.keyDown(with: event)
     }
 
+    /// **Las teclas mirando**: Esc sale; quedan la pantalla completa y
+    /// sacar el dibujo (imprimir, compartir, exportar, copiar). Las letras de
+    /// las herramientas, borrar, ⌘A y ⌘V no: mirando nada se edita.
+    private func teclaMirando(_ event: NSEvent, _ teclas: NSEvent.ModifierFlags) {
+        let letra = event.charactersIgnoringModifiers?.lowercased()
+        if event.keyCode == 53 {
+            VentanaLisa.escapar(window)
+        } else if teclas == [.control, .command], letra == "f" {
+            window?.toggleFullScreen(nil)
+        } else if teclas == .command, letra == "p" {
+            modelo.imprimir()
+        } else if teclas == [.command, .shift], letra == "s" {
+            modelo.compartir()
+        } else if teclas == [.command, .shift], letra == "e" {
+            modelo.exportar()
+        } else if teclas == [.command, .shift], letra == "c" {
+            modelo.copiarComoPNG()
+        } else {
+            super.keyDown(with: event)
+        }
+    }
+
     // MARK: Pegar y soltar imagenes
 
     /// ⌘V (Edicion ▸ Pegar): una imagen del portapapeles, en el centro de lo
     /// que se ve.
     @objc public func paste(_ sender: Any?) {
-        guard !editor.escribiendo(), let fuente = ImagenPegadaLienzo.origen(en: .general) else {
+        guard !modelo.soloMirar, !editor.escribiendo(), let fuente = ImagenPegadaLienzo.origen(en: .general) else {
             NSSound.beep()
             return
         }
@@ -824,7 +909,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     }
 
     override public func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
-        guard ImagenPegadaLienzo.origen(en: sender.draggingPasteboard) != nil else { return [] }
+        guard !modelo.soloMirar, ImagenPegadaLienzo.origen(en: sender.draggingPasteboard) != nil else { return [] }
         soltandoImagen = true
         needsDisplay = true
         return .copy
@@ -920,7 +1005,8 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     // MARK: Cursor
 
     override public func resetCursorRects() {
-        addCursorRect(bounds, cursor: modelo.herramienta == "seleccion" ? .arrow : .crosshair)
+        let cursor: NSCursor = modelo.soloMirar ? .openHand : (modelo.herramienta == "seleccion" ? .arrow : .crosshair)
+        addCursorRect(bounds, cursor: cursor)
     }
 }
 
@@ -939,9 +1025,11 @@ struct LienzoEditable: NSViewRepresentable {
 
 /// **El editor del lienzo**, como el de Windows (y Excalidraw): el lienzo
 /// llena la ventana y encima flotan la barra de herramientas, centrada
-/// arriba, y el panel de estilo a la izquierda.
+/// arriba, y el panel de estilo a la izquierda. El lienzo de su ventana
+/// lleva ademas el riel de la derecha y abre mirando (sin barra ni panel).
 public struct EditorLienzoView: View {
     @ObservedObject var modelo: ModeloEditorLienzo
+    @ObservedObject private var panel = PanelLienzoQuitado.compartido
 
     public init(modelo: ModeloEditorLienzo) { self.modelo = modelo }
 
@@ -949,24 +1037,61 @@ public struct EditorLienzoView: View {
         GeometryReader { geo in
             // Si no cabe en una fila, la barra se parte en dos (`corte_para`
             // de Windows) y el panel baja con ella.
+            let barra = BotonBarraLienzo.barra
             let corte = BotonBarraLienzo.cortePara(ancho: geo.size.width - 2 * MedidasBarraLienzo.distanciaBorde)
-            let filas: CGFloat = corte < BotonBarraLienzo.barra.count ? 2 : 1
+            let filas: CGFloat = corte < barra.count ? 2 : 1
+            let anchoBarra = corte < barra.count
+                ? max(BotonBarraLienzo.anchoDeFila(barra[..<corte]), BotonBarraLienzo.anchoDeFila(barra[corte...]))
+                : BotonBarraLienzo.anchoDeFila(barra[...])
+            // Lo de debajo de la barra y, si la barra le cae encima al panel
+            // (ventana estrecha), el boton de quitarlo baja con el panel
+            // (`area_del_panel` de Windows).
+            let abajoBarra = MedidasBarraLienzo.distanciaBorde + filas * MedidasBarraLienzo.lado
+                + (filas - 1) * MedidasBarraLienzo.relleno + 2 * MedidasBarraLienzo.relleno
+            let pisa = (geo.size.width - anchoBarra) / 2
+                < MedidasBarraLienzo.distanciaBorde + MedidasBarraLienzo.anchoPanel
+            let arribaBoton = pisa ? abajoBarra + 8 : MedidasBarraLienzo.distanciaBorde
             ZStack(alignment: .top) {
                 LienzoEditable(modelo: modelo)
-                if modelo.desplegado != nil {
-                    // Un clic fuera del desplegable lo cierra.
-                    Color.black.opacity(0.001)
-                        .onTapGesture { modelo.desplegado = nil }
+                if modelo.soloMirar {
+                    PastillaMirando()
+                        .padding(.top, MedidasBarraLienzo.distanciaBorde)
+                        .allowsHitTesting(false)
+                } else {
+                    if modelo.desplegado != nil {
+                        // Un clic fuera del desplegable lo cierra.
+                        Color.black.opacity(0.001)
+                            .onTapGesture { modelo.desplegado = nil }
+                    }
+                    BarraHerramientasLienzo(modelo: modelo, corte: corte)
+                        .padding(.top, MedidasBarraLienzo.distanciaBorde)
+                        .padding(.horizontal, MedidasBarraLienzo.distanciaBorde)
+                    if modelo.hayElegidos || !HerramientaLienzo.sinEstilo.contains(modelo.herramienta) {
+                        if modelo.conRiel {
+                            // El boton de quitar el panel (y de sacarlo),
+                            // arriba a la izquierda, y el panel debajo.
+                            VStack(alignment: .leading, spacing: 8) {
+                                BotonPlegarPanel(panel: panel, tema: TemaBarraLienzo.de(modelo))
+                                if !panel.quitado { PanelEstiloLienzo(modelo: modelo) }
+                            }
+                            .padding(.leading, MedidasBarraLienzo.distanciaBorde)
+                            .padding(.top, arribaBoton)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        } else {
+                            PanelEstiloLienzo(modelo: modelo)
+                                .padding(.leading, MedidasBarraLienzo.distanciaBorde)
+                                .padding(.top, MedidasBarraLienzo.yPanel
+                                         + (filas - 1) * (MedidasBarraLienzo.lado + MedidasBarraLienzo.relleno))
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        }
+                    }
                 }
-                BarraHerramientasLienzo(modelo: modelo, corte: corte)
-                    .padding(.top, MedidasBarraLienzo.distanciaBorde)
-                    .padding(.horizontal, MedidasBarraLienzo.distanciaBorde)
-                if modelo.hayElegidos || !HerramientaLienzo.sinEstilo.contains(modelo.herramienta) {
-                    PanelEstiloLienzo(modelo: modelo)
-                        .padding(.leading, MedidasBarraLienzo.distanciaBorde)
-                        .padding(.top, MedidasBarraLienzo.yPanel
-                                 + (filas - 1) * (MedidasBarraLienzo.lado + MedidasBarraLienzo.relleno))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                if modelo.conRiel {
+                    // El riel, a la vista tambien mirando: su lapiz edita.
+                    RielLienzo(modelo: modelo)
+                        .padding(.top, max(abajoBarra + 8, BarraFlotante.alto + 2 * BarraFlotante.separacion + 8))
+                        .padding(.trailing, MedidasBarraLienzo.distanciaBorde)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 }
                 cuerpo
             }
@@ -986,6 +1111,99 @@ public struct EditorLienzoView: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// **El panel de estilo quitado** (Windows, 24-oct, `panel_dibujo::PLEGADO`):
+/// lo dice el boton de arriba a la izquierda y vale para todos los lienzos
+/// de la sesion, no solo el de esta ventana. No se recuerda al cerrar.
+@MainActor
+final class PanelLienzoQuitado: ObservableObject {
+    static let compartido = PanelLienzoQuitado()
+    @Published var quitado = false
+}
+
+/// **El boton de mostrar y quitar el panel** (`panel_lateral::boton_plegar`):
+/// una isla de 36 como la del panel, con la flecha para quitarlo y la
+/// paleta para sacarlo.
+struct BotonPlegarPanel: View {
+    @ObservedObject var panel: PanelLienzoQuitado
+    let tema: TemaBarraLienzo
+    @State private var encima = false
+
+    var body: some View {
+        Button {
+            panel.quitado.toggle()
+        } label: {
+            Simbolo(nombre: panel.quitado ? "paintpalette" : "chevron.left", lado: 18)
+                .foregroundStyle(tema.icono)
+                .frame(width: MedidasBarraLienzo.ladoPlegar, height: MedidasBarraLienzo.ladoPlegar)
+                .background(encima ? tema.hover : Color.clear, in: RoundedRectangle(cornerRadius: MedidasBarraLienzo.radio))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .modifier(IslaLienzo(tema: tema))
+        .onHover { encima = $0 }
+        .help(panel.quitado ? "Mostrar las propiedades" : "Quitar las propiedades")
+    }
+}
+
+/// **El riel del lienzo** (`marcas::pintar_riel` de Windows, sin los
+/// marcadores, que el lienzo del Mac aun no tiene): el lapiz, pulsado
+/// editando (el mismo de los visores), y el marco, pulsado con la
+/// herramienta Marco puesta.
+struct RielLienzo: View {
+    @ObservedObject var modelo: ModeloEditorLienzo
+
+    var body: some View {
+        VStack(spacing: 2) {
+            BotonDelRiel(simbolo: "pencil",
+                      ayuda: modelo.soloMirar ? "Editar (⌥R)" : "Volver a mirar (⌥R o Esc)",
+                      encendido: !modelo.soloMirar) { modelo.alternarMirar() }
+            BotonDelRiel(simbolo: "rectangle.dashed", ayuda: "Marcos para imprimir (C)",
+                      encendido: modelo.herramienta == "marco" && !modelo.soloMirar) { modelo.alternarMarco() }
+        }
+        .padding(3)
+        .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: .windowBackgroundColor)))
+        .shadow(color: .black.opacity(0.16), radius: 6, y: 2)
+        .fixedSize()
+    }
+}
+
+/// Un boton del riel: 28 x 28, pulsado en azul (el `BotonRiel` de los
+/// visores, aqui para que su inicializador se vea desde este fichero).
+private struct BotonDelRiel: View {
+    let simbolo: String
+    let ayuda: String
+    var encendido = false
+    let accion: () -> Void
+    @State private var encima = false
+
+    var body: some View {
+        Button(action: accion) {
+            Simbolo(nombre: simbolo, lado: 15)
+                .foregroundStyle(encendido ? Color.white : Color.primary)
+                .frame(width: 28, height: 28)
+                .background(RoundedRectangle(cornerRadius: 7)
+                    .fill(encendido ? Color(red: 0, green: 0.376, blue: 0.875)
+                          : encima ? Color.primary.opacity(0.08) : .clear))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(ayuda)
+        .onHover { encima = $0 }
+    }
+}
+
+/// **La pastilla de solo mirar** (`presentar::pintar_solo_mirar`): negra
+/// translucida, arriba en el centro.
+struct PastillaMirando: View {
+    var body: some View {
+        Text("Solo mirar · el lápiz de la derecha edita")
+            .font(.system(size: 13))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14).padding(.vertical, 7)
+            .background(Capsule().fill(Color.black.opacity(0.62)))
     }
 }
 
@@ -1053,6 +1271,8 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         // y el lienzo debajo, sin semaforo ni titulo.
         VentanaLisa.vestirEntera(ventana)
         ventana.isReleasedWhenClosed = false
+        // Abre mirando, con el riel (Windows, 24-oct, `mirar_editar`).
+        modelo.abrirMirando()
         ventana.contentViewController = NSHostingController(rootView: EditorLienzoView(modelo: modelo))
         ventana.setContentSize(NSSize(width: 1000, height: 720))
         ventana.center()

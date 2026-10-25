@@ -124,6 +124,32 @@ fn el_chat_asistente_existe_una_vez_y_va_detras_de_guardados() {
     let _ = std::fs::remove_dir_all(d);
 }
 
+/// 22-oct-2026 (Windows `7c91631`): el chat «Asistente» que llega de otro
+/// aparato (un chat normal que se llama asi) no hace un segundo asistente:
+/// al pedirlo se juntan en el mas antiguo, con los mensajes de los dos, y
+/// el que queda lleva la marca que viaja en `proyecto.json`.
+#[test]
+fn el_asistente_de_otro_aparato_se_junta_con_el_de_aqui_en_uno() {
+    let (n, d) = nucleo("unico");
+    // El de otro aparato, mas antiguo, con un mensaje dentro.
+    let otro = n.crear_chat("Asistente".into()).unwrap();
+    n.escribir_nota(otro.id.clone(), "lo del otro aparato".into(), None).unwrap();
+    std::thread::sleep(Duration::from_millis(5));
+    let a = n.chat_asistente().unwrap();
+    assert_eq!(a.id, otro.id, "queda el mas antiguo");
+    assert!(a.es_asistente, "con la marca");
+    let asistentes: Vec<_> = n.chats().unwrap().into_iter().filter(|f| f.nombre == "Asistente").collect();
+    assert_eq!(asistentes.len(), 1, "uno solo");
+    assert!(n.notas_de(&a.id).iter().any(|m| m.texto == "lo del otro aparato"));
+    let proyecto = almacen::carpeta(n.ruta(), &a.id).join("proyecto.json");
+    let v: Value = serde_json::from_str(&std::fs::read_to_string(proyecto).unwrap_or_else(|_| "{}".into())).unwrap();
+    assert!(v.get("asistente").is_none_or(|m| m == true), "la marca, si ya se escribio, dice que es el");
+    // Caso negativo: con uno solo, pedirlo otra vez no junta ni cambia nada.
+    assert_eq!(n.unificar_asistentes(), 0);
+    assert_eq!(n.chat_asistente().unwrap().id, a.id);
+    let _ = std::fs::remove_dir_all(d);
+}
+
 #[test]
 fn un_dibujo_pedido_en_el_chat_acaba_en_un_lienzo_nuevo_y_luego_en_el_mismo() {
     let (n, d) = nucleo("dibujo");
