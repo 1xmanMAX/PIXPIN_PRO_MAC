@@ -253,7 +253,7 @@ final class ModeloFiguras: ObservableObject {
 
 /// La ventana, una sola a la vez.
 @MainActor
-enum VentanaFiguras {
+public enum VentanaFiguras {
     private static var ventana: NSWindow?
     private static var modelo: ModeloFiguras?
 
@@ -301,8 +301,9 @@ enum VentanaFiguras {
         ventana?.close()
     }
 
-    /// Tras guardar una figura desde otro sitio: si esta abierta, se ve ya.
-    static func releer() {
+    /// Tras guardar una figura desde otro sitio, o cuando la sincronizacion
+    /// trae `figuras.json` de otro aparato: si esta abierta, se ve ya.
+    public static func releer() {
         guard ventana?.isVisible == true else { return }
         modelo?.releer()
     }

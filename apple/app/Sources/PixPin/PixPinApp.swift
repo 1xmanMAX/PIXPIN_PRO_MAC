@@ -166,6 +166,9 @@ final class EstadoApp: ObservableObject {
                 AvisosMini.compartido.reprogramar()
                 // Y un recordatorio puesto en el movil (A4).
                 Recordatorios.compartido.releer()
+                // Las figuras guardadas en otro aparato (`figuras.json`,
+                // que la sincronizacion junta figura a figura).
+                VentanaFiguras.releer()
                 // Las automatizaciones «al sincronizar» (E6) y las que
                 // llegaron de otro aparato.
                 MotorAutomatizaciones.compartido.alSincronizar(sincro?.ultimoResultado ?? "")
