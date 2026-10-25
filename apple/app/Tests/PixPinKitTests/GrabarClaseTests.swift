@@ -1,8 +1,10 @@
 // Grabar clase o reunion (Windows edd0ffa y 2cc497b) y «Enviar a Anki»
-// (2561be0): la mezcla de las dos fuentes (la de `pixpin-audio`, al
-// numero), la captura del minuto que suena, lo que se guarda en el chat
-// (por el nucleo de verdad) y lo que se dice al mandar a Anki.
+// (2561be0): la mezcla de las dos fuentes (la del motor de audio de
+// Windows, por el nucleo), el motor de video (perfil, cadena y ritmo), la
+// captura del minuto que suena, lo que se guarda en el chat (por el nucleo
+// de verdad) y lo que se dice al mandar a Anki.
 
+import AVFoundation
 import Foundation
 import PixPinCore
 @testable import PixPinKit
@@ -10,60 +12,37 @@ import XCTest
 
 final class GrabarClaseTests: XCTestCase {
     private let fs = 48_000
-    private var cuarto: Int { fs / 4 }
 
     // MARK: La mezcla
 
-    func testConLasDosALaParSeSumanMuestraAMuestra() {
-        var m = MezcladorClase(fuentes: 2, muestreo: fs)
-        m.empuja(0, [0.25, 0.5, 0.125])
-        m.empuja(1, [0.25, 0.25])
-        XCTAssertEqual(m.sacar(), [0.5, 0.75], "solo lo que tienen las dos")
-        m.empuja(1, [0.125])
-        XCTAssertEqual(m.sacar(), [0.25])
-        XCTAssertEqual(m.enEspera, 0)
+    func testLaMezclaDelNucleoVaAlRelojYNoSaleAntesDeEmpezar() throws {
+        let m = try MezclaDeAudio.nueva(fuentes: [FuenteDeMezcla(papel: .microfono, muestreo: 44_100, canales: 2),
+                                                  FuenteDeMezcla(papel: .equipo, muestreo: 48_000, canales: 2)],
+                                        muestreo: UInt32(fs))
+        // Un bloque estereo separado, como lo da AVAudioPCMBuffer.
+        XCTAssertEqual(m.empujar(fuente: 0, muestras: [Float](repeating: 0.25, count: 882 * 2), canales: 2,
+                                 separadas: true), 882)
+        // Lo que llego antes de empezar es de antes de empezar.
+        let primero = m.mezclar()
+        XCTAssertEqual(primero.posicion, 0)
+        XCTAssertTrue(primero.muestras.isEmpty)
+        XCTAssertEqual(m.llevadoMs(), 0)
+        // Caso negativo: una fuente que no existe no entra, ni una salida
+        // que el AAC no admite.
+        XCTAssertEqual(m.empujar(fuente: 7, muestras: [0, 0], canales: 1, separadas: false), 0)
+        XCTAssertThrowsError(try MezclaDeAudio.nueva(fuentes: [], muestreo: UInt32(fs)))
+        XCTAssertThrowsError(try MezclaDeAudio.nueva(
+            fuentes: [FuenteDeMezcla(papel: .microfono, muestreo: 48_000, canales: 1)], muestreo: 32_000))
     }
 
-    func testDosVocesAltasSeRecortan() {
-        var m = MezcladorClase(fuentes: 2, muestreo: fs)
-        m.empuja(0, [0.75, -0.75])
-        m.empuja(1, [0.75, -0.75])
-        XCTAssertEqual(m.sacar(), [1, -1])
-    }
-
-    func testElSonidoDelMacCalladoNoParaAlMicrofono() {
-        var m = MezcladorClase(fuentes: 2, muestreo: fs)
-        m.empuja(0, [Float](repeating: 0.5, count: cuarto / 2))
-        XCTAssertTrue(m.sacar().isEmpty, "medio cuarto de segundo: aun se espera")
-        m.empuja(0, [Float](repeating: 0.5, count: cuarto))
-        let salio = m.sacar()
-        XCTAssertFalse(salio.isEmpty)
-        XCTAssertTrue(salio.allSatisfy { $0 == 0.5 }, "el microfono, con silencio debajo")
-        // Caso negativo: no se lo come todo; deja algo por si llegaba tarde.
-        XCTAssertTrue(m.enEspera > 0 && m.enEspera < cuarto)
-    }
-
-    func testLaNotaSigueAlRelojAunqueNoLlegueNada() {
-        var m = MezcladorClase(fuentes: 1, muestreo: fs)
-        m.alinear(escritas: 0, esperadas: Int64(fs))
-        let salio = m.sacar()
-        XCTAssertEqual(salio.count, fs)
-        XCTAssertTrue(salio.allSatisfy { $0 == 0 })
-        // Caso negativo: dentro de la holgura no se mete nada.
-        var n = MezcladorClase(fuentes: 1, muestreo: fs)
-        n.alinear(escritas: 0, esperadas: Int64(cuarto / 2))
-        XCTAssertEqual(n.enEspera, 0)
-    }
-
-    func testAlPararSaleTodoYEnPausaSeTira() {
-        var m = MezcladorClase(fuentes: 2, muestreo: fs)
-        m.empuja(0, [0.25, 0.5, 0.75])
-        m.empuja(1, [0.25])
-        XCTAssertEqual(m.resto(), [0.5, 0.5, 0.75])
-        m.empuja(0, [Float](repeating: 0.5, count: 10))
-        m.vaciar()
-        XCTAssertEqual(m.enEspera, 0)
-        XCTAssertTrue(m.resto().isEmpty)
+    func testUnBloqueMezcladoSeEscribeComoMonoDeLaNota() throws {
+        let formato = try XCTUnwrap(AVAudioFormat(commonFormat: .pcmFormatFloat32, sampleRate: MezclaVoz.muestreo,
+                                                  channels: 1, interleaved: false))
+        let b = try XCTUnwrap(MezclaVoz.bloque([0.5, -0.25, 0.125], formato: formato))
+        XCTAssertEqual(b.frameLength, 3)
+        XCTAssertEqual(b.floatChannelData?[0][1], -0.25)
+        // Caso negativo: nada no da bloque.
+        XCTAssertNil(MezclaVoz.bloque([], formato: formato))
     }
 
     // MARK: La captura del minuto
@@ -78,15 +57,35 @@ final class GrabarClaseTests: XCTestCase {
 
     // MARK: El video
 
-    func testElVideoSeGrabaAlTamanoYRitmoDeWindows() {
-        let v = videoDeLaClase(anchoPantalla: 2880, altoPantalla: 1800)
-        XCTAssertEqual(v.ancho, 1152)
-        XCTAssertEqual(v.alto, 720)
-        XCTAssertEqual(v.porSegundo, 10)
-        XCTAssertEqual(fotogramasDebidosDeLaClase(muestras: 48_000, muestreo: 48_000), 11)
+    func testElVideoSeGrabaConElPerfilYLaCadenaDeWindows() {
+        // Una Retina 16:10 en «Normal»: 1080 de alto y 15 fps, por la grafica
+        // primero y el modo sencillo al final.
+        let caminos = caminosDelVideo(perfil: .normal, anchoPantalla: 2880, altoPantalla: 1800, hayHardware: true)
+        let primero = caminos.first
+        XCTAssertEqual(primero?.codificador, .hardware)
+        XCTAssertEqual(primero?.ancho, 1728)
+        XCTAssertEqual(primero?.alto, 1080)
+        XCTAssertEqual(primero?.porSegundo, 15)
+        XCTAssertEqual(caminos.last?.codificador, .cpu)
+        XCTAssertEqual(perfilDelVideoSiguiente(perfil: .nitido), .ligero)
+        XCTAssertEqual(rotuloDeCalidad(perfil: .nitido), "Nítido")
+        XCTAssertEqual(videoCon(codificador: .software), "Vídeo con el procesador")
         // Caso negativo: un fotograma negro sale aunque la pantalla no de
-        // ninguna imagen.
-        XCTAssertNotNil(VideoDeClase.negro(ancho: Int(v.ancho), alto: Int(v.alto)))
+        // ninguna imagen, y sin grafica no se intenta.
+        XCTAssertNotNil(VideoDeClase.negro(ancho: 1728, alto: 1080))
+        XCTAssertFalse(caminosDelVideo(perfil: .ligero, anchoPantalla: 1280, altoPantalla: 720, hayHardware: false)
+            .contains { $0.codificador == .hardware })
+    }
+
+    func testElRitmoDelVideoEsperaYRepiteCadaSegundo() {
+        let s: Int64 = 10_000_000
+        let r = RitmoDelVideo.nuevo(muestreo: 0, porSegundo: 15, ahora: 0)
+        XCTAssertEqual(r.paso(ahora: 0, horaRetenida: 0).accion, .nuevo)
+        XCTAssertEqual(r.paso(ahora: s / 2, horaRetenida: nil).accion, .esperar)
+        XCTAssertEqual(r.paso(ahora: s, horaRetenida: nil).accion, .repetir)
+        // Caso negativo: en pausa no se escribe nada.
+        r.pausar(pausa: true, ahora: s)
+        XCTAssertEqual(r.paso(ahora: 3 * s, horaRetenida: 3 * s).accion, .esperar)
     }
 
     // MARK: Lo que queda en el chat

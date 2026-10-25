@@ -28,10 +28,18 @@
 // un MP4 con el mismo sonido (`VideoDeClase`). En la barra se ve siempre
 // «Grabando vídeo»; si se corta, se dice una vez y la nota sigue.
 //
+// **El motor de video nuevo** (Windows cdad692): con el video encendido, una
+// ficha a la derecha de su fila cambia la calidad (Ligero, Normal, Nítido;
+// un clic pasa a la siguiente) y, con el raton encima, la linea de abajo del
+// titulo dice lo que pesa. Al empezar, la barra dice con que se codifica (la
+// grafica, el procesador o el modo sencillo), y la pausa de la barra pausa
+// tambien el video.
+//
 // Las fotos no paran la barra: se hacen fuera del hilo principal (el
 // «fotografo» de Windows) y cuentan en «Captura · N» desde el clic.
 //
-// El sonido lo graba `AudioDeClase` (microfono + ScreenCaptureKit). Los
+// El sonido lo graba `AudioDeClase` (microfono + ScreenCaptureKit, con la
+// mezcla del motor de audio de Windows). Los
 // textos son los de Windows (`clase-*` de `main.ftl`).
 
 import AppKit
@@ -82,6 +90,8 @@ public final class GrabarClase: ObservableObject {
     @Published var equipo = true
     /// Grabar tambien el video de la pantalla.
     @Published var video = false
+    /// Con que calidad se graba el video (`pixpin_motor_video::Perfil`).
+    @Published var perfilVideo: PerfilVideo = .normal
     /// Se esta grabando el video (para «Grabando vídeo» en la barra).
     @Published private(set) var conVideo = false
     /// El video se corto (se dice una vez; la nota sigue).
@@ -283,6 +293,11 @@ public final class GrabarClase: ObservableObject {
 
     // MARK: Preparar
 
+    /// La ficha de la calidad: un clic pasa a la siguiente.
+    func otraCalidad() {
+        perfilVideo = perfilDelVideoSiguiente(perfil: perfilVideo)
+    }
+
     func otroProyecto() {
         guard !proyectos.isEmpty else { return }
         proyecto = (proyecto + 1) % proyectos.count
@@ -293,6 +308,7 @@ public final class GrabarClase: ObservableObject {
         let fuentes = FuentesClase(microfono: microfono, equipo: equipo)
         guard fuentes.alguna else { return avisar("Elige el micrófono, el sonido del equipo o los dos") }
         let quiereVideo = video
+        let perfil = perfilVideo
         if fuentes.equipo || quiereVideo, !PermisoCaptura.asegurar() { return }
         // La pantalla del video: la de la ventanita al pulsar «Empezar»; la
         // barra no sale en el.
@@ -314,9 +330,9 @@ public final class GrabarClase: ObservableObject {
                 // desde el primer bloque: el video empieza con ella.
                 var sinVideo = false
                 if quiereVideo {
-                    v = GrabarClase.prepararVideo(junto: url, en: pantalla)
+                    v = GrabarClase.prepararVideo(junto: url, en: pantalla, perfil: perfil)
                     if let hecho = v {
-                        a.copia = { [weak hecho] m in hecho?.sonido(m) }
+                        a.copia = { [weak hecho] m, posicion in hecho?.sonido(m, posicion: posicion) }
                         hecho.alRomperse = { [weak self] in
                             DispatchQueue.main.async { MainActor.assumeIsolated { self?.videoSeCorto() } }
                         }
@@ -337,7 +353,10 @@ public final class GrabarClase: ObservableObject {
                 if sinVideo { videoSeCorto() }
                 // Si la pantalla no se deja mirar, el video queda roto (lo
                 // dice `alRomperse`) y la nota sigue.
-                if let v { try? await v.empezar(sin: ventana) }
+                if let v, (try? await v.empezar(sin: ventana)) != nil, !videoRoto, fase == .grabando {
+                    // Y con que se codifica, una vez, en cuanto arranca.
+                    avisar(videoCon(codificador: v.codificador))
+                }
             } catch {
                 await v?.tirar()
                 try? FileManager.default.removeItem(at: url)
@@ -347,16 +366,16 @@ public final class GrabarClase: ObservableObject {
     }
 
     /// El video de la clase, al lado del temporal de la nota y con su mismo
-    /// nombre (`temporal_del_video`), para la pantalla `pantalla`. `nil` si
-    /// no se puede abrir el MP4.
-    static func prepararVideo(junto nota: URL, en pantalla: NSScreen?) -> VideoDeClase? {
+    /// nombre (`temporal_del_video`), para la pantalla `pantalla` con
+    /// `perfil`. `nil` si no se puede abrir el MP4.
+    static func prepararVideo(junto nota: URL, en pantalla: NSScreen?, perfil: PerfilVideo) -> VideoDeClase? {
         guard let pantalla else { return nil }
         let escala = pantalla.backingScaleFactor
         let pixeles = (ancho: Int(pantalla.frame.width * escala), alto: Int(pantalla.frame.height * escala))
         let url = nota.deletingLastPathComponent()
             .appendingPathComponent(nota.lastPathComponent + ".video.mp4")
         return try? VideoDeClase(url: url, pantalla: pantalla.numeroDePantalla ?? CGMainDisplayID(),
-                                 pixeles: pixeles, muestreo: Int(AudioDeClase.muestreo))
+                                 pixeles: pixeles, muestreo: Int(AudioDeClase.muestreo), perfil: perfil)
     }
 
     /// El video se corto: se dice una vez; la nota sigue.
@@ -480,6 +499,7 @@ public final class GrabarClase: ObservableObject {
         tirando = false
         enPausa.toggle()
         audio.pausar(enPausa)
+        grabador?.pausar(enPausa)
     }
 
     /// ✕: la primera vez avisa; la segunda, en 4 s, tira la grabacion.
@@ -645,6 +665,8 @@ private let verdeClase = Color(red: 0x2E / 255, green: 0xA0 / 255, blue: 0x43 / 
 
 struct VistaGrabarClase: View {
     @ObservedObject var g: GrabarClase
+    /// El raton sobre la ficha de la calidad: el subtitulo dice lo que pesa.
+    @State private var sobreLaCalidad = false
 
     var body: some View {
         Group {
@@ -674,7 +696,9 @@ struct VistaGrabarClase: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Grabar clase o reunión").font(.system(size: 17, weight: .semibold))
-                    Text("Graba el audio y pon capturas en su minuto").font(.system(size: 12)).foregroundStyle(.secondary)
+                    Text(g.video && sobreLaCalidad ? pistaDeCalidad(perfil: g.perfilVideo)
+                        : "Graba el audio y pon capturas en su minuto")
+                        .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
                 Button { g.cerrar() } label: { Image(systemName: "xmark").frame(width: 28, height: 28) }
@@ -685,7 +709,11 @@ struct VistaGrabarClase: View {
             interruptor("speaker.wave.2", "Sonido del equipo (Meet, Zoom…)", $g.equipo)
             // Apagado de salida: el video ocupa mucho y casi siempre basta la
             // nota con sus capturas.
-            interruptor("video", "Vídeo de esta pantalla", $g.video)
+            // Encendido, lleva a la derecha su calidad, que se cambia con un
+            // clic.
+            interruptor("video", "Vídeo de esta pantalla", $g.video) {
+                if g.video { fichaDeCalidad }
+            }
             Button { g.otroProyecto() } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "folder").foregroundStyle(.yellow).frame(width: 20)
@@ -719,11 +747,32 @@ struct VistaGrabarClase: View {
         .padding(18)
     }
 
+    /// La ficha de la calidad del video, a la izquierda de su interruptor.
+    private var fichaDeCalidad: some View {
+        Button { g.otraCalidad() } label: {
+            Text(rotuloDeCalidad(perfil: g.perfilVideo))
+                .font(.system(size: 12))
+                .padding(.horizontal, 8)
+                .frame(height: 24)
+                .background(Color.white.opacity(sobreLaCalidad ? 0.22 : 0.16), in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { sobreLaCalidad = $0 }
+        .help(pistaDeCalidad(perfil: g.perfilVideo))
+    }
+
     private func interruptor(_ simbolo: String, _ rotulo: String, _ valor: Binding<Bool>) -> some View {
+        interruptor(simbolo, rotulo, valor) { EmptyView() }
+    }
+
+    private func interruptor<Extra: View>(_ simbolo: String, _ rotulo: String, _ valor: Binding<Bool>,
+                                          @ViewBuilder extra: () -> Extra) -> some View {
         HStack(spacing: 10) {
             Image(systemName: simbolo).frame(width: 20).foregroundStyle(valor.wrappedValue ? .primary : .secondary)
             Text(rotulo).lineLimit(1)
             Spacer()
+            extra()
             Toggle("", isOn: valor).toggleStyle(.switch).labelsHidden().tint(verdeClase)
         }
         .font(.system(size: 14))

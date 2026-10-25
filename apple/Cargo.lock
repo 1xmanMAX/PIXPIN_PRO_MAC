@@ -1751,6 +1751,7 @@ dependencies = [
  "pixpin-frase",
  "pixpin-ia",
  "pixpin-lecciones",
+ "pixpin-motor-audio",
  "pixpin-motor2d",
  "pixpin-office",
  "pixpin-pdf",
