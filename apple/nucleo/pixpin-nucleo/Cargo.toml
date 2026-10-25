@@ -49,6 +49,9 @@ pixpin-codec = { path = "../pixpin-codec" }
 # Las tarjetas de Anki de una nota, una foto o una clase grabada y
 # AnkiConnect (127.0.0.1:8765): el mismo crate que Windows (2561be0).
 pixpin-anki = { version = "0.1.0", path = "../pixpin-anki" }
+# La nota rica del chat: los bloques de su Markdown y el reparto del album
+# (`nota_rica`), el mismo crate que Windows (974d5ba). Puro.
+pixpin-ui = { version = "0.1.0", path = "../pixpin-ui" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"

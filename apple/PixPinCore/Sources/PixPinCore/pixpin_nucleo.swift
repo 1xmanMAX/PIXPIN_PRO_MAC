@@ -7339,6 +7339,22 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func croquisDelChat(chat: String, referencia: String)  -> String?
     
     /**
+     * **Una foto pegada con texto ya escrito va dentro de lo escrito**
+     * (`fotos_al_borrador` de Windows): se guarda en `notas/<ms>-<nombre>`
+     * del proyecto (donde guarda las suyas el editor de notas) y devuelve
+     * su renglon `![](notas/…)`, que Swift mete donde esta la rayita. Al
+     * enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil.
+     */
+    func fotoALaNota(chat: String, nombre: String, datos: Data) throws  -> String
+    
+    /**
+     * **La nota rica de `texto`** (una `NOTA` de `chat`): sus bloques con
+     * cada foto resuelta y medida, o `None` si es una nota llana (se pinta
+     * como siempre y no cambia ni un pixel). Una llamada por nota.
+     */
+    func notaRica(chat: String, texto: String) throws  -> NotaRica?
+    
+    /**
      * **Guarda el texto de una nota** (`mensaje`: el id de un `NOTA`) donde
      * la tenga, como `notas_md::guardar` de Windows: en su linea del
      * cuaderno (lo demas de la linea queda como estaba) y, si el proyecto
@@ -10608,6 +10624,41 @@ open func croquisDelChat(chat: String, referencia: String) -> String?  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterString.lower(referencia),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Una foto pegada con texto ya escrito va dentro de lo escrito**
+     * (`fotos_al_borrador` de Windows): se guarda en `notas/<ms>-<nombre>`
+     * del proyecto (donde guarda las suyas el editor de notas) y devuelve
+     * su renglon `![](notas/…)`, que Swift mete donde esta la rayita. Al
+     * enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil.
+     */
+open func fotoALaNota(chat: String, nombre: String, datos: Data)throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_foto_a_la_nota(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(nombre),
+        FfiConverterData.lower(datos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La nota rica de `texto`** (una `NOTA` de `chat`): sus bloques con
+     * cada foto resuelta y medida, o `None` si es una nota llana (se pinta
+     * como siempre y no cambia ni un pixel). Una llamada por nota.
+     */
+open func notaRica(chat: String, texto: String)throws  -> NotaRica?  {
+    return try  FfiConverterOptionTypeNotaRica.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nota_rica(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(texto),uniffiCallStatus
     )
 })
 }
@@ -14994,6 +15045,63 @@ public func FfiConverterTypeAlarmaMini_lower(_ value: AlarmaMini) -> RustBuffer 
 
 
 /**
+ * Donde va cada foto de un album y lo que mide entero.
+ */
+public struct AlbumDeNota: Equatable, Hashable {
+    public var cajas: [CajaDeAlbum]
+    public var alto: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(cajas: [CajaDeAlbum], alto: Float) {
+        self.cajas = cajas
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AlbumDeNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAlbumDeNota: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AlbumDeNota {
+        return
+            try AlbumDeNota(
+                cajas: FfiConverterSequenceTypeCajaDeAlbum.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AlbumDeNota, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeCajaDeAlbum.write(value.cajas, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAlbumDeNota_lift(_ buf: RustBuffer) throws -> AlbumDeNota {
+    return try FfiConverterTypeAlbumDeNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAlbumDeNota_lower(_ value: AlbumDeNota) -> RustBuffer {
+    return FfiConverterTypeAlbumDeNota.lower(value)
+}
+
+
+/**
  * Lo que deja «Añadir a carpeta…».
  */
 public struct AnadidaACarpeta: Equatable, Hashable {
@@ -16048,6 +16156,71 @@ public func FfiConverterTypeCaja3d_lift(_ buf: RustBuffer) throws -> Caja3d {
 #endif
 public func FfiConverterTypeCaja3d_lower(_ value: Caja3d) -> RustBuffer {
     return FfiConverterTypeCaja3d.lower(value)
+}
+
+
+/**
+ * Una caja del album, desde su esquina de arriba a la izquierda.
+ */
+public struct CajaDeAlbum: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var ancho: Float
+    public var alto: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, ancho: Float, alto: Float) {
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CajaDeAlbum: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCajaDeAlbum: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CajaDeAlbum {
+        return
+            try CajaDeAlbum(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CajaDeAlbum, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaDeAlbum_lift(_ buf: RustBuffer) throws -> CajaDeAlbum {
+    return try FfiConverterTypeCajaDeAlbum.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaDeAlbum_lower(_ value: CajaDeAlbum) -> RustBuffer {
+    return FfiConverterTypeCajaDeAlbum.lower(value)
 }
 
 
@@ -19719,6 +19892,67 @@ public func FfiConverterTypeEnganche_lower(_ value: Enganche) -> RustBuffer {
 
 
 /**
+ * Un enlace del texto (`[texto](url)`): donde esta (UTF-16) y adonde lleva.
+ */
+public struct EnlaceDeNota: Equatable, Hashable {
+    public var inicio: UInt32
+    public var largo: UInt32
+    public var url: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(inicio: UInt32, largo: UInt32, url: String) {
+        self.inicio = inicio
+        self.largo = largo
+        self.url = url
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EnlaceDeNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEnlaceDeNota: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EnlaceDeNota {
+        return
+            try EnlaceDeNota(
+                inicio: FfiConverterUInt32.read(from: &buf), 
+                largo: FfiConverterUInt32.read(from: &buf), 
+                url: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EnlaceDeNota, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.inicio, into: &buf)
+        FfiConverterUInt32.write(value.largo, into: &buf)
+        FfiConverterString.write(value.url, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnlaceDeNota_lift(_ buf: RustBuffer) throws -> EnlaceDeNota {
+    return try FfiConverterTypeEnlaceDeNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnlaceDeNota_lower(_ value: EnlaceDeNota) -> RustBuffer {
+    return FfiConverterTypeEnlaceDeNota.lower(value)
+}
+
+
+/**
  * Un hipervinculo de la pagina: su caja en puntos y adonde va.
  */
 public struct EnlaceOffice: Equatable, Hashable {
@@ -21469,6 +21703,107 @@ public func FfiConverterTypeFotoAnotada_lift(_ buf: RustBuffer) throws -> FotoAn
 #endif
 public func FfiConverterTypeFotoAnotada_lower(_ value: FotoAnotada) -> RustBuffer {
     return FfiConverterTypeFotoAnotada.lower(value)
+}
+
+
+/**
+ * Una foto de la nota, ya con lo de este aparato.
+ */
+public struct FotoDeNota: Equatable, Hashable {
+    /**
+     * Lo que dice de ella (sin el ancho del editor, `|300`).
+     */
+    public var alt: String
+    /**
+     * Su enlace tal cual (`pixpin:files/…`).
+     */
+    public var enlace: String
+    /**
+     * Su fichero en este aparato, solo si esta. Sin el, un recuadro con el
+     * icono de imagen (nunca la ruta como texto).
+     */
+    public var ruta: String?
+    /**
+     * Ancho / alto, o cero si no se sabe (el album pone un 4:3).
+     */
+    public var proporcion: Float
+    /**
+     * Cual es de la nota, en orden (`nota_rica::imagenes`).
+     */
+    public var indice: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Lo que dice de ella (sin el ancho del editor, `|300`).
+         */alt: String, 
+        /**
+         * Su enlace tal cual (`pixpin:files/…`).
+         */enlace: String, 
+        /**
+         * Su fichero en este aparato, solo si esta. Sin el, un recuadro con el
+         * icono de imagen (nunca la ruta como texto).
+         */ruta: String?, 
+        /**
+         * Ancho / alto, o cero si no se sabe (el album pone un 4:3).
+         */proporcion: Float, 
+        /**
+         * Cual es de la nota, en orden (`nota_rica::imagenes`).
+         */indice: UInt32) {
+        self.alt = alt
+        self.enlace = enlace
+        self.ruta = ruta
+        self.proporcion = proporcion
+        self.indice = indice
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FotoDeNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFotoDeNota: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FotoDeNota {
+        return
+            try FotoDeNota(
+                alt: FfiConverterString.read(from: &buf), 
+                enlace: FfiConverterString.read(from: &buf), 
+                ruta: FfiConverterOptionString.read(from: &buf), 
+                proporcion: FfiConverterFloat.read(from: &buf), 
+                indice: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FotoDeNota, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.alt, into: &buf)
+        FfiConverterString.write(value.enlace, into: &buf)
+        FfiConverterOptionString.write(value.ruta, into: &buf)
+        FfiConverterFloat.write(value.proporcion, into: &buf)
+        FfiConverterUInt32.write(value.indice, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoDeNota_lift(_ buf: RustBuffer) throws -> FotoDeNota {
+    return try FfiConverterTypeFotoDeNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoDeNota_lower(_ value: FotoDeNota) -> RustBuffer {
+    return FfiConverterTypeFotoDeNota.lower(value)
 }
 
 
@@ -24171,6 +24506,79 @@ public func FfiConverterTypeMaquetaReflujo_lower(_ value: MaquetaReflujo) -> Rus
 
 
 /**
+ * Un trozo con estilo propio, en unidades UTF-16 (las de `NSString`).
+ */
+public struct MarcaDeNota: Equatable, Hashable {
+    public var inicio: UInt32
+    public var largo: UInt32
+    public var negrita: Bool
+    public var cursiva: Bool
+    public var codigo: Bool
+    public var tachado: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(inicio: UInt32, largo: UInt32, negrita: Bool, cursiva: Bool, codigo: Bool, tachado: Bool) {
+        self.inicio = inicio
+        self.largo = largo
+        self.negrita = negrita
+        self.cursiva = cursiva
+        self.codigo = codigo
+        self.tachado = tachado
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MarcaDeNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMarcaDeNota: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarcaDeNota {
+        return
+            try MarcaDeNota(
+                inicio: FfiConverterUInt32.read(from: &buf), 
+                largo: FfiConverterUInt32.read(from: &buf), 
+                negrita: FfiConverterBool.read(from: &buf), 
+                cursiva: FfiConverterBool.read(from: &buf), 
+                codigo: FfiConverterBool.read(from: &buf), 
+                tachado: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MarcaDeNota, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.inicio, into: &buf)
+        FfiConverterUInt32.write(value.largo, into: &buf)
+        FfiConverterBool.write(value.negrita, into: &buf)
+        FfiConverterBool.write(value.cursiva, into: &buf)
+        FfiConverterBool.write(value.codigo, into: &buf)
+        FfiConverterBool.write(value.tachado, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcaDeNota_lift(_ buf: RustBuffer) throws -> MarcaDeNota {
+    return try FfiConverterTypeMarcaDeNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcaDeNota_lower(_ value: MarcaDeNota) -> RustBuffer {
+    return FfiConverterTypeMarcaDeNota.lower(value)
+}
+
+
+/**
  * Un marcador de un PDF: `x` es la fraccion del ancho de la hoja y `y` la
  * pagina (desde 0) mas la fraccion de su alto (`marcas::en_la_pagina`).
  */
@@ -25574,6 +25982,59 @@ public func FfiConverterTypeNotaDeClase_lift(_ buf: RustBuffer) throws -> NotaDe
 #endif
 public func FfiConverterTypeNotaDeClase_lower(_ value: NotaDeClase) -> RustBuffer {
     return FfiConverterTypeNotaDeClase.lower(value)
+}
+
+
+/**
+ * Una nota con algo que ensenar con formato.
+ */
+public struct NotaRica: Equatable, Hashable {
+    public var bloques: [BloqueDeNota]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(bloques: [BloqueDeNota]) {
+        self.bloques = bloques
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension NotaRica: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeNotaRica: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> NotaRica {
+        return
+            try NotaRica(
+                bloques: FfiConverterSequenceTypeBloqueDeNota.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: NotaRica, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeBloqueDeNota.write(value.bloques, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotaRica_lift(_ buf: RustBuffer) throws -> NotaRica {
+    return try FfiConverterTypeNotaRica.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeNotaRica_lower(_ value: NotaRica) -> RustBuffer {
+    return FfiConverterTypeNotaRica.lower(value)
 }
 
 
@@ -32366,6 +32827,124 @@ public func FfiConverterTypeAvisoInvitacion_lower(_ value: AvisoInvitacion) -> R
 
 
 /**
+ * Un bloque de la nota, de arriba abajo.
+ */
+
+public enum BloqueDeNota: Equatable, Hashable {
+    
+    case texto(clase: ClaseDeBloque, texto: String, marcas: [MarcaDeNota], enlaces: [EnlaceDeNota]
+    )
+    /**
+     * Un bloque de codigo (o una tabla, que en monoespaciada se lee).
+     */
+    case codigo(texto: String
+    )
+    /**
+     * `---`.
+     */
+    case regla
+    /**
+     * Una o varias fotos seguidas: un album.
+     */
+    case album(fotos: [FotoDeNota]
+    )
+    /**
+     * Un fichero de la nota que no es una foto (un PDF, un audio): se
+     * nombra con 📎 y no se pinta.
+     */
+    case adjunto(nombre: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension BloqueDeNota: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBloqueDeNota: FfiConverterRustBuffer {
+    typealias SwiftType = BloqueDeNota
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BloqueDeNota {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .texto(clase: try FfiConverterTypeClaseDeBloque.read(from: &buf), texto: try FfiConverterString.read(from: &buf), marcas: try FfiConverterSequenceTypeMarcaDeNota.read(from: &buf), enlaces: try FfiConverterSequenceTypeEnlaceDeNota.read(from: &buf)
+        )
+        
+        case 2: return .codigo(texto: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .regla
+        
+        case 4: return .album(fotos: try FfiConverterSequenceTypeFotoDeNota.read(from: &buf)
+        )
+        
+        case 5: return .adjunto(nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: BloqueDeNota, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .texto(clase,texto,marcas,enlaces):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeClaseDeBloque.write(clase, into: &buf)
+            FfiConverterString.write(texto, into: &buf)
+            FfiConverterSequenceTypeMarcaDeNota.write(marcas, into: &buf)
+            FfiConverterSequenceTypeEnlaceDeNota.write(enlaces, into: &buf)
+            
+        
+        case let .codigo(texto):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(texto, into: &buf)
+            
+        
+        case .regla:
+            writeInt(&buf, Int32(3))
+        
+        
+        case let .album(fotos):
+            writeInt(&buf, Int32(4))
+            FfiConverterSequenceTypeFotoDeNota.write(fotos, into: &buf)
+            
+        
+        case let .adjunto(nombre):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(nombre, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBloqueDeNota_lift(_ buf: RustBuffer) throws -> BloqueDeNota {
+    return try FfiConverterTypeBloqueDeNota.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBloqueDeNota_lower(_ value: BloqueDeNota) -> RustBuffer {
+    return FfiConverterTypeBloqueDeNota.lower(value)
+}
+
+
+
+/**
  * Lo que se le cambia a una carpeta desde su ventana. Las posiciones son
  * las de sus paginas vivas (las que se ven).
  */
@@ -32808,6 +33387,132 @@ public func FfiConverterTypeCirculoDia_lift(_ buf: RustBuffer) throws -> Circulo
 #endif
 public func FfiConverterTypeCirculoDia_lower(_ value: CirculoDia) -> RustBuffer {
     return FfiConverterTypeCirculoDia.lower(value)
+}
+
+
+
+/**
+ * Que es un bloque de texto: decide su letra, su sangria y su marca.
+ */
+
+public enum ClaseDeBloque: Equatable, Hashable {
+    
+    case parrafo
+    /**
+     * `#` a `######`.
+     */
+    case titulo(nivel: UInt8
+    )
+    /**
+     * `- x`, con su nivel de sangria (cero el de fuera).
+     */
+    case vineta(nivel: UInt8
+    )
+    /**
+     * `1. x`, con su numero tal cual se escribio.
+     */
+    case numero(nivel: UInt8, numero: String
+    )
+    /**
+     * `- [ ] x` / `- [x] x`.
+     */
+    case casilla(nivel: UInt8, hecha: Bool
+    )
+    /**
+     * `> x`.
+     */
+    case cita
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ClaseDeBloque: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeClaseDeBloque: FfiConverterRustBuffer {
+    typealias SwiftType = ClaseDeBloque
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ClaseDeBloque {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .parrafo
+        
+        case 2: return .titulo(nivel: try FfiConverterUInt8.read(from: &buf)
+        )
+        
+        case 3: return .vineta(nivel: try FfiConverterUInt8.read(from: &buf)
+        )
+        
+        case 4: return .numero(nivel: try FfiConverterUInt8.read(from: &buf), numero: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .casilla(nivel: try FfiConverterUInt8.read(from: &buf), hecha: try FfiConverterBool.read(from: &buf)
+        )
+        
+        case 6: return .cita
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ClaseDeBloque, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .parrafo:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .titulo(nivel):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt8.write(nivel, into: &buf)
+            
+        
+        case let .vineta(nivel):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt8.write(nivel, into: &buf)
+            
+        
+        case let .numero(nivel,numero):
+            writeInt(&buf, Int32(4))
+            FfiConverterUInt8.write(nivel, into: &buf)
+            FfiConverterString.write(numero, into: &buf)
+            
+        
+        case let .casilla(nivel,hecha):
+            writeInt(&buf, Int32(5))
+            FfiConverterUInt8.write(nivel, into: &buf)
+            FfiConverterBool.write(hecha, into: &buf)
+            
+        
+        case .cita:
+            writeInt(&buf, Int32(6))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClaseDeBloque_lift(_ buf: RustBuffer) throws -> ClaseDeBloque {
+    return try FfiConverterTypeClaseDeBloque.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClaseDeBloque_lower(_ value: ClaseDeBloque) -> RustBuffer {
+    return FfiConverterTypeClaseDeBloque.lower(value)
 }
 
 
@@ -38588,6 +39293,30 @@ fileprivate struct FfiConverterOptionTypeNotaDeClase: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeNotaRica: FfiConverterRustBuffer {
+    typealias SwiftType = NotaRica?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeNotaRica.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeNotaRica.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePaginaOffice: FfiConverterRustBuffer {
     typealias SwiftType = PaginaOffice?
 
@@ -39468,6 +40197,31 @@ fileprivate struct FfiConverterSequenceTypeCabeceraHttp: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCajaDeAlbum: FfiConverterRustBuffer {
+    typealias SwiftType = [CajaDeAlbum]
+
+    public static func write(_ value: [CajaDeAlbum], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCajaDeAlbum.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CajaDeAlbum] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CajaDeAlbum]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCajaDeAlbum.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCajaLienzo: FfiConverterRustBuffer {
     typealias SwiftType = [CajaLienzo]
 
@@ -40193,6 +40947,31 @@ fileprivate struct FfiConverterSequenceTypeDocumentoSinTexto: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeEnlaceDeNota: FfiConverterRustBuffer {
+    typealias SwiftType = [EnlaceDeNota]
+
+    public static func write(_ value: [EnlaceDeNota], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEnlaceDeNota.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EnlaceDeNota] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EnlaceDeNota]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEnlaceDeNota.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeEnlaceOffice: FfiConverterRustBuffer {
     typealias SwiftType = [EnlaceOffice]
 
@@ -40460,6 +41239,31 @@ fileprivate struct FfiConverterSequenceTypeFilaElegir: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFilaElegir.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFotoDeNota: FfiConverterRustBuffer {
+    typealias SwiftType = [FotoDeNota]
+
+    public static func write(_ value: [FotoDeNota], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFotoDeNota.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FotoDeNota] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FotoDeNota]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFotoDeNota.read(from: &buf))
         }
         return seq
     }
@@ -40810,6 +41614,31 @@ fileprivate struct FfiConverterSequenceTypeListaTareas: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeListaTareas.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMarcaDeNota: FfiConverterRustBuffer {
+    typealias SwiftType = [MarcaDeNota]
+
+    public static func write(_ value: [MarcaDeNota], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMarcaDeNota.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MarcaDeNota] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MarcaDeNota]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMarcaDeNota.read(from: &buf))
         }
         return seq
     }
@@ -41885,6 +42714,31 @@ fileprivate struct FfiConverterSequenceTypeVueltaAutomatizacion: FfiConverterRus
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeVueltaAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeBloqueDeNota: FfiConverterRustBuffer {
+    typealias SwiftType = [BloqueDeNota]
+
+    public static func write(_ value: [BloqueDeNota], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBloqueDeNota.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BloqueDeNota] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BloqueDeNota]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBloqueDeNota.read(from: &buf))
         }
         return seq
     }
@@ -43588,6 +44442,66 @@ public func claseDeModelo(ruta: String) -> ClaseDeModelo  {
 })
 }
 /**
+ * **El album** (`nota_rica::album`): las cajas de las fotos dadas sus
+ * proporciones (cero o menos si no se sabe: un 4:3), el ancho que hay, el
+ * tope de una foto sola y el de cada fila, y el hueco entre fotos. Una
+ * sola guarda su proporcion; en una fila de varias todas toman el mismo
+ * alto y cada una se recorta por el centro.
+ */
+public func albumDeNota(proporciones: [Float], ancho: Float, altoSolo: Float, altoFila: Float, hueco: Float) -> AlbumDeNota  {
+    return try!  FfiConverterTypeAlbumDeNota_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_album_de_nota(
+        FfiConverterSequenceFloat.lower(proporciones),
+        FfiConverterFloat.lower(ancho),
+        FfiConverterFloat.lower(altoSolo),
+        FfiConverterFloat.lower(altoFila),
+        FfiConverterFloat.lower(hueco),uniffiCallStatus
+    )
+})
+}
+/**
+ * Si un fichero es una foto, por su extension (la regla de la nota rica:
+ * pegar fotos con texto escrito las mete en lo escrito).
+ */
+public func esFotoDeNota(nombre: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_es_foto_de_nota(
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+/**
+ * La nota rica de `texto` sin mirar el disco (las fotos sin fichero ni
+ * proporcion), o `None` si es una nota llana: Swift decide con ella, al
+ * pintar, si la burbuja va con formato, y la pinta ya mientras
+ * [`Nucleo::nota_rica`] busca las fotos fuera del hilo principal.
+ */
+public func notaRicaSinFotos(texto: String) -> NotaRica?  {
+    return try!  FfiConverterOptionTypeNotaRica.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nota_rica_sin_fotos(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * Lo que hay que escribir con la rayita entre `antes` y `despues` para que
+ * `renglones` queden cada uno en su renglon (`nota_rica::en_su_renglon`):
+ * lo que hace la caja de escribir al pegar una foto con texto.
+ */
+public func renglonesEnSuSitio(antes: String, despues: String, renglones: [String]) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_renglones_en_su_sitio(
+        FfiConverterString.lower(antes),
+        FfiConverterString.lower(despues),
+        FfiConverterSequenceString.lower(renglones),uniffiCallStatus
+    )
+})
+}
+/**
  * La formula en texto plano (`(a/b)`, `x^2`, `sqrt(x)`): para copiar,
  * leer en voz alta o la ayuda.
  */
@@ -44261,6 +45175,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_clase_de_modelo() != 2579) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_album_de_nota() != 59997) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_es_foto_de_nota() != 36655) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_nota_rica_sin_fotos() != 4055) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_renglones_en_su_sitio() != 16640) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_formula_plano() != 28430) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -44871,6 +45797,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_croquis_del_chat() != 45128) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_foto_a_la_nota() != 52549) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nota_rica() != 583) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_editar_nota() != 59830) {

@@ -1749,6 +1749,7 @@ dependencies = [
  "pixpin-sistema",
  "pixpin-store",
  "pixpin-timeline",
+ "pixpin-ui",
  "rayon",
  "serde",
  "serde_json",
