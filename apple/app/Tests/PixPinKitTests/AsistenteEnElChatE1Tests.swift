@@ -32,7 +32,7 @@ final class AsistenteEnElChatE1Tests: XCTestCase {
             oyente.vivo(v: VivoIa(nota: inicio.respuesta.id, texto: "Escribiendo ▍",
                                   pensado: PensadoIa(pensamiento: "", segundos: nil, pensando: false,
                                                      entiendo: "", hare: "", reinicio: false),
-                                  pregunta: nil, acabado: false))
+                                  pregunta: nil, eleccion: nil, acabado: false))
             let r = try nucleo.iaResponder(chat: chat, nota: inicio.respuesta.id, texto: texto, lienzo: nil)
             return FinChatIa(respuesta: r, abrirLienzo: nil)
         }
