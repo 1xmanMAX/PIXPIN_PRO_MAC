@@ -29,6 +29,9 @@ public struct VentanaProyectos: View {
 
     /// La ventana no cabe lista y chat: se ve como el movil.
     @State private var estrecho = false
+    /// La pestana Funciones del interruptor, en el sitio de la lista
+    /// (`FuncionesDeLaLista`, Windows 768b73f).
+    @State private var enFunciones = false
 
     public init(almacen: Almacen) { self.almacen = almacen }
 
@@ -36,10 +39,12 @@ public struct VentanaProyectos: View {
         // Como en Windows: la franja fina arriba, la lista a la izquierda
         // (se estira por su borde) y el chat sobre su papel a la derecha.
         VStack(spacing: 0) {
-            FranjaProyectos(ventana: ventana) { VentanaFiguras.abrir(nucleo: almacen.nucleo, destino: nil) }
+            FranjaProyectos(ventana: ventana, funciones: $enFunciones)
             HStack(spacing: 0) {
-                // Estrecha, como el movil: o la lista o el chat (con ← para volver).
-                if !estrecho || elegido == nil {
+                // Estrecha, como el movil: o la lista o el chat (con ← para
+                // volver). Con Funciones puesta, la rejilla ocupa la ventana
+                // entera, como en Windows.
+                if !estrecho || elegido == nil || enFunciones {
                 ListaProyectos(almacen: almacen, elegido: $elegido) { chat in
                     // Todo el proyecto en la hoja de compartir comun (D1):
                     // sus hojas en PDF, web..., sus originales y el .pixpin.
@@ -67,13 +72,20 @@ public struct VentanaProyectos: View {
                 }
                 .frame(width: estrecho ? nil : anchoLista)
                 .frame(maxWidth: estrecho ? .infinity : nil)
+                // Funciones, encima de la lista (que sigue debajo con su
+                // buscador como estaba).
+                .overlay {
+                    if enFunciones {
+                        FuncionesDeLaLista(almacen: almacen, abierto: elegido) { enFunciones = false }
+                    }
+                }
                 }
                 if !estrecho {
                 Paleta.proyectos.separador
                     .frame(width: 1)
                     .overlay { asaLista }
                 }
-                if !estrecho || elegido != nil {
+                if !estrecho || (elegido != nil && !enFunciones) {
                 ZStack(alignment: .topLeading) {
                     PapelChat()
                     if let chat = elegido {

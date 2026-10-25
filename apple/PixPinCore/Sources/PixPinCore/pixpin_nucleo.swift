@@ -18021,6 +18021,71 @@ public func FfiConverterTypeCajaDeClase_lower(_ value: CajaDeClase) -> RustBuffe
 
 
 /**
+ * Un rectangulo en puntos de la columna, con el cero en su esquina.
+ */
+public struct CajaDeMosaico: Equatable, Hashable {
+    public var x: Int32
+    public var y: Int32
+    public var ancho: UInt32
+    public var alto: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Int32, y: Int32, ancho: UInt32, alto: UInt32) {
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CajaDeMosaico: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCajaDeMosaico: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CajaDeMosaico {
+        return
+            try CajaDeMosaico(
+                x: FfiConverterInt32.read(from: &buf), 
+                y: FfiConverterInt32.read(from: &buf), 
+                ancho: FfiConverterUInt32.read(from: &buf), 
+                alto: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CajaDeMosaico, into buf: inout [UInt8]) {
+        FfiConverterInt32.write(value.x, into: &buf)
+        FfiConverterInt32.write(value.y, into: &buf)
+        FfiConverterUInt32.write(value.ancho, into: &buf)
+        FfiConverterUInt32.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaDeMosaico_lift(_ buf: RustBuffer) throws -> CajaDeMosaico {
+    return try FfiConverterTypeCajaDeMosaico.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaDeMosaico_lower(_ value: CajaDeMosaico) -> RustBuffer {
+    return FfiConverterTypeCajaDeMosaico.lower(value)
+}
+
+
+/**
  * La caja que abarca lo dibujado, en unidades del mundo.
  */
 public struct CajaLienzo: Equatable, Hashable {
@@ -28656,6 +28721,85 @@ public func FfiConverterTypeMedidaPagina_lower(_ value: MedidaPagina) -> RustBuf
 
 
 /**
+ * Las medidas con que se pinta un mosaico (`pixpin_ui::funciones`).
+ */
+public struct MedidasDeFunciones: Equatable, Hashable {
+    public var radio: Float
+    public var iconoLado: Float
+    public var relleno: Float
+    public var tamTitulo: Float
+    public var tamDetalle: Float
+    /**
+     * La letra del titulo «Funciones».
+     */
+    public var tamTituloRejilla: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(radio: Float, iconoLado: Float, relleno: Float, tamTitulo: Float, tamDetalle: Float, 
+        /**
+         * La letra del titulo «Funciones».
+         */tamTituloRejilla: Float) {
+        self.radio = radio
+        self.iconoLado = iconoLado
+        self.relleno = relleno
+        self.tamTitulo = tamTitulo
+        self.tamDetalle = tamDetalle
+        self.tamTituloRejilla = tamTituloRejilla
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MedidasDeFunciones: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMedidasDeFunciones: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MedidasDeFunciones {
+        return
+            try MedidasDeFunciones(
+                radio: FfiConverterFloat.read(from: &buf), 
+                iconoLado: FfiConverterFloat.read(from: &buf), 
+                relleno: FfiConverterFloat.read(from: &buf), 
+                tamTitulo: FfiConverterFloat.read(from: &buf), 
+                tamDetalle: FfiConverterFloat.read(from: &buf), 
+                tamTituloRejilla: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MedidasDeFunciones, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.radio, into: &buf)
+        FfiConverterFloat.write(value.iconoLado, into: &buf)
+        FfiConverterFloat.write(value.relleno, into: &buf)
+        FfiConverterFloat.write(value.tamTitulo, into: &buf)
+        FfiConverterFloat.write(value.tamDetalle, into: &buf)
+        FfiConverterFloat.write(value.tamTituloRejilla, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMedidasDeFunciones_lift(_ buf: RustBuffer) throws -> MedidasDeFunciones {
+    return try FfiConverterTypeMedidasDeFunciones.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMedidasDeFunciones_lower(_ value: MedidasDeFunciones) -> RustBuffer {
+    return FfiConverterTypeMedidasDeFunciones.lower(value)
+}
+
+
+/**
  * Un video o un audio de una diapositiva, con su caja en puntos.
  */
 public struct MedioDiapositiva: Equatable, Hashable {
@@ -29564,6 +29708,103 @@ public func FfiConverterTypeMomentoTimeline_lift(_ buf: RustBuffer) throws -> Mo
 #endif
 public func FfiConverterTypeMomentoTimeline_lower(_ value: MomentoTimeline) -> RustBuffer {
     return FfiConverterTypeMomentoTimeline.lower(value)
+}
+
+
+/**
+ * Un mosaico, con lo que lleva escrito.
+ */
+public struct MosaicoDeFunciones: Equatable, Hashable {
+    public var funcion: FuncionDeLaLista
+    /**
+     * El nombre estable (`grabar`, `lienzo`…), el mismo en todos los aparatos.
+     */
+    public var nombre: String
+    public var titulo: String
+    /**
+     * La linea de debajo del titulo.
+     */
+    public var detalle: String
+    /**
+     * El icono Material del circulo.
+     */
+    public var icono: String
+    /**
+     * El color del circulo, `0xRRGGBB`.
+     */
+    public var color: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(funcion: FuncionDeLaLista, 
+        /**
+         * El nombre estable (`grabar`, `lienzo`…), el mismo en todos los aparatos.
+         */nombre: String, titulo: String, 
+        /**
+         * La linea de debajo del titulo.
+         */detalle: String, 
+        /**
+         * El icono Material del circulo.
+         */icono: String, 
+        /**
+         * El color del circulo, `0xRRGGBB`.
+         */color: UInt32) {
+        self.funcion = funcion
+        self.nombre = nombre
+        self.titulo = titulo
+        self.detalle = detalle
+        self.icono = icono
+        self.color = color
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MosaicoDeFunciones: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMosaicoDeFunciones: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MosaicoDeFunciones {
+        return
+            try MosaicoDeFunciones(
+                funcion: FfiConverterTypeFuncionDeLaLista.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                titulo: FfiConverterString.read(from: &buf), 
+                detalle: FfiConverterString.read(from: &buf), 
+                icono: FfiConverterString.read(from: &buf), 
+                color: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MosaicoDeFunciones, into buf: inout [UInt8]) {
+        FfiConverterTypeFuncionDeLaLista.write(value.funcion, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterString.write(value.detalle, into: &buf)
+        FfiConverterString.write(value.icono, into: &buf)
+        FfiConverterUInt32.write(value.color, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMosaicoDeFunciones_lift(_ buf: RustBuffer) throws -> MosaicoDeFunciones {
+    return try FfiConverterTypeMosaicoDeFunciones.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMosaicoDeFunciones_lower(_ value: MosaicoDeFunciones) -> RustBuffer {
+    return FfiConverterTypeMosaicoDeFunciones.lower(value)
 }
 
 
@@ -33054,6 +33295,180 @@ public func FfiConverterTypeRecursoNota_lower(_ value: RecursoNota) -> RustBuffe
 
 
 /**
+ * Donde va cada cosa de la pestana (`pixpin_ui::funciones::Rejilla`).
+ */
+public struct RejillaDeFunciones: Equatable, Hashable {
+    /**
+     * La franja del titulo (vacia si solo caben iconos).
+     */
+    public var titulo: CajaDeMosaico
+    /**
+     * Uno por funcion, en el orden de [`textos_de_funciones`].
+     */
+    public var mosaicos: [CajaDeMosaico]
+    public var columnas: UInt32
+    /**
+     * Tan estrecha que solo caben los iconos, en una columna de cuadrados.
+     */
+    public var soloIconos: Bool
+    /**
+     * Los mosaicos llevan su linea de descripcion; si no, el icono va a la
+     * izquierda del titulo.
+     */
+    public var conDetalle: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La franja del titulo (vacia si solo caben iconos).
+         */titulo: CajaDeMosaico, 
+        /**
+         * Uno por funcion, en el orden de [`textos_de_funciones`].
+         */mosaicos: [CajaDeMosaico], columnas: UInt32, 
+        /**
+         * Tan estrecha que solo caben los iconos, en una columna de cuadrados.
+         */soloIconos: Bool, 
+        /**
+         * Los mosaicos llevan su linea de descripcion; si no, el icono va a la
+         * izquierda del titulo.
+         */conDetalle: Bool) {
+        self.titulo = titulo
+        self.mosaicos = mosaicos
+        self.columnas = columnas
+        self.soloIconos = soloIconos
+        self.conDetalle = conDetalle
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RejillaDeFunciones: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRejillaDeFunciones: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RejillaDeFunciones {
+        return
+            try RejillaDeFunciones(
+                titulo: FfiConverterTypeCajaDeMosaico.read(from: &buf), 
+                mosaicos: FfiConverterSequenceTypeCajaDeMosaico.read(from: &buf), 
+                columnas: FfiConverterUInt32.read(from: &buf), 
+                soloIconos: FfiConverterBool.read(from: &buf), 
+                conDetalle: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RejillaDeFunciones, into buf: inout [UInt8]) {
+        FfiConverterTypeCajaDeMosaico.write(value.titulo, into: &buf)
+        FfiConverterSequenceTypeCajaDeMosaico.write(value.mosaicos, into: &buf)
+        FfiConverterUInt32.write(value.columnas, into: &buf)
+        FfiConverterBool.write(value.soloIconos, into: &buf)
+        FfiConverterBool.write(value.conDetalle, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRejillaDeFunciones_lift(_ buf: RustBuffer) throws -> RejillaDeFunciones {
+    return try FfiConverterTypeRejillaDeFunciones.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRejillaDeFunciones_lower(_ value: RejillaDeFunciones) -> RustBuffer {
+    return FfiConverterTypeRejillaDeFunciones.lower(value)
+}
+
+
+/**
+ * Lo que contesta la rejilla a una tecla (`Respuesta` de Windows).
+ */
+public struct RespuestaDeFunciones: Equatable, Hashable {
+    /**
+     * El mosaico elegido despues de la tecla.
+     */
+    public var elegida: UInt32?
+    /**
+     * La funcion que hay que hacer (Intro o Espacio con uno elegido).
+     */
+    public var hacer: FuncionDeLaLista?
+    /**
+     * Escape: de vuelta al chat.
+     */
+    public var volver: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El mosaico elegido despues de la tecla.
+         */elegida: UInt32?, 
+        /**
+         * La funcion que hay que hacer (Intro o Espacio con uno elegido).
+         */hacer: FuncionDeLaLista?, 
+        /**
+         * Escape: de vuelta al chat.
+         */volver: Bool) {
+        self.elegida = elegida
+        self.hacer = hacer
+        self.volver = volver
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RespuestaDeFunciones: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRespuestaDeFunciones: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RespuestaDeFunciones {
+        return
+            try RespuestaDeFunciones(
+                elegida: FfiConverterOptionUInt32.read(from: &buf), 
+                hacer: FfiConverterOptionTypeFuncionDeLaLista.read(from: &buf), 
+                volver: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RespuestaDeFunciones, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt32.write(value.elegida, into: &buf)
+        FfiConverterOptionTypeFuncionDeLaLista.write(value.hacer, into: &buf)
+        FfiConverterBool.write(value.volver, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRespuestaDeFunciones_lift(_ buf: RustBuffer) throws -> RespuestaDeFunciones {
+    return try FfiConverterTypeRespuestaDeFunciones.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRespuestaDeFunciones_lower(_ value: RespuestaDeFunciones) -> RustBuffer {
+    return FfiConverterTypeRespuestaDeFunciones.lower(value)
+}
+
+
+/**
  * Lo que contesto el motor local en un turno.
  */
 public struct RespuestaIa: Equatable, Hashable {
@@ -35069,6 +35484,89 @@ public func FfiConverterTypeTextoHallado_lift(_ buf: RustBuffer) throws -> Texto
 #endif
 public func FfiConverterTypeTextoHallado_lower(_ value: TextoHallado) -> RustBuffer {
     return FfiConverterTypeTextoHallado.lower(value)
+}
+
+
+/**
+ * Los textos de la pestana y del interruptor, en el idioma de la app.
+ */
+public struct TextosDeFunciones: Equatable, Hashable {
+    /**
+     * Las dos partes del interruptor de la barra.
+     */
+    public var interruptorChat: String
+    public var interruptorFunciones: String
+    /**
+     * «Funciones», encima de la rejilla.
+     */
+    public var titulo: String
+    /**
+     * Un mosaico por funcion, en el orden en que salen.
+     */
+    public var mosaicos: [MosaicoDeFunciones]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Las dos partes del interruptor de la barra.
+         */interruptorChat: String, interruptorFunciones: String, 
+        /**
+         * «Funciones», encima de la rejilla.
+         */titulo: String, 
+        /**
+         * Un mosaico por funcion, en el orden en que salen.
+         */mosaicos: [MosaicoDeFunciones]) {
+        self.interruptorChat = interruptorChat
+        self.interruptorFunciones = interruptorFunciones
+        self.titulo = titulo
+        self.mosaicos = mosaicos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextosDeFunciones: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextosDeFunciones: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextosDeFunciones {
+        return
+            try TextosDeFunciones(
+                interruptorChat: FfiConverterString.read(from: &buf), 
+                interruptorFunciones: FfiConverterString.read(from: &buf), 
+                titulo: FfiConverterString.read(from: &buf), 
+                mosaicos: FfiConverterSequenceTypeMosaicoDeFunciones.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextosDeFunciones, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.interruptorChat, into: &buf)
+        FfiConverterString.write(value.interruptorFunciones, into: &buf)
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterSequenceTypeMosaicoDeFunciones.write(value.mosaicos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextosDeFunciones_lift(_ buf: RustBuffer) throws -> TextosDeFunciones {
+    return try FfiConverterTypeTextosDeFunciones.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextosDeFunciones_lower(_ value: TextosDeFunciones) -> RustBuffer {
+    return FfiConverterTypeTextosDeFunciones.lower(value)
 }
 
 
@@ -40377,6 +40875,113 @@ public func FfiConverterTypeFuenteCapa_lower(_ value: FuenteCapa) -> RustBuffer 
 
 
 /**
+ * Cada funcion de la rejilla (`pixpin_ui::funciones::Funcion`), en su orden.
+ */
+
+public enum FuncionDeLaLista: Equatable, Hashable {
+    
+    case grabar
+    case lienzo
+    case tareas
+    case timeline
+    /**
+     * Abre Tareas en su vista Horario (Windows 9620ac8).
+     */
+    case horario
+    case galeria
+    case figuras
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension FuncionDeLaLista: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFuncionDeLaLista: FfiConverterRustBuffer {
+    typealias SwiftType = FuncionDeLaLista
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FuncionDeLaLista {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .grabar
+        
+        case 2: return .lienzo
+        
+        case 3: return .tareas
+        
+        case 4: return .timeline
+        
+        case 5: return .horario
+        
+        case 6: return .galeria
+        
+        case 7: return .figuras
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: FuncionDeLaLista, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .grabar:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .lienzo:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .tareas:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .timeline:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .horario:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .galeria:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .figuras:
+            writeInt(&buf, Int32(7))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFuncionDeLaLista_lift(_ buf: RustBuffer) throws -> FuncionDeLaLista {
+    return try FfiConverterTypeFuncionDeLaLista.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFuncionDeLaLista_lower(_ value: FuncionDeLaLista) -> RustBuffer {
+    return FfiConverterTypeFuncionDeLaLista.lower(value)
+}
+
+
+
+/**
  * Los tres grosores de Excalidraw (`strokeWidth` 1, 2 y 4).
  */
 
@@ -41876,6 +42481,127 @@ public func FfiConverterTypeSeccionFicha_lift(_ buf: RustBuffer) throws -> Secci
 #endif
 public func FfiConverterTypeSeccionFicha_lower(_ value: SeccionFicha) -> RustBuffer {
     return FfiConverterTypeSeccionFicha.lower(value)
+}
+
+
+
+/**
+ * Una tecla con el teclado en la rejilla.
+ */
+
+public enum TeclaDeFunciones: Equatable, Hashable {
+    
+    case izquierda
+    case derecha
+    case arriba
+    case abajo
+    case inicio
+    case fin
+    case tab
+    /**
+     * Intro o Espacio.
+     */
+    case hacer
+    case escape
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension TeclaDeFunciones: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTeclaDeFunciones: FfiConverterRustBuffer {
+    typealias SwiftType = TeclaDeFunciones
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TeclaDeFunciones {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .izquierda
+        
+        case 2: return .derecha
+        
+        case 3: return .arriba
+        
+        case 4: return .abajo
+        
+        case 5: return .inicio
+        
+        case 6: return .fin
+        
+        case 7: return .tab
+        
+        case 8: return .hacer
+        
+        case 9: return .escape
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TeclaDeFunciones, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .izquierda:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .derecha:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .arriba:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .abajo:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .inicio:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .fin:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .tab:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .hacer:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .escape:
+            writeInt(&buf, Int32(9))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTeclaDeFunciones_lift(_ buf: RustBuffer) throws -> TeclaDeFunciones {
+    return try FfiConverterTypeTeclaDeFunciones.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTeclaDeFunciones_lower(_ value: TeclaDeFunciones) -> RustBuffer {
+    return FfiConverterTypeTeclaDeFunciones.lower(value)
 }
 
 
@@ -44606,6 +45332,30 @@ fileprivate struct FfiConverterOptionTypeDondeLlego: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeFuncionDeLaLista: FfiConverterRustBuffer {
+    typealias SwiftType = FuncionDeLaLista?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeFuncionDeLaLista.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeFuncionDeLaLista.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypePeticionLienzo: FfiConverterRustBuffer {
     typealias SwiftType = PeticionLienzo?
 
@@ -45192,6 +45942,31 @@ fileprivate struct FfiConverterSequenceTypeCajaDeAlbum: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCajaDeAlbum.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCajaDeMosaico: FfiConverterRustBuffer {
+    typealias SwiftType = [CajaDeMosaico]
+
+    public static func write(_ value: [CajaDeMosaico], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCajaDeMosaico.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CajaDeMosaico] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CajaDeMosaico]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCajaDeMosaico.read(from: &buf))
         }
         return seq
     }
@@ -47192,6 +47967,31 @@ fileprivate struct FfiConverterSequenceTypeMomentoTimeline: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeMomentoTimeline.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMosaicoDeFunciones: FfiConverterRustBuffer {
+    typealias SwiftType = [MosaicoDeFunciones]
+
+    public static func write(_ value: [MosaicoDeFunciones], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMosaicoDeFunciones.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MosaicoDeFunciones] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MosaicoDeFunciones]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMosaicoDeFunciones.read(from: &buf))
         }
         return seq
     }
@@ -49744,6 +50544,68 @@ public func vecinaEnLaFicha(meses: [Int64], cuadricula: Bool, ancho: UInt32, act
 })
 }
 /**
+ * El mosaico bajo el punto `x, y` de la columna, si cae en alguno.
+ */
+public func funcionEnLaRejilla(r: RejillaDeFunciones, x: Int32, y: Int32) -> UInt32?  {
+    return try!  FfiConverterOptionUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_funcion_en_la_rejilla(
+        FfiConverterTypeRejillaDeFunciones_lower(r),
+        FfiConverterInt32.lower(x),
+        FfiConverterInt32.lower(y),uniffiCallStatus
+    )
+})
+}
+public func medidasDeFunciones() -> MedidasDeFunciones  {
+    return try!  FfiConverterTypeMedidasDeFunciones_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_medidas_de_funciones(uniffiCallStatus
+    )
+})
+}
+/**
+ * **La rejilla en una columna de `ancho` x `alto` puntos** (la de la
+ * lista): las mismas cuentas que Windows a escala 100, con el radio, los
+ * lados y las letras de `pixpin_ui::funciones` (ver [`medidas_de_funciones`]).
+ */
+public func rejillaDeFunciones(ancho: UInt32, alto: UInt32) -> RejillaDeFunciones  {
+    return try!  FfiConverterTypeRejillaDeFunciones_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_rejilla_de_funciones(
+        FfiConverterUInt32.lower(ancho),
+        FfiConverterUInt32.lower(alto),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Una tecla en la rejilla** desde `elegida`, con `columnas` (las de la
+ * rejilla que se ve): flechas, Inicio y Fin recorren sin dar la vuelta
+ * (`pixpin_ui::funciones::mover`), Tab si da la vuelta, Intro o Espacio
+ * hacen el elegido (sin ninguno, eligen el primero) y Escape vuelve al chat.
+ */
+public func teclaEnFunciones(elegida: UInt32?, tecla: TeclaDeFunciones, columnas: UInt32) -> RespuestaDeFunciones  {
+    return try!  FfiConverterTypeRespuestaDeFunciones_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tecla_en_funciones(
+        FfiConverterOptionUInt32.lower(elegida),
+        FfiConverterTypeTeclaDeFunciones_lower(tecla),
+        FfiConverterUInt32.lower(columnas),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Los textos de Funciones** para `locale` (`es-ES`, `en_US`…; cualquiera
+ * que no sea espanol, en ingles, como `resolver_idioma`).
+ */
+public func textosDeFunciones(locale: String) -> TextosDeFunciones  {
+    return try!  FfiConverterTypeTextosDeFunciones_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_textos_de_funciones(
+        FfiConverterString.lower(locale),uniffiCallStatus
+    )
+})
+}
+/**
  * **Los pixeles de un mapa de grafito** (el id de su orden de imagen).
  */
 public func mapaDeGrafito(id: UInt64) -> MapaGrafito?  {
@@ -51125,6 +51987,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_vecina_en_la_ficha() != 26888) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_funcion_en_la_rejilla() != 28150) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_medidas_de_funciones() != 25492) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_rejilla_de_funciones() != 46971) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tecla_en_funciones() != 36405) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_textos_de_funciones() != 48151) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_mapa_de_grafito() != 28155) {
