@@ -120,6 +120,8 @@ pub(crate) mod sin_ventana {
 }
 /// «Enviar a Anki» del menu de un mensaje (24-oct-2026).
 mod anki;
+/// Buscar dentro de todos los chats desde el buscador de la lista.
+mod buscar_en_chats;
 /// Las carpetas de paginas: un cuaderno con nombre dentro del chat, su
 /// ventana con las paginas en orden y su PDF (26-oct-2026).
 pub(crate) mod carpetas;
@@ -143,6 +145,8 @@ pub(crate) fn abrir_figuras(idioma: pixpin_store::Idioma) {
 /// La ventana de estudiar una clase grabada: el video o la captura del
 /// minuto, el texto y las capturas, que se siguen (25-oct-2026).
 mod estudiar_clase;
+/// La hoja para cambiar la foto del chat (25-oct-2026).
+mod foto_del_chat;
 /// La pestana de Funciones: la rejilla de las funciones fuertes (25-oct-2026).
 mod funciones;
 /// «Grabar clase»: el microfono y el sonido del equipo, con capturas de una
@@ -154,7 +158,7 @@ mod hoja_adjuntar;
 mod icono_de_tipo;
 /// El interruptor Chat · Funciones de la barra de titulo.
 mod interruptor;
-/// El logo de un proyecto: una imagen en vez de las iniciales (4-oct).
+/// La foto del chat pintada: imagen, emoji o color (4 y 25-oct).
 mod logo;
 /// Mayus+clic marca un tramo de burbujas.
 mod marcar;
@@ -609,6 +613,14 @@ fn pedir_ir_a(proyecto: String) {
     }
 }
 
+/// Pide, desde el buscador de la lista, abrir un chat llevado a un mensaje
+/// suyo (por su codigo unico): lo mismo que pide el universo.
+fn pedir_ir_a_mensaje(proyecto: String, codigo: String) {
+    if let Ok(mut g) = IR_A.lock() {
+        *g = Some((proyecto, Some(codigo)));
+    }
+}
+
 fn tomar_ir_a() -> Option<(String, Option<String>)> {
     IR_A.lock().ok().and_then(|mut g| g.take())
 }
@@ -631,6 +643,16 @@ static REFRESCAR: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool:
 /// otro aparato) y el `.pixpin` que se recibe en `recibir.rs`.
 pub(crate) fn refrescar() {
     REFRESCAR.store(true, std::sync::atomic::Ordering::SeqCst);
+    let ya = ABIERTA.load(std::sync::atomic::Ordering::SeqCst);
+    if ya > 0 {
+        pixpin_shell::overlay::despertar(ya);
+    }
+}
+
+/// Una vuelta de sincronizar empezo o acabo (`sincronizar::EnCurso`, desde
+/// su hilo): el boton de sincronizar de la lista empieza o deja de girar.
+/// Solo despierta al chat; lo que haya que releer lo pide `refrescar`.
+pub(crate) fn avisar_de_la_sincronizacion() {
     let ya = ABIERTA.load(std::sync::atomic::Ordering::SeqCst);
     if ya > 0 {
         pixpin_shell::overlay::despertar(ya);
@@ -955,6 +977,8 @@ pub fn abrir(
     let mut sobre: Option<BotonBarra> = None;
     let mut scroll: i32 = 0;
     let mut fila_sobre: Option<usize> = None;
+    // Lo de la seccion «Mensajes» del buscador que hay bajo el raton.
+    let mut mensaje_sobre: Option<pixpin_ui::buscar_en_chats::Elemento> = None;
     let mut elegida: Option<usize> = None;
     // Los proyectos marcados con Ctrl+clic, por `id`: por indice se
     // descolocarian al filtrar o al releer la lista.
@@ -998,6 +1022,15 @@ pub fn abrir(
     // pestana de Funciones (`funciones.rs`).
     let interruptor = interruptor::Interruptor::default();
     let mut funciones = funciones::Funciones::default();
+    // El boton de sincronizar gira mientras haya una vuelta en marcha, y
+    // dice si la ultima fallo (`pixpin_ui::giro`). `reloj` solo avanza.
+    let reloj = std::time::Instant::now();
+    let mut giro = pixpin_ui::giro::Giro::default();
+    let mut fallo_pintado = false;
+    // Buscar dentro de todos los chats desde el buscador de la lista
+    // (`buscar_en_chats`): su hilo nace con la primera busqueda.
+    let mut en_chats =
+        buscar_en_chats::BuscarEnChats::nuevo(ubicacion.raiz(), ventana.handle().0 as isize);
 
     loop {
         pixpin_shell::overlay::bombear_pendientes();
@@ -2059,6 +2092,16 @@ pub fn abrir(
                                         a.resaltado = Some((n, std::time::Instant::now()));
                                     }
                                 }
+                                // El avatar de arriba: la hoja de la foto del
+                                // chat, con su ficha de la lista (la del
+                                // abierto pudo quedarse vieja).
+                                ZonaInfo::Avatar => {
+                                    let f = fichas
+                                        .iter()
+                                        .find(|f| f.id == a.ficha.id)
+                                        .unwrap_or(&a.ficha);
+                                    foto_del_chat::abrir(ubicacion.raiz(), f, textos);
+                                }
                                 ZonaInfo::Dentro => {}
                             }
                         }
@@ -2211,6 +2254,8 @@ pub fn abrir(
                         // La pantalla de Sincronizar del movil: tus aparatos,
                         // y desde ella Recibir y Enviar.
                         crate::sincronizar::lanzar(idioma, ubicacion.clone());
+                        // Lo que fallo se ve ahi: la marca roja ya se vio.
+                        crate::sincronizar::olvidar_fallo();
                         buscando = false;
                         hay_que_pintar = true;
                     } else if disposicion.buscador(escala).contiene(l) {
@@ -2403,6 +2448,34 @@ pub fn abrir(
                             abierto = Some(nuevo);
                         }
                         hay_que_pintar = true;
+                    } else if let Some(el) =
+                        en_chats.elemento_en(&disposicion, l, scroll, orden.len(), escala)
+                    {
+                        // Un mensaje encontrado en la seccion «Mensajes» del
+                        // buscador: su chat, llevado a el y resaltado, por
+                        // el mismo camino que «Ver en el chat» (`ir_a`).
+                        match el {
+                            pixpin_ui::buscar_en_chats::Elemento::Mensaje(n) => {
+                                if let Some(enc) = en_chats.encontrado(n) {
+                                    // Si es el chat abierto y tiene su propia
+                                    // lupa o un chip puestos, se quitan: el
+                                    // mensaje podria quedar escondido y no
+                                    // habria adonde ir.
+                                    if let Some(a) =
+                                        abierto.as_mut().filter(|a| a.ficha.id == enc.chat)
+                                    {
+                                        a.busqueda = None;
+                                        a.por_etiqueta = None;
+                                        a.colocado.borrow_mut().ancho = 0;
+                                    }
+                                    pedir_ir_a_mensaje(enc.chat.clone(), enc.codigo.clone());
+                                }
+                            }
+                            pixpin_ui::buscar_en_chats::Elemento::VerMas => en_chats.ver_mas(),
+                            pixpin_ui::buscar_en_chats::Elemento::Cabecera => {}
+                        }
+                        buscando = false;
+                        hay_que_pintar = true;
                     }
                 }
                 EventoOverlay::RatonMovido(p) => {
@@ -2534,6 +2607,8 @@ pub fn abrir(
                         None => {
                             sobre = disposicion.boton_barra_en(l, escala);
                             fila_sobre = disposicion.fila_en(l, scroll, orden.len(), escala);
+                            mensaje_sobre =
+                                en_chats.elemento_en(&disposicion, l, scroll, orden.len(), escala);
                             let cursor = chat::borde_en(l, marco.ancho, marco.alto, escala)
                                 .map(cursor_de)
                                 .unwrap_or(if disposicion.asa.contiene(l) {
@@ -2665,36 +2740,17 @@ pub fn abrir(
                             vec![id]
                         };
                         let con_carpeta_propia = fichas[orden[fila]].ubicacion.is_some();
-                        let con_logo = logo::tiene(ubicacion.raiz(), &fichas[orden[fila]].id);
                         let elegido = menu_de_proyecto(
                             &ventana,
                             textos,
                             ids.len(),
                             con_carpeta_propia,
-                            con_logo,
                             !fichas[orden[fila]].es_guardados(),
                         );
-                        // El logo: se pone o se quita y la lista lo vuelve a
-                        // leer al pintar.
-                        if matches!(
-                            elegido,
-                            Some(DelMenuProyecto::PonerLogo | DelMenuProyecto::QuitarLogo)
-                        ) {
-                            let id = &fichas[orden[fila]].id;
-                            let hecho = if elegido == Some(DelMenuProyecto::PonerLogo) {
-                                logo::elegir_y_poner(ventana.handle(), ubicacion.raiz(), id)
-                                    .map(|_| ())
-                            } else {
-                                logo::quitar(ubicacion.raiz(), id).map_err(anyhow::Error::from)
-                            };
-                            if let Err(e) = hecho {
-                                tracing::warn!(?e, "no se pudo cambiar el logo del proyecto");
-                                aviso = Some((
-                                    textos.t("proyecto-logo-error"),
-                                    std::time::Instant::now(),
-                                ));
-                            }
-                            hay_que_pintar = true;
+                        // La foto del chat: su hoja, aparte. Al guardar, la
+                        // lista se relee y la foto se ve.
+                        if elegido == Some(DelMenuProyecto::CambiarFoto) {
+                            foto_del_chat::abrir(ubicacion.raiz(), &fichas[orden[fila]], textos);
                             continue;
                         }
                         // Donde se guarda: moverlo, traerlo o ensenar su
@@ -3257,9 +3313,11 @@ pub fn abrir(
                     // Tres filas por muesca, como Telegram y como el ajuste
                     // de Windows por omision.
                     let paso = (chat::FILA * 3 / 2 * escala / 100) as i32;
+                    // Con la seccion «Mensajes» del buscador debajo de los
+                    // chats, se baja tambien por ella.
                     let nuevo = disposicion.scroll_ajustado(
                         scroll - giro_de_rueda(delta, paso),
-                        orden.len(),
+                        orden.len() + en_chats.seccion().filas(escala),
                         escala,
                     );
                     if nuevo != scroll {
@@ -3268,6 +3326,8 @@ pub fn abrir(
                         // se mueva.
                         let p = local(pixpin_shell::entorno::posicion_del_cursor());
                         fila_sobre = disposicion.fila_en(p, scroll, orden.len(), escala);
+                        mensaje_sobre =
+                            en_chats.elemento_en(&disposicion, p, scroll, orden.len(), escala);
                         hay_que_pintar = true;
                     }
                 }
@@ -4043,6 +4103,7 @@ pub fn abrir(
                 hay_que_pintar = true;
             }
             sello_indice = Some(ahora_sello);
+            en_chats.releer();
             // Si el indice cambio, el cuaderno del proyecto abierto pudo
             // cambiar con el: lo que llega del movil entra por los dos sitios.
             pendiente_de_releer = true;
@@ -4053,6 +4114,8 @@ pub fn abrir(
         // lienzo abiertos se espera: el que esta escribiendo manda.
         if tomar_refrescar() {
             pendiente_de_releer = true;
+            // Y lo encontrado en los chats, que pudo cambiar con lo llegado.
+            en_chats.releer();
         }
         // La escala que se cambio en los ajustes generales (25-oct-2026):
         // la misma cuenta que Ctrl + «+» / «-».
@@ -4185,7 +4248,11 @@ pub fn abrir(
                 // estrecha, lo que se ve depende de si hay proyecto abierto,
                 // y una cuenta suelta daria un tope de otra lista.
                 let d = disponer(marco, escala, ancho_lista, abierto.as_ref());
-                scroll = d.scroll_ajustado(scroll, orden.len(), escala);
+                scroll = d.scroll_ajustado(
+                    scroll,
+                    orden.len() + en_chats.seccion().filas(escala),
+                    escala,
+                );
                 hay_que_pintar = true;
             }
         }
@@ -4240,6 +4307,27 @@ pub fn abrir(
         );
         if rayita_ahora != rayita_pintada {
             rayita_pintada = rayita_ahora;
+            hay_que_pintar = true;
+        }
+        // El boton de sincronizar: girando se repinta a su paso; quieto, solo
+        // cuando empieza o acaba una vuelta (la despierta `EnCurso`).
+        let ms = reloj.elapsed().as_millis() as u64;
+        if giro.poner(crate::sincronizar::hay_vueltas(), ms) || giro.gira() {
+            hay_que_pintar = true;
+        }
+        if crate::sincronizar::ultima_fallo() != fallo_pintado {
+            fallo_pintado = !fallo_pintado;
+            hay_que_pintar = true;
+        }
+        // Lo escrito en el buscador de la lista, tambien dentro de todos los
+        // chats: tras la espera se le pide al hilo, y lo que conteste se pinta.
+        if en_chats.latido(&busqueda, ms) {
+            let d = disponer(marco, escala, ancho_lista, abierto.as_ref());
+            scroll = d.scroll_ajustado(
+                scroll,
+                orden.len() + en_chats.seccion().filas(escala),
+                escala,
+            );
             hay_que_pintar = true;
         }
         // El IME (japones, chino) compone encima de la rayita de la caja
@@ -4329,9 +4417,12 @@ pub fn abrir(
                     .unwrap_or_default();
                 logo::preparar(
                     ubicacion.raiz(),
+                    &fichas,
                     filas
                         .chain(del_abierto)
-                        .chain(de_la_ficha.iter().map(String::as_str)),
+                        .chain(de_la_ficha.iter().map(String::as_str))
+                        // Y los de los chats de los mensajes encontrados.
+                        .chain(en_chats.chats()),
                     &motor,
                 );
             }
@@ -4348,6 +4439,10 @@ pub fn abrir(
                     buscando,
                     marcados: &marcados,
                     raiz: ubicacion.raiz(),
+                    giro_sincro: giro.angulo(reloj.elapsed().as_millis() as u64),
+                    sincro_fallo: fallo_pintado,
+                    en_chats: Some(&en_chats),
+                    sobre_mensaje: mensaje_sobre,
                 };
                 let abierto_ref = abierto.as_ref();
                 let pendientes_ref = pendientes.as_ref();
@@ -4664,6 +4759,8 @@ pub fn abrir(
             hasta_el_dictado,
             hasta_la_lectura,
             hasta_el_asistente,
+            giro.ms_hasta(),
+            en_chats.ms_hasta(ms),
         ]
         .into_iter()
         .flatten()
@@ -5219,6 +5316,15 @@ struct Lista<'a> {
     marcados: &'a std::collections::BTreeSet<String>,
     /// Donde viven los datos: de ahi sale que chats son compartidos.
     raiz: &'a std::path::Path,
+    /// Lo girado del boton de sincronizar (radianes; quieto, cero).
+    giro_sincro: f32,
+    /// La ultima vuelta de sincronizar fallo: el boton lleva la marca roja.
+    sincro_fallo: bool,
+    /// Los mensajes de todos los chats que casan con lo buscado (la seccion
+    /// «Mensajes», debajo de los chats), si se busca.
+    en_chats: Option<&'a buscar_en_chats::BuscarEnChats>,
+    /// Lo de esa seccion que hay bajo el raton.
+    sobre_mensaje: Option<pixpin_ui::buscar_en_chats::Elemento>,
 }
 
 /// Los colores de los avatares, los mismos siete de Telegram. Cual toca sale
@@ -5461,21 +5567,34 @@ fn pintar(
             },
         );
         let lado = boton.ancho as f32 * 0.56;
-        p.icono(
-            icono,
-            RectF {
-                x: boton.x as f32 + (boton.ancho as f32 - lado) / 2.0,
-                y: boton.y as f32 + (boton.alto as f32 - lado) / 2.0,
-                ancho: lado,
-                alto: lado,
-            },
-            Color {
-                r: 0.961,
-                g: 0.902,
-                b: 0.722,
-                a: 1.0,
-            },
+        let pintar_icono = |p: &Pintor| {
+            p.icono(
+                icono,
+                RectF {
+                    x: boton.x as f32 + (boton.ancho as f32 - lado) / 2.0,
+                    y: boton.y as f32 + (boton.alto as f32 - lado) / 2.0,
+                    ancho: lado,
+                    alto: lado,
+                },
+                Color {
+                    r: 0.961,
+                    g: 0.902,
+                    b: 0.722,
+                    a: 1.0,
+                },
+            )
+        };
+        // Sincronizando gira sobre su centro (`pixpin_ui::giro`); y si la
+        // ultima vuelta fallo, una marca roja con «!» en la esquina, como la
+        // de pendientes de Telegram, hasta pulsarlo.
+        let centro = (
+            boton.x as f32 + boton.ancho as f32 / 2.0,
+            boton.y as f32 + boton.alto as f32 / 2.0,
         );
+        p.girado(centro, lista.giro_sincro, pintar_icono);
+        if lista.sincro_fallo && lista.giro_sincro == 0.0 {
+            pintar_marca_de_fallo(p, rf(boton), tema.cabecera);
+        }
     }
 
     // El buscador, en el sitio del titulo: es lo que hay en Telegram y lo
@@ -5504,7 +5623,10 @@ fn pintar(
 
     // Sin proyectos todavia: se dice, en vez de dejar la columna en blanco
     // que parece un fallo. Si lo que la vacia es la busqueda, se dice eso.
-    if lista.orden.is_empty() {
+    // Con mensajes encontrados en los chats, la lista no esta vacia aunque
+    // ningun chat case por su nombre.
+    let hay_mensajes = lista.en_chats.is_some_and(|b| b.seccion().hay());
+    if lista.orden.is_empty() && !hay_mensajes {
         centrar_texto(
             &textos.t(clave_de_lista_vacia(lista.busqueda)),
             d.filas,
@@ -5514,6 +5636,9 @@ fn pintar(
         );
     } else {
         pintar_filas(p, d, tema, escala, lista);
+    }
+    if let Some(b) = lista.en_chats {
+        buscar_en_chats::pintar(p, d, tema, escala, lista, b);
     }
     // Y encima de ellas, el boton de proyecto nuevo: flota sobre la lista, y
     // una fila resaltada no puede taparlo.
@@ -5531,6 +5656,33 @@ fn pintar(
         );
     }
 }
+
+/// La marca de «la ultima sincronizacion fallo»: un circulito rojo con «!»
+/// arriba a la derecha del boton, con un aro del color de detras (`aro`).
+fn pintar_marca_de_fallo(p: &Pintor, boton: RectF, aro: Color) {
+    let lado = (boton.ancho * 0.42).max(9.0);
+    let caja = RectF {
+        x: boton.x + boton.ancho - lado * 0.75,
+        y: boton.y - lado * 0.25,
+        ancho: lado,
+        alto: lado,
+    };
+    p.rellenar_redondeado(caja, lado / 2.0, aro);
+    let dentro = encoger(caja, (lado * 0.12).max(1.0));
+    p.rellenar_redondeado(dentro, dentro.ancho / 2.0, hex(ROJO_FALLO));
+    let tam = dentro.alto * 0.8;
+    let (w, h) = p.medir_texto("!", tam);
+    p.texto(
+        "!",
+        dentro.x + (dentro.ancho - w) / 2.0,
+        dentro.y + (dentro.alto - h) / 2.0,
+        tam,
+        Color::BLANCO,
+    );
+}
+
+/// El rojo de la marca de fallo: el de los avisos de error de Telegram.
+const ROJO_FALLO: u32 = 0xe53935;
 
 /// Que dice la lista cuando no ensena ninguna fila: con la busqueda puesta
 /// (la misma regla que `filtrar`: espacios solos no filtran), que no hay
@@ -5614,10 +5766,10 @@ fn pintar_filas(p: &Pintor, d: &Disposicion, tema: &Tema, escala: u32, lista: &L
         }
         let partes = pixpin_ui::chat::partes_fila(r, d.plegada, escala);
 
-        // El avatar: su logo si le puso uno, o un circulo de su color con
-        // las iniciales.
+        // El avatar: su foto si le puso una (imagen, emoji o color), o un
+        // circulo de su color con las iniciales.
         let a = rf(partes.avatar);
-        if !logo::pintar(p, &ficha.id, a) {
+        if !logo::pintar(p, ficha, a) {
             p.rellenar_redondeado(a, a.ancho / 2.0, color_avatar(&ficha.codigo_unico()));
             let letras = iniciales(&ficha.nombre);
             let tam = a.alto * 0.4;
@@ -8433,7 +8585,7 @@ fn pintar_cabecera(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     };
     // Con logo puesto, el logo ocupa el disco de la carpeta: es el mismo
     // proyecto que en la lista y tiene que reconocerse igual.
-    if !logo::pintar(p, &a.ficha.id, circulo) {
+    if !logo::pintar(p, &a.ficha, circulo) {
         p.rellenar_redondeado(circulo, disco / 2.0, tema.carpeta);
         let icono: &Icono = if a.ficha.es_guardados() {
             &mi::BOOKMARK_BORDER
@@ -9422,11 +9574,13 @@ fn fecha_larga(cuando_ms: i64, ahora_ms: i64, textos: &Catalogo) -> String {
 
 /// Que proyectos pasan el filtro del buscador, por su indice.
 ///
-/// Se compara sin distinguir mayusculas y buscando la palabra en cualquier
-/// sitio del nombre o de la ultima linea: escribir «playa» tiene que
-/// encontrar «Casa de playa», no solo lo que empieza por ahi.
+/// Se compara sin distinguir mayusculas ni tildes (como los mensajes de la
+/// seccion «Mensajes», `resaltado`) y buscando la palabra en cualquier sitio
+/// del nombre o de la ultima linea: escribir «playa» tiene que encontrar
+/// «Casa de playa», no solo lo que empieza por ahi, y «cimentacion» la
+/// «Cimentación».
 fn filtrar(fichas: &[pixpin_proyecto::almacen::Ficha], busqueda: &str) -> Vec<usize> {
-    let aguja = busqueda.trim().to_lowercase();
+    let aguja = busqueda.trim();
     if aguja.is_empty() {
         return (0..fichas.len()).collect();
     }
@@ -9434,7 +9588,8 @@ fn filtrar(fichas: &[pixpin_proyecto::almacen::Ficha], busqueda: &str) -> Vec<us
         .iter()
         .enumerate()
         .filter(|(_, f)| {
-            f.nombre.to_lowercase().contains(&aguja) || f.resumen.to_lowercase().contains(&aguja)
+            pixpin_ui::resaltado::hay_coincidencia(&f.nombre, aguja)
+                || pixpin_ui::resaltado::hay_coincidencia(&f.resumen, aguja)
         })
         .map(|(i, _)| i)
         .collect()
@@ -13730,10 +13885,8 @@ enum DelMenuProyecto {
     Compartir,
     /// Sus personas: compartir el chat con otras (`sincronizar::compartidos_ui`).
     Personas,
-    /// Elegir una imagen para su avatar (`logo`).
-    PonerLogo,
-    /// Volver al circulo con iniciales.
-    QuitarLogo,
+    /// Cambiar la foto del chat: imagen, emoji o color (`foto_del_chat`).
+    CambiarFoto,
 }
 
 /// El menu del clic derecho sobre un proyecto de la lista.
@@ -13747,14 +13900,13 @@ enum DelMenuProyecto {
 /// Lo de la carpeta, tambien solo con uno: cada proyecto va a la suya.
 /// «Volver a la ubicacion habitual» solo sale si tiene una propia.
 ///
-/// El logo, tambien con uno solo, junto al nombre: es lo otro que se ve de
-/// el en la lista. «Quitar» solo si tiene uno puesto.
+/// La foto del chat, tambien con uno solo, junto al nombre: es lo otro que
+/// se ve de el en la lista.
 fn menu_de_proyecto(
     ventana: &VentanaOverlay,
     textos: &Catalogo,
     cuantos: usize,
     con_carpeta_propia: bool,
-    con_logo: bool,
     compartible: bool,
 ) -> Option<DelMenuProyecto> {
     const PERSONAS: u32 = 10;
@@ -13765,8 +13917,7 @@ fn menu_de_proyecto(
     const VOLVER_A_HABITUAL: u32 = 5;
     const ABRIR_CARPETA: u32 = 6;
     const COMPARTIR: u32 = 7;
-    const PONER_LOGO: u32 = 8;
-    const QUITAR_LOGO: u32 = 9;
+    const CAMBIAR_FOTO: u32 = 8;
     let rotulo = if cuantos > 1 {
         format!("{} ({cuantos})", textos.t("proyecto-borrar-varios"))
     } else {
@@ -13783,10 +13934,7 @@ fn menu_de_proyecto(
     }
     if cuantos == 1 {
         entradas.push((RENOMBRAR, textos.t("proyecto-renombrar")));
-        entradas.push((PONER_LOGO, textos.t("proyecto-logo-poner")));
-        if con_logo {
-            entradas.push((QUITAR_LOGO, textos.t("proyecto-logo-quitar")));
-        }
+        entradas.push((CAMBIAR_FOTO, textos.t("foto-chat-menu")));
         entradas.push((CAMBIAR_UBICACION, textos.t("ubicacion-cambiar")));
         if con_carpeta_propia {
             entradas.push((VOLVER_A_HABITUAL, textos.t("ubicacion-habitual")));
@@ -13798,8 +13946,7 @@ fn menu_de_proyecto(
     entradas.push((PAPELERA, textos.t("proyecto-papelera")));
     match pixpin_shell::menu_llano(ventana.handle(), &entradas) {
         Some(RENOMBRAR) => Some(DelMenuProyecto::Renombrar),
-        Some(PONER_LOGO) => Some(DelMenuProyecto::PonerLogo),
-        Some(QUITAR_LOGO) => Some(DelMenuProyecto::QuitarLogo),
+        Some(CAMBIAR_FOTO) => Some(DelMenuProyecto::CambiarFoto),
         Some(PAPELERA) => Some(DelMenuProyecto::Papelera),
         Some(CAMBIAR_UBICACION) => Some(DelMenuProyecto::CambiarUbicacion),
         Some(VOLVER_A_HABITUAL) => Some(DelMenuProyecto::VolverAHabitual),
