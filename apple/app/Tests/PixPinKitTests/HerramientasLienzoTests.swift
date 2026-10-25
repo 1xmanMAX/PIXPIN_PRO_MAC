@@ -343,7 +343,11 @@ final class BarraHerramientasLienzoTests: XCTestCase {
             default: break
             }
         }
-        XCTAssertEqual(alcanzables, Set(HerramientaLienzo.todas.map(\.id)), "ninguna se queda sin boton")
+        // El marco no va en la barra (Windows, 22-oct): lo pone el riel (y la C).
+        XCTAssertFalse(alcanzables.contains("marco"), "el marco no se repite en la barra")
+        XCTAssertEqual(alcanzables.union(["marco"]), Set(HerramientaLienzo.todas.map(\.id)),
+                       "ninguna se queda sin boton")
+        XCTAssertTrue(BotonBarraLienzo.barra.contains(.herramienta("imagen")), "la imagen, suelta")
         // Cada grupo de la barra tiene a alguien dentro.
         for g in GrupoHerramientaLienzo.allCases { XCTAssertFalse(g.miembros.isEmpty, g.rawValue) }
         // Elegir | dibujar | medir, imagen y goma | acciones: tres cortes.
@@ -392,6 +396,39 @@ final class BarraHerramientasLienzoTests: XCTestCase {
         let a = BotonBarraLienzo.anchoDeFila(BotonBarraLienzo.barra[..<corte])
         let b = BotonBarraLienzo.anchoDeFila(BotonBarraLienzo.barra[corte...])
         XCTAssertLessThan(max(a, b), entera * 0.7, "las dos filas, parejas")
+    }
+
+    /// Windows, 24 y 25-oct (`mirar_editar`): el lienzo de su ventana abre
+    /// mirando; el lapiz del riel pasa a editar y vuelve; el marco del riel
+    /// edita con el marco y, otra vez, devuelve la herramienta de antes.
+    @MainActor
+    func testElLienzoAbreMirandoYElRielEditaYPoneElMarco() throws {
+        let carpeta = try carpetaTemporal("mirar-editar")
+        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let ed = try EditorLienzo.deFichero(ruta: carpeta.appendingPathComponent("m.excalidraw").path, crear: true)
+        let modelo = ModeloEditorLienzo(editor: ed)
+        // Caso negativo: sin la ventana del lienzo (captura, planos) se edita.
+        XCTAssertFalse(modelo.soloMirar)
+        XCTAssertFalse(modelo.conRiel)
+        modelo.abrirMirando()
+        XCTAssertTrue(modelo.soloMirar && modelo.conRiel)
+        modelo.alternarMirar()
+        XCTAssertFalse(modelo.soloMirar, "el lapiz edita")
+        // Un texto a medias entra al volver a mirar.
+        modelo.elegir("texto")
+        _ = ed.puntero(fase: .pulsar, x: 40, y: 40, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.puntero(fase: .soltar, x: 40, y: 40, presion: nil, modificadores: 0, zoom: 1)
+        _ = ed.teclear(texto: "Hola")
+        modelo.ponerSoloMirar(true)
+        XCTAssertTrue(modelo.soloMirar)
+        XCTAssertFalse(ed.escribiendo())
+        XCTAssertEqual(ed.cuantosElementos(), 1)
+        // El marco del riel, mirando: edita con el marco; otra vez, el texto.
+        modelo.alternarMarco()
+        XCTAssertFalse(modelo.soloMirar)
+        XCTAssertEqual(modelo.herramienta, "marco")
+        modelo.alternarMarco()
+        XCTAssertEqual(modelo.herramienta, "texto")
     }
 
     @MainActor

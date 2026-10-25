@@ -71,6 +71,7 @@ pub mod editor_exportar;
 pub mod editor_figuras;
 pub mod editor_herramientas;
 pub mod editor_imagenes;
+pub mod editor_marcos;
 pub mod editor_tapado;
 pub mod editor_ventana;
 pub mod envio;

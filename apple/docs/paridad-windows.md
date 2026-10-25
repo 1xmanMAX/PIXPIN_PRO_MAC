@@ -128,7 +128,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | orden | Línea de órdenes y `pixpinmax://` | parcial | K/Pedidos/{Pedido,Verbos,Enlaces}.swift | C2: `CFBundleURLTypes` (`pixpinmax`) y la tabla de verbos de `orden.rs` entera (mismos nombres, alias y campos; `pixpin://atajo/…` de Android también, y `pixpinmax:pedido?json=`); la lista blanca (`seguridad`), el cuadro de confirmar con «No» por defecto, lo prohibido (rutas de red: `//…`, `/net`, `/Network`, `smb:`, `file:`, relativas) y la firma HMAC-SHA256 (`enlaces.clave` en la carpeta de datos). El Mac no reclama `pixpin://` (es también del PixPin de DepthPixel). Falta la línea de órdenes (`pixpinmax <verbo>` en Terminal): `Verbos.deArgumentos` ya la entiende, falta el ejecutable |
 | oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Documentos/TonoLector.swift, N/documentos/lector.rs | Hecho en el lector (luna/sol en su barra, `lectores_oscuros` del estado, la tinta se adapta) y en el visor de planos (E2: luna/sol y B, el mismo `lectores_oscuros`; el 3D cambia el suyo con B, como Windows). Faltan el pin de Office y la hoja de cálculo |
 | overlay | Overlay de captura | completo | K/Captura/* | — (B8: ⌘A, flechas, Espacio en vivo, ⇧ HEX/RGB, ⇧⌘S, ⌫, cuentagotas; la barra de acciones de Windows) |
-| panel_dibujo | Panel de estilo del lienzo | parcial | K/Lienzo/BarraEstiloLienzo.swift | **Lo lleva el agente del lienzo** |
+| panel_dibujo | Panel de estilo del lienzo | parcial | K/Lienzo/BarraEstiloLienzo.swift, K/Lienzo/EditorLienzoView.swift | Hecho (E, 25-oct): el panel compacto de Windows (168 de ancho, 60 por arriba, botones de 28, cuatro por fila) en todos los anfitriones, y en el lienzo su botón de quitarlo y sacarlo arriba a la izquierda (vale para todos los lienzos de la sesión; baja con el panel si la barra le cae encima). Faltan secciones de Windows que el Mac no tiene |
 | pdf_del_proyecto | Rehacer un PDF roto desde `pdfLimpio` | falta | — | Todo |
 | pdf_en_chat | El PDF como un mensaje con vista; unir páginas | parcial | K/Chat/Adjuntos.swift, K/Documentos/AccionesDocumento.swift | Unir PDF, «como imágenes», devolver |
 | pedidos | Pedidos de otros programas | parcial | K/Pedidos/HacerPedidos.swift, XC/App/Intenciones.swift (9 intents) | C2: los hace `HacerPedidos` (abrir proyecto, mensaje, hoja, nota y fichero; chat con fotos y ficheros; nota, lienzo y lista nuevos; tareas: añadir, marcar, quitar, corregir, borrar lista; ventana; capturar con sus modos; pinear, pinear la última, conservar, copiar imagen; grabar; sincronizar y al móvil; asistente (también con `automatizacion`); `automatizacion` (E6: crear, activar, desactivar, borrar, ejecutar); pines; timeline; leer en voz; OCR; reproducir). Intents nuevos: Nueva tarea, Nuevo lienzo, Grabar nota de voz, Abrir proyecto, Mandar al móvil. Faltan `soltar`, `iconos`, `mover_tarea`, `borrar_captura`, `tabla_nueva`, `posponer`, `herramienta`, la ficha de lección nueva y la búsqueda de lecciones ya escrita, `abrir` con `pagina`/`buscar`, tareas con imágenes y el nombre de la grabación |
@@ -208,7 +208,7 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Fondos del chat | falta | — | Todo |
 | Micrófono flotante con hora | completo | K/Voz/FlotantesVoz.swift | Hecho (D3): siempre encima, aro que late y tiempo; clic o ↩ guarda, ⎋ tira; «Convertir en llamada» con la hora (nace una hora después y en punto, «En 15 min», «En 1 hora», «Mañana 9:00», ↑↓ de 5 en 5, teclearla) que pone `recuerdaEn`; se va sola. Se abre con clic derecho en el micrófono del chat o «Grabar» de la biblioteca (el pedido «grabar» es C2); al poner la hora apunta «quién llama» (E5) |
 | Reproductor flotante | completo | K/Voz/FlotantesVoz.swift | Hecho (D3): «Escuchar en flotante» (burbuja y biblioteca), Espacio, ←/→, ⎋, la fila y se va al acabar (el pedido «reproducir» es C2) |
-| Chat «Asistente» del sistema; aviso y voz del asistente | parcial | K/Asistente/{VistaAsistente,DictadoAsistente}.swift | Hecho (D6) en la ventana del asistente: el altavoz de cada respuesta, «Leer siempre las respuestas» y dictar con «Ver lo dicho antes de enviarlo». Hecho (E1): el chat «Asistente» del sistema, su barra («Contestando… Parar», el aviso sin motor o sin clave) y «Leer siempre las respuestas» también en el chat. Falta la tarjeta de bajar el modelo dentro del chat (está en la ventana del asistente) |
+| Chat «Asistente» del sistema; aviso y voz del asistente | parcial | K/Asistente/{VistaAsistente,DictadoAsistente}.swift | Hecho (D6) en la ventana del asistente: el altavoz de cada respuesta, «Leer siempre las respuestas» y dictar con «Ver lo dicho antes de enviarlo». Hecho (E1): el chat «Asistente» del sistema, su barra («Contestando… Parar», el aviso sin motor o sin clave) y «Leer siempre las respuestas» también en el chat. Falta la tarjeta de bajar el modelo dentro del chat (está en la ventana del asistente). Hecho (E, 25-oct): **un solo chat «Asistente» en todos los aparatos** (`vista::asistente_unico`): al arrancar (`chatAsistente`) y tras cada vuelta de sincronizar (las dos direcciones) se juntan en el más antiguo con la marca que viaja; «+ Nuevo chat» siempre a la vista en su cabecera (sin sitio, solo el «+») |
 
 ### 1.4 Ajustes (`ventana_ajustes.rs`)
 
@@ -236,7 +236,8 @@ Lo cuenta la matriz §1: hay 169 filas. Algunos módulos grandes salen en varias
 | Base, deshacer, cota y cajetín | completo |
 | modo_ventana (F11) | completo (⌃⌘F, se recuerda en `estado.toml`; nunca tocado abre en ventana) |
 | Exportar, imprimir y compartir; tapado; figuras y gráficas; lupas | completo (figuras: parcial, ver `biblioteca_figuras`) |
-| Hojita; marcas; presentar; referencia; zona al chat | falta |
+| Mirar y editar (abre mirando, el lápiz del riel y ⌥R editan donde se esté, Esc vuelve a mirar); el riel con el lápiz y el marco; marcos a trazos azules de grosor fijo con su número (N/editor_marcos.rs); el marco fuera de la barra y la imagen suelta | completo (E, 25-oct) |
+| Hojita; marcas (los marcadores del riel); presentar; referencia; zona al chat | falta |
 | Anotador de pantalla | completo (E3, K/Captura/AnotadorPantalla.swift) |
 | congelar, medir | interno |
 
@@ -353,9 +354,9 @@ Lo que falta en el lienzo:
 - ⌥S (imán) y V (plumas).
 - Espacio + arrastrar.
 - Marcas: hay que elegir otra tecla que no sea ⌘M, y ⌘1…9 para ir a ellas.
-- ⇧⌘N (hojita), F5 (presentar), ⌥R (solo mirar). (Las del anotador de pantalla, hechas en E3: §1.6.)
+- ⇧⌘N (hojita), F5 (presentar). (Las del anotador de pantalla, hechas en E3: §1.6.)
 
-Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 3, ⇧⌘E (exportar), ⇧⌘C (copiar como PNG), ⌘P, ⇧⌘S y ⌃⌘F (pantalla completa, que se recuerda).
+Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 3, ⇧⌘E (exportar), ⇧⌘C (copiar como PNG), ⌘P, ⇧⌘S, ⌃⌘F (pantalla completa, que se recuerda) y ⌥R (mirar y editar; mirando, Esc cierra y editando vuelve a mirar).
 
 ### 2.6 Lectores (PDF, Word, PPTX, visor)
 
