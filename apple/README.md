@@ -52,6 +52,21 @@ pánico de Rust llega a Swift como error en vez de cerrar la app.
 `apple/rust-toolchain.toml` fija el mismo Rust que Windows con los objetivos de Apple
 (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-apple-ios`, `aarch64-apple-ios-sim`).
 
+## Ponerse al día con Windows
+
+`docs/windows-portado.txt` dice hasta qué commit de Windows está portado el Mac. Para traer lo
+nuevo:
+
+```sh
+cd apple
+RUSTFMT="rustfmt +1.97.1" herramientas/portar-de-windows.py ../../PIXPIN_PRO_WINDOWS
+```
+
+Hace la fusión a tres bandas de los crates (`crates/` y `apps/` de Windows → `nucleo/`,
+`por-adaptar/`, `por-traducir/`), deja los conflictos marcados con `<<<<<<< mac`, apunta el commit
+nuevo y escribe en `target/portar-de-windows.json` qué ficheros de `apps/pixpin` cambiaron (lo que
+hay que pasar a Swift). Después: resolver, `cargo test --workspace` y portar la interfaz.
+
 ## Reglas para no perderse
 
 1. **El formato y la sincronización tienen que seguir siendo idénticos a los de Windows y
