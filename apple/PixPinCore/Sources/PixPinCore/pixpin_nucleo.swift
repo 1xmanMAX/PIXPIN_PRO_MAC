@@ -7479,6 +7479,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func paqueteDeProyecto(chat: String) throws  -> Data
     
     /**
+     * **La grabacion del mensaje `mensaje`** de `chat` para compartirla:
+     * el de una nota de voz o el de la carpeta de una grabacion. `None` si
+     * no es ninguna de las dos. La `fecha` va vacia: la escribe Swift con
+     * la hora de este Mac. Bloqueante (lee el chat entero).
+     */
+    func grabacionParaCompartir(chat: String, mensaje: String) throws  -> GrabacionParaCompartir?
+    
+    /**
      * **La chapa de la lista**: los chats compartidos donde estoy, por su
      * ficha, con cuantas personas son (`personas_del_chat` de Windows). Los
      * que aun no tienen proyecto aqui no salen.
@@ -10125,6 +10133,23 @@ open func paqueteDeProyecto(chat: String)throws  -> Data  {
     uniffi_pixpin_nucleo_fn_method_nucleo_paquete_de_proyecto(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La grabacion del mensaje `mensaje`** de `chat` para compartirla:
+     * el de una nota de voz o el de la carpeta de una grabacion. `None` si
+     * no es ninguna de las dos. La `fecha` va vacia: la escribe Swift con
+     * la hora de este Mac. Bloqueante (lee el chat entero).
+     */
+open func grabacionParaCompartir(chat: String, mensaje: String)throws  -> GrabacionParaCompartir?  {
+    return try  FfiConverterOptionTypeGrabacionParaCompartir.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_grabacion_para_compartir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
     )
 })
 }
@@ -18746,6 +18771,63 @@ public func FfiConverterTypeCapturaClase_lower(_ value: CapturaClase) -> RustBuf
 
 
 /**
+ * Una captura de la grabacion: su minuto y su fichero.
+ */
+public struct CapturaDeGrabacion: Equatable, Hashable {
+    public var ms: Int64
+    public var ruta: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, ruta: String) {
+        self.ms = ms
+        self.ruta = ruta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CapturaDeGrabacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCapturaDeGrabacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CapturaDeGrabacion {
+        return
+            try CapturaDeGrabacion(
+                ms: FfiConverterInt64.read(from: &buf), 
+                ruta: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CapturaDeGrabacion, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.ruta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaDeGrabacion_lift(_ buf: RustBuffer) throws -> CapturaDeGrabacion {
+    return try FfiConverterTypeCapturaDeGrabacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaDeGrabacion_lower(_ value: CapturaDeGrabacion) -> RustBuffer {
+    return FfiConverterTypeCapturaDeGrabacion.lower(value)
+}
+
+
+/**
  * Una captura de una clase para la pantalla de su letra (o sus tarjetas):
  * su minuto, el id de su mensaje y su fichero en este Mac (`None` si el
  * mensaje ya no esta o su ruta no se resuelve aqui).
@@ -24216,6 +24298,63 @@ public func FfiConverterTypeFotoAnotada_lower(_ value: FotoAnotada) -> RustBuffe
 
 
 /**
+ * Las fotos de las hojas: el `id_objeto` de cada imagen y su fichero.
+ */
+public struct FotoDeGrabacion: Equatable, Hashable {
+    public var idObjeto: UInt64
+    public var ruta: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(idObjeto: UInt64, ruta: String) {
+        self.idObjeto = idObjeto
+        self.ruta = ruta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FotoDeGrabacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFotoDeGrabacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FotoDeGrabacion {
+        return
+            try FotoDeGrabacion(
+                idObjeto: FfiConverterUInt64.read(from: &buf), 
+                ruta: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FotoDeGrabacion, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.idObjeto, into: &buf)
+        FfiConverterString.write(value.ruta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoDeGrabacion_lift(_ buf: RustBuffer) throws -> FotoDeGrabacion {
+    return try FfiConverterTypeFotoDeGrabacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoDeGrabacion_lower(_ value: FotoDeGrabacion) -> RustBuffer {
+    return FfiConverterTypeFotoDeGrabacion.lower(value)
+}
+
+
+/**
  * Una foto de la nota, ya con lo de este aparato.
  */
 public struct FotoDeNota: Equatable, Hashable {
@@ -24660,6 +24799,132 @@ public func FfiConverterTypeGiroRuleta_lift(_ buf: RustBuffer) throws -> GiroRul
 #endif
 public func FfiConverterTypeGiroRuleta_lower(_ value: GiroRuleta) -> RustBuffer {
     return FfiConverterTypeGiroRuleta.lower(value)
+}
+
+
+/**
+ * **Una grabacion lista para compartir** (`Grabacion` de Windows): lo que
+ * hace falta de ella con sus ficheros por ruta absoluta.
+ */
+public struct GrabacionParaCompartir: Equatable, Hashable {
+    public var titulo: String
+    /**
+     * La fecha ya escrita («25/10/2026 18:05»). La pone Swift con la hora
+     * de este Mac a partir de [`Self::cuando`].
+     */
+    public var fecha: String
+    /**
+     * Cuando se grabo, en milisegundos UTC (0 si no se sabe).
+     */
+    public var cuando: Int64
+    public var duracionMs: Int64
+    public var audio: String?
+    public var video: String?
+    public var capturas: [CapturaDeGrabacion]
+    public var lineas: [LineaDeGrabacion]
+    public var marcadores: [MarcadorDeGrabacion]
+    public var adjuntos: [String]
+    /**
+     * Todos sus ficheros que hay en este Mac, sin repetir: «Original» u
+     * «Originales».
+     */
+    public var originales: [String]
+    /**
+     * El mazo de Anki (`PixPin::<proyecto>`).
+     */
+    public var mazo: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(titulo: String, 
+        /**
+         * La fecha ya escrita («25/10/2026 18:05»). La pone Swift con la hora
+         * de este Mac a partir de [`Self::cuando`].
+         */fecha: String, 
+        /**
+         * Cuando se grabo, en milisegundos UTC (0 si no se sabe).
+         */cuando: Int64, duracionMs: Int64, audio: String?, video: String?, capturas: [CapturaDeGrabacion], lineas: [LineaDeGrabacion], marcadores: [MarcadorDeGrabacion], adjuntos: [String], 
+        /**
+         * Todos sus ficheros que hay en este Mac, sin repetir: «Original» u
+         * «Originales».
+         */originales: [String], 
+        /**
+         * El mazo de Anki (`PixPin::<proyecto>`).
+         */mazo: String) {
+        self.titulo = titulo
+        self.fecha = fecha
+        self.cuando = cuando
+        self.duracionMs = duracionMs
+        self.audio = audio
+        self.video = video
+        self.capturas = capturas
+        self.lineas = lineas
+        self.marcadores = marcadores
+        self.adjuntos = adjuntos
+        self.originales = originales
+        self.mazo = mazo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GrabacionParaCompartir: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGrabacionParaCompartir: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GrabacionParaCompartir {
+        return
+            try GrabacionParaCompartir(
+                titulo: FfiConverterString.read(from: &buf), 
+                fecha: FfiConverterString.read(from: &buf), 
+                cuando: FfiConverterInt64.read(from: &buf), 
+                duracionMs: FfiConverterInt64.read(from: &buf), 
+                audio: FfiConverterOptionString.read(from: &buf), 
+                video: FfiConverterOptionString.read(from: &buf), 
+                capturas: FfiConverterSequenceTypeCapturaDeGrabacion.read(from: &buf), 
+                lineas: FfiConverterSequenceTypeLineaDeGrabacion.read(from: &buf), 
+                marcadores: FfiConverterSequenceTypeMarcadorDeGrabacion.read(from: &buf), 
+                adjuntos: FfiConverterSequenceString.read(from: &buf), 
+                originales: FfiConverterSequenceString.read(from: &buf), 
+                mazo: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GrabacionParaCompartir, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterString.write(value.fecha, into: &buf)
+        FfiConverterInt64.write(value.cuando, into: &buf)
+        FfiConverterInt64.write(value.duracionMs, into: &buf)
+        FfiConverterOptionString.write(value.audio, into: &buf)
+        FfiConverterOptionString.write(value.video, into: &buf)
+        FfiConverterSequenceTypeCapturaDeGrabacion.write(value.capturas, into: &buf)
+        FfiConverterSequenceTypeLineaDeGrabacion.write(value.lineas, into: &buf)
+        FfiConverterSequenceTypeMarcadorDeGrabacion.write(value.marcadores, into: &buf)
+        FfiConverterSequenceString.write(value.adjuntos, into: &buf)
+        FfiConverterSequenceString.write(value.originales, into: &buf)
+        FfiConverterString.write(value.mazo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrabacionParaCompartir_lift(_ buf: RustBuffer) throws -> GrabacionParaCompartir {
+    return try FfiConverterTypeGrabacionParaCompartir.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrabacionParaCompartir_lower(_ value: GrabacionParaCompartir) -> RustBuffer {
+    return FfiConverterTypeGrabacionParaCompartir.lower(value)
 }
 
 
@@ -25418,6 +25683,66 @@ public func FfiConverterTypeHojaParaWeb_lift(_ buf: RustBuffer) throws -> HojaPa
 #endif
 public func FfiConverterTypeHojaParaWeb_lower(_ value: HojaParaWeb) -> RustBuffer {
     return FfiConverterTypeHojaParaWeb.lower(value)
+}
+
+
+/**
+ * **Las hojas A4 de una grabacion** para el PDF, el PNG, el JPG y el SVG,
+ * con las fotos que pintan. El SVG de cada una no va aqui (lleva las
+ * capturas dentro y pesaria demasiado): se pide al elegirlo con
+ * [`grabacion_svg_de_hoja`].
+ */
+public struct HojasDeGrabacion: Equatable, Hashable {
+    public var hojas: [HojaDeDibujo]
+    public var fotos: [FotoDeGrabacion]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(hojas: [HojaDeDibujo], fotos: [FotoDeGrabacion]) {
+        self.hojas = hojas
+        self.fotos = fotos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HojasDeGrabacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHojasDeGrabacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HojasDeGrabacion {
+        return
+            try HojasDeGrabacion(
+                hojas: FfiConverterSequenceTypeHojaDeDibujo.read(from: &buf), 
+                fotos: FfiConverterSequenceTypeFotoDeGrabacion.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HojasDeGrabacion, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeHojaDeDibujo.write(value.hojas, into: &buf)
+        FfiConverterSequenceTypeFotoDeGrabacion.write(value.fotos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojasDeGrabacion_lift(_ buf: RustBuffer) throws -> HojasDeGrabacion {
+    return try FfiConverterTypeHojasDeGrabacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojasDeGrabacion_lower(_ value: HojasDeGrabacion) -> RustBuffer {
+    return FfiConverterTypeHojasDeGrabacion.lower(value)
 }
 
 
@@ -26903,6 +27228,63 @@ public func FfiConverterTypeLineaDeClase_lower(_ value: LineaDeClase) -> RustBuf
 
 
 /**
+ * Un trozo de la transcripcion: su minuto (si lo lleva) y lo que dice.
+ */
+public struct LineaDeGrabacion: Equatable, Hashable {
+    public var ms: Int64?
+    public var texto: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64?, texto: String) {
+        self.ms = ms
+        self.texto = texto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LineaDeGrabacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLineaDeGrabacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LineaDeGrabacion {
+        return
+            try LineaDeGrabacion(
+                ms: FfiConverterOptionInt64.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LineaDeGrabacion, into buf: inout [UInt8]) {
+        FfiConverterOptionInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLineaDeGrabacion_lift(_ buf: RustBuffer) throws -> LineaDeGrabacion {
+    return try FfiConverterTypeLineaDeGrabacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLineaDeGrabacion_lower(_ value: LineaDeGrabacion) -> RustBuffer {
+    return FfiConverterTypeLineaDeGrabacion.lower(value)
+}
+
+
+/**
  * Una lista de tareas de un chat.
  */
 public struct ListaTareas: Equatable, Hashable {
@@ -27472,6 +27854,63 @@ public func FfiConverterTypeMarcaDocumento_lift(_ buf: RustBuffer) throws -> Mar
 #endif
 public func FfiConverterTypeMarcaDocumento_lower(_ value: MarcaDocumento) -> RustBuffer {
     return FfiConverterTypeMarcaDocumento.lower(value)
+}
+
+
+/**
+ * Un marcador o una banderita (sin nota) de la grabacion.
+ */
+public struct MarcadorDeGrabacion: Equatable, Hashable {
+    public var ms: Int64
+    public var texto: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, texto: String) {
+        self.ms = ms
+        self.texto = texto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MarcadorDeGrabacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMarcadorDeGrabacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarcadorDeGrabacion {
+        return
+            try MarcadorDeGrabacion(
+                ms: FfiConverterInt64.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MarcadorDeGrabacion, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcadorDeGrabacion_lift(_ buf: RustBuffer) throws -> MarcadorDeGrabacion {
+    return try FfiConverterTypeMarcadorDeGrabacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcadorDeGrabacion_lower(_ value: MarcadorDeGrabacion) -> RustBuffer {
+    return FfiConverterTypeMarcadorDeGrabacion.lower(value)
 }
 
 
@@ -42868,6 +43307,30 @@ fileprivate struct FfiConverterOptionTypeGiroRuleta: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeGrabacionParaCompartir: FfiConverterRustBuffer {
+    typealias SwiftType = GrabacionParaCompartir?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeGrabacionParaCompartir.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeGrabacionParaCompartir.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeHojaDePagina: FfiConverterRustBuffer {
     typealias SwiftType = HojaDePagina?
 
@@ -44408,6 +44871,31 @@ fileprivate struct FfiConverterSequenceTypeCapturaClase: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCapturaDeGrabacion: FfiConverterRustBuffer {
+    typealias SwiftType = [CapturaDeGrabacion]
+
+    public static func write(_ value: [CapturaDeGrabacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCapturaDeGrabacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CapturaDeGrabacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CapturaDeGrabacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCapturaDeGrabacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCapturaDeLaClase: FfiConverterRustBuffer {
     typealias SwiftType = [CapturaDeLaClase]
 
@@ -45308,6 +45796,31 @@ fileprivate struct FfiConverterSequenceTypeFilaElegir: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFotoDeGrabacion: FfiConverterRustBuffer {
+    typealias SwiftType = [FotoDeGrabacion]
+
+    public static func write(_ value: [FotoDeGrabacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFotoDeGrabacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FotoDeGrabacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FotoDeGrabacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFotoDeGrabacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFotoDeNota: FfiConverterRustBuffer {
     typealias SwiftType = [FotoDeNota]
 
@@ -45733,6 +46246,31 @@ fileprivate struct FfiConverterSequenceTypeLineaDeClase: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeLineaDeGrabacion: FfiConverterRustBuffer {
+    typealias SwiftType = [LineaDeGrabacion]
+
+    public static func write(_ value: [LineaDeGrabacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLineaDeGrabacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LineaDeGrabacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LineaDeGrabacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLineaDeGrabacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeListaTareas: FfiConverterRustBuffer {
     typealias SwiftType = [ListaTareas]
 
@@ -45825,6 +46363,31 @@ fileprivate struct FfiConverterSequenceTypeMarcaDocumento: FfiConverterRustBuffe
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeMarcaDocumento.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMarcadorDeGrabacion: FfiConverterRustBuffer {
+    typealias SwiftType = [MarcadorDeGrabacion]
+
+    public static func write(_ value: [MarcadorDeGrabacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMarcadorDeGrabacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MarcadorDeGrabacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MarcadorDeGrabacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMarcadorDeGrabacion.read(from: &buf))
         }
         return seq
     }
@@ -47777,6 +48340,107 @@ public func paginaWebCompartida(titulo: String, hojas: [HojaParaWeb], excalidraw
 })
 }
 /**
+ * **Anki**: las tarjetas de la grabacion (una por captura, con lo dicho en
+ * su tramo) en el fichero de «Archivo → Importar», y sus imagenes al lado.
+ * Como el «Enviar a Anki» sin Anki abierto, las imagenes se dejan tambien
+ * en la carpeta de medios de Anki, si esta: son las mismas con el mismo
+ * nombre, asi que repetirlo no ensucia. `pregunta` es
+ * `anki-pregunta-clase`.
+ */
+public func grabacionAnki(g: GrabacionParaCompartir, base: String, carpeta: String, pregunta: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grabacion_anki(
+        FfiConverterTypeGrabacionParaCompartir_lower(g),
+        FfiConverterString.lower(base),
+        FfiConverterString.lower(carpeta),
+        FfiConverterString.lower(pregunta),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Las hojas A4 de la grabacion**, con sus ordenes para pintarlas y las
+ * fotos que usan. Siempre una al menos. Bloqueante (mide las capturas).
+ */
+public func grabacionHojas(g: GrabacionParaCompartir) -> HojasDeGrabacion  {
+    return try!  FfiConverterTypeHojasDeGrabacion_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grabacion_hojas(
+        FfiConverterTypeGrabacionParaCompartir_lower(g),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Markdown**: solo el `.md` si no hay capturas; con ellas, el ZIP con
+ * la carpeta de las capturas al lado.
+ */
+public func grabacionMarkdown(g: GrabacionParaCompartir, base: String, carpeta: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grabacion_markdown(
+        FfiConverterTypeGrabacionParaCompartir_lower(g),
+        FfiConverterString.lower(base),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El SVG de la hoja `indice`** de [`grabacion_hojas`], con las capturas
+ * dentro (ligeras, como en la pagina web). `None` si no hay esa hoja.
+ */
+public func grabacionSvgDeHoja(g: GrabacionParaCompartir, indice: UInt32) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grabacion_svg_de_hoja(
+        FfiConverterTypeGrabacionParaCompartir_lower(g),
+        FfiConverterUInt32.lower(indice),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Texto**: la transcripcion con sus minutos.
+ */
+public func grabacionTexto(g: GrabacionParaCompartir, base: String, carpeta: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grabacion_texto(
+        FfiConverterTypeGrabacionParaCompartir_lower(g),
+        FfiConverterString.lower(base),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+/**
+ * **La pagina web de la grabacion** en `carpeta`: la pagina (la primera)
+ * y, al lado, lo que no cabe dentro (el video, un audio muy largo, los
+ * adjuntos). `base` es el nombre de fichero de lo compartido.
+ */
+public func grabacionWeb(g: GrabacionParaCompartir, base: String, carpeta: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grabacion_web(
+        FfiConverterTypeGrabacionParaCompartir_lower(g),
+        FfiConverterString.lower(base),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Word**: el mismo Markdown por el escritor de `.docx` de las notas, con
+ * las capturas dentro (`clase::word` de Windows, por
+ * `pixpin_notas::word::exportar`).
+ */
+public func grabacionWord(g: GrabacionParaCompartir, base: String, carpeta: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grabacion_word(
+        FfiConverterTypeGrabacionParaCompartir_lower(g),
+        FfiConverterString.lower(base),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+/**
  * **Las capas del fotograma** de `efecto` en `t` (0..1): en 0 solo la
  * vieja, en 1 solo la nueva. Las de Windows (`pase::capas`), con su
  * arrancar y frenar suave.
@@ -49567,6 +50231,27 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_pagina_web_compartida() != 39707) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_anki() != 42499) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_hojas() != 11171) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_markdown() != 488) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_svg_de_hoja() != 39804) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_texto() != 28642) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_web() != 13485) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_word() != 30860) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_capas_de_transicion() != 31797) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -50231,6 +50916,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_paquete_de_proyecto() != 49140) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_grabacion_para_compartir() != 17061) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chapas_de_compartidos() != 13514) {
