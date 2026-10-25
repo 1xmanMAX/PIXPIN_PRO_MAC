@@ -181,7 +181,13 @@ impl From<Mensaje> for MensajeChat {
             se_puede_describir: se_puede_describir(&m),
             es_leccion,
             miniapp: m.miniapp.clone(),
-            resumen: m.resumen(),
+            // Una carpeta de paginas lleva su documento en el texto: lo que
+            // se ensena de ella es su nombre, como en la lista de Windows.
+            resumen: if pixpin_proyecto::carpeta_de_paginas::es_carpeta(&m) {
+                m.nombre.clone()
+            } else {
+                m.resumen()
+            },
             codigo_chat: m.codigo_chat(),
             duracion_ms: m.duracion_ms,
             transcripcion: m.transcripcion,
@@ -629,6 +635,11 @@ pub fn hora_de_recordar(m: &Mensaje) -> Option<i64> {
 /// archivo con fichero o con hoja, que no sea una leccion ni del buzon.
 pub fn se_puede_renombrar(m: &Mensaje) -> bool {
     use pixpin_proyecto::cuaderno::Clase;
+    // Una carpeta de paginas no tiene fichero, pero su nombre es lo que la
+    // distingue de las demas (26-oct-2026).
+    if pixpin_proyecto::carpeta_de_paginas::es_carpeta(m) {
+        return !m.en_buzon;
+    }
     matches!(
         m.clase,
         Some(Clase::Imagen | Clase::Archivo | Clase::Voz | Clase::Dibujo | Clase::Pagina)
@@ -706,7 +717,10 @@ pub fn aplicar(m: &mut Mensaje, cambio: &CambioMensaje) -> bool {
         CambioMensaje::Nombre { nombre } => {
             // `guardar_nombre_de_mensaje`: un lienzo, recortado; lo demas,
             // con su extension.
-            let nuevo = if m.clase == Some(Clase::Dibujo) {
+            // Una carpeta de paginas, como un lienzo: sin extension.
+            let nuevo = if m.clase == Some(Clase::Dibujo)
+                || pixpin_proyecto::carpeta_de_paginas::es_carpeta(m)
+            {
                 nombre.trim().chars().take(TOPE_DE_NOMBRE_LIENZO).collect()
             } else {
                 con_su_extension(&m.nombre, nombre)
