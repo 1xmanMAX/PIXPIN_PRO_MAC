@@ -14,11 +14,22 @@
 //    que se comparte en la reunion) y pulsarla no le quita el teclado a la
 //    reunion (el panel no se hace principal mientras graba).
 // 3. **Guardar**: `Nucleo.guardarClase` deja en el chat lo mismo que
-//    Windows: la nota de voz `Clase 24-10 18h05.m4a` y detras cada captura
-//    con su minuto, enlazadas (`capturas` y `enGrabacion`).
+//    Windows: la nota de voz `Clase 24-10 18h05.m4a`, detras el video (si
+//    se grabo) y cada captura con su minuto, enlazados (`capturas`, `video`
+//    y `enGrabacion`). Las fotos que aun se estaban haciendo al terminar se
+//    esperan; si la nota no se cerro, lo demas entra igual, suelto.
 // 4. **Pasar a texto** en el aparato, como «Pasar a texto» del chat
 //    (`Almacen.transcribir`). Sin reconocedor se guarda igual y se dice
 //    donde pedirlo luego.
+//
+// **Con video** (Windows 20162e9, 25-oct-2026): el interruptor «Vídeo de
+// esta pantalla» (apagado de salida: ocupa mucho y casi siempre basta la
+// nota con sus capturas) graba ademas la pantalla donde esta la ventanita a
+// un MP4 con el mismo sonido (`VideoDeClase`). En la barra se ve siempre
+// «Grabando vídeo»; si se corta, se dice una vez y la nota sigue.
+//
+// Las fotos no paran la barra: se hacen fuera del hilo principal (el
+// «fotografo» de Windows) y cuentan en «Captura · N» desde el clic.
 //
 // El sonido lo graba `AudioDeClase` (microfono + ScreenCaptureKit). Los
 // textos son los de Windows (`clase-*` de `main.ftl`).
@@ -55,8 +66,10 @@ public final class GrabarClase: ObservableObject {
         /// El tamano de la ventanita (`tamano` de Windows).
         var tam: NSSize {
             switch self {
-            case .preparar: NSSize(width: 340, height: 318)
-            case .abriendo, .grabando: NSSize(width: 520, height: 92)
+            case .preparar: NSSize(width: 340, height: 370)
+            // Lo que piden los botones de la barra: 146 de tiempo y nivel,
+            // 392 de botones y el margen.
+            case .abriendo, .grabando: NSSize(width: 556, height: 92)
             default: NSSize(width: 360, height: 170)
             }
         }
@@ -67,6 +80,14 @@ public final class GrabarClase: ObservableObject {
     @Published private(set) var fase: Fase = .preparar
     @Published var microfono = true
     @Published var equipo = true
+    /// Grabar tambien el video de la pantalla.
+    @Published var video = false
+    /// Se esta grabando el video (para «Grabando vídeo» en la barra).
+    @Published private(set) var conVideo = false
+    /// El video se corto (se dice una vez; la nota sigue).
+    @Published private(set) var videoRoto = false
+    /// Las fotos que aun se estan haciendo: cuentan ya (el clic se vio).
+    @Published private(set) var pendientes = 0
     /// Donde se puede guardar, el ultimo usado primero.
     @Published private(set) var proyectos: [FichaChat] = []
     @Published private(set) var proyecto = 0
@@ -82,6 +103,9 @@ public final class GrabarClase: ObservableObject {
 
     private var panel: PanelClase?
     private var audio: AudioDeClase?
+    private var grabador: VideoDeClase?
+    /// Si el video entro en el chat, para el «Guardada» del final.
+    private var videoGuardado = false
     /// La zona de las capturas (global, de AppKit), una vez elegida.
     private var zona: CGRect?
     /// Esperando la zona: desde cuando y el minuto en que se pidio (la
@@ -114,6 +138,10 @@ public final class GrabarClase: ObservableObject {
         zona = nil
         pidiendoZona = nil
         guardadas = 0
+        conVideo = false
+        videoRoto = false
+        videoGuardado = false
+        pendientes = 0
         Task {
             await almacen.cargarChats()
             var lista = almacen.chats.filter { !$0.esAsistente }
@@ -264,7 +292,12 @@ public final class GrabarClase: ObservableObject {
         guard fase == .preparar else { return }
         let fuentes = FuentesClase(microfono: microfono, equipo: equipo)
         guard fuentes.alguna else { return avisar("Elige el micrófono, el sonido del equipo o los dos") }
-        if fuentes.equipo, !PermisoCaptura.asegurar() { return }
+        let quiereVideo = video
+        if fuentes.equipo || quiereVideo, !PermisoCaptura.asegurar() { return }
+        // La pantalla del video: la de la ventanita al pulsar «Empezar»; la
+        // barra no sale en el.
+        let pantalla = panel?.screen ?? NSScreen.main
+        let ventana = panel.map { CGWindowID($0.windowNumber) }
         cambiar(.abriendo)
         panel?.tomaTeclado = false
         Task {
@@ -274,18 +307,63 @@ public final class GrabarClase: ObservableObject {
             ReproductorVoz.compartido.parar()
             let url = FileManager.default.temporaryDirectory
                 .appendingPathComponent("pixpin-clase-\(UUID().uuidString).\(FormatoVoz.extensionFichero)")
+            var v: VideoDeClase?
             do {
                 let a = try AudioDeClase(url: url, fuentes: fuentes)
+                // Con video, la nota le manda una copia de lo que escribe
+                // desde el primer bloque: el video empieza con ella.
+                var sinVideo = false
+                if quiereVideo {
+                    v = GrabarClase.prepararVideo(junto: url, en: pantalla)
+                    if let hecho = v {
+                        a.copia = { [weak hecho] m in hecho?.sonido(m) }
+                        hecho.alRomperse = { [weak self] in
+                            DispatchQueue.main.async { MainActor.assumeIsolated { self?.videoSeCorto() } }
+                        }
+                    } else {
+                        sinVideo = true
+                    }
+                }
                 try await a.empezar()
                 // Cerrada mientras se abria: no se graba.
-                guard fase == .abriendo else { return await a.cancelar() }
+                guard fase == .abriendo else {
+                    await v?.tirar()
+                    return await a.cancelar()
+                }
                 audio = a
+                grabador = v
+                self.conVideo = v != nil
                 cambiar(.grabando)
+                if sinVideo { videoSeCorto() }
+                // Si la pantalla no se deja mirar, el video queda roto (lo
+                // dice `alRomperse`) y la nota sigue.
+                if let v { try? await v.empezar(sin: ventana) }
             } catch {
+                await v?.tirar()
                 try? FileManager.default.removeItem(at: url)
                 fallo(GrabarClase.explicar(error))
             }
         }
+    }
+
+    /// El video de la clase, al lado del temporal de la nota y con su mismo
+    /// nombre (`temporal_del_video`), para la pantalla `pantalla`. `nil` si
+    /// no se puede abrir el MP4.
+    static func prepararVideo(junto nota: URL, en pantalla: NSScreen?) -> VideoDeClase? {
+        guard let pantalla else { return nil }
+        let escala = pantalla.backingScaleFactor
+        let pixeles = (ancho: Int(pantalla.frame.width * escala), alto: Int(pantalla.frame.height * escala))
+        let url = nota.deletingLastPathComponent()
+            .appendingPathComponent(nota.lastPathComponent + ".video.mp4")
+        return try? VideoDeClase(url: url, pantalla: pantalla.numeroDePantalla ?? CGMainDisplayID(),
+                                 pixeles: pixeles, muestreo: Int(AudioDeClase.muestreo))
+    }
+
+    /// El video se corto: se dice una vez; la nota sigue.
+    private func videoSeCorto() {
+        guard !videoRoto else { return }
+        videoRoto = true
+        if fase == .grabando { avisar("El vídeo se cortó; el audio sigue grabándose") }
     }
 
     nonisolated static func explicar(_ error: Error) -> String {
@@ -306,14 +384,21 @@ public final class GrabarClase: ObservableObject {
     /// Lo que lleva la nota.
     var llevadoMs: Int64 { audio?.llevadoMs ?? 0 }
     var nivel: Float { audio?.nivel ?? 0 }
+    /// Las capturas de la barra: las hechas y las que aun se estan haciendo.
+    var hechas: Int { capturas.count + pendientes }
 
     /// **Captura**: la zona de antes con un clic, o elegirla la primera vez.
     func capturar() {
         guard fase == .grabando, let audio else { return }
         tirando = false
         let ms = audio.llevadoMs
-        guard let zona else { return pedirZona(ms) }
+        // Sin zona, o eligiendola todavia: `pedirZona` sabe que no hay que
+        // pedirla dos veces.
+        guard let zona, pidiendoZona == nil else { return pedirZona(ms) }
+        // La foto se hace fuera y la barra sigue; cuenta ya.
+        pendientes += 1
         Task {
+            defer { pendientes = max(pendientes - 1, 0) }
             guard let fotos = try? await Instantanea.fotografiarTodas(),
                   let (imagen, escala) = Capturador.recortar(zona, de: fotos),
                   let url = await GrabarClase.escribirPng(imagen, escala: escala) else {
@@ -331,6 +416,9 @@ public final class GrabarClase: ObservableObject {
     }
 
     private func pedirZona(_ ms: Int64) {
+        // Ya se esta eligiendo: no se pide otra vez (se perderia el minuto
+        // en que se pulso la primera).
+        if pidiendoZona != nil { return avisar("Elige la zona en la pantalla…") }
         guard let capturador = Capturador.principal, !capturador.abierta else {
             return avisar("No se pudo capturar la zona")
         }
@@ -342,7 +430,9 @@ public final class GrabarClase: ObservableObject {
             guard let elegida else { return self.avisar(nil) }
             self.zona = elegida.zona
             let escala = NSScreen.screens.first { $0.frame.intersects(elegida.zona) }?.backingScaleFactor ?? 2
+            self.pendientes += 1
             Task {
+                defer { self.pendientes = max(self.pendientes - 1, 0) }
                 guard let url = await GrabarClase.escribirPng(elegida.foto, escala: escala) else {
                     return self.avisar("Zona cambiada")
                 }
@@ -356,12 +446,14 @@ public final class GrabarClase: ObservableObject {
                 guard let self, let p = self.pidiendoZona, p.desde == desde else { return }
                 self.pidiendoZona = nil
                 Capturador.principal?.soltarZonaDeLaClase()
+                self.avisar("No se eligió ninguna zona: pulsa «Captura» otra vez")
             }
         }
     }
 
     private func anotar(ms: Int64, url: URL) {
-        guard fase == .grabando else {
+        // Guardando: es una de las que se estaban haciendo al terminar.
+        guard fase == .grabando || fase == .guardando else {
             try? FileManager.default.removeItem(at: url)
             return
         }
@@ -397,9 +489,15 @@ public final class GrabarClase: ObservableObject {
             if tirando {
                 tirando = false
                 let a = audio
+                let v = grabador
                 audio = nil
+                grabador = nil
+                conVideo = false
                 Capturador.principal?.soltarZonaDeLaClase()
-                Task { await a?.cancelar() }
+                Task {
+                    await a?.cancelar()
+                    await v?.tirar()
+                }
                 panel?.orderOut(nil)
                 borrarCapturas()
                 fase = .preparar
@@ -425,42 +523,72 @@ public final class GrabarClase: ObservableObject {
 
     // MARK: Terminar y guardar
 
+    /// **Terminar**: guarda todo lo que haya. Las fotos que aun se estaban
+    /// haciendo se esperan (5 s como mucho); el video se cierra cuando se
+    /// cierra la nota. Si la nota no vale (un resbalon en el boton), el
+    /// video se tira, pero las capturas se guardan igual: una reunion sin su
+    /// nota sigue valiendo por sus imagenes.
     func terminar() {
         guard fase == .grabando || fase == .abriendo, let audio, let almacen,
               proyectos.indices.contains(proyecto) else { return }
         tirando = false
         self.audio = nil
+        let video = grabador
+        grabador = nil
         Capturador.principal?.soltarZonaDeLaClase()
         pidiendoZona = nil
         let chat = proyectos[proyecto].id
         panel?.tomaTeclado = true
         cambiar(.guardando)
-        let hechas = capturas
         Task {
+            let limite = Date().addingTimeInterval(5)
+            while pendientes > 0, Date() < limite {
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
+            let hechas = capturas
             let nota = await audio.terminar()
+            // Con el sonido parado, el video escribe lo que le quede y cierra.
+            let mp4 = await video?.terminar()
+            conVideo = false
             defer { try? FileManager.default.removeItem(at: nota.url) }
-            guard nota.duracionMs >= FormatoVoz.minimoMs else {
+            let corta = nota.duracionMs < FormatoVoz.minimoMs
+            if corta, let mp4 { try? FileManager.default.removeItem(at: mp4) }
+            guard !corta || !hechas.isEmpty else {
                 borrarCapturas()
                 return fallo("Demasiado corta: mantén pulsado un poco más.")
             }
+            let rutaAudio = corta ? nil : nota.url.path
+            let rutaVideo = corta ? nil : mp4?.path
             let nucleo = almacen.nucleo
             let desfase = Int64(TimeZone.current.secondsFromGMT()) * 1000
             let lista = hechas.map { CapturaClase(ms: $0.ms, rutaPng: $0.url.path) }
             let hecho = await Task.detached(priority: .userInitiated) { () -> Result<ClaseGuardada, Error> in
                 Result {
-                    try nucleo.guardarClase(chat: chat, rutaAudio: nota.url.path, duracionMs: nota.duracionMs,
-                                            picos: nota.picos, capturas: lista, desfaseMs: desfase)
+                    try nucleo.guardarClase(chat: chat, rutaAudio: rutaAudio, duracionMs: nota.duracionMs,
+                                            picos: nota.picos, rutaVideo: rutaVideo, capturas: lista,
+                                            desfaseMs: desfase)
                 }
             }.value
             borrarCapturas()
+            // El video que no entro no se borra: el nucleo lo deja en la
+            // carpeta del proyecto (es la reunion entera).
             switch hecho {
             case let .success(clase):
                 UserDefaults.standard.set(chat, forKey: ListaDeProyectos.clave)
                 guardadas = clase.capturas.count
-                if almacen.mensajes[chat] != nil { almacen.anadir([clase.voz] + clase.capturas, en: chat) }
-                ClaseEnElChat.olvidar(chat: chat, mensaje: clase.voz.id)
+                videoGuardado = clase.video != nil
+                let nuevos = [clase.voz, clase.video].compactMap { $0 } + clase.capturas
+                if almacen.mensajes[chat] != nil { almacen.anadir(nuevos, en: chat) }
                 await almacen.cargarChats()
-                pasarATexto(clase.voz, chat: chat, almacen: almacen)
+                if let voz = clase.voz {
+                    ClaseEnElChat.olvidar(chat: chat, mensaje: voz.id)
+                    pasarATexto(voz, chat: chat, almacen: almacen)
+                } else {
+                    // Lo que si entro se dice: que nadie crea que lo perdio todo.
+                    var texto = "Demasiado corta: mantén pulsado un poco más."
+                    if guardadas > 0 || videoGuardado { texto += " · Lo demás se guardó: \(guardadas) capturas" }
+                    fallo(texto)
+                }
             case .failure:
                 fallo("No se pudo grabar la nota de voz.")
             }
@@ -483,10 +611,11 @@ public final class GrabarClase: ObservableObject {
 
     private func lista(conTexto: Bool) -> Fase {
         let n = guardadas
+        let sub = conTexto
+            ? "Con \(n) capturas y la transcripción. Ábrela en el chat para verla junto a las imágenes."
+            : "Con \(n) capturas. Para el texto, pulsa «Pasar a texto» en la nota del chat."
         return .lista(texto: "Guardada en «\(nombreDelProyecto)»",
-                      sub: conTexto
-                          ? "Con \(n) capturas y la transcripción. Ábrela en el chat para verla junto a las imágenes."
-                          : "Con \(n) capturas. Para el texto, pulsa «Pasar a texto» en la nota del chat.")
+                      sub: videoGuardado ? "Con el vídeo de la pantalla. \(sub)" : sub)
     }
 }
 
@@ -554,6 +683,9 @@ struct VistaGrabarClase: View {
             .padding(.bottom, 4)
             interruptor("mic", "Micrófono", $g.microfono)
             interruptor("speaker.wave.2", "Sonido del equipo (Meet, Zoom…)", $g.equipo)
+            // Apagado de salida: el video ocupa mucho y casi siempre basta la
+            // nota con sus capturas.
+            interruptor("video", "Vídeo de esta pantalla", $g.video)
             Button { g.otroProyecto() } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "folder").foregroundStyle(.yellow).frame(width: 20)
@@ -617,7 +749,7 @@ struct VistaGrabarClase: View {
                         .font(.system(size: 18, weight: .medium).monospacedDigit())
                         .frame(width: 66, alignment: .leading)
                     nivel(grabando ? g.nivel : 0)
-                    boton("photo", g.capturas.isEmpty ? "Captura" : "Captura · \(g.capturas.count)",
+                    boton("photo", g.hechas == 0 ? "Captura" : "Captura · \(g.hechas)",
                           fondo: g.destello ? verdeClase : Color.accentColor, tinta: .white, ancho: 128) { g.capturar() }
                         .help("«Captura» guarda una zona de la pantalla en este minuto")
                     boton("crop", "", fondo: Color.white.opacity(0.1), tinta: .primary, ancho: 44) { g.cambiarZona() }
@@ -631,9 +763,20 @@ struct VistaGrabarClase: View {
                         .help("Tirar la grabación (dos clics)")
                 }
                 .disabled(!grabando)
-                linea
-                    .font(.system(size: 12))
-                    .lineLimit(1)
+                HStack(spacing: 8) {
+                    linea
+                        .lineLimit(1)
+                    if g.conVideo {
+                        // Que se esta grabando la pantalla tiene que verse
+                        // siempre.
+                        Spacer(minLength: 0)
+                        Label("Grabando vídeo", systemImage: "video.fill")
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(g.videoRoto || g.enPausa ? Color.secondary : rojoGrabar)
+                            .fixedSize()
+                    }
+                }
+                .font(.system(size: 12))
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
@@ -650,10 +793,10 @@ struct VistaGrabarClase: View {
             Text(a)
         } else if g.enPausa {
             Text("En pausa: no se graba nada").foregroundStyle(.secondary)
-        } else if g.capturas.isEmpty {
+        } else if g.hechas == 0 {
             Text("«Captura» guarda una zona de la pantalla en este minuto").foregroundStyle(.secondary)
         } else {
-            Text("Capturas: \(g.capturas.count) · la zona se repite con un clic").foregroundStyle(.secondary)
+            Text("Capturas: \(g.hechas) · la zona se repite con un clic").foregroundStyle(.secondary)
         }
     }
 
