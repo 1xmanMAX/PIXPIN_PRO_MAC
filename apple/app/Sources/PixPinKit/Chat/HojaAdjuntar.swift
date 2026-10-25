@@ -20,8 +20,9 @@ import UniformTypeIdentifiers
 enum AccionAdjuntar: Hashable, Sendable {
     case foto, archivo, lienzo, nota, tabla, conversacion, captura
     case pagina, proyecto, telepronter, pronunciar, delMovil
-    /// La hoja del asistente: una figura de la biblioteca, a un lienzo del
-    /// chat para que la mejore, y pedirle una nueva (`para_el_asistente`).
+    /// Una figura de la biblioteca, elegida en la ventana de las figuras, a
+    /// un lienzo del chat (en el del asistente, para que la mejore), y
+    /// pedirle una nueva al asistente (`para_el_asistente`).
     case figura, pedirFigura
     /// Una carpeta de paginas (26-oct-2026): un cuaderno con nombre.
     case carpeta
@@ -84,6 +85,9 @@ enum HojaAdjuntar {
               color: 0x9A3FC4, simbolo: "person.wave.2.fill", numero: 7),
         .init("Captura", "captura pantalla recorte screenshot", .captura,
               color: 0xC93C35, simbolo: "crop", numero: 8),
+        // Una figura de la biblioteca (Windows 1d50a7c): abre la ventana de
+        // las figuras para elegirla viendola, con su boton «Adjuntar».
+        .init("Figura", "figura plantilla biblioteca dibujo shape", .figura),
         .init("Página de un proyecto", "pagina proyecto page", .pagina),
         .init("Proyecto entero", "proyecto entero project", .proyecto),
         .init("Carpeta de páginas", "carpeta cuaderno diario libreta folder notebook", .carpeta),

@@ -18,6 +18,8 @@ import SwiftUI
 struct FranjaProyectos: View {
     static let alto: CGFloat = 24
     let ventana: RefVentana
+    /// «Figuras» del interruptor: abre su ventana.
+    var figuras: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 0) {
@@ -31,6 +33,9 @@ struct FranjaProyectos: View {
             BotonFranja(simbolo: "xmark", ayuda: "Cerrar (⌘W)", cerrar: true) { VentanaLisa.cerrar(ventana.ventana) }
         }
         .frame(height: Self.alto)
+        // El interruptor Chat · Figuras, en medio (Windows c687285: la parte
+        // «Proyectos» de en medio se quito).
+        .overlay { InterruptorChatFiguras(figuras: figuras) }
         .background {
             // Desde la franja se lleva la ventana, y el doble clic la agranda.
             Paleta.proyectos.barra
@@ -38,6 +43,37 @@ struct FranjaProyectos: View {
                 .gesture(WindowDragGesture())
                 .simultaneousGesture(TapGesture(count: 2).onEnded { ventana.ventana?.zoom(nil) })
         }
+    }
+}
+
+/// **El interruptor Chat · Figuras** de la barra (`ventana_chat/interruptor.rs`
+/// y `pixpin_ui::interruptor` de Windows): dos partes de 76, con 3 de aire
+/// arriba y abajo. «Figuras» no se queda elegida: abre su ventana aparte y
+/// el chat sigue como estaba.
+struct InterruptorChatFiguras: View {
+    let figuras: () -> Void
+    @State private var encima = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Text("Chat")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color.white)
+                .frame(width: 76, height: FranjaProyectos.alto - 6)
+                .background(Paleta.proyectos.filaElegida, in: Capsule())
+            Button(action: figuras) {
+                Text("Figuras")
+                    .font(.system(size: 11))
+                    .foregroundStyle(Paleta.proyectos.texto)
+                    .frame(width: 76, height: FranjaProyectos.alto - 6)
+                    .background(encima ? Paleta.proyectos.botonEncima : .clear, in: Capsule())
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .onHover { encima = $0 }
+            .help("Figuras")
+        }
+        .background(Paleta.proyectos.lista.opacity(0.5), in: Capsule())
     }
 }
 
