@@ -117,7 +117,11 @@ public struct VentanaProyectos: View {
             Task { await AsistenteEnElChat.compartido.retomarAlArrancar(almacen) }
         }
         .onChange(of: elegido) { _, visible in almacen.aligerar(visible: visible) }
-        .onDisappear { almacen.nadaAlFrente() }
+        .onAppear { FigurasDelChat.ventanasDelChat += 1 }
+        .onDisappear {
+            FigurasDelChat.ventanasDelChat = max(0, FigurasDelChat.ventanasDelChat - 1)
+            almacen.nadaAlFrente()
+        }
         .onReceive(peticion.$chat) { pedido in
             guard let pedido else { return }
             elegido = pedido

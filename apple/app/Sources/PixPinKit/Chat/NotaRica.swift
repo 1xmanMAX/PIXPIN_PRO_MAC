@@ -256,8 +256,9 @@ struct BurbujaNotaRica: View {
 }
 
 /// Un album de la nota: sus fotos donde las pone `albumDeNota` (el reparto
-/// de Windows), una sola con su proporcion y las de una fila recortadas
-/// por el centro.
+/// de Windows), cada una recortada por el centro en su caja: la de una
+/// sola ya tiene su proporcion y sale entera, y si su cabecera no se pudo
+/// leer (su caja es un 4:3) no se deforma (Windows 6f2d95a).
 struct AlbumDeNotaVista: View {
     let fotos: [FotoDeNota]
     let ancho: CGFloat
@@ -270,13 +271,12 @@ struct AlbumDeNotaVista: View {
                                   altoSolo: Float(MedidasNota.altoFila * escala * 1.5),
                                   altoFila: Float(MedidasNota.altoFila * escala),
                                   hueco: Float(MedidasNota.huecoAlbum * escala))
-        let sola = fotos.count == 1
         let anchoUsado = reparto.cajas.map { CGFloat($0.x + $0.ancho) }.max() ?? ancho
         ZStack(alignment: .topLeading) {
             ForEach(0 ..< min(fotos.count, reparto.cajas.count), id: \.self) { k in
                 let caja = reparto.cajas[k]
                 FotoDeNotaVista(foto: fotos[k], ancho: CGFloat(caja.ancho), alto: CGFloat(caja.alto),
-                                sola: sola, radio: MedidasNota.radioFoto * escala)
+                                radio: MedidasNota.radioFoto * escala)
                     .onTapGesture { abrir(fotos[k]) }
                     .offset(x: CGFloat(caja.x), y: CGFloat(caja.y))
             }
@@ -291,7 +291,6 @@ struct FotoDeNotaVista: View {
     let foto: FotoDeNota
     let ancho: CGFloat
     let alto: CGFloat
-    let sola: Bool
     let radio: CGFloat
     @State private var imagen: CGImage?
 
@@ -311,7 +310,7 @@ struct FotoDeNotaVista: View {
                 Image(decorative: hecha, scale: 2)
                     .resizable()
                     .interpolation(.high)
-                    .aspectRatio(contentMode: sola ? .fit : .fill)
+                    .aspectRatio(contentMode: .fill)
                     .frame(width: ancho, height: alto)
             } else {
                 Rectangle().fill(Color.secondary.opacity(0.18))
@@ -342,15 +341,19 @@ private enum FuenteDeFoto: Sendable {
 extension EntradaDeFicheros {
     /// **Con texto ya escrito, una foto pegada va DENTRO de lo escrito**
     /// (`fotos_al_borrador` de Windows): se guarda en `notas/` del proyecto
-    /// y su renglon `![](notas/…)` queda donde esta la rayita; al enviar
+    /// y su renglon `![foto N](notas/…)` queda donde esta la rayita; al enviar
     /// sale UNA nota con el texto y sus fotos (`Nucleo.escribirNota` pasa
     /// las rutas a la portatil). Solo fotos: un PDF o un audio siguen siendo
     /// su mensaje, y con la caja vacia la foto tambien (la galeria la
-    /// ensena). `false` si no es lo suyo y el ⌘V sigue su camino.
+    /// ensena). Salvo en el chat del asistente (Windows 6f2d95a): ahi la
+    /// foto con su pie es lo que el asistente mira y contesta, y metida en
+    /// el texto solo le llegaria su ruta. `false` si no es lo suyo y el ⌘V
+    /// sigue su camino.
     @MainActor
     static func pegarEnLaNota(en chat: String, almacen: Almacen, campo: NSTextView,
                               avisar: @escaping (String) -> Void) -> Bool {
         guard !campo.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+        guard almacen.chats.first(where: { $0.id == chat })?.esAsistente != true else { return false }
         let pb = NSPasteboard.general
         var fuentes: [(String, FuenteDeFoto)] = []
         let opciones: [NSPasteboard.ReadingOptionKey: Any] = [.urlReadingFileURLsOnly: true]

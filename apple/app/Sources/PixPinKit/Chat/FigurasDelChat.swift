@@ -20,6 +20,11 @@ import PixPinCore
 
 @MainActor
 enum FigurasDelChat {
+    /// Cuantas ventanas de Proyectos (la del chat) se ven ahora: las cuenta
+    /// `VentanaProyectos` al aparecer y desaparecer. Con cero, la figura
+    /// adjuntada vuelve a abrir el chat (Windows bd8ac36).
+    static var ventanasDelChat = 0
+
     /// Hace `accion` si es de las figuras (y devuelve `true`); `empezar`
     /// pone el texto en la caja si estaba vacia.
     static func hacer(_ accion: AccionAdjuntar, chat: String, almacen: Almacen,
@@ -52,7 +57,10 @@ enum FigurasDelChat {
     }
 
     /// La figura `id`, a un lienzo nuevo del chat con su nombre. Si el chat
-    /// no es el que se ve, se trae (como `ir_a` de Windows).
+    /// no es el que se ve, se trae (como `ir_a` de Windows). Si la ventana
+    /// del chat se cerro mientras se elegia, se vuelve a abrir en ese chat
+    /// (Windows bd8ac36: si no, la figura entraria sin que se viera y la
+    /// ventana de las figuras diria «Adjuntada» a un chat que no esta).
     private static func adjuntar(_ id: String, nombre: String, chat: String, almacen: Almacen,
                                  avisar: @escaping (String) -> Void, empezar: ((String) -> Void)?) {
         let nucleo = almacen.nucleo
@@ -64,7 +72,11 @@ enum FigurasDelChat {
             case let .success(m):
                 await almacen.alFinal(m, en: chat)
                 NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                PeticionDeChat.compartida.salto = nil
                 PeticionDeChat.compartida.chat = chat
+                if FigurasDelChat.ventanasDelChat == 0 {
+                    ComandosApp.abrirVentana?(IdVentana.proyectos)
+                }
                 empezar?("Mejora la figura «\(nombre)»: ")
             case .failure:
                 avisar("No se pudo: mira el registro de PixPin")

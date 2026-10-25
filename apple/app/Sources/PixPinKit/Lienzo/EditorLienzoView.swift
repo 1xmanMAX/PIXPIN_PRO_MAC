@@ -350,6 +350,8 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     /// Quien hospeda el lienzo ve antes cada tecla (salvo mientras se
     /// escribe un texto) y se queda las que use (`true`).
     public var teclaPrevia: ((NSEvent) -> Bool)?
+    /// Los topes del aumento; el vuelo a una marca encaja su vista con los
+    /// mismos (`ZOOM_MINIMO_DEL_EDITOR` en `marcas_lienzo.rs`).
     static let zoomMinimo: CGFloat = 0.05
     static let zoomMaximo: CGFloat = 30
     /// **La camara la lleva otra vista** (el visor de planos: su capa de
