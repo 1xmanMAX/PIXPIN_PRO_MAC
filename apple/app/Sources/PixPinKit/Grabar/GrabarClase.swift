@@ -16,8 +16,11 @@
 // 3. **Guardar**: `Nucleo.guardarClase` deja en el chat lo mismo que
 //    Windows: la nota de voz `Clase 24-10 18h05.m4a`, detras el video (si
 //    se grabo) y cada captura con su minuto, enlazados (`capturas`, `video`
-//    y `enGrabacion`). Las fotos que aun se estaban haciendo al terminar se
-//    esperan; si la nota no se cerro, lo demas entra igual, suelto.
+//    y `enGrabacion`), y detras **su carpeta** (Windows e015e2b: un
+//    `MINIAPP` «carpeta» con `tipo: "grabacion"`, que el chat ensena como
+//    una sola tarjeta). Las fotos que aun se estaban haciendo al terminar se
+//    esperan; si la nota no se cerro, lo demas entra igual (en su carpeta,
+//    sin nota).
 // 4. **Pasar a texto** en el aparato, como «Pasar a texto» del chat
 //    (`Almacen.transcribir`). Sin reconocedor se guarda igual y se dice
 //    donde pedirlo luego.
@@ -648,7 +651,9 @@ public final class GrabarClase: ObservableObject {
                 UserDefaults.standard.set(chat, forKey: ListaDeProyectos.clave)
                 guardadas = clase.capturas.count
                 videoGuardado = clase.video != nil
+                // Y detras, la carpeta que lo lleva todo (una sola tarjeta).
                 let nuevos = [clase.voz, clase.video].compactMap { $0 } + clase.capturas
+                    + [clase.carpeta].compactMap { $0 }
                 if almacen.mensajes[chat] != nil { almacen.anadir(nuevos, en: chat) }
                 await almacen.cargarChats()
                 if let voz = clase.voz {

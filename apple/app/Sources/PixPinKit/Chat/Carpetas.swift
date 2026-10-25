@@ -19,6 +19,16 @@
 // Todo se escribe en el cuaderno por el nucleo (`carpetas.rs`, el mismo
 // formato que Windows y el movil: un mensaje `MINIAPP` «carpeta» con la
 // lista de sus paginas en el texto).
+//
+// **La carpeta de una grabacion** (Windows e1150e8, 25-oct-2026): la que
+// deja «Grabar clase» se ve en el chat como UNA tarjeta (la primera captura,
+// «● Grabación», lo que duro, cuantas capturas y «Estudiar»; pulsarla abre
+// «Estudiar la clase»). Su ventana ensena lo grabado con su minuto en la
+// esquina, en el orden del tiempo (no se arrastra), y detras, en ambar y con
+// la chapa «Adjunto · no es de la grabación», lo adjuntado a la clase;
+// arriba, «Estudiar» y «Adjuntar a la clase». Y **lo que esta en cualquier
+// carpeta no sale suelto en el chat** (`sinLoDeDentro`): lo representa su
+// tarjeta; con la lupa si se encuentra, y al ir a el desde su carpeta.
 
 import AppKit
 import PixPinCore
@@ -45,10 +55,21 @@ enum TextosCarpeta {
     static let renombrar = "Renombrar"
     static let quitar = "Quitar de la carpeta"
     static let noEsta = "Esa carpeta ya no está en el chat"
-    static let pista = "Arrastra una página para cambiarla de sitio · F2 cambia su título · ⌫ la quita (el lienzo sigue en el chat)"
+    static let pista = "Arrastra una página para cambiarla de sitio · F2 cambia su título · ⌫ la quita (vuelve a verse en el chat)"
     static let escribeTitulo = "Escribe el título y pulsa Intro"
     static let noSePudo = "No se pudo: mira el registro de PixPin"
+    // La carpeta de una grabacion (`carpeta-grabacion*`, `carpeta-adjunt*`).
+    static let grabacion = "Grabación"
+    static let estudiar = "Estudiar"
+    static let adjuntoInsignia = "Adjunto · no es de la grabación"
+    static let adjuntar = "Adjuntar a la clase"
+    static func adjuntado(_ nombre: String) -> String { "Adjuntado a la clase: \(nombre)" }
+    static let grabacionPista = "Pulsa una pieza para estudiarla en su minuto · «Adjuntar a la clase» suma un archivo, una foto o una nota sin mezclarlo con lo grabado"
 }
+
+/// El color de lo adjuntado a una clase (no es de lo grabado): un ambar que
+/// se lee igual en claro y en oscuro (`COLOR_ADJUNTO` de Windows).
+let colorAdjunto = Color(red: 0.80, green: 0.45, blue: 0.05)
 
 // MARK: - Lo comun
 
@@ -60,6 +81,24 @@ enum CarpetasDelChat {
     /// Si el mensaje es una carpeta de paginas.
     nonisolated static func esCarpeta(_ m: MensajeChat) -> Bool {
         m.clase == "MINIAPP" && m.miniapp == "carpeta"
+    }
+
+    /// Si el mensaje es la carpeta de una grabacion.
+    nonisolated static func esGrabacion(_ m: MensajeChat) -> Bool {
+        esCarpeta(m) && grabacionDeCarpeta(texto: m.texto) != nil
+    }
+
+    /// **Lo que se ve en el chat**: sin lo que esta dentro de alguna de las
+    /// carpetas de `lista` (`marcar_lo_de_dentro` y `se_ve` de Windows), que
+    /// lo representa su tarjeta. `salvo` (el mensaje al que se fue desde su
+    /// carpeta) si se ve. Es una regla de lo que se ensena: el mensaje sigue
+    /// en el chat (viaja, se busca, sale en la galeria).
+    nonisolated static func sinLoDeDentro(_ lista: [MensajeChat], salvo: String?) -> [MensajeChat] {
+        let textos = lista.filter(esCarpeta).map(\.texto)
+        guard !textos.isEmpty else { return lista }
+        let dentro = Set(dentroDeCarpetas(textos: textos))
+        guard !dentro.isEmpty else { return lista }
+        return lista.filter { !dentro.contains($0.id) || $0.id == salvo }
     }
 
     /// Si se ofrece «Añadir a carpeta…» (`carpeta_de_paginas::puede_ir`):
@@ -74,19 +113,30 @@ enum CarpetasDelChat {
         ["DIBUJO", "PAGINA", "IMAGEN"].contains(m.clase)
     }
 
-    /// Lo que pone debajo del nombre: cuantas lleva (`fila_de` de Windows).
+    /// Lo que pone debajo del nombre: cuantas lleva (`fila_de` de Windows);
+    /// la de una grabacion, lo que duro y cuantas capturas.
     nonisolated static func detalle(_ m: MensajeChat) -> String {
+        if let g = grabacionDeCarpeta(texto: m.texto) { return g.detalle }
         let n = paginasDeCarpeta(texto: m.texto).count
         return n == 0 ? TextosCarpeta.vaciaDetalle : TextosCarpeta.paginas(n)
     }
 
-    /// El icono de una pagina sin miniatura (`icono_de` de Windows).
+    /// El icono de una pagina sin miniatura (`icono_de` de Windows): un
+    /// video (una foto o un archivo con extension de video, `es_video`), la
+    /// camara; lo demas, el de su clase.
+    nonisolated static func icono(de m: MensajeChat) -> String {
+        let ext = (m.nombre as NSString).pathExtension.lowercased()
+        let videos = ["mp4", "mov", "avi", "mkv", "webm", "3gp", "m4v", "wmv", "flv"]
+        if m.clase == "IMAGEN" || m.clase == "ARCHIVO", videos.contains(ext) { return "video" }
+        return icono(m.clase)
+    }
+
     nonisolated static func icono(_ clase: String) -> String {
         switch clase {
         case "DIBUJO": "scribble.variable"
         case "PAGINA": "book"
         case "IMAGEN": "photo"
-        case "VOZ": "play.fill"
+        case "VOZ": "mic"
         case "NOTA", "": "square.and.pencil"
         default: "doc.text"
         }
@@ -94,6 +144,15 @@ enum CarpetasDelChat {
 
     static func abrir(_ m: MensajeChat, chat: String, almacen: Almacen) {
         VentanasDeCarpeta.compartidas.abrir(id: m.id, chat: chat, titulo: m.nombre, almacen: almacen)
+    }
+
+    /// **Un clic en la tarjeta de una grabacion**: la clase en «Estudiar la
+    /// clase» (su vista natural); sin nota que estudiar, su carpeta.
+    static func abrirGrabacion(_ m: MensajeChat, chat: String, almacen: Almacen) {
+        guard let g = grabacionDeCarpeta(texto: m.texto), !g.voz.isEmpty else {
+            return abrir(m, chat: chat, almacen: almacen)
+        }
+        EstudiarClase.abrir(chat: chat, mensaje: g.voz, ms: 0, almacen: almacen)
     }
 
     /// **Abre una pagina**: un lienzo en el lienzo, una pagina del PDF en el
@@ -170,7 +229,10 @@ extension ChatAbierto {
                 (try? nucleo.carpetasDelChat(chat: chat, pagina: id)) ?? []
             }.value
             var entradas = carpetas.map { c in
-                MenuEmergente.Entrada(titulo: c.nombre, icono: c.laLleva ? "checkmark.square" : "book") { [weak self] in
+                // Las de las grabaciones tambien: lo que entra en una es un
+                // adjunto a la clase, aparte de lo grabado.
+                MenuEmergente.Entrada(titulo: c.nombre,
+                                      icono: c.laLleva ? "checkmark.square" : c.grabacion ? "mic" : "book") { [weak self] in
                     self?.anadir(m, a: c.id)
                 }
             }
@@ -238,7 +300,7 @@ struct MiniaturaDePagina: View {
             } else if let foto {
                 MiniaturaVista(url: foto, lado: lado)
             } else if leida {
-                Image(systemName: CarpetasDelChat.icono(mensaje.clase))
+                Image(systemName: CarpetasDelChat.icono(de: mensaje))
                     .font(.system(size: max(14, lado * 0.16)))
                     .foregroundStyle(Color(white: 0.45))
             } else {
@@ -390,6 +452,97 @@ struct BurbujaCarpeta: View {
     }
 }
 
+// MARK: - La tarjeta de una grabacion
+
+/// **La tarjeta de una clase grabada** (`pintar_ojeada_grabacion` de
+/// Windows): una sola en el chat por toda la grabacion. La primera captura de
+/// fondo (sin capturas, el icono del video o del microfono), arriba la chapa
+/// «● Grabación», abajo lo que duro y cuantas capturas lleva y la pastilla
+/// «Estudiar». La tarjeta entera abre la clase.
+struct BurbujaGrabacion: View {
+    let mensaje: MensajeChat
+    let chat: String
+    let almacen: Almacen
+    @State private var foto: MensajeChat?
+    @Environment(\.escalaChat) private var escala
+
+    private var nombre: String {
+        let n = mensaje.nombre.trimmingCharacters(in: .whitespaces)
+        return n.isEmpty ? TextosCarpeta.grabacion : n
+    }
+
+    var body: some View {
+        let g = grabacionDeCarpeta(texto: mensaje.texto)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Image(systemName: "mic")
+                    .font(.system(size: 18 * escala))
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(nombre).lineLimit(2)
+                    Text(g?.detalle ?? "").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            ZStack {
+                Color.white.opacity(0.55)
+                if let foto {
+                    MiniaturaDePagina(mensaje: foto, chat: chat, almacen: almacen, lado: ladoDeBurbuja * escala)
+                } else {
+                    Image(systemName: (g?.video.isEmpty ?? true) ? "mic" : "video")
+                        .font(.system(size: 44 * escala))
+                        .foregroundStyle(Color(white: 0.45))
+                }
+            }
+            .frame(width: ladoDeBurbuja * escala, height: ladoDeBurbuja * 0.5625 * escala)
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .overlay(alignment: .topLeading) {
+                HStack(spacing: 5 * escala) {
+                    Circle().fill(Color(red: 0xE5 / 255, green: 0x39 / 255, blue: 0x35 / 255))
+                        .frame(width: 8 * escala, height: 8 * escala)
+                    Text(TextosCarpeta.grabacion).font(.system(size: 11 * escala, weight: .medium))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 7 * escala)
+                .padding(.vertical, 3 * escala)
+                .background(Color.black.opacity(0.65), in: Capsule())
+                .padding(6 * escala)
+            }
+            .overlay(alignment: .bottomLeading) {
+                if let g {
+                    Text(g.detalle)
+                        .font(.system(size: 11 * escala, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 7 * escala)
+                        .padding(.vertical, 3 * escala)
+                        .background(Color.black.opacity(0.65), in: Capsule())
+                        .padding(6 * escala)
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // «Estudiar», si hay nota que estudiar.
+                if let g, !g.voz.isEmpty {
+                    Label(TextosCarpeta.estudiar, systemImage: "book")
+                        .font(.system(size: 12.5 * escala, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10 * escala)
+                        .padding(.vertical, 5 * escala)
+                        .background(Color.accentColor, in: Capsule())
+                        .padding(8 * escala)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { CarpetasDelChat.abrirGrabacion(mensaje, chat: chat, almacen: almacen) }
+        .help("Estudiar la clase")
+        .task(id: mensaje.texto) {
+            // La foto de la tarjeta: la primera captura que este en el chat.
+            let capturas = Set(g?.capturas ?? [])
+            let paginas = await CarpetasDelChat.leer(mensaje.id, chat: chat, almacen: almacen)?.paginas ?? []
+            foto = paginas.first { capturas.contains($0.mensaje.id) && $0.mensaje.clase == "IMAGEN" }?.mensaje
+        }
+    }
+}
+
 // MARK: - La ventana
 
 /// Las ventanas de las carpetas abiertas: una por carpeta.
@@ -469,6 +622,10 @@ final class ModeloCarpeta: ObservableObject {
 
     var paginas: [PaginaDeCarpeta] { carpeta?.paginas ?? [] }
 
+    /// Si es la carpeta de una grabacion: lo grabado no se reordena (es el
+    /// orden del tiempo) y se estudia en su minuto.
+    var esGrabacion: Bool { carpeta?.grabacion ?? false }
+
     func posicion(_ pagina: String?) -> Int? { paginas.firstIndex { $0.mensaje.id == pagina } }
 
     /// **Lee la carpeta y sus paginas.**
@@ -515,7 +672,7 @@ final class ModeloCarpeta: ObservableObject {
 
     /// Lleva la pagina `desde` al sitio `hasta`.
     func mover(_ desde: Int, _ hasta: Int) {
-        guard desde != hasta, paginas.indices.contains(desde), paginas.indices.contains(hasta) else { return }
+        guard !esGrabacion, desde != hasta, paginas.indices.contains(desde), paginas.indices.contains(hasta) else { return }
         elegida = paginas[desde].mensaje.id
         cambiar(.mover(desde: UInt32(desde), hasta: UInt32(hasta)))
     }
@@ -543,7 +700,43 @@ final class ModeloCarpeta: ObservableObject {
 
     func abrir(_ p: PaginaDeCarpeta) {
         elegida = p.mensaje.id
+        // Lo de una grabacion se estudia en su minuto, con el texto al lado.
+        if let c = carpeta, c.grabacion, !p.adjunto, !c.voz.isEmpty {
+            return EstudiarClase.abrir(chat: chat, mensaje: c.voz, ms: p.ms ?? 0, almacen: almacen)
+        }
         CarpetasDelChat.abrirPagina(p.mensaje, titulo: p.titulo, chat: chat, almacen: almacen)
+    }
+
+    /// **«Estudiar»**: la clase de esta grabacion en su ventana.
+    func estudiar() {
+        guard let c = carpeta, !c.voz.isEmpty else { return }
+        EstudiarClase.abrir(chat: chat, mensaje: c.voz, ms: 0, almacen: almacen)
+    }
+
+    /// **«Adjuntar a la clase»**: los ficheros elegidos entran en el chat
+    /// (como si se soltaran en el) y en la carpeta como adjuntos, aparte de
+    /// lo grabado. No salen sueltos en el chat: estan en la carpeta.
+    func adjuntar() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        guard panel.runModal() == .OK, !panel.urls.isEmpty else { return }
+        let rutas = panel.urls.map(\.path)
+        let (nucleo, chat, id, almacen) = (self.almacen.nucleo, self.chat, self.id, self.almacen)
+        Task {
+            let hechos = await Task.detached(priority: .userInitiated) { () -> [AdjuntadoALaClase] in
+                rutas.compactMap { r in (try? nucleo.adjuntarALaClase(chat: chat, carpeta: id, ruta: r)) ?? nil }
+            }.value
+            if let ultimo = hechos.last {
+                if almacen.mensajes[chat] != nil { almacen.anadir(hechos.map(\.mensaje), en: chat) }
+                almacen.sustituir(ultimo.carpeta, en: chat)
+                avisar(TextosCarpeta.adjuntado(hechos.map(\.nombre).joined(separator: ", ")))
+            } else {
+                avisar(TextosCarpeta.noSePudo)
+            }
+            recargar()
+        }
     }
 
     /// **«Nueva página»**: un lienzo nuevo con la plantilla de la ultima
@@ -612,21 +805,38 @@ struct VistaCarpeta: View {
 
     private var barra: some View {
         HStack(spacing: 10) {
-            Image(systemName: "book").font(.system(size: 20)).foregroundStyle(Paleta.proyectos.texto)
+            Image(systemName: modelo.esGrabacion ? "mic" : "book").font(.system(size: 20))
+                .foregroundStyle(Paleta.proyectos.texto)
             VStack(alignment: .leading, spacing: 1) {
                 Text(modelo.perdida ? TextosCarpeta.noEsta : (modelo.carpeta?.nombre ?? ""))
                     .font(.system(size: 16, weight: .semibold)).lineLimit(1)
                     .foregroundStyle(Paleta.proyectos.texto)
-                Text(TextosCarpeta.paginas(modelo.paginas.count))
+                Text(modelo.esGrabacion ? (modelo.carpeta?.detalle ?? "") : TextosCarpeta.paginas(modelo.paginas.count))
                     .font(.system(size: 12)).foregroundStyle(Paleta.proyectos.apagado)
             }
             Spacer(minLength: 12)
-            if !modelo.perdida {
+            // En una grabacion, estudiar (si hay nota), adjuntar y exportar;
+            // en un cuaderno, una pagina nueva y exportar.
+            if !modelo.perdida, modelo.esGrabacion {
+                if modelo.carpeta?.voz.isEmpty == false {
+                    Button { modelo.estudiar() } label: {
+                        Label(TextosCarpeta.estudiar, systemImage: "book").frame(minWidth: 120)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                }
+                Button { modelo.adjuntar() } label: {
+                    Label(TextosCarpeta.adjuntar, systemImage: "paperclip").frame(minWidth: 120)
+                }
+                .controlSize(.large)
+            } else if !modelo.perdida {
                 Button { modelo.nuevaPagina() } label: {
                     Label(TextosCarpeta.nuevaPagina, systemImage: "plus").frame(minWidth: 120)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
+            }
+            if !modelo.perdida {
                 Button { modelo.exportar() } label: {
                     Label(modelo.exportando ? TextosCarpeta.exportando : TextosCarpeta.exportarPdf,
                           systemImage: "square.and.arrow.up").frame(minWidth: 120)
@@ -644,7 +854,7 @@ struct VistaCarpeta: View {
 
     /// La pista, o lo que se esta escribiendo, o el aviso.
     private var pista: some View {
-        var texto = TextosCarpeta.pista
+        var texto = modelo.esGrabacion ? TextosCarpeta.grabacionPista : TextosCarpeta.pista
         var apagado = true
         if let a = modelo.aviso {
             texto = a
@@ -709,13 +919,38 @@ struct VistaCarpeta: View {
         let id = p.mensaje.id
         let elegida = modelo.elegida == id
         let ultima = k + 1 == modelo.paginas.count
+        // En una grabacion no se cambia el orden: es el del tiempo.
+        let fijo = modelo.esGrabacion
         return VStack(alignment: .leading, spacing: 6) {
             MiniaturaDePagina(mensaje: p.mensaje, chat: modelo.chat, almacen: modelo.almacen,
                               lado: Self.altoDibujo, version: modelo.version)
                 .padding(8)
                 .frame(width: Self.ancho, height: Self.altoDibujo)
                 .background(Color.white, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(alignment: .topLeading) { ChapaDeNumero(texto: "\(k + 1)", tam: 12).padding(8) }
+                // Lo adjuntado a una clase, con otro color: no es de lo grabado.
+                .overlay {
+                    if p.adjunto {
+                        RoundedRectangle(cornerRadius: 8).fill(colorAdjunto.opacity(0.18))
+                        RoundedRectangle(cornerRadius: 8).strokeBorder(colorAdjunto, lineWidth: 2)
+                    }
+                }
+                // En su esquina: el numero de la pagina, o su minuto en la grabacion.
+                .overlay(alignment: .topLeading) {
+                    if !p.esquina.isEmpty { ChapaDeNumero(texto: p.esquina, tam: 12).padding(8) }
+                }
+                // «Adjunto · no es de la grabación», abajo, sobre su color.
+                .overlay(alignment: .bottomLeading) {
+                    if p.adjunto {
+                        Text(TextosCarpeta.adjuntoInsignia)
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(colorAdjunto, in: Capsule())
+                            .padding(8)
+                    }
+                }
                 .contentShape(Rectangle())
                 .onTapGesture {
                     modelo.terminarDeRenombrar(guardar: true)
@@ -753,8 +988,8 @@ struct VistaCarpeta: View {
                     .onTapGesture { modelo.elegida = id }
             }
             HStack(spacing: 6) {
-                boton("chevron.left", TextosCarpeta.antes, activo: k > 0, elegida: elegida) { modelo.mover(k, k - 1) }
-                boton("chevron.right", TextosCarpeta.despues, activo: !ultima, elegida: elegida) { modelo.mover(k, k + 1) }
+                boton("chevron.left", TextosCarpeta.antes, activo: k > 0 && !fijo, elegida: elegida) { modelo.mover(k, k - 1) }
+                boton("chevron.right", TextosCarpeta.despues, activo: !ultima && !fijo, elegida: elegida) { modelo.mover(k, k + 1) }
                 boton("pencil", TextosCarpeta.renombrar, activo: true, elegida: elegida) { modelo.empezarARenombrar(id) }
                 boton("xmark", TextosCarpeta.quitar, activo: true, elegida: elegida) { modelo.quitar(id) }
             }
@@ -762,19 +997,19 @@ struct VistaCarpeta: View {
         .padding(6)
         .background(fondo(elegida: elegida, destino: destino == id), in: RoundedRectangle(cornerRadius: 12))
         .dropDestination(for: String.self) { ids, _ in
-            guard let movida = ids.first, let desde = modelo.posicion(movida), desde != k else { return false }
+            guard !fijo, let movida = ids.first, let desde = modelo.posicion(movida), desde != k else { return false }
             modelo.mover(desde, k)
             return true
         } isTargeted: { encima in
-            if encima { destino = id } else if destino == id { destino = nil }
+            if encima, !fijo { destino = id } else if destino == id { destino = nil }
         }
         .contextMenu {
             Button { modelo.abrir(p) } label: { Label("Abrir", systemImage: "arrow.up.right.square") }
             Button { modelo.empezarARenombrar(id) } label: { Label(TextosCarpeta.renombrar, systemImage: "pencil") }
             Button { modelo.mover(k, k - 1) } label: { Label(TextosCarpeta.antes, systemImage: "chevron.left") }
-                .disabled(k == 0)
+                .disabled(k == 0 || fijo)
             Button { modelo.mover(k, k + 1) } label: { Label(TextosCarpeta.despues, systemImage: "chevron.right") }
-                .disabled(ultima)
+                .disabled(ultima || fijo)
             Divider()
             Button(role: .destructive) { modelo.quitar(id) } label: { Label(TextosCarpeta.quitar, systemImage: "xmark") }
         }

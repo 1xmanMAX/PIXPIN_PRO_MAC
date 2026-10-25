@@ -119,6 +119,18 @@ final class GrabarClaseTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: mp4.path))
         let lista = ClaseEnElChat.capturas(voz, chat: chat, nucleo: almacen.nucleo)
         XCTAssertEqual(lista.map(\.ms), [65_400])
+        // Detras de todo, su carpeta (Windows e015e2b): una sola tarjeta, y
+        // la nota, el video y la captura no salen sueltos en el chat.
+        let carpeta = try XCTUnwrap(hecho.carpeta)
+        XCTAssertTrue(CarpetasDelChat.esGrabacion(carpeta))
+        XCTAssertEqual(CarpetasDelChat.detalle(carpeta), "1:00 · 1 captura")
+        let todo = [voz, video] + hecho.capturas + [carpeta]
+        XCTAssertEqual(CarpetasDelChat.sinLoDeDentro(todo, salvo: nil).map(\.id), [carpeta.id])
+        XCTAssertEqual(CarpetasDelChat.sinLoDeDentro(todo, salvo: voz.id).map(\.id), [voz.id, carpeta.id],
+                       "al ir a ella desde su carpeta, si se ve")
+        XCTAssertEqual(ClaseEnElChat.deUnaClase(carpeta, chat: chat, nucleo: almacen.nucleo)?.voz, voz.id)
+        // Caso negativo: sin carpetas se ve todo.
+        XCTAssertEqual(CarpetasDelChat.sinLoDeDentro([voz, video], salvo: nil).count, 2)
         XCTAssertNotNil(lista.first?.ruta)
         // Caso negativo: una foto suelta no es una clase.
         let foto = try XCTUnwrap(hecho.capturas.first)
