@@ -1749,6 +1749,7 @@ dependencies = [
  "pixpin-codec",
  "pixpin-docs",
  "pixpin-frase",
+ "pixpin-geom",
  "pixpin-ia",
  "pixpin-lecciones",
  "pixpin-motor2d",
