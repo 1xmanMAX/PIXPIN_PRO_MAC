@@ -622,7 +622,7 @@ struct CabeceraDelChat: View {
         HStack(spacing: 8) {
             Button { ficha.abrir() } label: {
                 HStack(spacing: 10) {
-                    AvatarDelChat(id: chat, nombre: datos?.nombre ?? "", lado: 34)
+                    AvatarDelChat(id: chat, nombre: datos?.nombre ?? "", lado: 34, foto: datos?.foto)
                         .overlay(alignment: .bottomTrailing) {
                             if chapas.personas[chat] != nil { ChapaCompartido(avatar: 34, aro: Paleta.chat.cabecera) }
                         }
@@ -666,20 +666,39 @@ struct CabeceraDelChat: View {
     }
 }
 
-/// El avatar de un chat: el circulo de su color con sus iniciales.
+/// El avatar de un chat: su foto (imagen, emoji o color) o el circulo de su
+/// color con sus iniciales (`Chat/FotoDelChat.swift`).
 struct AvatarDelChat: View {
     let id: String
     let nombre: String
     let lado: CGFloat
+    var foto: FotoDelChat?
 
     var body: some View {
-        ZStack {
-            Circle().fill(Paleta.avatar(id))
-            Text(Paleta.iniciales(nombre))
-                .font(.system(size: lado * 0.4))
-                .foregroundStyle(.white)
+        CirculoDelChat(id: id, nombre: nombre, lado: lado, foto: foto)
+    }
+}
+
+/// **El avatar de la isla**: pulsarlo abre la hoja de la foto del chat; con
+/// el raton encima sale un aro azul (Windows 22bf4dc).
+struct AvatarDeLaIsla: View {
+    /// Mirado aqui: al guardar una foto nueva, la isla la ensena ya.
+    @ObservedObject var almacen: Almacen
+    let id: String
+    @State private var encima = false
+
+    var body: some View {
+        let datos = almacen.chats.first(where: { $0.id == id })
+        Button { PeticionDeFoto.compartida.chat = id } label: {
+            AvatarDelChat(id: id, nombre: datos?.nombre ?? "", lado: MedidasFicha.avatar, foto: datos?.foto)
+                .overlay {
+                    if encima { Circle().strokeBorder(Paleta.chat.enviar, lineWidth: 2).padding(-3) }
+                }
+                .contentShape(Circle())
         }
-        .frame(width: lado, height: lado)
+        .buttonStyle(.plain)
+        .onHover { encima = $0 }
+        .help(TextosFoto.actuales.menu)
     }
 }
 
@@ -766,7 +785,7 @@ struct IslaFichaDelChat: View {
                     .background(Paleta.proyectos.buscador, in: Capsule())
                     .onAppear { enBuscar = true }
             } else {
-                AvatarDelChat(id: ficha.chat, nombre: nombreDelChat, lado: MedidasFicha.avatar)
+                AvatarDeLaIsla(almacen: ficha.almacen, id: ficha.chat)
                 titulo(nombreDelChat,
                        subtitulo: ficha.leida.map { TextosFicha.resumen(cosas: $0.cosas, codigo: $0.codigo) } ?? "")
                     .padding(.leading, 12)
@@ -1378,7 +1397,7 @@ private struct FilaDeProyecto: View {
     var body: some View {
         let (texto, apagado) = proyecto.este ? (Color.white, Color.white) : (Paleta.proyectos.texto, Paleta.proyectos.apagado)
         HStack(spacing: 12) {
-            AvatarDelChat(id: f.id, nombre: f.nombre, lado: MedidasFicha.miniaturaFila)
+            AvatarDelChat(id: f.id, nombre: f.nombre, lado: MedidasFicha.miniaturaFila, foto: f.foto)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 8) {
                     Text(TextosFicha.conNegritas(f.nombre, buscado: buscado, tam: 13.5, peso: .semibold))

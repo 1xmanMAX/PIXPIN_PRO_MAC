@@ -96,6 +96,10 @@ pub mod ficha_del_chat;
 /// La pestana Funciones de la ventana de los chats (Windows 2e0da60 y
 /// 768b73f).
 pub mod funciones;
+/// La foto del chat: imagen, emoji o color en el circulo (Windows 22bf4dc).
+pub mod foto_del_chat;
+/// Buscar dentro de todos los chats desde la lista (Windows d106969).
+pub mod buscar_en_chats;
 pub mod galeria;
 pub mod galeria_sincro;
 pub mod hojas;
