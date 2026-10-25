@@ -48,6 +48,9 @@ public enum ComandoAtajo: String, CaseIterable, Identifiable, Sendable {
     case salir
     case sincronizar
     case buscar
+    /// Grabar una clase o una reunion (Windows edd0ffa): el microfono y el
+    /// sonido del Mac, con capturas de una zona en su minuto. Sin atajo.
+    case grabarClase = "grabar-clase"
     /// Solo en Mac: grabar la pantalla en video (o parar).
     case grabarPantalla = "grabar-pantalla"
 
@@ -89,6 +92,7 @@ public enum ComandoAtajo: String, CaseIterable, Identifiable, Sendable {
         case .salir: "Salir de PixPin"
         case .sincronizar: "Sincronizar"
         case .buscar: "Buscar en PixPin"
+        case .grabarClase: "Grabar clase o reunión"
         case .grabarPantalla: "Grabar la pantalla"
         }
     }
@@ -114,7 +118,7 @@ public enum ComandoAtajo: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .capturarRegion, .capturarYCopiar, .capturarConScroll, .capturarYAnotar, .grabarGif,
              .capturarUltimaRegion, .cuentagotas, .anotar, .anotarCongelada, .capturarConRetardo,
-             .copiarTexto, .grabarPantalla:
+             .copiarTexto, .grabarPantalla, .grabarClase:
             .capturar
         case .pinear, .pinearEnVivo, .pinearPortapapeles, .pinearSeleccion, .alternarPasoDeClics,
              .alternarPines, .restaurarUltimoPin, .cerrarTodosLosPines, .ventanaEncima:

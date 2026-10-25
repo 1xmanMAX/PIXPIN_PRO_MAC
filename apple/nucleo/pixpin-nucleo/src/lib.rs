@@ -51,6 +51,8 @@ uniffi::setup_scaffolding!();
 pub mod adjuntos;
 pub mod ajustes;
 pub mod aligerar;
+/// «Enviar a Anki» del menu de un mensaje (Windows 2561be0).
+pub mod anki;
 pub mod anotador_al_chat;
 pub mod aparatos;
 pub mod grafito_plano;
@@ -59,6 +61,8 @@ pub mod automatizaciones;
 pub mod burbujas;
 pub mod buscar;
 pub mod chats;
+/// Grabar una clase o una reunion: lo que se guarda en el chat (Windows edd0ffa).
+pub mod clase;
 pub mod compartir;
 pub mod compartidos;
 pub mod copias;
@@ -150,6 +154,8 @@ pub use tareas::{ListaTareas, MarcasTarea, Tarea, marcas_de_tarea, tarea_con_not
 pub use timeline::{DiaTimeline, MomentoTimeline, PaginaDias, PaginaMomentos};
 pub use turnos::{CambioDeTurno, TurnoVoz};
 pub use voz::{GrabacionVoz, SegmentoVoz};
+pub use anki::EnvioAnki;
+pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
 
 /// Lo que puede salir mal, tal como lo ve Swift (un `enum` que `throws`).
 ///

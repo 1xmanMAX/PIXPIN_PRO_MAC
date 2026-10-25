@@ -194,25 +194,42 @@ public struct VistaBandeja: View {
 
     private var tarjetaCapturar: some View {
         VStack(spacing: 8) {
-            BotonBandeja {
-                modelo.pedir(.comando(.capturarRegion))
-            } contenido: { encima in
-                HStack(spacing: 12) {
-                    Image(systemName: "viewfinder").font(.system(size: 18.7, weight: .medium))
-                        .frame(width: 28)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Capturar").font(.system(size: 13.6, weight: .semibold))
-                        Text("Elige la zona con el ratón").font(.system(size: 10.2)).opacity(0.8)
+            HStack(spacing: 6) {
+                BotonBandeja {
+                    modelo.pedir(.comando(.capturarRegion))
+                } contenido: { encima in
+                    HStack(spacing: 12) {
+                        Image(systemName: "viewfinder").font(.system(size: 18.7, weight: .medium))
+                            .frame(width: 28)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Capturar").font(.system(size: 13.6, weight: .semibold))
+                            Text("Elige la zona con el ratón").font(.system(size: 10.2)).opacity(0.8)
+                        }
+                        Spacer()
+                        if let a = modelo.chapita(.comando(.capturarRegion)) {
+                            Chapita(texto: a, fondo: .white.opacity(0.2), color: .white)
+                        }
                     }
-                    Spacer()
-                    if let a = modelo.chapita(.comando(.capturarRegion)) {
-                        Chapita(texto: a, fondo: .white.opacity(0.2), color: .white)
-                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .frame(height: 40)
+                    .background(encima ? ColoresBandeja.azulEncima : ColoresBandeja.azul, in: RoundedRectangle(cornerRadius: 12))
                 }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .frame(height: 40)
-                .background(encima ? ColoresBandeja.azulEncima : ColoresBandeja.azul, in: RoundedRectangle(cornerRadius: 12))
+                // «Grabar» (clase o reunion), al lado: a la vista nada mas
+                // abrir el panel, como en Windows (edd0ffa).
+                BotonBandeja {
+                    modelo.pedir(.comando(.grabarClase))
+                } contenido: { encima in
+                    VStack(spacing: 2) {
+                        Image(systemName: "mic").font(.system(size: 15, weight: .medium))
+                        Text("Grabar").font(.system(size: 10.2, weight: .medium)).lineLimit(1)
+                    }
+                    .foregroundStyle(ColoresBandeja.rojo)
+                    .frame(width: 64, height: 40)
+                    .background(ColoresBandeja.rojo.opacity(encima ? 0.26 : 0.16), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .help(ComandoAtajo.grabarClase.titulo + (modelo.chapita(.comando(.grabarClase)).map { "  \($0)" } ?? ""))
+                .disabled(!modelo.atajos.disponible(.grabarClase))
             }
             HStack(spacing: 6) {
                 ForEach(AccionBandeja.modos, id: \.comando) { m in

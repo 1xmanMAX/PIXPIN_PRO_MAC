@@ -42,6 +42,8 @@ enum MenuBandeja {
         sonido.state = grabador.conSonido ? .on : .off
         sonido.isEnabled = !grabador.grabando
         menu.addItem(sonido)
+        // La clase o la reunion (Windows edd0ffa): su ventanita flotante.
+        menu.addItem(comando("Grabar clase o reunión…", .grabarClase))
         menu.addItem(.separator())
 
         // Las ventanas.

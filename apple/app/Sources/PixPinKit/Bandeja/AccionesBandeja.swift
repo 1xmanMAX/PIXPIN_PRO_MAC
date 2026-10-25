@@ -80,7 +80,7 @@ public enum AccionBandeja: Hashable, Sendable {
         guard case let .comando(c) = self else { return false }
         switch c {
         case .capturarRegion, .capturarYCopiar, .capturarConScroll, .capturarYAnotar, .capturarUltimaRegion,
-             .grabarGif, .grabarPantalla, .cuentagotas, .pinear, .pinearEnVivo, .anotar, .anotarCongelada,
+             .grabarGif, .grabarPantalla, .grabarClase, .cuentagotas, .pinear, .pinearEnVivo, .anotar, .anotarCongelada,
              .capturarConRetardo, .copiarTexto, .ventanaEncima:
             return true
         default:
@@ -99,6 +99,7 @@ public enum AccionBandeja: Hashable, Sendable {
             case .capturarYAnotar, .anotar, .anotarCongelada: return "pencil.tip"
             case .grabarGif: return "record.circle"
             case .grabarPantalla: return "video"
+            case .grabarClase: return "mic"
             case .cuentagotas: return "eyedropper"
             case .pinear, .pinearEnVivo, .pinearSeleccion: return "pin"
             case .pinearPortapapeles: return "doc.on.clipboard"
@@ -138,6 +139,8 @@ public enum AccionBandeja: Hashable, Sendable {
                 return 0xB86E00
             case .grabarGif, .copiarTexto, .cuentagotas:
                 return 0x8E44B8
+            case .grabarClase:
+                return 0xC9302C
             case .capturarRegion, .capturarYCopiar, .capturarConScroll, .capturarUltimaRegion,
                  .capturarConRetardo, .grabarPantalla:
                 return 0x0060DF

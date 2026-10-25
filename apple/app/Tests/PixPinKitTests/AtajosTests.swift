@@ -20,13 +20,14 @@ final class AtajosTests: XCTestCase {
     // MARK: El catalogo
 
     func testElCatalogoTieneLosNombresDeWindows() {
-        // Los 27 de `pixpin-store/src/comandos.rs` y grabar (solo Mac).
+        // Los 28 de `pixpin-store/src/comandos.rs` y grabar (solo Mac).
         let windows = ["capturar-region", "capturar-y-copiar", "capturar-con-scroll", "capturar-y-anotar",
                        "grabar-gif", "capturar-ultima-region", "cuentagotas", "pinear", "pinear-en-vivo",
                        "pinear-portapapeles", "anotar", "anotar-congelada", "pinear-seleccion",
                        "capturar-con-retardo", "silenciar-atajos", "alternar-paso-de-clics", "alternar-pines",
                        "restaurar-ultimo-pin", "cerrar-todos-los-pines", "copiar-texto", "ventana-encima",
-                       "abrir-chat", "abrir-ajustes", "recibir-del-movil", "salir", "sincronizar", "buscar"]
+                       "abrir-chat", "abrir-ajustes", "recibir-del-movil", "salir", "sincronizar", "buscar",
+                       "grabar-clase"]
         for n in windows { XCTAssertNotNil(ComandoAtajo.desde(nombre: n), n) }
         XCTAssertEqual(ComandoAtajo.allCases.count, windows.count + 1)
         XCTAssertEqual(Set(ComandoAtajo.allCases.map(\.titulo)).count, ComandoAtajo.allCases.count, "titulos repetidos")
