@@ -11,8 +11,9 @@ Cada fichero de `crates/<x>` y `apps/<x>` de Windows va a la zona del Mac donde
 vive `<x>`. Si el Mac no lo toco desde la base, se toma el de Windows; si
 Windows no lo toco, se queda el del Mac; si cambiaron los dos, `git merge-file`
 (los .rs pasan antes por `rustfmt` —o el de `$RUSTFMT`—, como `cargo fmt` en Windows, para que el
-formato no salga como conflicto). `por-adaptar/` y `por-traducir/` no se
-compilan: ahi manda Windows. Los crates nuevos de Windows se listan para
+formato no salga como conflicto). `por-traducir/` no se compila: ahi manda
+Windows. `por-adaptar/` si se fusiona (nucleo/ depende de alguno, p. ej.
+`pixpin-voz`). Los crates nuevos de Windows se listan para
 decidir a mano a que zona van. Lo borrado en el Mac (ya en Swift) no vuelve.
 
 Al acabar deja el informe en `target/portar-de-windows.json`, apunta el commit
@@ -93,7 +94,7 @@ def main():
             clave = f'{m}/{rel}'
             if igual(b, n) or igual(mm, n):
                 continue
-            if igual(b, mm) or (m.startswith('apple/por-') and os.path.exists(mm)):
+            if igual(b, mm) or (m.startswith('apple/por-traducir/') and os.path.exists(mm)):
                 if os.path.exists(n):
                     os.makedirs(os.path.dirname(mm), exist_ok=True)
                     shutil.copy2(n, mm)
