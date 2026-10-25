@@ -128,6 +128,10 @@ fn muestra_de_la_foto_con_descripcion() {
             buscando: false,
             marcados: &marcados,
             raiz: std::path::Path::new(""),
+            giro_sincro: 0.0,
+            sincro_fallo: false,
+            en_chats: None,
+            sobre_mensaje: None,
         };
         motor
             .dibujar(&destino.destino, |p| {

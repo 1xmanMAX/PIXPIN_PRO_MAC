@@ -4,7 +4,9 @@
 // - `FranjaProyectos`: la franja fina de arriba (24) del color de la barra,
 //   con «PixPin Max» a la izquierda y −, ☐ y ✕ planos a la derecha.
 // - `ListaProyectos`: la columna de la izquierda, con el buscador en
-//   capsula (35 de alto, 7 de margen), los dos botones redondos dorados, las
+//   capsula (35 de alto, 7 de margen), el boton redondo dorado de
+//   sincronizar (Tareas, la galeria y el timeline pasaron a la pestana
+//   Funciones, Windows a274ac0: `FuncionesDeLaLista.swift`), las
 //   filas de 62 con el avatar de 46 y sus iniciales, y el boton redondo de
 //   proyecto nuevo (54) abajo a la derecha.
 //
@@ -18,8 +20,9 @@ import SwiftUI
 struct FranjaProyectos: View {
     static let alto: CGFloat = 24
     let ventana: RefVentana
-    /// «Figuras» del interruptor: abre su ventana.
-    var figuras: () -> Void = {}
+    /// La parte «Funciones» del interruptor va puesta: la columna de la
+    /// lista ensena la rejilla de Funciones.
+    var funciones: Binding<Bool> = .constant(false)
 
     var body: some View {
         HStack(spacing: 0) {
@@ -33,9 +36,10 @@ struct FranjaProyectos: View {
             BotonFranja(simbolo: "xmark", ayuda: "Cerrar (⌘W)", cerrar: true) { VentanaLisa.cerrar(ventana.ventana) }
         }
         .frame(height: Self.alto)
-        // El interruptor Chat · Figuras, en medio (Windows c687285: la parte
-        // «Proyectos» de en medio se quito).
-        .overlay { InterruptorChatFiguras(figuras: figuras) }
+        // El interruptor Chat · Funciones, en medio (Windows c687285: la
+        // parte «Proyectos» de en medio se quito; 768b73f: «Figuras» paso a
+        // ser «Funciones»).
+        .overlay { InterruptorChatFunciones(funciones: funciones) }
         .background {
             // Desde la franja se lleva la ventana, y el doble clic la agranda.
             Paleta.proyectos.barra
@@ -46,34 +50,48 @@ struct FranjaProyectos: View {
     }
 }
 
-/// **El interruptor Chat · Figuras** de la barra (`ventana_chat/interruptor.rs`
+/// **El interruptor Chat · Funciones** de la barra (`ventana_chat/interruptor.rs`
 /// y `pixpin_ui::interruptor` de Windows): dos partes de 76, con 3 de aire
-/// arriba y abajo. «Figuras» no se queda elegida: abre su ventana aparte y
-/// el chat sigue como estaba.
-struct InterruptorChatFiguras: View {
-    let figuras: () -> Void
-    @State private var encima = false
+/// arriba y abajo, una puesta. «Funciones» se queda puesta como una pestana:
+/// la columna de la lista se cambia por la rejilla de Funciones; «Chat»
+/// devuelve la lista.
+struct InterruptorChatFunciones: View {
+    @Binding var funciones: Bool
 
     var body: some View {
         HStack(spacing: 0) {
-            Text("Chat")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(Color.white)
-                .frame(width: 76, height: FranjaProyectos.alto - 6)
-                .background(Paleta.proyectos.filaElegida, in: Capsule())
-            Button(action: figuras) {
-                Text("Figuras")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Paleta.proyectos.texto)
-                    .frame(width: 76, height: FranjaProyectos.alto - 6)
-                    .background(encima ? Paleta.proyectos.botonEncima : .clear, in: Capsule())
-                    .contentShape(Capsule())
+            ParteInterruptor(titulo: TextosFunciones.actuales.interruptorChat, puesta: !funciones) {
+                funciones = false
             }
-            .buttonStyle(.plain)
-            .onHover { encima = $0 }
-            .help("Figuras")
+            ParteInterruptor(titulo: TextosFunciones.actuales.interruptorFunciones, puesta: funciones) {
+                funciones = true
+            }
         }
         .background(Paleta.proyectos.lista.opacity(0.5), in: Capsule())
+    }
+}
+
+/// Una parte del interruptor: puesta, en la capsula de fila elegida con el
+/// texto en blanco; si no, plana, gris con el raton encima.
+struct ParteInterruptor: View {
+    let titulo: String
+    let puesta: Bool
+    let accion: () -> Void
+    @State private var encima = false
+
+    var body: some View {
+        Button(action: accion) {
+            Text(titulo)
+                .font(.system(size: 11, weight: puesta ? .medium : .regular))
+                .foregroundStyle(puesta ? Color.white : Paleta.proyectos.texto)
+                .frame(width: 76, height: FranjaProyectos.alto - 6)
+                .background(puesta ? Paleta.proyectos.filaElegida
+                    : encima ? Paleta.proyectos.botonEncima : .clear, in: Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { encima = $0 }
+        .help(titulo)
     }
 }
 
@@ -129,16 +147,9 @@ struct ListaProyectos<Menu: View>: View {
         VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Spacer(minLength: 0)
-                // Como la cabecera de Windows: galeria, timeline y tareas a mano.
-                BotonRedondo(simbolo: "photo.on.rectangle", ayuda: "Galería") {
-                    abrirVentana(id: IdVentana.galeria)
-                }
-                BotonRedondo(simbolo: "clock.arrow.circlepath", ayuda: "Timeline") {
-                    abrirVentana(id: IdVentana.timeline)
-                }
-                BotonRedondo(simbolo: "checklist", ayuda: "Tareas") {
-                    abrirVentana(id: IdVentana.tareas)
-                }
+                // Como la cabecera de Windows: solo sincronizar (Tareas, la
+                // galeria y el timeline estan en la pestana Funciones,
+                // Windows a274ac0).
                 BotonRedondo(simbolo: "arrow.triangle.2.circlepath", ayuda: "Sincronizar") {
                     abrirVentana(id: "sincronizar")
                 }
