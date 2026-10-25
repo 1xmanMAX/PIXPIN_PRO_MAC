@@ -33387,12 +33387,22 @@ public func FfiConverterTypeRotuloVista_lower(_ value: RotuloVista) -> RustBuffe
 public struct SegmentoVoz: Equatable, Hashable {
     public var desdeMs: Int64
     public var texto: String
+    /**
+     * Cuando acaba (`SFTranscriptionSegment.duration`); 0 si no se sabe,
+     * y entonces cuenta como un instante (`Segmento::nuevo`).
+     */
+    public var hastaMs: Int64
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(desdeMs: Int64, texto: String) {
+    public init(desdeMs: Int64, texto: String, 
+        /**
+         * Cuando acaba (`SFTranscriptionSegment.duration`); 0 si no se sabe,
+         * y entonces cuenta como un instante (`Segmento::nuevo`).
+         */hastaMs: Int64 = Int64(0)) {
         self.desdeMs = desdeMs
         self.texto = texto
+        self.hastaMs = hastaMs
     }
 
     
@@ -33412,13 +33422,15 @@ public struct FfiConverterTypeSegmentoVoz: FfiConverterRustBuffer {
         return
             try SegmentoVoz(
                 desdeMs: FfiConverterInt64.read(from: &buf), 
-                texto: FfiConverterString.read(from: &buf)
+                texto: FfiConverterString.read(from: &buf), 
+                hastaMs: FfiConverterInt64.read(from: &buf)
         )
     }
 
     public static func write(_ value: SegmentoVoz, into buf: inout [UInt8]) {
         FfiConverterInt64.write(value.desdeMs, into: &buf)
         FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterInt64.write(value.hastaMs, into: &buf)
     }
 }
 
