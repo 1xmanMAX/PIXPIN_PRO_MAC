@@ -528,6 +528,13 @@ public struct VistaChat: View {
     /// Una entrada de la hoja del clip (`Chat/HojaAdjuntar.swift`).
     private func adjuntar(_ accion: AccionAdjuntar) {
         enSalto = false
+        // Las del asistente que empiezan la caja (`Chat/FigurasDelChat.swift`).
+        let empezar: (String) -> Void = { texto in
+            if borrador.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { borrador = texto }
+            focoCaja += 1
+        }
+        if FigurasDelChat.hacer(accion, chat: chat, almacen: almacen,
+                                avisar: { [menu] in menu.avisar($0) }, empezar: empezar) { return }
         let abrir = abrirVentana
         AdjuntarEnChat.hacer(accion, chat: chat, almacen: almacen,
                              avisar: { [menu] in menu.avisar($0) },

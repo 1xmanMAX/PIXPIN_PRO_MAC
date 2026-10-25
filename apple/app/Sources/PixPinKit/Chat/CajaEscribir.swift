@@ -162,7 +162,9 @@ struct IslaDeEscribir: View {
             VistaHojaAdjuntar(elegir: { accion in
                 hoja = false
                 adjuntar(accion)
-            }, cerrar: { hoja = false })
+            }, cerrar: { hoja = false },
+            opciones: almacen.chats.first(where: { $0.id == chat })?.esAsistente == true
+                ? HojaAdjuntar.delAsistente : HojaAdjuntar.opciones)
         }
     }
 
