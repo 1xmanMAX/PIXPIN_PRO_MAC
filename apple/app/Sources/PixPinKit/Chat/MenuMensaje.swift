@@ -510,6 +510,15 @@ private struct MenuDeMensaje<Propias: View>: View {
         Button { c.reenviar(c.sobre(m)) } label: { Label("Reenviar", systemImage: "arrowshape.turn.up.right") }
             .keyboardShortcut("f", modifiers: [])
         Button { c.compartir(c.sobre(m)) } label: { Label("Compartir…", systemImage: "square.and.arrow.up") }
+        // Una clase grabada (su nota, sus capturas o su video): estudiarla en
+        // su ventana, con el texto y las capturas al lado (Windows ce6c058).
+        if let clase = ClaseEnElChat.deUnaClase(m, chat: c.chat, nucleo: c.almacen.nucleo) {
+            Button {
+                EstudiarClase.abrir(chat: c.chat, mensaje: clase.voz, ms: clase.ms, almacen: c.almacen)
+            } label: {
+                Label("Estudiar la clase", systemImage: "book")
+            }
+        }
         if m.recuerdaEn != nil {
             Button { c.olvidar(m) } label: { Label("Quitar el recordatorio", systemImage: "alarm") }
         } else {

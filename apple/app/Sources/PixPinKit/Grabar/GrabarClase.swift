@@ -22,11 +22,24 @@
 //    (`Almacen.transcribir`). Sin reconocedor se guarda igual y se dice
 //    donde pedirlo luego.
 //
-// **Con video** (Windows 20162e9, 25-oct-2026): el interruptor «Vídeo de
-// esta pantalla» (apagado de salida: ocupa mucho y casi siempre basta la
-// nota con sus capturas) graba ademas la pantalla donde esta la ventanita a
-// un MP4 con el mismo sonido (`VideoDeClase`). En la barra se ve siempre
-// «Grabando vídeo»; si se corta, se dice una vez y la nota sigue.
+// **Dos modos** (Windows ce6c058, 25-oct-2026: «que tenga diferentes modos:
+// grabar la pantalla con su audio … o el audio y capturas»), elegidos arriba
+// del todo en Preparar y recordados para la proxima vez
+// (`Nucleo.modoDeGrabar`, en `voz/modo-de-grabar.txt` como Windows); ← → o
+// ⇥ cambian de modo:
+//
+// - **Pantalla y sonido**: el video de la pantalla donde esta la ventanita
+//   (`VideoDeClase`, un MP4 con el mismo sonido) con los sonidos que se
+//   elijan y su calidad. «Captura» sigue siendo la de una zona, que se
+//   repite. En la barra se ve siempre «Grabando vídeo»; si se corta, se dice
+//   una vez y la nota sigue.
+// - **Audio y capturas**: solo el sonido, y «Captura» fotografia **la
+//   pantalla entera donde esta la barra**, al instante y sin preguntar (la
+//   barra no sale). El boton de la zona sigue para cuando se quiere solo un
+//   trozo.
+//
+// Lo que se guarda es lo mismo en los dos. Al acabar, «Abrir para estudiar»
+// (o ↩) abre la clase en su ventana (`EstudiarClase`).
 //
 // **El motor de video nuevo** (Windows cdad692): con el video encendido, una
 // ficha a la derecha de su fila cambia la calidad (Ligero, Normal, Nítido;
@@ -74,7 +87,9 @@ public final class GrabarClase: ObservableObject {
         /// El tamano de la ventanita (`tamano` de Windows).
         var tam: NSSize {
             switch self {
-            case .preparar: NSSize(width: 340, height: 370)
+            // La de Windows (412) y algo mas: aqui la fila del modo va entre
+            // los mismos huecos de 8 que las demas.
+            case .preparar: NSSize(width: 340, height: 420)
             // Lo que piden los botones de la barra: 146 de tiempo y nivel,
             // 392 de botones y el margen.
             case .abriendo, .grabando: NSSize(width: 556, height: 92)
@@ -88,8 +103,10 @@ public final class GrabarClase: ObservableObject {
     @Published private(set) var fase: Fase = .preparar
     @Published var microfono = true
     @Published var equipo = true
-    /// Grabar tambien el video de la pantalla.
-    @Published var video = false
+    /// Que se graba: el video de la pantalla o el audio con capturas.
+    @Published private(set) var modo: ModoDeGrabar = .capturas
+    /// La nota guardada, para «Abrir para estudiar».
+    @Published private(set) var paraEstudiar: (chat: String, voz: String)?
     /// Con que calidad se graba el video (`pixpin_motor_video::Perfil`).
     @Published var perfilVideo: PerfilVideo = .normal
     /// Se esta grabando el video (para «Grabando vídeo» en la barra).
@@ -131,6 +148,9 @@ public final class GrabarClase: ObservableObject {
 
     var nombreDelProyecto: String { proyectos.indices.contains(proyecto) ? proyectos[proyecto].nombre : "" }
 
+    /// Si se graba el video de la pantalla.
+    var video: Bool { modo == .pantalla }
+
     // MARK: Abrir y cerrar
 
     /// **Abre «Grabar clase»**. Si ya hay una abierta, la trae delante.
@@ -152,6 +172,8 @@ public final class GrabarClase: ObservableObject {
         videoRoto = false
         videoGuardado = false
         pendientes = 0
+        paraEstudiar = nil
+        modo = almacen.nucleo.modoDeGrabar()
         Task {
             await almacen.cargarChats()
             var lista = almacen.chats.filter { !$0.esAsistente }
@@ -261,14 +283,21 @@ public final class GrabarClase: ObservableObject {
         for u in viejas { try? FileManager.default.removeItem(at: u) }
     }
 
-    /// ↩ y ⎋, como en Windows.
+    /// ↩ y ⎋, como en Windows; en Preparar, ← → y ⇥ cambian de modo; al
+    /// final, ↩ abre la clase para estudiarla.
     func tecla(_ e: NSEvent) -> Bool {
         let esc = e.keyCode == 53
         let intro = e.keyCode == 36 || e.keyCode == 76
+        // ⇥, ← y →.
+        let otroModo = e.keyCode == 48 || e.keyCode == 123 || e.keyCode == 124
         switch fase {
         case .preparar:
             if esc { cerrar(); return true }
             if intro { empezar(); return true }
+            if otroModo { elegir(otroModoDeGrabar(modo: modo)); return true }
+        case .lista where intro && paraEstudiar != nil:
+            estudiar()
+            return true
         case .lista, .fallo:
             if esc || intro { cerrar(); return true }
         default:
@@ -292,6 +321,14 @@ public final class GrabarClase: ObservableObject {
     }
 
     // MARK: Preparar
+
+    /// Uno de los dos modos del selector de arriba; se recuerda para la
+    /// proxima vez.
+    func elegir(_ m: ModoDeGrabar) {
+        guard fase == .preparar, m != modo else { return }
+        modo = m
+        almacen?.nucleo.recordarModoDeGrabar(modo: m)
+    }
 
     /// La ficha de la calidad: un clic pasa a la siguiente.
     func otraCalidad() {
@@ -407,13 +444,27 @@ public final class GrabarClase: ObservableObject {
     var hechas: Int { capturas.count + pendientes }
 
     /// **Captura**: la zona de antes con un clic, o elegirla la primera vez.
+    /// En el modo de capturas, la pantalla entera donde esta la barra, al
+    /// instante (la barra no sale en la foto).
     func capturar() {
         guard fase == .grabando, let audio else { return }
         tirando = false
         let ms = audio.llevadoMs
+        if modo == .capturas {
+            guard let pantalla = (panel?.screen ?? NSScreen.main)?.frame else {
+                return avisar("No se pudo capturar la zona")
+            }
+            return fotografiar(pantalla, ms: ms)
+        }
         // Sin zona, o eligiendola todavia: `pedirZona` sabe que no hay que
         // pedirla dos veces.
         guard let zona, pidiendoZona == nil else { return pedirZona(ms) }
+        fotografiar(zona, ms: ms)
+    }
+
+    /// La foto de `zona` (global, de AppKit) en el minuto `ms`, fuera del
+    /// hilo principal: la barra sigue y cuenta ya.
+    private func fotografiar(_ zona: CGRect, ms: Int64) {
         // La foto se hace fuera y la barra sigue; cuenta ya.
         pendientes += 1
         Task {
@@ -602,6 +653,7 @@ public final class GrabarClase: ObservableObject {
                 await almacen.cargarChats()
                 if let voz = clase.voz {
                     ClaseEnElChat.olvidar(chat: chat, mensaje: voz.id)
+                    paraEstudiar = (chat: chat, voz: voz.id)
                     pasarATexto(voz, chat: chat, almacen: almacen)
                 } else {
                     // Lo que si entro se dice: que nadie crea que lo perdio todo.
@@ -627,6 +679,14 @@ public final class GrabarClase: ObservableObject {
             tareaTexto = nil
             cambiar(lista(conTexto: bien))
         }
+    }
+
+    /// **«Abrir para estudiar»**: la clase recien guardada en su ventana, y
+    /// la ventanita se va.
+    func estudiar() {
+        guard let p = paraEstudiar, let almacen else { return }
+        EstudiarClase.abrir(chat: p.chat, mensaje: p.voz, ms: 0, almacen: almacen)
+        cerrar()
     }
 
     private func lista(conTexto: Bool) -> Fase {
@@ -679,8 +739,10 @@ struct VistaGrabarClase: View {
                     Text("Guardando la clase…").font(.system(size: 15))
                 }
             case .texto: texto
-            case let .lista(t, sub): alFinal(simbolo: "checkmark.circle", color: verdeClase, texto: t, sub: sub)
-            case let .fallo(t): alFinal(simbolo: "mic", color: rojoGrabar, texto: t, sub: nil)
+            case let .lista(t, sub):
+                alFinal(simbolo: "checkmark.circle", color: verdeClase, texto: t, sub: sub,
+                        estudiar: g.paraEstudiar != nil)
+            case let .fallo(t): alFinal(simbolo: "mic", color: rojoGrabar, texto: t, sub: nil, estudiar: false)
             }
         }
         .frame(width: g.fase.tam.width, height: g.fase.tam.height)
@@ -696,8 +758,11 @@ struct VistaGrabarClase: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Grabar clase o reunión").font(.system(size: 17, weight: .semibold))
+                    // Con el raton sobre la calidad, lo que pesa cada una; si
+                    // no, lo que hace el modo elegido.
                     Text(g.video && sobreLaCalidad ? pistaDeCalidad(perfil: g.perfilVideo)
-                        : "Graba el audio y pon capturas en su minuto")
+                        : (g.video ? "Graba el vídeo de esta pantalla con los sonidos que elijas"
+                            : "Graba el audio; «Captura» guarda la pantalla entera"))
                         .font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
@@ -705,14 +770,23 @@ struct VistaGrabarClase: View {
                     .buttonStyle(.plain).foregroundStyle(.secondary).help("Cerrar (⎋)")
             }
             .padding(.bottom, 4)
+            selectorDeModo
+            // Los sonidos, en los dos modos: se elige cuales.
             interruptor("mic", "Micrófono", $g.microfono)
             interruptor("speaker.wave.2", "Sonido del equipo (Meet, Zoom…)", $g.equipo)
-            // Apagado de salida: el video ocupa mucho y casi siempre basta la
-            // nota con sus capturas.
-            // Encendido, lleva a la derecha su calidad, que se cambia con un
-            // clic.
-            interruptor("video", "Vídeo de esta pantalla", $g.video) {
-                if g.video { fichaDeCalidad }
+            // Lo que se graba ademas: el video con su calidad (un clic en la
+            // fila pasa a la siguiente), o que «Captura» es la pantalla entera.
+            if g.video {
+                Button { g.otraCalidad() } label: {
+                    filaSinPildora("video", "Vídeo de esta pantalla") { fichaDeCalidad }
+                }
+                .buttonStyle(.plain)
+                .onHover { sobreLaCalidad = $0 }
+                .help(pistaDeCalidad(perfil: g.perfilVideo))
+            } else {
+                filaSinPildora("arrow.up.left.and.arrow.down.right", "Captura: la pantalla entera, al instante") {
+                    EmptyView()
+                }
             }
             Button { g.otroProyecto() } label: {
                 HStack(spacing: 10) {
@@ -747,19 +821,58 @@ struct VistaGrabarClase: View {
         .padding(18)
     }
 
-    /// La ficha de la calidad del video, a la izquierda de su interruptor.
+    /// La ficha de la calidad del video, a la derecha de su fila (que en el
+    /// modo de pantalla no lleva pildora: el video va con el modo). Un clic
+    /// en la fila pasa a la siguiente.
     private var fichaDeCalidad: some View {
-        Button { g.otraCalidad() } label: {
-            Text(rotuloDeCalidad(perfil: g.perfilVideo))
-                .font(.system(size: 12))
-                .padding(.horizontal, 8)
-                .frame(height: 24)
-                .background(Color.white.opacity(sobreLaCalidad ? 0.22 : 0.16), in: Capsule())
-                .contentShape(Capsule())
+        Text(rotuloDeCalidad(perfil: g.perfilVideo))
+            .font(.system(size: 12))
+            .padding(.horizontal, 8)
+            .frame(height: 24)
+            .background(Color.white.opacity(sobreLaCalidad ? 0.22 : 0.16), in: Capsule())
+    }
+
+    /// **El selector de modo**: dos mitades, la elegida en azul.
+    private var selectorDeModo: some View {
+        HStack(spacing: 0) {
+            mitadDelModo(.pantalla, "video", "Pantalla y sonido")
+            mitadDelModo(.capturas, "photo", "Audio y capturas")
+        }
+        .padding(3)
+        .frame(height: 38)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+        .help("← → o ⇥ cambian de modo")
+    }
+
+    private func mitadDelModo(_ m: ModoDeGrabar, _ simbolo: String, _ rotulo: String) -> some View {
+        let elegido = g.modo == m
+        return Button { g.elegir(m) } label: {
+            HStack(spacing: 6) {
+                Image(systemName: simbolo).font(.system(size: 13))
+                Text(rotulo).font(.system(size: 13)).lineLimit(1)
+            }
+            .foregroundStyle(elegido ? Color.white : Color.secondary)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(elegido ? Color.accentColor : Color.clear, in: RoundedRectangle(cornerRadius: 9))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onHover { sobreLaCalidad = $0 }
-        .help(pistaDeCalidad(perfil: g.perfilVideo))
+    }
+
+    /// Una fila de Preparar sin pildora: icono, rotulo y lo de la derecha.
+    private func filaSinPildora<Extra: View>(_ simbolo: String, _ rotulo: String,
+                                             @ViewBuilder extra: () -> Extra) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: simbolo).frame(width: 20)
+            Text(rotulo).lineLimit(1)
+            Spacer()
+            extra()
+        }
+        .font(.system(size: 14))
+        .padding(.horizontal, 12)
+        .frame(height: 44)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
+        .contentShape(Rectangle())
     }
 
     private func interruptor(_ simbolo: String, _ rotulo: String, _ valor: Binding<Bool>) -> some View {
@@ -800,7 +913,8 @@ struct VistaGrabarClase: View {
                     nivel(grabando ? g.nivel : 0)
                     boton("photo", g.hechas == 0 ? "Captura" : "Captura · \(g.hechas)",
                           fondo: g.destello ? verdeClase : Color.accentColor, tinta: .white, ancho: 128) { g.capturar() }
-                        .help("«Captura» guarda una zona de la pantalla en este minuto")
+                        .help(g.video ? "«Captura» guarda una zona de la pantalla en este minuto"
+                            : "«Captura» guarda la pantalla entera en este minuto; la zona, solo un trozo")
                     boton("crop", "", fondo: Color.white.opacity(0.1), tinta: .primary, ancho: 44) { g.cambiarZona() }
                         .help("Cambiar la zona")
                     boton(g.enPausa ? "play.fill" : "pause.fill", "", fondo: Color.white.opacity(0.1), tinta: .primary,
@@ -843,9 +957,13 @@ struct VistaGrabarClase: View {
         } else if g.enPausa {
             Text("En pausa: no se graba nada").foregroundStyle(.secondary)
         } else if g.hechas == 0 {
-            Text("«Captura» guarda una zona de la pantalla en este minuto").foregroundStyle(.secondary)
+            Text(g.video ? "«Captura» guarda una zona de la pantalla en este minuto"
+                : "«Captura» guarda la pantalla entera en este minuto; la zona, solo un trozo")
+                .foregroundStyle(.secondary)
         } else {
-            Text("Capturas: \(g.hechas) · la zona se repite con un clic").foregroundStyle(.secondary)
+            Text(g.video ? "Capturas: \(g.hechas) · la zona se repite con un clic"
+                : "Capturas: \(g.hechas) · la pantalla entera")
+                .foregroundStyle(.secondary)
         }
     }
 
@@ -895,7 +1013,7 @@ struct VistaGrabarClase: View {
         .padding(.vertical, 12)
     }
 
-    private func alFinal(simbolo: String, color: Color, texto: String, sub: String?) -> some View {
+    private func alFinal(simbolo: String, color: Color, texto: String, sub: String?, estudiar: Bool) -> some View {
         VStack(spacing: 6) {
             Image(systemName: simbolo).font(.system(size: 26)).foregroundStyle(color)
             Text(texto).font(.system(size: 15)).multilineTextAlignment(.center)
@@ -903,9 +1021,28 @@ struct VistaGrabarClase: View {
                 Text(sub).font(.system(size: 12.5)).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
             Spacer(minLength: 0)
-            Button("Listo") { g.cerrar() }
-                .keyboardShortcut(.defaultAction)
-                .frame(width: 120)
+            if estudiar {
+                // Con la nota guardada, «Abrir para estudiar» delante de
+                // «Listo»: es lo siguiente que se suele querer hacer.
+                HStack(spacing: 8) {
+                    Button { g.estudiar() } label: {
+                        Label("Abrir para estudiar", systemImage: "book")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 200, height: 30)
+                            .background(Color.accentColor, in: RoundedRectangle(cornerRadius: 9))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut(.defaultAction)
+                    Button("Listo") { g.cerrar() }
+                        .frame(width: 96)
+                }
+            } else {
+                Button("Listo") { g.cerrar() }
+                    .keyboardShortcut(.defaultAction)
+                    .frame(width: 120)
+            }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)

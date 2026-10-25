@@ -124,6 +124,22 @@ final class GrabarClaseTests: XCTestCase {
         let foto = try XCTUnwrap(hecho.capturas.first)
         XCTAssertTrue(ClaseEnElChat.capturas(foto, chat: chat, nucleo: almacen.nucleo).isEmpty)
 
+        // «Estudiar la clase» sale en la nota, en su captura (en su minuto)
+        // y en su video, y abre la nota.
+        XCTAssertEqual(ClaseEnElChat.deUnaClase(voz, chat: chat, nucleo: almacen.nucleo)?.voz, voz.id)
+        let enLaFoto = try XCTUnwrap(ClaseEnElChat.deUnaClase(foto, chat: chat, nucleo: almacen.nucleo))
+        XCTAssertEqual(enLaFoto.voz, voz.id)
+        XCTAssertEqual(enLaFoto.ms, 65_400)
+        XCTAssertEqual(ClaseEnElChat.deUnaClase(video, chat: chat, nucleo: almacen.nucleo)?.ms, 0)
+        let clase = try almacen.nucleo.claseParaEstudiar(chat: chat, mensaje: foto.id)
+        XCTAssertEqual(clase.id, voz.id)
+        XCTAssertEqual(clase.capturas.map(\.ms), [65_400])
+        XCTAssertNotNil(clase.video)
+        // Un marcador con nota queda en la nota y se quita.
+        let marcada = try almacen.nucleo.ponerMarcadorDeClase(chat: chat, voz: voz.id, ms: 3_000, texto: "ojo")
+        XCTAssertEqual(marcada.senales.map(\.texto), ["ojo"])
+        XCTAssertTrue(try almacen.nucleo.quitarSenalDeClase(chat: chat, voz: voz.id, ms: 3_000).senales.isEmpty)
+
         // «Enviar a Anki» sale en la clase y en una nota con tarjetas.
         let c = ChatAbierto(chat: chat, almacen: almacen)
         XCTAssertTrue(c.sePuedeAnki(voz))
@@ -133,6 +149,18 @@ final class GrabarClaseTests: XCTestCase {
         let otra = await almacen.escribir(nota: "un párrafo suelto", en: chat)
         let suelta = try XCTUnwrap(otra)
         XCTAssertFalse(c.sePuedeAnki(suelta), "sin preguntas no hay tarjetas")
+    }
+
+    func testLosDosModosYLasCuentasDeEstudiar() {
+        XCTAssertEqual(otroModoDeGrabar(modo: .pantalla), .capturas)
+        XCTAssertEqual(otroModoDeGrabar(modo: .capturas), .pantalla)
+        // Un clic cerca de una captura se queda en ella; lejos, donde se pulso.
+        XCTAssertEqual(clasePegarASenal(x: 51, ancho: 100, duracionMs: 60_000, senales: [30_000], tolerancia: 3), 30_000)
+        XCTAssertEqual(clasePegarASenal(x: 60, ancho: 100, duracionMs: 60_000, senales: [30_000], tolerancia: 3), 36_000)
+        XCTAssertTrue(ModeloEstudiar.esAMano(.interacting))
+        // Caso negativo: el scroll que sigue al sonido no es mover a mano.
+        XCTAssertFalse(ModeloEstudiar.esAMano(.animating))
+        XCTAssertFalse(ModeloEstudiar.esAMano(.idle))
     }
 
     func testLoQueSeDiceAlMandarAAnkiEsLoDeWindows() {
