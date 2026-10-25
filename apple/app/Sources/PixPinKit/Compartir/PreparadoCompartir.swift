@@ -97,6 +97,11 @@ final class PreparadoCompartir {
     /// El lienzo que viaja dentro de la pagina web (solo cuando lo
     /// compartido es UN lienzo).
     var excalidraw: String?
+    /// **La pagina web propia** de lo compartido, entera y sin elegir
+    /// paginas: la de una grabacion, con el reproductor y la transcripcion
+    /// (`p.clase` de Windows, ver `CompartirGrabacion.swift`). Escribe en la
+    /// carpeta dada la pagina (la primera) y lo que va a su lado.
+    var paginaWeb: (@MainActor (URL) async throws -> [URL])?
 
     init(titulo: String) { self.titulo = titulo }
 
@@ -122,7 +127,10 @@ final class PreparadoCompartir {
         var dePaginas: [FormatoCompartir] = []
         if !piezas.isEmpty {
             dePaginas = [
-                FormatoCompartir(id: IdFormato.web, nombre: "HTML", cuantas: .varias, simbolo: "globe"),
+                // La de una grabacion va entera (el reproductor y todo el
+                // texto), sin elegir paginas.
+                FormatoCompartir(id: IdFormato.web, nombre: "HTML", cuantas: paginaWeb == nil ? .varias : .ninguna,
+                                 simbolo: "globe"),
                 FormatoCompartir(id: IdFormato.pdf, nombre: "PDF", cuantas: .varias, simbolo: "doc.richtext"),
                 FormatoCompartir(id: IdFormato.png, nombre: "PNG", cuantas: .una, simbolo: "photo"),
                 FormatoCompartir(id: IdFormato.jpg, nombre: "JPG", cuantas: .una, simbolo: "photo.fill"),
@@ -167,6 +175,12 @@ final class PreparadoCompartir {
                 guard !urls.isEmpty else { throw ErrorCompartir.nada }
                 return urls
             }
+        }
+        // Una grabacion: su pagina, con el reproductor y la transcripcion.
+        if formato == IdFormato.web, let paginaWeb {
+            let urls = try await paginaWeb(carpeta)
+            guard !urls.isEmpty else { throw ErrorCompartir.nada }
+            return urls
         }
         let elegidas = claves.compactMap { pieza($0) }
         guard !elegidas.isEmpty else { throw ErrorCompartir.sinPaginas }

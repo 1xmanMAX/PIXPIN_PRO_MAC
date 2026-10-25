@@ -64,6 +64,9 @@ pub mod chats;
 /// Grabar una clase o una reunion: lo que se guarda en el chat (Windows edd0ffa).
 pub mod clase;
 pub mod compartir;
+/// Compartir una grabacion: su pagina web, sus hojas A4, Word, Markdown,
+/// texto y Anki (Windows 2921a1d).
+pub mod compartir_grabacion;
 pub mod compartidos;
 pub mod conversacion;
 pub mod copias;

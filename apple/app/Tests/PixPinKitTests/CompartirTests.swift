@@ -241,6 +241,52 @@ final class CompartirTests: XCTestCase {
         XCTAssertTrue(proyecto.compartible().formatos.contains { $0.id == IdFormato.editable })
     }
 
+    func testUnaGrabacionSaleConSuPaginaWebYSusFormatos() async throws {
+        let raiz = try carpetaTemporal("compartir-grabacion")
+        defer { try? FileManager.default.removeItem(at: raiz) }
+        let almacen = try Almacen(raiz: raiz.appendingPathComponent("datos"), nombreDelAparato: "Mac de prueba")
+        await almacen.crearChat(nombre: "Física")
+        let chat = try XCTUnwrap(almacen.chats.first { $0.nombre == "Física" }).id
+        let captura = raiz.appendingPathComponent("c1.png")
+        try escribirPNG(captura, ancho: 80, alto: 60)
+        let audio = raiz.appendingPathComponent("clase.m4a")
+        try Data("aac".utf8).write(to: audio)
+        let g = GrabacionParaCompartir(
+            titulo: "Clase 1", fecha: "", cuando: 0, duracionMs: 60000, audio: audio.path, video: nil,
+            capturas: [CapturaDeGrabacion(ms: 10000, ruta: captura.path)],
+            lineas: [LineaDeGrabacion(ms: 0, texto: "hola"), LineaDeGrabacion(ms: 20000, texto: "adios")],
+            marcadores: [MarcadorDeGrabacion(ms: 5000, texto: "ojo")], adjuntos: [],
+            originales: [audio.path, captura.path], mazo: "PixPin::Física")
+        let p = await PrepararCompartir.deGrabacion(g, chat: chat, almacen: almacen)
+        let c = p.compartible()
+        XCTAssertEqual(c.formatos.map(\.id), [IdFormato.web, IdFormato.pdf, IdFormato.png, IdFormato.jpg,
+                                              IdFormato.svg, IdFormato.word, IdFormato.md, IdFormato.texto,
+                                              IdFormato.anki, IdFormato.originales, IdFormato.pixpin])
+        XCTAssertEqual(c.formatos[0].cuantas, .ninguna, "la pagina web va entera")
+        XCTAssertEqual(c.paginas.first?.clave, "grabacion")
+        XCTAssertEqual(p.piezas[0].tamano, PiezasCompartir.a4)
+        let carpeta = raiz.appendingPathComponent("salida")
+        let web = try await p.generar(IdFormato.web, claves: [], en: carpeta)
+        XCTAssertEqual(web.map(\.lastPathComponent), ["Clase 1.html"])
+        XCTAssertTrue(try String(contentsOf: web[0], encoding: .utf8).contains("data:image/png;base64,"))
+        let pdf = try await p.generar(IdFormato.pdf, claves: c.paginas.map(\.clave), en: carpeta)
+        XCTAssertEqual(PDFDocument(url: pdf[0])?.pageCount, p.piezas.count)
+        let svg = try await p.generar(IdFormato.svg, claves: ["grabacion"], en: carpeta)
+        XCTAssertTrue(try String(contentsOf: svg[0], encoding: .utf8).contains("<svg"))
+        let texto = try await p.generar(IdFormato.texto, claves: [], en: carpeta)
+        XCTAssertTrue(try String(contentsOf: texto[0], encoding: .utf8).contains("[0:20] adios"))
+        let md = try await p.generar(IdFormato.md, claves: [], en: carpeta)
+        XCTAssertEqual(md.map(\.lastPathComponent), ["Clase 1 (Markdown).zip"])
+        let word = try await p.generar(IdFormato.word, claves: [], en: carpeta)
+        XCTAssertEqual(word[0].pathExtension, "docx")
+        // Caso negativo: sin capturas no hay Anki.
+        var sin = g
+        sin.capturas = []
+        let otra = await PrepararCompartir.deGrabacion(sin, chat: chat, almacen: almacen)
+        XCTAssertFalse(otra.compartible().formatos.contains { $0.id == IdFormato.anki })
+        XCTAssertEqual(PrepararCompartir.fechaDeGrabacion(0).count, 16, "dd/MM/yyyy HH:mm")
+    }
+
     // MARK: La Salida y «Abrir con…»
 
     func testLaSalidaSumaArribaSinRepetir() {
