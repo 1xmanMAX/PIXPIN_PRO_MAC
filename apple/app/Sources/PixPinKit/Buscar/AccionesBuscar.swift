@@ -234,6 +234,29 @@ struct EjecutorBuscar {
             cerrar()
         case let .ventana(id, _):
             ir(id)
+        case .grabarClase:
+            // «Grabar clase o reunión…», como la bandeja.
+            cerrar()
+            GrabarClase.compartida.abrir()
+        case let .carpeta(c):
+            CarpetasSinChat.abrir(chat: c.chat, id: c.id, nombre: c.nombre, almacen: almacen)
+            cerrar()
+        case let .paginaEnCarpeta(c):
+            Task {
+                if await CarpetasSinChat.nuevaPagina(chat: c.chat, carpeta: c.id, almacen: almacen) {
+                    cerrar()
+                } else {
+                    modelo.avisar(TextosCarpeta.noSePudo)
+                }
+            }
+        case let .nuevaCarpeta(nombre):
+            Task {
+                if await CarpetasSinChat.nueva(nombre: nombre, en: nil, almacen: almacen) {
+                    cerrar()
+                } else {
+                    modelo.avisar(TextosCarpeta.noSePudo)
+                }
+            }
         }
     }
 

@@ -226,6 +226,7 @@ public final class HacerPedidos {
         case "leer_en_voz": leer(p)
         case "ocr": await ocr(p)
         case "herramienta": await herramienta(p)
+        case "carpeta_paginas": await carpetaPaginas(p)
         default:
             avisar("«\(p.accion)» aún no lo hace PixPin en el Mac.")
         }
@@ -246,11 +247,29 @@ public final class HacerPedidos {
         case "sincronizar": ventana("sincronizar")
         case "timeline": ventana(IdVentana.timeline)
         case "buscar": ventana(IdVentana.buscar)
+        // 26-oct (Flow, `p clase`): «Grabar clase o reunión…», como la bandeja.
+        case "clase": GrabarClase.compartida.abrir()
+        // El horario semanal es la vista Horario de Tareas (Windows 5139e5d).
+        case "horario": VentanaTareas.abrir(vista: .horario)
         case "ajustes":
             guard let abrir = ComandosApp.abrirAjustes else { return NSSound.beep() }
             abrir()
             NSApp.activate()
         default: avisar("No hay ventana «\(cual)».")
+        }
+    }
+
+    /// **`carpeta_paginas`** (Flow, `p carpeta`, Windows 22c3ce2): abrir una
+    /// carpeta de paginas, crearla o su pagina siguiente, sin abrir el chat.
+    private func carpetaPaginas(_ p: Pedido) async {
+        guard let almacen, let c = await chat(p["proyecto"]) else { return }
+        let hacer = p.texto("hacer") ?? ""
+        guard ["abrir", "nueva", "pagina"].contains(hacer) else {
+            return avisar("«carpeta_paginas» no sabe «\(hacer)»: abrir, nueva o pagina.")
+        }
+        if let aviso = await CarpetasSinChat.pedido(hacer: hacer, proyecto: c, carpeta: p.texto("carpeta"),
+                                                    nombre: p.texto("nombre") ?? "", almacen: almacen) {
+            avisar(aviso)
         }
     }
 

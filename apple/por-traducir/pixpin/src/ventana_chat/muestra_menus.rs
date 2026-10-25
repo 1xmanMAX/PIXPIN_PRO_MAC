@@ -189,6 +189,10 @@ fn muestras_de_los_menus_v2() {
                 buscando: false,
                 marcados: &marcados,
                 raiz: std::path::Path::new(""),
+                giro_sincro: 0.0,
+                sincro_fallo: false,
+                en_chats: None,
+                sobre_mensaje: None,
             };
             motor
                 .dibujar(&destino.destino, |p| {
