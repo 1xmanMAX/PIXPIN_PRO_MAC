@@ -182,6 +182,9 @@ public struct VistaChat: View {
     @StateObject private var buscador: BuscadorDelChat
     /// La ficha del chat, la isla de su nombre (`Chat/FichaDelChat.swift`).
     @StateObject private var ficha: ModeloFichaDelChat
+    /// Compartido, el lado de cada burbuja (`Chat/ConversacionCompartida.swift`).
+    @StateObject private var conversacion: ConversacionDelChat
+    @ObservedObject private var chapas = ChapasDeCompartidos.compartidas
     /// La escala del chat, en por ciento (`Chat/EscalaChat.swift`).
     @AppStorage(EscalaChat.clave) private var escala = EscalaChat.porDefecto
     /// Sube para devolver el foco a la caja de escribir.
@@ -194,6 +197,7 @@ public struct VistaChat: View {
         _menu = StateObject(wrappedValue: ChatAbierto(chat: chat, almacen: almacen))
         _buscador = StateObject(wrappedValue: BuscadorDelChat(chat: chat, nucleo: almacen.nucleo))
         _ficha = StateObject(wrappedValue: ModeloFichaDelChat(chat: chat, almacen: almacen))
+        _conversacion = StateObject(wrappedValue: ConversacionDelChat(chat: chat, nucleo: almacen.nucleo))
     }
 
     private var eleccion: Eleccion { menu.eleccion }
@@ -314,6 +318,10 @@ public struct VistaChat: View {
             await almacen.abrir(chat: chat)
         }
         .onReceive(peticion.$salto) { _ in _ = atenderSalto() }
+        // Compartido, de quien es cada burbuja: al cambiar lo que se ve o
+        // quien esta dentro (Windows b89c058).
+        .task(id: filas.map(\.id)) { conversacion.releer(filas) }
+        .onChange(of: chapas.personas[chat]) { _, _ in conversacion.releer(filas) }
         // Lo elegido que ya no esta cargado (borrado, otra pagina) se olvida.
         .onChange(of: almacen.mensajes[chat]?.count) { _, _ in
             menu.eleccion.quedarse(con: Set(idsCargados))
@@ -391,6 +399,7 @@ public struct VistaChat: View {
                 marcar: { menu.eleccion.alternar(m.id) },
                 borrar: { borrar(menu.sobre(m)) },
                 chat: menu))
+            .modifier(EnSuLado(lado: conversacion.lados[m.id], f: f))
             .id(m.id)
     }
 
@@ -650,6 +659,7 @@ struct Burbuja: View {
     /// Lo buscado en el chat, para resaltarlo en las notas.
     @Environment(\.agujaDelChat) private var aguja
     @Environment(\.escalaChat) private var escala
+    @Environment(\.burbujaMia) private var mia
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -711,6 +721,8 @@ struct Burbuja: View {
             }
         }
         .padding(8 * escala)
+        // Mia en un chat compartido: con mi color (`Chat/ConversacionCompartida.swift`).
+        .background(mia ? Color.accentColor.opacity(0.25) : Color.clear, in: RoundedRectangle(cornerRadius: 10 * escala))
         .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 10 * escala))
         // Las burbujas con menu propio (fichero, nota, voz) llevan estas
         // entradas en el suyo, que tapa a este.

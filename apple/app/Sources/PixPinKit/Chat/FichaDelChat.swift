@@ -613,6 +613,7 @@ struct CabeceraDelChat: View {
     let chat: String
     @ObservedObject var ficha: ModeloFichaDelChat
     @ObservedObject var buscador: BuscadorDelChat
+    @ObservedObject private var chapas = ChapasDeCompartidos.compartidas
     @State private var encima = false
 
     private var datos: FichaChat? { almacen.chats.first { $0.id == chat } }
@@ -622,12 +623,18 @@ struct CabeceraDelChat: View {
             Button { ficha.abrir() } label: {
                 HStack(spacing: 10) {
                     AvatarDelChat(id: chat, nombre: datos?.nombre ?? "", lado: 34)
+                        .overlay(alignment: .bottomTrailing) {
+                            if chapas.personas[chat] != nil { ChapaCompartido(avatar: 34, aro: Paleta.chat.cabecera) }
+                        }
                     VStack(alignment: .leading, spacing: 2) {
                         Text(datos?.nombre ?? "")
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Paleta.proyectos.texto)
                         if let n = almacen.totales[chat] {
-                            Text(TextosFicha.cosas(n))
+                            // Compartido, lo dice delante: es lo primero que
+                            // hay que saber antes de escribir en el.
+                            Text(chapas.personas[chat].map { "\(TextosCompartido.chapa($0)) · \(TextosFicha.cosas(n))" }
+                                ?? TextosFicha.cosas(n))
                                 .font(.system(size: 12))
                                 .foregroundStyle(Paleta.proyectos.apagado)
                         }

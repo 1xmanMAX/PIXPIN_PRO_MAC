@@ -7432,6 +7432,30 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func paqueteDeProyecto(chat: String) throws  -> Data
     
     /**
+     * **La chapa de la lista**: los chats compartidos donde estoy, por su
+     * ficha, con cuantas personas son (`personas_del_chat` de Windows). Los
+     * que aun no tienen proyecto aqui no salen.
+     */
+    func chapasDeCompartidos() throws  -> [ChapaDeCompartido]
+    
+    /**
+     * **El chat de la ficha `ficha` como conversacion**, si es compartido y
+     * estoy dentro: el lado de cada uno de `mensajes` (los que se ven, del
+     * mas viejo al mas nuevo). `None` es un chat normal.
+     */
+    func conversacionDelChat(ficha: String, mensajes: [AutoriaDeMensaje], desfaseMs: Int64) throws  -> ConversacionCompartida?
+    
+    /**
+     * **Nace un chat compartido** (el «+» de la lista, «Chat compartido»,
+     * `compartir_chat_nuevo` de Windows): un proyecto nuevo y su chat en
+     * `compartidos.json` con una sola persona, yo, que lo creo. A los demas
+     * se les invita despues, como siempre. Si no se puede compartir, el
+     * proyecto queda como chat normal (`compartido` a `false`: «No se pudo
+     * compartir el chat nuevo: queda como chat normal»).
+     */
+    func crearChatCompartido(nombre: String) throws  -> ChatNuevo
+    
+    /**
      * **Las copias de seguridad de todos los chats**, la mas nueva primero
      * (`Copias.todas`). Se guardan las 30 ultimas de cada uno.
      */
@@ -10008,6 +10032,55 @@ open func paqueteDeProyecto(chat: String)throws  -> Data  {
     uniffi_pixpin_nucleo_fn_method_nucleo_paquete_de_proyecto(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La chapa de la lista**: los chats compartidos donde estoy, por su
+     * ficha, con cuantas personas son (`personas_del_chat` de Windows). Los
+     * que aun no tienen proyecto aqui no salen.
+     */
+open func chapasDeCompartidos()throws  -> [ChapaDeCompartido]  {
+    return try  FfiConverterSequenceTypeChapaDeCompartido.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_chapas_de_compartidos(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El chat de la ficha `ficha` como conversacion**, si es compartido y
+     * estoy dentro: el lado de cada uno de `mensajes` (los que se ven, del
+     * mas viejo al mas nuevo). `None` es un chat normal.
+     */
+open func conversacionDelChat(ficha: String, mensajes: [AutoriaDeMensaje], desfaseMs: Int64)throws  -> ConversacionCompartida?  {
+    return try  FfiConverterOptionTypeConversacionCompartida.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_conversacion_del_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ficha),
+        FfiConverterSequenceTypeAutoriaDeMensaje.lower(mensajes),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Nace un chat compartido** (el «+» de la lista, «Chat compartido»,
+     * `compartir_chat_nuevo` de Windows): un proyecto nuevo y su chat en
+     * `compartidos.json` con una sola persona, yo, que lo creo. A los demas
+     * se les invita despues, como siempre. Si no se puede compartir, el
+     * proyecto queda como chat normal (`compartido` a `false`: «No se pudo
+     * compartir el chat nuevo: queda como chat normal»).
+     */
+open func crearChatCompartido(nombre: String)throws  -> ChatNuevo  {
+    return try  FfiConverterTypeChatNuevo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_crear_chat_compartido(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(nombre),uniffiCallStatus
     )
 })
 }
@@ -16790,6 +16863,73 @@ public func FfiConverterTypeAsignaturaHorario_lower(_ value: AsignaturaHorario) 
 
 
 /**
+ * De un mensaje, lo que hace falta para saber de quien es.
+ */
+public struct AutoriaDeMensaje: Equatable, Hashable {
+    public var id: String
+    public var cuando: Int64
+    /**
+     * `MensajeChat.aparato`: el codigo corto del aparato donde nacio.
+     */
+    public var aparato: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, cuando: Int64, 
+        /**
+         * `MensajeChat.aparato`: el codigo corto del aparato donde nacio.
+         */aparato: String?) {
+        self.id = id
+        self.cuando = cuando
+        self.aparato = aparato
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AutoriaDeMensaje: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAutoriaDeMensaje: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AutoriaDeMensaje {
+        return
+            try AutoriaDeMensaje(
+                id: FfiConverterString.read(from: &buf), 
+                cuando: FfiConverterInt64.read(from: &buf), 
+                aparato: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AutoriaDeMensaje, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterInt64.write(value.cuando, into: &buf)
+        FfiConverterOptionString.write(value.aparato, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAutoriaDeMensaje_lift(_ buf: RustBuffer) throws -> AutoriaDeMensaje {
+    return try FfiConverterTypeAutoriaDeMensaje.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAutoriaDeMensaje_lower(_ value: AutoriaDeMensaje) -> RustBuffer {
+    return FfiConverterTypeAutoriaDeMensaje.lower(value)
+}
+
+
+/**
  * **Un aviso del horario** para el vigia del Mac: cuando suena (UTC) y la
  * llamada que sale.
  */
@@ -19034,6 +19174,75 @@ public func FfiConverterTypeCeldaHoja_lower(_ value: CeldaHoja) -> RustBuffer {
 
 
 /**
+ * Un chat compartido en el que estoy, para la chapa de la lista.
+ */
+public struct ChapaDeCompartido: Equatable, Hashable {
+    /**
+     * La ficha de este aparato (`FichaChat.id`).
+     */
+    public var ficha: String
+    /**
+     * Las personas que estan dentro, yo incluido, cada una una vez.
+     */
+    public var personas: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La ficha de este aparato (`FichaChat.id`).
+         */ficha: String, 
+        /**
+         * Las personas que estan dentro, yo incluido, cada una una vez.
+         */personas: UInt32) {
+        self.ficha = ficha
+        self.personas = personas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChapaDeCompartido: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChapaDeCompartido: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChapaDeCompartido {
+        return
+            try ChapaDeCompartido(
+                ficha: FfiConverterString.read(from: &buf), 
+                personas: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChapaDeCompartido, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ficha, into: &buf)
+        FfiConverterUInt32.write(value.personas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChapaDeCompartido_lift(_ buf: RustBuffer) throws -> ChapaDeCompartido {
+    return try FfiConverterTypeChapaDeCompartido.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChapaDeCompartido_lower(_ value: ChapaDeCompartido) -> RustBuffer {
+    return FfiConverterTypeChapaDeCompartido.lower(value)
+}
+
+
+/**
  * Un chat compartido, para ensenarlo.
  */
 public struct ChatCompartidoMac: Equatable, Hashable {
@@ -19131,6 +19340,69 @@ public func FfiConverterTypeChatCompartidoMac_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeChatCompartidoMac_lower(_ value: ChatCompartidoMac) -> RustBuffer {
     return FfiConverterTypeChatCompartidoMac.lower(value)
+}
+
+
+/**
+ * Lo que deja el «+» de «Chat compartido».
+ */
+public struct ChatNuevo: Equatable, Hashable {
+    public var ficha: FichaChat
+    /**
+     * Nacio ya compartido (si no, quedo como chat normal).
+     */
+    public var compartido: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ficha: FichaChat, 
+        /**
+         * Nacio ya compartido (si no, quedo como chat normal).
+         */compartido: Bool) {
+        self.ficha = ficha
+        self.compartido = compartido
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChatNuevo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChatNuevo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChatNuevo {
+        return
+            try ChatNuevo(
+                ficha: FfiConverterTypeFichaChat.read(from: &buf), 
+                compartido: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChatNuevo, into buf: inout [UInt8]) {
+        FfiConverterTypeFichaChat.write(value.ficha, into: &buf)
+        FfiConverterBool.write(value.compartido, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatNuevo_lift(_ buf: RustBuffer) throws -> ChatNuevo {
+    return try FfiConverterTypeChatNuevo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChatNuevo_lower(_ value: ChatNuevo) -> RustBuffer {
+    return FfiConverterTypeChatNuevo.lower(value)
 }
 
 
@@ -20034,6 +20306,64 @@ public func FfiConverterTypeContenidoTapado_lift(_ buf: RustBuffer) throws -> Co
 #endif
 public func FfiConverterTypeContenidoTapado_lower(_ value: ContenidoTapado) -> RustBuffer {
     return FfiConverterTypeContenidoTapado.lower(value)
+}
+
+
+/**
+ * Un chat compartido visto desde el chat: cuantas personas y el lado de
+ * cada mensaje, en el orden en que se pidieron.
+ */
+public struct ConversacionCompartida: Equatable, Hashable {
+    public var personas: UInt32
+    public var lados: [LadoDeMensaje]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(personas: UInt32, lados: [LadoDeMensaje]) {
+        self.personas = personas
+        self.lados = lados
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ConversacionCompartida: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeConversacionCompartida: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConversacionCompartida {
+        return
+            try ConversacionCompartida(
+                personas: FfiConverterUInt32.read(from: &buf), 
+                lados: FfiConverterSequenceTypeLadoDeMensaje.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ConversacionCompartida, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.personas, into: &buf)
+        FfiConverterSequenceTypeLadoDeMensaje.write(value.lados, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConversacionCompartida_lift(_ buf: RustBuffer) throws -> ConversacionCompartida {
+    return try FfiConverterTypeConversacionCompartida.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeConversacionCompartida_lower(_ value: ConversacionCompartida) -> RustBuffer {
+    return FfiConverterTypeConversacionCompartida.lower(value)
 }
 
 
@@ -25119,6 +25449,105 @@ public func FfiConverterTypeInicioIa_lower(_ value: InicioIa) -> RustBuffer {
 
 
 /**
+ * A que lado va un mensaje de un chat compartido y que lleva encima.
+ */
+public struct LadoDeMensaje: Equatable, Hashable {
+    public var id: String
+    /**
+     * Mio (de cualquiera de mis aparatos): a la derecha, con mi color.
+     */
+    public var mio: Bool
+    /**
+     * El nombre de quien lo escribio, solo en la primera burbuja de cada
+     * tanda de otra persona (como un grupo de Telegram).
+     */
+    public var nombre: String?
+    /**
+     * La inicial de su circulo y el color de los dos (`0xRRGGBB`).
+     */
+    public var inicial: String
+    public var color: UInt32
+    /**
+     * Empieza tanda: va algo mas separado del de arriba.
+     */
+    public var abreTanda: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, 
+        /**
+         * Mio (de cualquiera de mis aparatos): a la derecha, con mi color.
+         */mio: Bool, 
+        /**
+         * El nombre de quien lo escribio, solo en la primera burbuja de cada
+         * tanda de otra persona (como un grupo de Telegram).
+         */nombre: String?, 
+        /**
+         * La inicial de su circulo y el color de los dos (`0xRRGGBB`).
+         */inicial: String, color: UInt32, 
+        /**
+         * Empieza tanda: va algo mas separado del de arriba.
+         */abreTanda: Bool) {
+        self.id = id
+        self.mio = mio
+        self.nombre = nombre
+        self.inicial = inicial
+        self.color = color
+        self.abreTanda = abreTanda
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LadoDeMensaje: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLadoDeMensaje: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LadoDeMensaje {
+        return
+            try LadoDeMensaje(
+                id: FfiConverterString.read(from: &buf), 
+                mio: FfiConverterBool.read(from: &buf), 
+                nombre: FfiConverterOptionString.read(from: &buf), 
+                inicial: FfiConverterString.read(from: &buf), 
+                color: FfiConverterUInt32.read(from: &buf), 
+                abreTanda: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LadoDeMensaje, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterBool.write(value.mio, into: &buf)
+        FfiConverterOptionString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.inicial, into: &buf)
+        FfiConverterUInt32.write(value.color, into: &buf)
+        FfiConverterBool.write(value.abreTanda, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLadoDeMensaje_lift(_ buf: RustBuffer) throws -> LadoDeMensaje {
+    return try FfiConverterTypeLadoDeMensaje.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLadoDeMensaje_lower(_ value: LadoDeMensaje) -> RustBuffer {
+    return FfiConverterTypeLadoDeMensaje.lower(value)
+}
+
+
+/**
  * El espacio en blanco de cada lado de la columna, en pixeles de lectura.
  */
 public struct LadosReflujo: Equatable, Hashable {
@@ -26911,6 +27340,11 @@ public struct MensajeChat: Equatable, Hashable {
      * El lienzo donde dibujo el asistente al contestar (`lienzoIa`).
      */
     public var lienzoIa: String?
+    /**
+     * El codigo corto (`K7Q2`) del aparato donde nacio (`aparato`): en un
+     * chat compartido dice de quien es ([`crate::conversacion`]).
+     */
+    public var aparato: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -26986,7 +27420,11 @@ public struct MensajeChat: Equatable, Hashable {
          */recibidoDe: String?, 
         /**
          * El lienzo donde dibujo el asistente al contestar (`lienzoIa`).
-         */lienzoIa: String?) {
+         */lienzoIa: String?, 
+        /**
+         * El codigo corto (`K7Q2`) del aparato donde nacio (`aparato`): en un
+         * chat compartido dice de quien es ([`crate::conversacion`]).
+         */aparato: String? = nil) {
         self.id = id
         self.cuando = cuando
         self.clase = clase
@@ -27016,6 +27454,7 @@ public struct MensajeChat: Equatable, Hashable {
         self.vieneDeDibujo = vieneDeDibujo
         self.recibidoDe = recibidoDe
         self.lienzoIa = lienzoIa
+        self.aparato = aparato
     }
 
     
@@ -27062,7 +27501,8 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
                 vieneDe: FfiConverterOptionString.read(from: &buf), 
                 vieneDeDibujo: FfiConverterOptionString.read(from: &buf), 
                 recibidoDe: FfiConverterOptionString.read(from: &buf), 
-                lienzoIa: FfiConverterOptionString.read(from: &buf)
+                lienzoIa: FfiConverterOptionString.read(from: &buf), 
+                aparato: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -27096,6 +27536,7 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.vieneDeDibujo, into: &buf)
         FfiConverterOptionString.write(value.recibidoDe, into: &buf)
         FfiConverterOptionString.write(value.lienzoIa, into: &buf)
+        FfiConverterOptionString.write(value.aparato, into: &buf)
     }
 }
 
@@ -41403,6 +41844,30 @@ fileprivate struct FfiConverterOptionTypeContenidoTapado: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeConversacionCompartida: FfiConverterRustBuffer {
+    typealias SwiftType = ConversacionCompartida?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeConversacionCompartida.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeConversacionCompartida.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeDetalleDeFigura: FfiConverterRustBuffer {
     typealias SwiftType = DetalleDeFigura?
 
@@ -42807,6 +43272,31 @@ fileprivate struct FfiConverterSequenceTypeAsignaturaHorario: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeAutoriaDeMensaje: FfiConverterRustBuffer {
+    typealias SwiftType = [AutoriaDeMensaje]
+
+    public static func write(_ value: [AutoriaDeMensaje], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAutoriaDeMensaje.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AutoriaDeMensaje] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AutoriaDeMensaje]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAutoriaDeMensaje.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeAvisoHorario: FfiConverterRustBuffer {
     typealias SwiftType = [AvisoHorario]
 
@@ -43324,6 +43814,31 @@ fileprivate struct FfiConverterSequenceTypeCeldaHoja: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCeldaHoja.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeChapaDeCompartido: FfiConverterRustBuffer {
+    typealias SwiftType = [ChapaDeCompartido]
+
+    public static func write(_ value: [ChapaDeCompartido], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChapaDeCompartido.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChapaDeCompartido] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChapaDeCompartido]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChapaDeCompartido.read(from: &buf))
         }
         return seq
     }
@@ -44324,6 +44839,31 @@ fileprivate struct FfiConverterSequenceTypeInformeAutomatizacion: FfiConverterRu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeInformeAutomatizacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLadoDeMensaje: FfiConverterRustBuffer {
+    typealias SwiftType = [LadoDeMensaje]
+
+    public static func write(_ value: [LadoDeMensaje], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLadoDeMensaje.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LadoDeMensaje] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LadoDeMensaje]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLadoDeMensaje.read(from: &buf))
         }
         return seq
     }
@@ -48629,6 +49169,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_paquete_de_proyecto() != 49140) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_chapas_de_compartidos() != 13514) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_conversacion_del_chat() != 17699) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_chat_compartido() != 50713) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_copias_de_seguridad() != 4577) {

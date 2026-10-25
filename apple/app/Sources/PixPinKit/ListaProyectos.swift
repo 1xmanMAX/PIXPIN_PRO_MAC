@@ -111,7 +111,12 @@ struct ListaProyectos<Menu: View>: View {
     @Environment(\.openWindow) private var abrirVentana
     @State private var filtro = ""
     @State private var creando = false
+    /// Lo elegido en el «+»: `nil` mientras se pregunta normal o compartido.
+    @State private var nuevoCompartido: Bool?
     @State private var nuevo = ""
+    /// «No se pudo compartir el chat nuevo…», un rato.
+    @State private var aviso: String?
+    @ObservedObject private var chapas = ChapasDeCompartidos.compartidas
     @FocusState private var enLista: Bool
 
     private var visibles: [FichaChat] {
@@ -148,7 +153,8 @@ struct ListaProyectos<Menu: View>: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(visibles, id: \.id) { chat in
-                            FilaProyecto(chat: chat, elegida: chat.id == elegido)
+                            FilaProyecto(chat: chat, elegida: chat.id == elegido,
+                                         compartido: chapas.personas[chat.id] != nil)
                                 .id(chat.id)
                                 .onTapGesture {
                                     elegido = chat.id
@@ -168,21 +174,42 @@ struct ListaProyectos<Menu: View>: View {
         }
         .background(Paleta.proyectos.lista, ignoresSafeAreaEdges: [])
         .overlay(alignment: .bottomTrailing) {
-            BotonNuevo { creando = true }
+            BotonNuevo { nuevoCompartido = nil; creando = true }
                 .padding(16)
                 .popover(isPresented: $creando, arrowEdge: .top) {
-                    HStack {
-                        TextField("Proyecto nuevo", text: $nuevo)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 220)
-                            .onSubmit(crear)
-                        Button("Crear", action: crear)
-                            .keyboardShortcut(.defaultAction)
-                            .disabled(nuevo.trimmingCharacters(in: .whitespaces).isEmpty)
+                    // Primero dos opciones (Windows e3f1d60, el usuario: «que
+                    // primero salgan dos opciones»): normal o compartido con
+                    // otras personas; despues, su nombre.
+                    if nuevoCompartido == nil {
+                        VStack(alignment: .leading, spacing: 2) {
+                            OpcionChatNuevo(simbolo: "folder", titulo: TextosCompartido.normal,
+                                            detalle: TextosCompartido.normalDetalle) { nuevoCompartido = false }
+                            OpcionChatNuevo(simbolo: "person.2", titulo: TextosCompartido.compartido,
+                                            detalle: TextosCompartido.compartidoDetalle) { nuevoCompartido = true }
+                        }
+                        .padding(6)
+                    } else {
+                        HStack {
+                            TextField(nuevoCompartido == true ? TextosCompartido.compartido : "Proyecto nuevo",
+                                      text: $nuevo)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 220)
+                                .onSubmit(crear)
+                            Button("Crear", action: crear)
+                                .keyboardShortcut(.defaultAction)
+                                .disabled(nuevo.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                        .padding(12)
                     }
-                    .padding(12)
                 }
         }
+        .overlay(alignment: .bottom) {
+            if let aviso { AvisoDelChat(texto: aviso).padding(.bottom, 80) }
+        }
+        .animation(.easeOut(duration: 0.15), value: aviso)
+        // La chapa de compartido: al cambiar la lista (un chat nuevo, uno
+        // que llego al entrar en un compartido) se vuelve a mirar.
+        .onReceive(almacen.$chats) { _ in chapas.releer(almacen.nucleo) }
     }
 
     private func mover(_ paso: Int, _ lector: ScrollViewProxy) -> KeyPress.Result {
@@ -200,7 +227,75 @@ struct ListaProyectos<Menu: View>: View {
         guard !nombre.isEmpty else { return }
         nuevo = ""
         creando = false
-        Task { await almacen.crearChat(nombre: nombre) }
+        guard nuevoCompartido == true else {
+            Task { await almacen.crearChat(nombre: nombre) }
+            return
+        }
+        Task { await crearCompartido(nombre) }
+    }
+
+    /// **Chat compartido**: nace en `compartidos.json` conmigo dentro, se
+    /// abre y «Chats compartidos» ya invita a el (el codigo y el QR), como
+    /// Windows al ponerle nombre. Si no se pudo compartir queda normal y se
+    /// dice.
+    private func crearCompartido(_ nombre: String) async {
+        let nucleo = almacen.nucleo
+        do {
+            let r = try await Task.detached(priority: .userInitiated) {
+                try nucleo.crearChatCompartido(nombre: nombre)
+            }.value
+            NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            await almacen.cargarChats()
+            elegido = r.ficha.id
+            chapas.releer(nucleo)
+            if r.compartido {
+                PeticionDeInvitar.compartida.ficha = r.ficha.id
+                abrirVentana(id: "compartidos")
+            } else {
+                avisar(TextosCompartido.nuevoError)
+            }
+        } catch {
+            avisar(textoDeError(error))
+        }
+    }
+
+    private func avisar(_ texto: String) {
+        aviso = texto
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            if aviso == texto { aviso = nil }
+        }
+    }
+}
+
+/// Una de las dos opciones del «+» (`menu_de_chat_nuevo` de Windows): su
+/// icono, el titulo y debajo para que es.
+struct OpcionChatNuevo: View {
+    let simbolo: String
+    let titulo: String
+    let detalle: String
+    let accion: () -> Void
+    @State private var encima = false
+
+    var body: some View {
+        Button(action: accion) {
+            HStack(spacing: 10) {
+                Image(systemName: simbolo)
+                    .font(.system(size: 15))
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(titulo).font(.system(size: 13))
+                    Text(detalle).font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 5)
+            .frame(width: 260)
+            .background(encima ? Color.accentColor.opacity(0.15) : .clear, in: RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { encima = $0 }
     }
 }
 
@@ -282,6 +377,8 @@ struct BotonNuevo: View {
 struct FilaProyecto: View {
     let chat: FichaChat
     let elegida: Bool
+    /// Un chat compartido con otras personas lleva su chapa verde.
+    var compartido = false
     @State private var encima = false
 
     private var debajo: String {
@@ -300,6 +397,12 @@ struct FilaProyecto: View {
                     .foregroundStyle(.white)
             }
             .frame(width: 46, height: 46)
+            .overlay(alignment: .bottomTrailing) {
+                if compartido {
+                    ChapaCompartido(avatar: 46, aro: elegida ? Paleta.proyectos.filaElegida
+                        : encima ? Paleta.proyectos.filaEncima : Paleta.proyectos.lista)
+                }
+            }
             VStack(alignment: .leading, spacing: 6) {
                 Text(chat.nombre)
                     .font(.system(size: 13, weight: .semibold))
