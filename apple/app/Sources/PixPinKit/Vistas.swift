@@ -32,6 +32,9 @@ public struct VentanaProyectos: View {
     /// La pestana Funciones del interruptor, en el sitio de la lista
     /// (`FuncionesDeLaLista`, Windows 768b73f).
     @State private var enFunciones = false
+    /// La hoja de la foto del chat (`Chat/FotoDelChat.swift`): la piden el
+    /// menu de la fila y el avatar de la isla.
+    @ObservedObject private var pideFoto = PeticionDeFoto.compartida
 
     public init(almacen: Almacen) { self.almacen = almacen }
 
@@ -138,6 +141,11 @@ public struct VentanaProyectos: View {
             guard let pedido else { return }
             elegido = pedido
             peticion.chat = nil
+        }
+        .sheet(isPresented: Binding(get: { pideFoto.chat != nil }, set: { if !$0 { pideFoto.chat = nil } })) {
+            if let chat = pideFoto.chat {
+                HojaFotoDelChat(chat: chat, almacen: almacen) { pideFoto.chat = nil }
+            }
         }
         .overlay(alignment: .bottom) {
             if let error = almacen.error {
@@ -471,6 +479,8 @@ public struct VistaChat: View {
             guard teclas == .command, evento.charactersIgnoringModifiers == "v",
                   evento.window != nil, !(evento.window is NSPanel) else { return evento }
             let tomado = MainActor.assumeIsolated { () -> Bool? in
+                // Con la hoja de la foto del chat abierta, ⌘V es suyo.
+                if PeticionDeFoto.compartida.chat != nil { return false }
                 // Con la ficha encima, pegar no va a la caja de escribir de
                 // debajo del velo; con su lupa, es para ella (bd8ac36).
                 if ficha.abierta, evento.window === ventana.ventana {
@@ -583,6 +593,9 @@ public struct VistaChat: View {
     private func atenderSalto() -> Bool {
         guard let s = peticion.salto, s.chat == chat else { return false }
         peticion.salto = nil
+        // Con la lupa puesta el mensaje podria estar escondido: se quita
+        // (lo pulsado en «Mensajes» de la lista, Windows d106969).
+        if buscador.abierto { buscador.cerrar() }
         enSalto = true
         destacado = s.mensaje
         irA = s.mensaje

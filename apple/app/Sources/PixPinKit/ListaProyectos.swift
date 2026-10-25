@@ -5,10 +5,11 @@
 //   con «PixPin Max» a la izquierda y −, ☐ y ✕ planos a la derecha.
 // - `ListaProyectos`: la columna de la izquierda, con el buscador en
 //   capsula (35 de alto, 7 de margen), el boton redondo dorado de
-//   sincronizar (Tareas, la galeria y el timeline pasaron a la pestana
-//   Funciones, Windows a274ac0: `FuncionesDeLaLista.swift`), las
-//   filas de 62 con el avatar de 46 y sus iniciales, y el boton redondo de
-//   proyecto nuevo (54) abajo a la derecha.
+//   sincronizar, que gira mientras se sincroniza (Tareas, la galeria y el
+//   timeline pasaron a la pestana Funciones, Windows a274ac0:
+//   `FuncionesDeLaLista.swift`), las filas de 62 con el avatar de 46 y su
+//   foto, la seccion «Mensajes» de buscar en todos los chats debajo, y el
+//   boton redondo de proyecto nuevo (54) abajo a la derecha.
 //
 // Los colores siguen el tema del sistema, como en Windows (`Paleta.proyectos`).
 
@@ -136,11 +137,16 @@ struct ListaProyectos<Menu: View>: View {
     @State private var aviso: String?
     @ObservedObject private var chapas = ChapasDeCompartidos.compartidas
     @FocusState private var enLista: Bool
+    /// La seccion «Mensajes» de debajo: lo escrito, buscado en todos los
+    /// chats (`Chat/BuscarEnTodosLosChats.swift`, Windows d106969).
+    @StateObject private var enChats = MensajesDeLaLista()
 
+    /// Sin mirar mayusculas ni tildes, en el nombre o la ultima linea
+    /// (`filtrar` de Windows, 02b3124).
     private var visibles: [FichaChat] {
         let f = filtro.trimmingCharacters(in: .whitespaces)
         guard !f.isEmpty else { return almacen.chats }
-        return almacen.chats.filter { $0.nombre.localizedStandardContains(f) || $0.resumen.localizedStandardContains(f) }
+        return almacen.chats.filter { chatPasaElFiltro(nombre: $0.nombre, resumen: $0.resumen, aguja: f) }
     }
 
     var body: some View {
@@ -150,9 +156,9 @@ struct ListaProyectos<Menu: View>: View {
                 // Como la cabecera de Windows: solo sincronizar (Tareas, la
                 // galeria y el timeline estan en la pestana Funciones,
                 // Windows a274ac0).
-                BotonRedondo(simbolo: "arrow.triangle.2.circlepath", ayuda: "Sincronizar") {
-                    abrirVentana(id: "sincronizar")
-                }
+                // Gira mientras hay una vuelta y marca en rojo si fallo
+                // (`Sincro/GiroDeSincronizar.swift`, Windows 0470294).
+                BotonSincronizar { abrirVentana(id: "sincronizar") }
             }
             .padding(.horizontal, 7)
             .padding(.top, 7)
@@ -171,7 +177,17 @@ struct ListaProyectos<Menu: View>: View {
                                     elegido = chat.id
                                     enLista = true
                                 }
-                                .contextMenu { menu(chat) }
+                                .contextMenu {
+                                    // Windows 22bf4dc: sustituye a «Poner/Quitar
+                                    // imagen de logo».
+                                    Button(TextosFoto.actuales.menu) { PeticionDeFoto.compartida.chat = chat.id }
+                                    menu(chat)
+                                }
+                        }
+                        // Debajo de los chats, los mensajes de todos que
+                        // llevan lo escrito.
+                        SeccionMensajes(mensajes: enChats, chats: almacen.chats) { e in
+                            abrirMensaje(e)
                         }
                     }
                 }
@@ -220,7 +236,19 @@ struct ListaProyectos<Menu: View>: View {
         .animation(.easeOut(duration: 0.15), value: aviso)
         // La chapa de compartido: al cambiar la lista (un chat nuevo, uno
         // que llego al entrar en un compartido) se vuelve a mirar.
-        .onReceive(almacen.$chats) { _ in chapas.releer(almacen.nucleo) }
+        .onReceive(almacen.$chats) { _ in
+            chapas.releer(almacen.nucleo)
+            // Llego algo (o cambio un chat): la busqueda puesta se repite.
+            enChats.releer()
+        }
+        .onChange(of: filtro) { _, texto in enChats.escrito(texto, nucleo: almacen.nucleo) }
+    }
+
+    /// **Abre el chat de un mensaje encontrado** llevado a el y resaltado:
+    /// el mismo salto que «Ver en el chat».
+    private func abrirMensaje(_ e: MensajeEncontrado) {
+        PeticionDeChat.compartida.salto = SaltoAMensaje(chat: e.chat, mensaje: e.mensaje, posicion: e.posicion)
+        elegido = e.chat
     }
 
     private func mover(_ paso: Int, _ lector: ScrollViewProxy) -> KeyPress.Result {
@@ -401,13 +429,8 @@ struct FilaProyecto: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                Circle().fill(Paleta.avatar(chat.id))
-                Text(Paleta.iniciales(chat.nombre))
-                    .font(.system(size: 17, weight: .regular))
-                    .foregroundStyle(.white)
-            }
-            .frame(width: 46, height: 46)
+            // Su foto (imagen, emoji o color), o sus iniciales como siempre.
+            CirculoDelChat(id: chat.id, nombre: chat.nombre, lado: 46, foto: chat.foto, letra: 17)
             .overlay(alignment: .bottomTrailing) {
                 if compartido {
                     ChapaCompartido(avatar: 46, aro: elegida ? Paleta.proyectos.filaElegida
