@@ -52,6 +52,8 @@ pixpin-anki = { version = "0.1.0", path = "../pixpin-anki" }
 # La nota rica del chat: los bloques de su Markdown y el reparto del album
 # (`nota_rica`), el mismo crate que Windows (974d5ba). Puro.
 pixpin-ui = { version = "0.1.0", path = "../pixpin-ui" }
+# Los rectangulos con que `pixpin_ui::info` coloca la ficha del chat (el foco).
+pixpin-geom = { version = "0.1.0", path = "../pixpin-geom" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"

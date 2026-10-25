@@ -103,7 +103,7 @@ final class CajaDelChatTests: XCTestCase {
         let (t, completa) = MedidasFicha.isla(en: CGSize(width: 1000, height: 800))
         XCTAssertFalse(completa)
         XCTAssertEqual(t.width, 580, accuracy: 0.5, "el 58 %")
-        XCTAssertEqual(t.height, 800 - 2 * 28)
+        XCTAssertEqual(t.height, 800 - 2 * 24)
         // Topes: no pasa de 720 de ancho ni de 860 de alto.
         let grande = MedidasFicha.isla(en: CGSize(width: 3000, height: 2000)).tamano
         XCTAssertEqual(grande.width, 720)
@@ -125,6 +125,26 @@ final class CajaDelChatTests: XCTestCase {
         XCTAssertNil(TextosFicha.clase("NOTA"), "una nota es solo su texto")
         XCTAssertEqual(TextosFicha.clase("VOZ"), "Nota de voz")
         XCTAssertEqual(TextosFicha.clase("CROQUIS"), "CROQUIS", "lo que no se conoce, con su palabra")
+        XCTAssertEqual(TextosFicha.rotulo(.proyectos), "Proyectos")
+        XCTAssertEqual(TextosFicha.vacia(.proyectos), "Aún no hay proyectos")
+        XCTAssertEqual(TextosFicha.hojas(1), "1 hoja")
+        XCTAssertEqual(TextosFicha.hojas(12), "12 hojas")
+    }
+
+    func testLosMesesDeLaFichaYSuRotulo() {
+        var c = DateComponents()
+        c.year = 2026
+        c.month = 10
+        c.day = 25
+        c.hour = 12
+        let octubre = Int64(Calendar.current.date(from: c)!.timeIntervalSince1970 * 1000)
+        c.month = 11
+        let noviembre = Int64(Calendar.current.date(from: c)!.timeIntervalSince1970 * 1000)
+        XCTAssertEqual(TextosFicha.rotuloDelMes(octubre), "Octubre de 2026")
+        XCTAssertEqual(TextosFicha.claveDelMes(noviembre) - TextosFicha.claveDelMes(octubre), 1)
+        // Lo buscado, en negrita; sin nada buscado, nada que marcar.
+        XCTAssertEqual(negritasDeLaFicha(texto: "Casa Lima", buscado: "lima").first?.inicio, 5)
+        XCTAssertTrue(negritasDeLaFicha(texto: "Casa Lima", buscado: "").isEmpty)
     }
 
     // MARK: Buscar en el chat

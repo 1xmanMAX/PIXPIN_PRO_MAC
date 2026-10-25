@@ -7428,8 +7428,9 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, decidir: DecidirOferta) throws  -> [RecibidoEnvio]?
     
     /**
-     * **Lo que ensena una pestana** de la ficha, del mas antiguo al mas
-     * nuevo, con lo `buscado` con su lupa ya filtrado (vacio: todo).
+     * **Lo que ensena una pestana** de la ficha, lo mas nuevo primero, con
+     * lo `buscado` con su lupa ya filtrado (vacio: todo). Los proyectos van
+     * aparte ([`Nucleo::proyectos_de_la_ficha`]).
      */
     func cosasDeLaFicha(chat: String, seccion: SeccionFicha, buscado: String) throws  -> [CosaDeLaFicha]
     
@@ -7439,6 +7440,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * quedado vacia).
      */
     func fichaDelChat(chat: String, actual: SeccionFicha?) throws  -> FichaDelChatLeida
+    
+    /**
+     * **Los proyectos de la pestana «Proyectos»**: los de la lista de
+     * chats, en su orden («Mensajes guardados» y el asistente delante, aunque
+     * sean viejos), con lo `buscado` en su nombre (vacio: todos).
+     */
+    func proyectosDeLaFicha(chat: String, buscado: String) throws  -> [ProyectoDeLaFicha]
     
     /**
      * **Borra capturas**: a la papelera de PixPin (`papelera/capturas/`),
@@ -7768,10 +7776,12 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * **Una foto pegada con texto ya escrito va dentro de lo escrito**
      * (`fotos_al_borrador` de Windows): se guarda en `notas/<ms>-<nombre>`
      * del proyecto (donde guarda las suyas el editor de notas) y devuelve
-     * su renglon `![](notas/…)`, que Swift mete donde esta la rayita. Al
-     * enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil.
+     * su renglon `![foto N](notas/…)`, que Swift mete donde esta la rayita. Al
+     * enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil. Las
+     * fotos se numeran detras de las que ya lleve `escrito` (`![foto 2](…)`,
+     * como Windows); `orden` es su puesto entre las que se pegan juntas.
      */
-    func fotoALaNota(chat: String, nombre: String, datos: Data) throws  -> String
+    func fotoALaNota(chat: String, nombre: String, datos: Data, escrito: String, orden: UInt32) throws  -> String
     
     /**
      * **La nota rica de `texto`** (una `NOTA` de `chat`): sus bloques con
@@ -10350,8 +10360,9 @@ open func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, 
 }
     
     /**
-     * **Lo que ensena una pestana** de la ficha, del mas antiguo al mas
-     * nuevo, con lo `buscado` con su lupa ya filtrado (vacio: todo).
+     * **Lo que ensena una pestana** de la ficha, lo mas nuevo primero, con
+     * lo `buscado` con su lupa ya filtrado (vacio: todo). Los proyectos van
+     * aparte ([`Nucleo::proyectos_de_la_ficha`]).
      */
 open func cosasDeLaFicha(chat: String, seccion: SeccionFicha, buscado: String)throws  -> [CosaDeLaFicha]  {
     return try  FfiConverterSequenceTypeCosaDeLaFicha.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -10377,6 +10388,22 @@ open func fichaDelChat(chat: String, actual: SeccionFicha?)throws  -> FichaDelCh
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterOptionTypeSeccionFicha.lower(actual),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los proyectos de la pestana «Proyectos»**: los de la lista de
+     * chats, en su orden («Mensajes guardados» y el asistente delante, aunque
+     * sean viejos), con lo `buscado` en su nombre (vacio: todos).
+     */
+open func proyectosDeLaFicha(chat: String, buscado: String)throws  -> [ProyectoDeLaFicha]  {
+    return try  FfiConverterSequenceTypeProyectoDeLaFicha.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_proyectos_de_la_ficha(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(buscado),uniffiCallStatus
     )
 })
 }
@@ -11097,17 +11124,21 @@ open func croquisDelChat(chat: String, referencia: String) -> String?  {
      * **Una foto pegada con texto ya escrito va dentro de lo escrito**
      * (`fotos_al_borrador` de Windows): se guarda en `notas/<ms>-<nombre>`
      * del proyecto (donde guarda las suyas el editor de notas) y devuelve
-     * su renglon `![](notas/…)`, que Swift mete donde esta la rayita. Al
-     * enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil.
+     * su renglon `![foto N](notas/…)`, que Swift mete donde esta la rayita. Al
+     * enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil. Las
+     * fotos se numeran detras de las que ya lleve `escrito` (`![foto 2](…)`,
+     * como Windows); `orden` es su puesto entre las que se pegan juntas.
      */
-open func fotoALaNota(chat: String, nombre: String, datos: Data)throws  -> String  {
+open func fotoALaNota(chat: String, nombre: String, datos: Data, escrito: String, orden: UInt32)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_nucleo_foto_a_la_nota(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterString.lower(nombre),
-        FfiConverterData.lower(datos),uniffiCallStatus
+        FfiConverterData.lower(datos),
+        FfiConverterString.lower(escrito),
+        FfiConverterUInt32.lower(orden),uniffiCallStatus
     )
 })
 }
@@ -19361,7 +19392,8 @@ public func FfiConverterTypeCopiaHoja_lower(_ value: CopiaHoja) -> RustBuffer {
 
 
 /**
- * Una cosa de una pestana.
+ * Una cosa de una pestana: un mensaje entero o, en «Fotos», una foto de
+ * una nota rica (`pixpin_ui::info::Cosa`).
  */
 public struct CosaDeLaFicha: Equatable, Hashable {
     public var mensaje: MensajeChat
@@ -19372,9 +19404,24 @@ public struct CosaDeLaFicha: Equatable, Hashable {
     public var posicion: UInt64
     public var esVideo: Bool
     /**
-     * El primer enlace de su texto, si lo lleva.
+     * El primer enlace de su texto, si lo lleva y es un mensaje entero: la
+     * foto de una nota es una foto aunque su nota lleve un enlace.
      */
     public var enlace: EnlaceFicha?
+    /**
+     * En una nota rica, que foto suya es (en el orden de su burbuja);
+     * `None`, el mensaje entero.
+     */
+    public var foto: UInt32?
+    /**
+     * El fichero de esa foto en este aparato, solo si esta.
+     */
+    public var rutaFoto: String?
+    /**
+     * Lo que dice de esa foto su alt, sin el ancho del editor
+     * (`planta|300`): su nombre en la previa. Vacio en un mensaje entero.
+     */
+    public var alt: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -19384,12 +19431,27 @@ public struct CosaDeLaFicha: Equatable, Hashable {
          * «Ver en el chat» salta a ella.
          */posicion: UInt64, esVideo: Bool, 
         /**
-         * El primer enlace de su texto, si lo lleva.
-         */enlace: EnlaceFicha?) {
+         * El primer enlace de su texto, si lo lleva y es un mensaje entero: la
+         * foto de una nota es una foto aunque su nota lleve un enlace.
+         */enlace: EnlaceFicha?, 
+        /**
+         * En una nota rica, que foto suya es (en el orden de su burbuja);
+         * `None`, el mensaje entero.
+         */foto: UInt32?, 
+        /**
+         * El fichero de esa foto en este aparato, solo si esta.
+         */rutaFoto: String?, 
+        /**
+         * Lo que dice de esa foto su alt, sin el ancho del editor
+         * (`planta|300`): su nombre en la previa. Vacio en un mensaje entero.
+         */alt: String) {
         self.mensaje = mensaje
         self.posicion = posicion
         self.esVideo = esVideo
         self.enlace = enlace
+        self.foto = foto
+        self.rutaFoto = rutaFoto
+        self.alt = alt
     }
 
     
@@ -19411,7 +19473,10 @@ public struct FfiConverterTypeCosaDeLaFicha: FfiConverterRustBuffer {
                 mensaje: FfiConverterTypeMensajeChat.read(from: &buf), 
                 posicion: FfiConverterUInt64.read(from: &buf), 
                 esVideo: FfiConverterBool.read(from: &buf), 
-                enlace: FfiConverterOptionTypeEnlaceFicha.read(from: &buf)
+                enlace: FfiConverterOptionTypeEnlaceFicha.read(from: &buf), 
+                foto: FfiConverterOptionUInt32.read(from: &buf), 
+                rutaFoto: FfiConverterOptionString.read(from: &buf), 
+                alt: FfiConverterString.read(from: &buf)
         )
     }
 
@@ -19420,6 +19485,9 @@ public struct FfiConverterTypeCosaDeLaFicha: FfiConverterRustBuffer {
         FfiConverterUInt64.write(value.posicion, into: &buf)
         FfiConverterBool.write(value.esVideo, into: &buf)
         FfiConverterOptionTypeEnlaceFicha.write(value.enlace, into: &buf)
+        FfiConverterOptionUInt32.write(value.foto, into: &buf)
+        FfiConverterOptionString.write(value.rutaFoto, into: &buf)
+        FfiConverterString.write(value.alt, into: &buf)
     }
 }
 
@@ -21570,8 +21638,8 @@ public struct FichaDelChatLeida: Equatable, Hashable {
      */
     public var pestanas: [PestanaFicha]
     /**
-     * Con la que se abre: la primera que tenga algo; en un chat vacio,
-     * «Todo», que dice que no hay nada.
+     * Con la que se abre: la primera que tenga algo (los proyectos, casi
+     * siempre); sin nada, «Todo», que dice que no hay nada.
      */
     public var primera: SeccionFicha
     /**
@@ -21591,8 +21659,8 @@ public struct FichaDelChatLeida: Equatable, Hashable {
          * Las que tienen algo (y la puesta, aunque se haya vaciado), en `ORDEN`.
          */pestanas: [PestanaFicha], 
         /**
-         * Con la que se abre: la primera que tenga algo; en un chat vacio,
-         * «Todo», que dice que no hay nada.
+         * Con la que se abre: la primera que tenga algo (los proyectos, casi
+         * siempre); sin nada, «Todo», que dice que no hay nada.
          */primera: SeccionFicha, 
         /**
          * Cuantas cosas tiene el chat («24 cosas»).
@@ -29319,6 +29387,81 @@ public func FfiConverterTypeProyectoBorrado_lower(_ value: ProyectoBorrado) -> R
 
 
 /**
+ * Un proyecto de la pestana «Proyectos».
+ */
+public struct ProyectoDeLaFicha: Equatable, Hashable {
+    public var ficha: FichaChat
+    /**
+     * El de este chat: va marcado («Este chat») y pulsarlo no sale de la
+     * isla, lleva a su «Galeria».
+     */
+    public var este: Bool
+    /**
+     * Guardado en un disco que ahora no esta: no se puede abrir.
+     */
+    public var disponible: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ficha: FichaChat, 
+        /**
+         * El de este chat: va marcado («Este chat») y pulsarlo no sale de la
+         * isla, lleva a su «Galeria».
+         */este: Bool, 
+        /**
+         * Guardado en un disco que ahora no esta: no se puede abrir.
+         */disponible: Bool) {
+        self.ficha = ficha
+        self.este = este
+        self.disponible = disponible
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ProyectoDeLaFicha: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeProyectoDeLaFicha: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ProyectoDeLaFicha {
+        return
+            try ProyectoDeLaFicha(
+                ficha: FfiConverterTypeFichaChat.read(from: &buf), 
+                este: FfiConverterBool.read(from: &buf), 
+                disponible: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ProyectoDeLaFicha, into buf: inout [UInt8]) {
+        FfiConverterTypeFichaChat.write(value.ficha, into: &buf)
+        FfiConverterBool.write(value.este, into: &buf)
+        FfiConverterBool.write(value.disponible, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProyectoDeLaFicha_lift(_ buf: RustBuffer) throws -> ProyectoDeLaFicha {
+    return try FfiConverterTypeProyectoDeLaFicha.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeProyectoDeLaFicha_lower(_ value: ProyectoDeLaFicha) -> RustBuffer {
+    return FfiConverterTypeProyectoDeLaFicha.lower(value)
+}
+
+
+/**
  * Un punto (o una direccion) del modelo, respecto a su origen.
  */
 public struct Punto3d: Equatable, Hashable {
@@ -32063,6 +32206,64 @@ public func FfiConverterTypeTintaDePantalla_lift(_ buf: RustBuffer) throws -> Ti
 #endif
 public func FfiConverterTypeTintaDePantalla_lower(_ value: TintaDePantalla) -> RustBuffer {
     return FfiConverterTypeTintaDePantalla.lower(value)
+}
+
+
+/**
+ * Un trozo de lo buscado dentro de un nombre, en unidades UTF-16 (las de
+ * `NSString`): va en negrita.
+ */
+public struct TramoDeLaFicha: Equatable, Hashable {
+    public var inicio: UInt32
+    public var largo: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(inicio: UInt32, largo: UInt32) {
+        self.inicio = inicio
+        self.largo = largo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TramoDeLaFicha: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTramoDeLaFicha: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TramoDeLaFicha {
+        return
+            try TramoDeLaFicha(
+                inicio: FfiConverterUInt32.read(from: &buf), 
+                largo: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TramoDeLaFicha, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.inicio, into: &buf)
+        FfiConverterUInt32.write(value.largo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTramoDeLaFicha_lift(_ buf: RustBuffer) throws -> TramoDeLaFicha {
+    return try FfiConverterTypeTramoDeLaFicha.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTramoDeLaFicha_lower(_ value: TramoDeLaFicha) -> RustBuffer {
+    return FfiConverterTypeTramoDeLaFicha.lower(value)
 }
 
 
@@ -38185,6 +38386,10 @@ public func FfiConverterTypeRellenoEstilo_lower(_ value: RellenoEstilo) -> RustB
 
 public enum SeccionFicha: Equatable, Hashable {
     
+    /**
+     * Los proyectos de la lista de chats: solo de la interfaz.
+     */
+    case proyectos
     case galeria
     case todo
     case fotos
@@ -38216,25 +38421,27 @@ public struct FfiConverterTypeSeccionFicha: FfiConverterRustBuffer {
         let variant: Int32 = try readInt(&buf)
         switch variant {
         
-        case 1: return .galeria
+        case 1: return .proyectos
         
-        case 2: return .todo
+        case 2: return .galeria
         
-        case 3: return .fotos
+        case 3: return .todo
         
-        case 4: return .videos
+        case 4: return .fotos
         
-        case 5: return .archivos
+        case 5: return .videos
         
-        case 6: return .enlaces
+        case 6: return .archivos
         
-        case 7: return .voz
+        case 7: return .enlaces
         
-        case 8: return .dibujos
+        case 8: return .voz
         
-        case 9: return .fijados
+        case 9: return .dibujos
         
-        case 10: return .buzon
+        case 10: return .fijados
+        
+        case 11: return .buzon
         
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -38244,44 +38451,48 @@ public struct FfiConverterTypeSeccionFicha: FfiConverterRustBuffer {
         switch value {
         
         
-        case .galeria:
+        case .proyectos:
             writeInt(&buf, Int32(1))
         
         
-        case .todo:
+        case .galeria:
             writeInt(&buf, Int32(2))
         
         
-        case .fotos:
+        case .todo:
             writeInt(&buf, Int32(3))
         
         
-        case .videos:
+        case .fotos:
             writeInt(&buf, Int32(4))
         
         
-        case .archivos:
+        case .videos:
             writeInt(&buf, Int32(5))
         
         
-        case .enlaces:
+        case .archivos:
             writeInt(&buf, Int32(6))
         
         
-        case .voz:
+        case .enlaces:
             writeInt(&buf, Int32(7))
         
         
-        case .dibujos:
+        case .voz:
             writeInt(&buf, Int32(8))
         
         
-        case .fijados:
+        case .dibujos:
             writeInt(&buf, Int32(9))
         
         
-        case .buzon:
+        case .fijados:
             writeInt(&buf, Int32(10))
+        
+        
+        case .buzon:
+            writeInt(&buf, Int32(11))
         
         }
     }
@@ -43505,6 +43716,31 @@ fileprivate struct FfiConverterSequenceTypeProyectoBorrado: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeProyectoDeLaFicha: FfiConverterRustBuffer {
+    typealias SwiftType = [ProyectoDeLaFicha]
+
+    public static func write(_ value: [ProyectoDeLaFicha], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeProyectoDeLaFicha.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ProyectoDeLaFicha] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ProyectoDeLaFicha]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeProyectoDeLaFicha.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePuntoPlano: FfiConverterRustBuffer {
     typealias SwiftType = [PuntoPlano]
 
@@ -43822,6 +44058,31 @@ fileprivate struct FfiConverterSequenceTypeTextoHallado: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeTextoHallado.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTramoDeLaFicha: FfiConverterRustBuffer {
+    typealias SwiftType = [TramoDeLaFicha]
+
+    public static func write(_ value: [TramoDeLaFicha], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTramoDeLaFicha.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TramoDeLaFicha] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TramoDeLaFicha]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTramoDeLaFicha.read(from: &buf))
         }
         return seq
     }
@@ -45196,6 +45457,64 @@ public func tipoDeServicioRecibir() -> String  {
 })
 }
 /**
+ * Cuantas columnas tiene la rejilla de la isla en `ancho` puntos: de tres a
+ * cinco, las que quepan con su celda minima (`columnas_isla`).
+ */
+public func columnasDeLaFicha(ancho: UInt32) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_columnas_de_la_ficha(
+        FfiConverterUInt32.lower(ancho),uniffiCallStatus
+    )
+})
+}
+/**
+ * Lo que dura un video o una nota de voz en su insignia: «0:07», «12:30»,
+ * «1:02:03»; sin duracion, nada (`duracion_corta`).
+ */
+public func duracionEnLaFicha(ms: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_duracion_en_la_ficha(
+        FfiConverterInt64.lower(ms),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Lo buscado en negrita** dentro de `texto` (`negritas` de Windows): los
+ * trozos que casan, en UTF-16. Sin nada buscado, ninguno.
+ */
+public func negritasDeLaFicha(texto: String, buscado: String) -> [TramoDeLaFicha]  {
+    return try!  FfiConverterSequenceTypeTramoDeLaFicha.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_negritas_de_la_ficha(
+        FfiConverterString.lower(texto),
+        FfiConverterString.lower(buscado),uniffiCallStatus
+    )
+})
+}
+/**
+ * **A que cosa va el foco con las flechas** desde la `actual`
+ * (`Lista::vecina` de Windows): a los lados, la de antes o la de despues;
+ * arriba y abajo, la de la fila de encima o de debajo que caiga mas cerca
+ * en horizontal, saltando los rotulos de mes. `meses` lleva la clave del
+ * mes de cada cosa, en el orden en que se ensenan (en los proyectos, todas
+ * iguales: no van por meses); `ancho`, el del contenido.
+ */
+public func vecinaEnLaFicha(meses: [Int64], cuadricula: Bool, ancho: UInt32, actual: UInt32, dx: Int32, dy: Int32) -> UInt32?  {
+    return try!  FfiConverterOptionUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_vecina_en_la_ficha(
+        FfiConverterSequenceInt64.lower(meses),
+        FfiConverterBool.lower(cuadricula),
+        FfiConverterUInt32.lower(ancho),
+        FfiConverterUInt32.lower(actual),
+        FfiConverterInt32.lower(dx),
+        FfiConverterInt32.lower(dy),uniffiCallStatus
+    )
+})
+}
+/**
  * **Los pixeles de un mapa de grafito** (el id de su orden de imagen).
  */
 public func mapaDeGrafito(id: UInt64) -> MapaGrafito?  {
@@ -46375,6 +46694,18 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_recibir() != 11481) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_columnas_de_la_ficha() != 58442) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_duracion_en_la_ficha() != 15263) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_negritas_de_la_ficha() != 28984) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_vecina_en_la_ficha() != 26888) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_mapa_de_grafito() != 28155) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -47008,10 +47339,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_recibir_envio_preguntando() != 28836) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_cosas_de_la_ficha() != 24274) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_cosas_de_la_ficha() != 8252) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ficha_del_chat() != 39044) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_proyectos_de_la_ficha() != 65358) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_capturas() != 35273) {
@@ -47149,7 +47483,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_croquis_del_chat() != 45128) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_foto_a_la_nota() != 52549) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_foto_a_la_nota() != 27463) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_nota_rica() != 583) {

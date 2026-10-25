@@ -293,7 +293,7 @@ fn proporcion(ruta: &Path) -> f32 {
 impl Nucleo {
     /// El fichero de este aparato al que lleva el enlace de una foto de la
     /// nota, solo si esta. La resolucion es la de los adjuntos.
-    fn ruta_de_foto(&self, chat: &str, enlace: &str) -> Option<PathBuf> {
+    pub(crate) fn ruta_de_foto(&self, chat: &str, enlace: &str) -> Option<PathBuf> {
         let enlace = enlace.trim();
         let clave = (self.ruta().to_path_buf(), chat.to_string(), enlace.to_string());
         let r = {

@@ -348,6 +348,7 @@ public struct VistaChat: View {
             vigilarPegar()
             vigilarTeclas()
             menu.irA = { id in ir(a: id) }
+            ficha.verEnElChat = { c in verEnElChat(c) }
         }
         .onDisappear {
             dejarDeVigilarPegar()
@@ -435,11 +436,18 @@ public struct VistaChat: View {
         let chat = self.chat
         let almacen = self.almacen
         let menu = self.menu
+        let ficha = self.ficha
+        let ventana = self.ventana
         vigiaPegar = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { evento in
             let teclas = evento.modifierFlags.intersection(.deviceIndependentFlagsMask)
             guard teclas == .command, evento.charactersIgnoringModifiers == "v",
                   evento.window != nil, !(evento.window is NSPanel) else { return evento }
-            let tomado = MainActor.assumeIsolated { () -> Bool in
+            let tomado = MainActor.assumeIsolated { () -> Bool? in
+                // Con la ficha encima, pegar no va a la caja de escribir de
+                // debajo del velo; con su lupa, es para ella (bd8ac36).
+                if ficha.abierta, evento.window === ventana.ventana {
+                    return ficha.tecladoEnLaLupa ? false : nil
+                }
                 // Con texto escrito en la caja, una foto va dentro de lo
                 // escrito: sale una sola nota (`Chat/NotaRica.swift`).
                 if let campo = evento.window?.firstResponder as? TextoDeLaIsla,
@@ -449,6 +457,7 @@ public struct VistaChat: View {
                 }
                 return EntradaDeFicheros.pegar(en: chat, almacen: almacen)
             }
+            guard let tomado else { return nil }
             return tomado ? nil : evento
         }
     }
@@ -476,18 +485,31 @@ public struct VistaChat: View {
             let esc = evento.keyCode == 53
             let codigo = evento.keyCode
             let tomada = MainActor.assumeIsolated { () -> Bool in
-                // Con la ficha abierta, Esc y ← → son suyos (Esc: de la
-                // previa a la rejilla, la lupa y, al final, cerrar).
-                if ficha.abierta, teclas.isEmpty {
-                    if esc {
-                        ficha.escape()
+                // Con la ficha abierta, su teclado (`ficha.tecla`): ← → cambian
+                // de pestana o recorren la previa, ↓ y las flechas mueven el
+                // foco, Intro abre y Esc vuelve un paso y al final cierra.
+                if ficha.abierta {
+                    let suya: ModeloFichaDelChat.Tecla? = switch codigo {
+                    case 53: .escape
+                    case 36, 76: .intro
+                    case 123: .izquierda
+                    case 124: .derecha
+                    case 126: .arriba
+                    case 125: .abajo
+                    default: nil
+                    }
+                    if teclas.isEmpty, let suya, ficha.tecla(suya) { return true }
+                    // ⌘F cierra la isla y abre la lupa del chat (Windows).
+                    if teclas == .command, letra.lowercased() == "f" {
+                        ficha.cerrar()
+                        buscador.abrir()
                         return true
                     }
-                    // ← y → (123 y 124) pasan de cosa en la previa.
-                    if ficha.enPrevia != nil, codigo == 123 || codigo == 124 {
-                        ficha.mover(codigo == 123 ? -1 : 1)
-                        return true
-                    }
+                    // Lo que se teclea no va a la caja de escribir que queda
+                    // bajo el velo: Intro enviaria el borrador sin verlo, y
+                    // Retroceso o las letras lo cambiarian. Con la lupa, es
+                    // para su caja.
+                    if !ficha.tecladoEnLaLupa, !teclas.contains(.command) { return true }
                 }
                 // Esc apaga la lupa antes que nada mas.
                 if esc, teclas.isEmpty, buscador.abierto {
