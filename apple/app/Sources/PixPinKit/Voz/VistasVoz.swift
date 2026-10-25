@@ -86,6 +86,13 @@ struct BurbujaVoz: View {
                         Label("Mostrar en el Finder", systemImage: "folder")
                     }
                 }
+                // Una clase grabada: el texto junto a sus capturas (la
+                // pantalla de la letra de Windows).
+                if !ClaseEnElChat.capturas(mensaje, chat: chat, nucleo: almacen.nucleo).isEmpty {
+                    Button { VisorClase.abrir(mensaje, chat: chat, almacen: almacen) } label: {
+                        Label("Ver con las capturas", systemImage: "photo.on.rectangle")
+                    }
+                }
             }
         }
         .task(id: mensaje.id) {

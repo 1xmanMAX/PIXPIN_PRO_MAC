@@ -229,6 +229,8 @@ final class EstadoApp: ObservableObject {
         gestos.alAnotarPantalla = { capturador.anotarPantalla() }
         // El anotador de pantalla guarda en «Mensajes guardados» y copia a la pila.
         AnotadorPantalla.compartido.almacen = almacen
+        // Grabar una clase o una reunion: guarda en el proyecto que se elija.
+        GrabarClase.compartida.almacen = almacen
         AnotadorPantalla.compartido.alCopiar = { pila.copiar($0, escala: $1) }
         gestos.alPinEnVivo = pinEnVivo
         gestos.arrancarSiToca()

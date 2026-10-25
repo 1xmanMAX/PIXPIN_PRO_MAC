@@ -535,6 +535,10 @@ private struct MenuDeMensaje<Propias: View>: View {
             Button { c.hacerLeccion(m) } label: { Label("Hacer lección", systemImage: "lightbulb") }
                 .keyboardShortcut("l", modifiers: [])
         }
+        // Tarjetas de estudio: de una clase grabada, una foto o una nota.
+        if c.sePuedeAnki(m) {
+            Button { c.enviarAAnki(m) } label: { Label("Enviar a Anki", systemImage: "book") }
+        }
         // Un lienzo (lo que hizo el asistente, o uno propio), a la biblioteca
         // de figuras de un clic (`chat-guardar-en-figuras` de Windows).
         if m.clase == "DIBUJO", m.referencia?.isEmpty == false {

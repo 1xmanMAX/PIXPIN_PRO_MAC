@@ -96,6 +96,10 @@ public final class Capturador {
     /// al hacer algo con la zona, se hace otra foto.
     private(set) var enVivo = false
     private var refotografiando = false
+    /// La zona de las capturas de una clase que se graba (`GrabarClase`,
+    /// el `ModoConfirmacion::ZonaGrabacion` de Windows): al elegirla, la
+    /// zona (global, de AppKit) y su foto; `nil` si se cerro sin elegir.
+    private var alZonaDeLaClase: (@MainActor ((zona: CGRect, foto: CGImage)?) -> Void)?
     /// Abierta como cuentagotas (sin zona ni barras).
     var esCuentagotas: Bool { intencion == .cuentagotas }
 
@@ -136,6 +140,25 @@ public final class Capturador {
         self.intencion = intencion
     }
 
+    /// **Elige la zona de las capturas de una clase** con la captura de
+    /// siempre: al soltar, la zona y la foto de ese momento van a `hecho`
+    /// (y la captura se cierra); Esc, `nil`. Con otra captura abierta, `nil`.
+    public func elegirZonaDeLaClase(_ hecho: @escaping @MainActor ((zona: CGRect, foto: CGImage)?) -> Void) {
+        guard !abierta else { return hecho(nil) }
+        abrirCaptura(paraGrabar: false, paraAnotar: false)
+        guard abierta else { return hecho(nil) }
+        alZonaDeLaClase = hecho
+    }
+
+    /// Ya no se espera la zona de la clase (la grabacion termino, o la
+    /// captura no llego a abrirse): se dice `nil` y la proxima captura es
+    /// la de siempre.
+    public func soltarZonaDeLaClase() {
+        guard let hecho = alZonaDeLaClase else { return }
+        alZonaDeLaClase = nil
+        hecho(nil)
+    }
+
     /// **El anotador de pantalla** (E3, `AnotadorPantalla`): el lienzo
     /// encima de todas las pantallas, en vivo. Abierto, alterna el clic a
     /// traves (Option + doble clic central, como en Windows).
@@ -159,9 +182,10 @@ public final class Capturador {
             defer { self.abriendo = false }
             do {
                 let fotos = try await Instantanea.fotografiarTodas()
-                guard !fotos.isEmpty else { return }
+                guard !fotos.isEmpty else { return self.soltarZonaDeLaClase() }
                 self.abrir(fotos)
             } catch {
+                self.soltarZonaDeLaClase()
                 PermisoCaptura.avisarDenegado(detalle: "No se pudo capturar la pantalla: \(error.localizedDescription)")
             }
         }
@@ -169,6 +193,11 @@ public final class Capturador {
 
     /// Cierra la captura sin hacer nada y suelta las fotos.
     public func cerrar() {
+        // Cerrada sin elegir la zona de la clase: la barra lo sabe.
+        if let hecho = alZonaDeLaClase {
+            alZonaDeLaClase = nil
+            hecho(nil)
+        }
         let lista = paneles
         paneles = []
         activa = nil
@@ -440,6 +469,16 @@ public final class Capturador {
     /// Se acaba de elegir una zona en `vista`: los modos que actuan al
     /// elegir (texto, scroll, GIF, pin en vivo) lo hacen ya.
     func alElegir(en vista: VistaCaptura) {
+        // La zona de la clase: se devuelve en cuanto se elige, con su foto.
+        if let hecho = alZonaDeLaClase {
+            guard let zona = vista.zonaGlobal(), let recorte = vista.recorte() else { return }
+            let entera = vista.tamFoto
+            alZonaDeLaClase = nil
+            recordar(vista)
+            cerrar()
+            hecho((zona: zona, foto: Capturador.suelto(recorte, entera: entera)))
+            return
+        }
         vista.actualizarBarraModos()
         // Los comandos que hacen algo en cuanto se elige.
         switch intencion {

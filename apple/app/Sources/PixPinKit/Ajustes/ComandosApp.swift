@@ -78,6 +78,8 @@ public enum ComandosApp {
         atajos.poner(.salir) { NSApp.terminate(nil) }
         atajos.poner(.sincronizar) { abrir("sincronizar") }
         atajos.poner(.buscar) { abrir(IdVentana.buscar) }
+        // Grabar una clase o una reunion: su ventanita, una a la vez.
+        atajos.poner(.grabarClase) { GrabarClase.compartida.abrir() }
         atajos.poner(.grabarPantalla) {
             // Con el marco de la grabacion puesto, el mismo atajo empieza
             // (o se salta la cuenta atras) y luego para (D7).

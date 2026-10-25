@@ -6165,6 +6165,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func guardarAjustesPdf(nuevos: AjustesPdf) throws 
     
     /**
+     * **Manda a Anki** las tarjetas del mensaje `mensaje` de `chat`, como
+     * `anki::enviar` de Windows. `pregunta_de_la_clase` es el texto de
+     * delante de cada captura (`anki-pregunta-clase`). Bloqueante: lee el
+     * cuaderno y habla con Anki por `127.0.0.1`.
+     */
+    func enviarAAnki(chat: String, mensaje: String, preguntaDeLaClase: String) throws  -> EnvioAnki
+    
+    /**
      * **Guarda una pantalla anotada en «Mensajes guardados»** (creandolo si
      * no esta): `foto` es el PNG de lo que habia debajo; la tinta es la del
      * `editor` del anotador, que empieza en `origen_x, origen_y` (puntos del
@@ -6226,6 +6234,11 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     /**
      * **El chat «Asistente»**, creandolo si no esta (como «Mensajes
      * guardados»: fijo, detras de el en la lista).
+     *
+     * **Uno solo en todos los aparatos** (Windows, 22-oct): antes de mirar
+     * si hay que crearlo se juntan los que hayan llegado de otros aparatos
+     * ([`Nucleo::unificar_asistentes`]); el que queda lleva la marca
+     * (`"asistente": true`, que viaja en `proyecto.json`).
      */
     func chatAsistente() throws  -> FichaChat
     
@@ -6583,6 +6596,22 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * `desde` de esta.
      */
     func ultimosMensajes(chat: String, cuantos: UInt32) throws  -> PaginaMensajes
+    
+    /**
+     * **Las capturas de una nota de voz grabada como clase** (`mensaje` es
+     * su id), en orden, con su fichero en este Mac. Vacio si no es de una
+     * clase. Bloqueante (lee el cuaderno): Swift lo guarda por mensaje.
+     */
+    func capturasDeLaClase(chat: String, mensaje: String) throws  -> [CapturaDeLaClase]
+    
+    /**
+     * **Mete una clase grabada en `chat`**: la nota de voz de `ruta_audio`
+     * y detras cada captura, enlazadas, como `grabar_clase::guardar` de
+     * Windows. `desfase_ms` es el de la hora local (el nombre lleva la
+     * fecha de aqui). Bloqueante: copia los ficheros. Los de origen no se
+     * tocan. Una captura que no entra se salta sin llevarse las demas.
+     */
+    func guardarClase(chat: String, rutaAudio: String, duracionMs: Int64, picos: [Int32], capturas: [CapturaClase], desfaseMs: Int64) throws  -> ClaseGuardada
     
     /**
      * El chat compartido de la ficha `ficha` (`FichaChat.id`), si lo esta.
@@ -7946,6 +7975,24 @@ open func guardarAjustesPdf(nuevos: AjustesPdf)throws   {try rustCallWithError(F
 }
     
     /**
+     * **Manda a Anki** las tarjetas del mensaje `mensaje` de `chat`, como
+     * `anki::enviar` de Windows. `pregunta_de_la_clase` es el texto de
+     * delante de cada captura (`anki-pregunta-clase`). Bloqueante: lee el
+     * cuaderno y habla con Anki por `127.0.0.1`.
+     */
+open func enviarAAnki(chat: String, mensaje: String, preguntaDeLaClase: String)throws  -> EnvioAnki  {
+    return try  FfiConverterTypeEnvioAnki_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_enviar_a_anki(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),
+        FfiConverterString.lower(preguntaDeLaClase),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Guarda una pantalla anotada en «Mensajes guardados»** (creandolo si
      * no esta): `foto` es el PNG de lo que habia debajo; la tinta es la del
      * `editor` del anotador, que empieza en `origen_x, origen_y` (puntos del
@@ -8079,6 +8126,11 @@ open func sondearDireccion(host: String, puerto: UInt16) -> Bool  {
     /**
      * **El chat «Asistente»**, creandolo si no esta (como «Mensajes
      * guardados»: fijo, detras de el en la lista).
+     *
+     * **Uno solo en todos los aparatos** (Windows, 22-oct): antes de mirar
+     * si hay que crearlo se juntan los que hayan llegado de otros aparatos
+     * ([`Nucleo::unificar_asistentes`]); el que queda lleva la marca
+     * (`"asistente": true`, que viaja en `proyecto.json`).
      */
 open func chatAsistente()throws  -> FichaChat  {
     return try  FfiConverterTypeFichaChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -8879,6 +8931,44 @@ open func ultimosMensajes(chat: String, cuantos: UInt32)throws  -> PaginaMensaje
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterUInt32.lower(cuantos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las capturas de una nota de voz grabada como clase** (`mensaje` es
+     * su id), en orden, con su fichero en este Mac. Vacio si no es de una
+     * clase. Bloqueante (lee el cuaderno): Swift lo guarda por mensaje.
+     */
+open func capturasDeLaClase(chat: String, mensaje: String)throws  -> [CapturaDeLaClase]  {
+    return try  FfiConverterSequenceTypeCapturaDeLaClase.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_capturas_de_la_clase(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Mete una clase grabada en `chat`**: la nota de voz de `ruta_audio`
+     * y detras cada captura, enlazadas, como `grabar_clase::guardar` de
+     * Windows. `desfase_ms` es el de la hora local (el nombre lleva la
+     * fecha de aqui). Bloqueante: copia los ficheros. Los de origen no se
+     * tocan. Una captura que no entra se salta sin llevarse las demas.
+     */
+open func guardarClase(chat: String, rutaAudio: String, duracionMs: Int64, picos: [Int32], capturas: [CapturaClase], desfaseMs: Int64)throws  -> ClaseGuardada  {
+    return try  FfiConverterTypeClaseGuardada_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_guardar_clase(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(rutaAudio),
+        FfiConverterInt64.lower(duracionMs),
+        FfiConverterSequenceInt32.lower(picos),
+        FfiConverterSequenceTypeCapturaClase.lower(capturas),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
     )
 })
 }
@@ -16604,6 +16694,127 @@ public func FfiConverterTypeCapturaCaducada_lower(_ value: CapturaCaducada) -> R
 
 
 /**
+ * Una captura hecha grabando: en que milisegundo de la nota y el PNG ya
+ * escrito en un temporal (lo borra quien lo escribio).
+ */
+public struct CapturaClase: Equatable, Hashable {
+    public var ms: Int64
+    public var rutaPng: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, rutaPng: String) {
+        self.ms = ms
+        self.rutaPng = rutaPng
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CapturaClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCapturaClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CapturaClase {
+        return
+            try CapturaClase(
+                ms: FfiConverterInt64.read(from: &buf), 
+                rutaPng: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CapturaClase, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.rutaPng, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaClase_lift(_ buf: RustBuffer) throws -> CapturaClase {
+    return try FfiConverterTypeCapturaClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaClase_lower(_ value: CapturaClase) -> RustBuffer {
+    return FfiConverterTypeCapturaClase.lower(value)
+}
+
+
+/**
+ * Una captura de una clase para la pantalla de su letra (o sus tarjetas):
+ * su minuto, el id de su mensaje y su fichero en este Mac (`None` si el
+ * mensaje ya no esta o su ruta no se resuelve aqui).
+ */
+public struct CapturaDeLaClase: Equatable, Hashable {
+    public var ms: Int64
+    public var id: String
+    public var ruta: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, id: String, ruta: String?) {
+        self.ms = ms
+        self.id = id
+        self.ruta = ruta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CapturaDeLaClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCapturaDeLaClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CapturaDeLaClase {
+        return
+            try CapturaDeLaClase(
+                ms: FfiConverterInt64.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                ruta: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CapturaDeLaClase, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterOptionString.write(value.ruta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaDeLaClase_lift(_ buf: RustBuffer) throws -> CapturaDeLaClase {
+    return try FfiConverterTypeCapturaDeLaClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaDeLaClase_lower(_ value: CapturaDeLaClase) -> RustBuffer {
+    return FfiConverterTypeCapturaDeLaClase.lower(value)
+}
+
+
+/**
  * Una captura de la galeria.
  */
 public struct CapturaGaleria: Equatable, Hashable {
@@ -17345,6 +17556,64 @@ public func FfiConverterTypeCitaIa_lift(_ buf: RustBuffer) throws -> CitaIa {
 #endif
 public func FfiConverterTypeCitaIa_lower(_ value: CitaIa) -> RustBuffer {
     return FfiConverterTypeCitaIa.lower(value)
+}
+
+
+/**
+ * Lo que dejo la clase en el chat: la voz como quedo y sus capturas, en el
+ * orden del cuaderno.
+ */
+public struct ClaseGuardada: Equatable, Hashable {
+    public var voz: MensajeChat
+    public var capturas: [MensajeChat]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(voz: MensajeChat, capturas: [MensajeChat]) {
+        self.voz = voz
+        self.capturas = capturas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ClaseGuardada: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeClaseGuardada: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ClaseGuardada {
+        return
+            try ClaseGuardada(
+                voz: FfiConverterTypeMensajeChat.read(from: &buf), 
+                capturas: FfiConverterSequenceTypeMensajeChat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ClaseGuardada, into buf: inout [UInt8]) {
+        FfiConverterTypeMensajeChat.write(value.voz, into: &buf)
+        FfiConverterSequenceTypeMensajeChat.write(value.capturas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClaseGuardada_lift(_ buf: RustBuffer) throws -> ClaseGuardada {
+    return try FfiConverterTypeClaseGuardada.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClaseGuardada_lower(_ value: ClaseGuardada) -> RustBuffer {
+    return FfiConverterTypeClaseGuardada.lower(value)
 }
 
 
@@ -33452,6 +33721,127 @@ public func FfiConverterTypeEfectoDiapositiva_lower(_ value: EfectoDiapositiva) 
 
 
 /**
+ * Como acabo «Enviar a Anki».
+ */
+
+public enum EnvioAnki: Equatable, Hashable {
+    
+    /**
+     * El mensaje no da ninguna tarjeta (`anki-nada`).
+     */
+    case nada
+    /**
+     * `n` tarjetas nuevas en el mazo (`anki-hecho`).
+     */
+    case hecho(n: UInt32, mazo: String
+    )
+    /**
+     * Ya estaban todas (`anki-ya-estaban`).
+     */
+    case yaEstaban(n: UInt32, mazo: String
+    )
+    /**
+     * Sin Anki abierto: el fichero para importar (`anki-fichero`).
+     */
+    case fichero(n: UInt32, mazo: String, ruta: String
+    )
+    /**
+     * Anki no las admitio (`anki-fallo`).
+     */
+    case fallo(motivo: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EnvioAnki: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEnvioAnki: FfiConverterRustBuffer {
+    typealias SwiftType = EnvioAnki
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EnvioAnki {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .nada
+        
+        case 2: return .hecho(n: try FfiConverterUInt32.read(from: &buf), mazo: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .yaEstaban(n: try FfiConverterUInt32.read(from: &buf), mazo: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 4: return .fichero(n: try FfiConverterUInt32.read(from: &buf), mazo: try FfiConverterString.read(from: &buf), ruta: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 5: return .fallo(motivo: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EnvioAnki, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .nada:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .hecho(n,mazo):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt32.write(n, into: &buf)
+            FfiConverterString.write(mazo, into: &buf)
+            
+        
+        case let .yaEstaban(n,mazo):
+            writeInt(&buf, Int32(3))
+            FfiConverterUInt32.write(n, into: &buf)
+            FfiConverterString.write(mazo, into: &buf)
+            
+        
+        case let .fichero(n,mazo,ruta):
+            writeInt(&buf, Int32(4))
+            FfiConverterUInt32.write(n, into: &buf)
+            FfiConverterString.write(mazo, into: &buf)
+            FfiConverterString.write(ruta, into: &buf)
+            
+        
+        case let .fallo(motivo):
+            writeInt(&buf, Int32(5))
+            FfiConverterString.write(motivo, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnvioAnki_lift(_ buf: RustBuffer) throws -> EnvioAnki {
+    return try FfiConverterTypeEnvioAnki.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnvioAnki_lower(_ value: EnvioAnki) -> RustBuffer {
+    return FfiConverterTypeEnvioAnki.lower(value)
+}
+
+
+
+/**
  * Lo que puede salir mal, tal como lo ve Swift (un `enum` que `throws`).
  *
  * Pocas variantes y con el detalle en texto: Swift decide que ensenar por
@@ -38410,6 +38800,31 @@ fileprivate struct FfiConverterSequenceUInt64: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceInt64: FfiConverterRustBuffer {
+    typealias SwiftType = [Int64]
+
+    public static func write(_ value: [Int64], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterInt64.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Int64] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Int64]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterInt64.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceFloat: FfiConverterRustBuffer {
     typealias SwiftType = [Float]
 
@@ -38902,6 +39317,56 @@ fileprivate struct FfiConverterSequenceTypeCapturaCaducada: FfiConverterRustBuff
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCapturaCaducada.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCapturaClase: FfiConverterRustBuffer {
+    typealias SwiftType = [CapturaClase]
+
+    public static func write(_ value: [CapturaClase], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCapturaClase.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CapturaClase] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CapturaClase]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCapturaClase.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCapturaDeLaClase: FfiConverterRustBuffer {
+    typealias SwiftType = [CapturaDeLaClase]
+
+    public static func write(_ value: [CapturaDeLaClase], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCapturaDeLaClase.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CapturaDeLaClase] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CapturaDeLaClase]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCapturaDeLaClase.read(from: &buf))
         }
         return seq
     }
@@ -41148,6 +41613,17 @@ public func nivelParaEntrar(elegido: NivelAligerar) -> NivelAligerar  {
 })
 }
 /**
+ * Si una nota da alguna tarjeta (para ofrecer «Enviar a Anki» en su menu).
+ */
+public func ankiHayTarjetasEnNota(texto: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_anki_hay_tarjetas_en_nota(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
  * [`donde_esta`] para Swift, que ya sabe si contesto (su sonda) y tiene
  * la lista de Bonjour a mano: `vistos` solo se mira si no contesto.
  */
@@ -41677,6 +42153,19 @@ public func paginasDeCarpeta(texto: String) -> [String]  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_paginas_de_carpeta(
         FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * **La captura del minuto que suena** entre las de una clase (`tiempos`,
+ * en orden): su posicion, o `None` sin capturas.
+ */
+public func capturaDeLaClaseEn(tiempos: [Int64], posicionMs: Int64) -> UInt32?  {
+    return try!  FfiConverterOptionUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_captura_de_la_clase_en(
+        FfiConverterSequenceInt64.lower(tiempos),
+        FfiConverterInt64.lower(posicionMs),uniffiCallStatus
     )
 })
 }
@@ -43004,6 +43493,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_nivel_para_entrar() != 52655) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_anki_hay_tarjetas_en_nota() != 7573) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_donde_esta_aparato() != 12835) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -43125,6 +43617,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_paginas_de_carpeta() != 44772) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_captura_de_la_clase_en() != 25017) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_etiqueta_de_invitacion() != 50993) {
@@ -43484,6 +43979,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_ajustes_pdf() != 19958) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_enviar_a_anki() != 27747) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_pantalla_anotada_al_chat() != 36137) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -43508,7 +44006,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sondear_direccion() != 15525) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_asistente() != 27124) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_asistente() != 26250) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_al_enviar() != 1421) {
@@ -43662,6 +44160,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ultimos_mensajes() != 11441) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_capturas_de_la_clase() != 28461) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_clase() != 23146) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_compartido() != 45518) {
