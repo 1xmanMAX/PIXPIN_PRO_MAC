@@ -89,6 +89,12 @@ pub mod lecciones;
 pub mod lienzo;
 pub mod lienzo_suelto;
 pub mod marcas_lienzo;
+/// La mezcla y el tratamiento del sonido del motor de audio de Windows
+/// (38204cb): microfono y sonido del Mac por bloques.
+pub mod mezcla_audio;
+/// El motor de video de la clase sin nada del Mac (Windows bea497b):
+/// perfiles, cadena de caidas, ritmo variable y reloj.
+pub mod motor_video;
 // El horario de clases que llama (Windows, 17-oct).
 // Google Calendar, solo para ver (Windows, 18-oct).
 pub mod carpetas;
@@ -165,7 +171,9 @@ pub use timeline::{DiaTimeline, MomentoTimeline, PaginaDias, PaginaMomentos};
 pub use turnos::{CambioDeTurno, TurnoVoz};
 pub use voz::{GrabacionVoz, SegmentoVoz};
 pub use anki::EnvioAnki;
-pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada, VideoDeLaClase};
+pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
+pub use mezcla_audio::{BloqueMezclado, FuenteDeMezcla, MezclaDeAudio, PapelDeAudio};
+pub use motor_video::{CaminoDelVideo, CodificadorVideo, PerfilVideo, RitmoDelVideo};
 
 /// Lo que puede salir mal, tal como lo ve Swift (un `enum` que `throws`).
 ///
