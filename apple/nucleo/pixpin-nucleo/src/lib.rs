@@ -65,6 +65,7 @@ pub mod chats;
 pub mod clase;
 pub mod compartir;
 pub mod compartidos;
+pub mod conversacion;
 pub mod copias;
 pub mod diapositivas;
 pub mod documentos;

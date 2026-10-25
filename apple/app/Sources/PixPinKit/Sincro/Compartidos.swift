@@ -46,6 +46,8 @@ public final class ModeloCompartidos: ObservableObject {
             }.value
             chats = lista
             miNombre = nombre
+            // La chapa de la lista y los lados del chat (alguien entro o salio).
+            ChapasDeCompartidos.compartidas.releer(nucleo)
         } catch {
             self.error = textoDeError(error)
         }
@@ -223,6 +225,8 @@ public struct VistaCompartidos: View {
     @State private var codigo = ""
     @State private var aCompartir: String?
     @State private var quitando: (chat: String, persona: PersonaCompartida)?
+    /// Un chat recien nacido compartido: se invita a el en cuanto se abre.
+    @ObservedObject private var peticionInvitar = PeticionDeInvitar.compartida
 
     public init(almacen: Almacen, sincro: Sincronizador?) {
         _almacen = ObservedObject(wrappedValue: almacen)
@@ -336,6 +340,11 @@ public struct VistaCompartidos: View {
             nombre = modelo.miNombre
         }
         .onDisappear { modelo.cerrarInvitacion() }
+        .onReceive(peticionInvitar.$ficha) { ficha in
+            guard let ficha else { return }
+            peticionInvitar.ficha = nil
+            Task { await modelo.invitar(ficha: ficha) }
+        }
         .confirmationDialog(textoDeQuitar, isPresented: Binding(
             get: { quitando != nil }, set: { if !$0 { quitando = nil } })) {
             Button(quitando?.persona.soyYo == true ? "Salir" : "Quitar", role: .destructive) {
