@@ -51,10 +51,11 @@ fn una_foto_pegada_viaja_con_la_nota_y_se_ve_en_su_sitio() {
 
     // Pegar con texto escrito: el fichero en `notas/` y su renglon corto.
     let renglon = n
-        .foto_a_la_nota(chat.clone(), "pegado-1761400000000.png".into(), png(40, 20))
+        .foto_a_la_nota(chat.clone(), "pegado-1761400000000.png".into(), png(40, 20), "![](notas/a.png)".into(), 0)
         .unwrap();
-    assert!(renglon.starts_with("![](notas/") && renglon.ends_with("-pegado.png)"), "{renglon}");
-    let fichero = renglon.trim_start_matches("![](notas/").trim_end_matches(')');
+    // La segunda foto de lo escrito (ya llevaba una), con su numero delante.
+    assert!(renglon.starts_with("![foto 2](notas/") && renglon.ends_with("-pegado.png)"), "{renglon}");
+    let fichero = renglon.trim_start_matches("![foto 2](notas/").trim_end_matches(')');
     let carpeta = almacen::carpeta(&PathBuf::from(n.raiz()), &chat);
     assert!(carpeta.join("notas").join(fichero).is_file());
 

@@ -369,16 +369,22 @@ extension EntradaDeFicheros {
         guard !fuentes.isEmpty else { return false }
         let nucleo = almacen.nucleo
         let pedidas = fuentes
+        // Se numeran detras de las fotos que ya lleve lo escrito (Windows).
+        let escrito = campo.string
         Task { @MainActor in
             let renglones = await Task.detached(priority: .userInitiated) { () -> [String] in
-                pedidas.compactMap { par -> String? in
+                var orden: UInt32 = 0
+                return pedidas.compactMap { par -> String? in
                     let datos: Data?
                     switch par.1 {
                     case let .fichero(url): datos = try? Data(contentsOf: url)
                     case let .datos(d): datos = d
                     }
-                    guard let datos else { return nil }
-                    return try? nucleo.fotoALaNota(chat: chat, nombre: par.0, datos: datos)
+                    guard let datos,
+                          let r = try? nucleo.fotoALaNota(chat: chat, nombre: par.0, datos: datos,
+                                                          escrito: escrito, orden: orden) else { return nil }
+                    orden += 1
+                    return r
                 }
             }.value
             guard !renglones.isEmpty else {

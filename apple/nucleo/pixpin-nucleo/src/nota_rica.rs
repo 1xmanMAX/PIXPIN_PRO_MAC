@@ -15,7 +15,7 @@
 //! una vez por fecha del fichero, como en Windows (`RUTAS`, `MEDIDAS`).
 //!
 //! Tambien lo de escribirla: una foto pegada con texto ya escrito va a
-//! `notas/` del proyecto y su renglon `![](notas/…)` a lo escrito; al
+//! `notas/` del proyecto y su renglon `![foto N](notas/…)` a lo escrito; al
 //! enviar, esas rutas pasan a la portatil ([`Nucleo::escribir_nota`]).
 
 use std::collections::HashMap;
@@ -337,13 +337,17 @@ impl Nucleo {
     /// **Una foto pegada con texto ya escrito va dentro de lo escrito**
     /// (`fotos_al_borrador` de Windows): se guarda en `notas/<ms>-<nombre>`
     /// del proyecto (donde guarda las suyas el editor de notas) y devuelve
-    /// su renglon `![](notas/…)`, que Swift mete donde esta la rayita. Al
-    /// enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil.
+    /// su renglon `![foto N](notas/…)`, que Swift mete donde esta la rayita. Al
+    /// enviar, [`Nucleo::escribir_nota`] lo pasa a la ruta portatil. Las
+    /// fotos se numeran detras de las que ya lleve `escrito` (`![foto 2](…)`,
+    /// como Windows); `orden` es su puesto entre las que se pegan juntas.
     pub fn foto_a_la_nota(
         &self,
         chat: String,
         nombre: String,
         datos: Vec<u8>,
+        escrito: String,
+        orden: u32,
     ) -> Result<String, ErrorNucleo> {
         validar_chat(&chat)?;
         let carpeta = almacen::carpeta(self.ruta(), &chat).join("notas");
@@ -362,7 +366,8 @@ impl Nucleo {
             crate::notas::adjuntos::nombre_limpio(&nombre)
         );
         pixpin_sincro::disco::escribir_atomico(&carpeta.join(&fichero), &datos)?;
-        Ok(nr::renglon_de_foto(&fichero))
+        let ya = nr::imagenes(&nr::bloques(&escrito)).count();
+        Ok(nr::renglon_de_foto(&fichero, ya + orden as usize + 1))
     }
 }
 
