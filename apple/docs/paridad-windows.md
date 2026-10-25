@@ -486,6 +486,20 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | por-traducir/pixpin-notas | `lib.rs`; falta `formulas.rs` | se movió a pixpin-docs |
 | por-traducir/pixpin-render | `superficie.rs` | sin importancia (solo referencia) |
 
+### 3.3 Cambios menores de Windows 43c61a1..8dc471f (fuera del asistente, figuras, carpetas, grabar, Anki y lienzo)
+
+Revisados el 25-oct. Los visores (`lector_pin`, `lector_pdf*`, `visor_hoja*`, `visor_html*`, riel), `plano_cad*`, `compartir/exportable`, `tareas/ventana`, `horario*`, `diapositivas`, `timeline/ventana/historia`, `lecciones/ficha`, `marco_imprimir`, `marcos_doc`, `sincronizar/compartidos_ui`, `pedidos`, `ventana_ajustes`, `hoja_pin*`, `notas_md/lector_web` y `crates/pixpin-hojas` solo cambian por `cargo fmt` (abd763e) y clippy (99f6bb4, d30e8e2, 3255a38): nada que portar. `lector-md.html` es igual al de Windows.
+
+| Commit | Qué | En el Mac |
+|---|---|---|
+| 98b2a49, db56655 | Hoja: dos fracciones lado a lado no son una tabla sin rayas; la raya fundida con los iguales también es fracción | ya estaba (`nucleo/pixpin-ia`, ad598dd) |
+| 5296d45 | Traza `PIXPIN_DIAGRAMA_DEPURAR` de las tablas sin rayas | ya estaba (`nucleo/pixpin-ia`); lo del corrector, no aplica (RichEdit) |
+| d447f28, 661b06b | Corrector de RichEdit y prueba de tablas de `pixpin-notas` | no aplica (solo Windows) |
+| ed02110, ca887f9, a45a1d1 | Pruebas y CI (asignaciones por hilo, voz SAPI calentada, capas) | no aplica |
+| a6593ce | «Figuras…» en la bandeja, detrás de Sincronizar | falta: la bandeja del Mac aún no tiene «Figuras…»; va con la ventana de figuras |
+| 1fb6514, ead5ca3 | El panel de propiedades del pin con las medidas del panel compacto (168 × 60) | no aplica: el pin del Mac no tiene panel de propiedades al lado (sigue al panel del lienzo) |
+| ba59dd6 (`lector_pin`) | `quitar_barra`: el lienzo sin barra mientras se edita | va con «el lienzo abre mirando» (lienzo) |
+
 ---
 
 ## 4. Plan de trabajo por tandas
