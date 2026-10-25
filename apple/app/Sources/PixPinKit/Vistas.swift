@@ -410,12 +410,20 @@ public struct VistaChat: View {
         guard vigiaPegar == nil else { return }
         let chat = self.chat
         let almacen = self.almacen
+        let menu = self.menu
         vigiaPegar = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { evento in
             let teclas = evento.modifierFlags.intersection(.deviceIndependentFlagsMask)
             guard teclas == .command, evento.charactersIgnoringModifiers == "v",
                   evento.window != nil, !(evento.window is NSPanel) else { return evento }
-            let tomado = MainActor.assumeIsolated {
-                EntradaDeFicheros.pegar(en: chat, almacen: almacen)
+            let tomado = MainActor.assumeIsolated { () -> Bool in
+                // Con texto escrito en la caja, una foto va dentro de lo
+                // escrito: sale una sola nota (`Chat/NotaRica.swift`).
+                if let campo = evento.window?.firstResponder as? TextoDeLaIsla,
+                   EntradaDeFicheros.pegarEnLaNota(en: chat, almacen: almacen, campo: campo,
+                                                   avisar: { menu.avisar($0) }) {
+                    return true
+                }
+                return EntradaDeFicheros.pegar(en: chat, almacen: almacen)
             }
             return tomado ? nil : evento
         }
@@ -589,8 +597,15 @@ struct Burbuja: View {
             case "NOTA" where BurbujaHojaNota.esHoja(mensaje):
                 BurbujaHojaNota(mensaje: mensaje, chat: chat, almacen: almacen)
             case "NOTA":
-                Text(textoResaltado(mensaje.texto, aguja: aguja)).textSelection(.enabled)
-                    .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))
+                // Con formato o fotos, entera como un Markdown pequeno
+                // (`Chat/NotaRica.swift`); una llana, su texto de siempre.
+                if let rica = NotasRicas.compartidas.pura(mensaje.texto) {
+                    BurbujaNotaRica(mensaje: mensaje, chat: chat, almacen: almacen, pura: rica)
+                        .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))
+                } else {
+                    Text(textoResaltado(mensaje.texto, aguja: aguja)).textSelection(.enabled)
+                        .modifier(AccionesDeNota(mensaje: mensaje, chat: chat, almacen: almacen))
+                }
             // «TABLA» siempre es tabla; una «MINIAPP» solo si lo que trae lo es.
             case "TABLA":
                 BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)

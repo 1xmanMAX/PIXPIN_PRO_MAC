@@ -17,7 +17,7 @@
 //! El editor que se abre ahora es el de Windows (`web`): su misma pagina en
 //! un `WKWebView`. Lo de arriba queda para el editor de antes (AppKit).
 
-mod adjuntos;
+pub(crate) mod adjuntos;
 mod comentarios;
 pub mod vista;
 pub mod web;

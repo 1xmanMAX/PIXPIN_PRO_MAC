@@ -472,6 +472,10 @@ impl Nucleo {
         texto: String,
         responde_a: Option<String>,
     ) -> Result<MensajeChat, ErrorNucleo> {
+        // Las fotos pegadas en lo escrito (`notas/…`, `Nucleo::foto_a_la_nota`)
+        // salen con su ruta portatil, como en Windows (`guardar_nota`).
+        validar_chat(&chat)?;
+        let texto = self.nota_para_guardar(&chat, &texto);
         self.escribir_nota_con(chat, texto, responde_a, |_| {})
             .map(MensajeChat::from)
     }

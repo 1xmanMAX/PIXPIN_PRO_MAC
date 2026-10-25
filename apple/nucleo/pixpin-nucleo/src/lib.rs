@@ -100,6 +100,9 @@ pub mod mini_tiempos;
 pub mod miniapps;
 pub mod modelos3d;
 pub mod notas;
+/// La nota rica del chat: su Markdown con formato y sus fotos en album
+/// dentro de la burbuja (Windows 974d5ba).
+pub mod nota_rica;
 pub mod office;
 pub mod planos;
 pub mod recepcion;
