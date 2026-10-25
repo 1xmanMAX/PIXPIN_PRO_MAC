@@ -61,6 +61,18 @@ public final class ModeloEditorLienzo: ObservableObject {
     public private(set) var conRiel = false
     /// La herramienta de antes de coger el marco con el boton del riel.
     private var antesDelMarco: String?
+    /// **Los marcadores del lienzo con su vista** (`MarcasLienzo.swift`):
+    /// solo el lienzo de su ventana, que lleva el riel.
+    public internal(set) var marcas: MarcasDelLienzo?
+    /// Las marcas en el orden del riel (⌘1…9).
+    @Published public internal(set) var listaMarcas: [MarcaDelLienzo] = []
+    /// Poniendo una marca: la tira abierta o el emoticono elegido.
+    @Published public var poniendoMarca: PonerMarcaLienzo = .no {
+        didSet { if let v = vista { v.window?.invalidateCursorRects(for: v) } }
+    }
+    /// La pastilla de «vista guardada», con el emoticono de la marca.
+    @Published public internal(set) var vistaGuardada: String?
+    var turnoVistaGuardada: UUID?
     /// El papel es oscuro: la barra va con el tema oscuro de Excalidraw,
     /// como en Windows (`tema_barra`).
     public let papelOscuro: Bool
@@ -118,6 +130,7 @@ public final class ModeloEditorLienzo: ObservableObject {
     public func abrirMirando() {
         conRiel = true
         soloMirar = true
+        cargarMarcas()
     }
 
     /// **De mirar a editar** (`mirar = false`) **o al reves**
@@ -372,6 +385,14 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     private var rayaDeCalibrar: (desde: CGPoint, hasta: CGPoint)?
     /// Se esta soltando una imagen encima.
     private var soltandoImagen = false
+    /// La marca que se arrastra con la herramienta de elegir y donde va,
+    /// en la vista (`MarcasLienzo.swift`).
+    var arrastreMarca: (id: Int64, punto: CGPoint)?
+    /// El viaje de la camara hasta una marca: su reloj y su ultimo paso.
+    var relojVuelo: Timer?
+    var ultimoPasoVuelo: CFTimeInterval = 0
+    /// El vigia de ⌘M y ⌘1…9 (antes que el menu).
+    var vigiaTeclasMarcas: Any?
 
     public init(modelo: ModeloEditorLienzo) {
         self.modelo = modelo
@@ -426,6 +447,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
         super.viewDidMoveToWindow()
         // Con la camara quieta la hospeda otra vista, que decide el foco.
         if !camaraFija { window?.makeFirstResponder(self) }
+        vigilarTeclasDeMarcas()
     }
 
     override public func setFrameSize(_ newSize: NSSize) {
@@ -520,6 +542,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             ctx.strokePath()
         }
         ctx.restoreGState()
+        // Las marcas, encima de todo lo dibujado y del mismo tamano a
+        // cualquier aumento.
+        pintarMarcas(en: ctx)
         if soltandoImagen {
             ctx.setStrokeColor(NSColor.controlAccentColor.cgColor)
             ctx.setLineWidth(3)
@@ -649,6 +674,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     override public func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        // Un clic en una marca, o plantar la elegida, no es un trazo (y
+        // tambien mirando: las marcas son de quien lee).
+        if marcaPulsada(event) { return }
         // Mirando, arrastrar mueve el dibujo (la mano del «view mode» de
         // Excalidraw): nada va al editor.
         if modelo.soloMirar { return }
@@ -670,6 +698,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     }
 
     override public func mouseDragged(with event: NSEvent) {
+        if arrastrarMarca(event) { return }
         if modelo.soloMirar { return desplazar(dx: event.deltaX, dy: event.deltaY) }
         mandar(.mover, event)
         reloj.mover(a: convert(event.locationInWindow, from: nil))
@@ -680,6 +709,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     }
 
     override public func mouseUp(with event: NSEvent) {
+        if soltarMarca(event) { return }
         if modelo.soloMirar { return }
         reloj.soltar()
         mandar(.soltar, event)
@@ -689,6 +719,12 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             needsDisplay = true
         }
         atenderPeticion()
+    }
+
+    /// Clic derecho encima de una marca: se quita (el toque largo del movil).
+    override public func rightMouseDown(with event: NSEvent) {
+        if quitarMarcaBajo(event) { return }
+        super.rightMouseDown(with: event)
     }
 
     override public func pressureChange(with event: NSEvent) {
@@ -728,6 +764,8 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     override public func scrollWheel(with event: NSEvent) {
         if let fuera = camaraDeFuera { return fuera.scrollWheel(with: event) }
+        // La mano vuelve a mandar: el viaje a la marca se para.
+        pararVuelo()
         let foco = convert(event.locationInWindow, from: nil)
         if event.modifierFlags.contains(.command) || event.modifierFlags.contains(.control) {
             // Cmd o Ctrl + rueda: acercar, como en Windows.
@@ -744,6 +782,7 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
 
     override public func magnify(with event: NSEvent) {
         if let fuera = camaraDeFuera { return fuera.magnify(with: event) }
+        pararVuelo()
         acercar(1 + event.magnification, en: convert(event.locationInWindow, from: nil))
     }
 
@@ -768,6 +807,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
             interpretKeyEvents([event])
             return
         }
+        // Las marcas: la tira y sus cifras, ⎋ al ponerla, ⌘M y ⌘1…9 si el
+        // vigia no las cogio antes.
+        if teclaDeMarcas(event) { return }
         if let teclaPrevia, teclaPrevia(event) { return }
         // ⌥R (el Alt+R de Windows): de mirar a editar y vuelta. La R por su
         // tecla (15): con ⌥ el caracter ya no es una erre.
@@ -1005,7 +1047,9 @@ public final class VistaEditorLienzoNS: NSView, NSTextInputClient {
     // MARK: Cursor
 
     override public func resetCursorRects() {
-        let cursor: NSCursor = modelo.soloMirar ? .openHand : (modelo.herramienta == "seleccion" ? .arrow : .crosshair)
+        var cursor: NSCursor = modelo.soloMirar ? .openHand : (modelo.herramienta == "seleccion" ? .arrow : .crosshair)
+        // Plantando una marca: la cruz, tambien mirando.
+        if case .plantando = modelo.poniendoMarca { cursor = .crosshair }
         addCursorRect(bounds, cursor: cursor)
     }
 }
@@ -1088,10 +1132,14 @@ public struct EditorLienzoView: View {
                 }
                 if modelo.conRiel {
                     // El riel, a la vista tambien mirando: su lapiz edita.
-                    RielLienzo(modelo: modelo)
-                        .padding(.top, max(abajoBarra + 8, BarraFlotante.alto + 2 * BarraFlotante.separacion + 8))
+                    let arribaRiel = max(abajoBarra + 8, BarraFlotante.alto + 2 * BarraFlotante.separacion + 8)
+                    RielLienzo(modelo: modelo, altoPuntos: RielLienzo.altoDePuntos(alto: geo.size.height, arriba: arribaRiel))
+                        .padding(.top, arribaRiel)
                         .padding(.trailing, MedidasBarraLienzo.distanciaBorde)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    // La tira de emoticonos (o lo que falta) bajo la barra.
+                    TiraMarcasLienzo(modelo: modelo)
+                        .padding(.top, max(abajoBarra, MedidasMarcasLienzo.bajoLaBarra) + 8)
                 }
                 cuerpo
             }
@@ -1148,15 +1196,37 @@ struct BotonPlegarPanel: View {
     }
 }
 
-/// **El riel del lienzo** (`marcas::pintar_riel` de Windows, sin los
-/// marcadores, que el lienzo del Mac aun no tiene): el lapiz, pulsado
-/// editando (el mismo de los visores), y el marco, pulsado con la
-/// herramienta Marco puesta.
+/// **El riel del lienzo** (`marcas::pintar_riel` de Windows): el
+/// marcador, pulsado mientras se pone uno; el lapiz, pulsado editando (el
+/// mismo de los visores); el marco, pulsado con la herramienta Marco
+/// puesta; y debajo los puntos de las marcas (`MarcasLienzo.swift`).
 struct RielLienzo: View {
     @ObservedObject var modelo: ModeloEditorLienzo
+    /// Lo que queda a lo alto para los puntos.
+    var altoPuntos: CGFloat = 400
+
+    /// Lo que ocupa la isla a lo alto: tres botones de 28, dos huecos de 2
+    /// y el margen de 3 arriba y abajo (ya sumado, como `IslaRiel.alto`).
+    static let altoIsla: CGFloat = 94
+
+    /// Lo que queda para los puntos en una ventana de `alto`, con el riel a
+    /// `arriba` del borde: debajo de la isla y sin pasar del borde de abajo.
+    static func altoDePuntos(alto: CGFloat, arriba: CGFloat) -> CGFloat {
+        let debajo: CGFloat = altoIsla + 12 + MedidasBarraLienzo.distanciaBorde
+        return alto - arriba - debajo
+    }
 
     var body: some View {
+        VStack(alignment: .trailing, spacing: 12) {
+            isla
+            PuntosMarcasLienzo(modelo: modelo, alto: max(altoPuntos, 0))
+        }
+    }
+
+    private var isla: some View {
         VStack(spacing: 2) {
+            BotonDelRiel(simbolo: "bookmark", ayuda: "Marcador (⌘M)",
+                      encendido: modelo.poniendoMarca != .no) { modelo.alternarPonerMarca() }
             BotonDelRiel(simbolo: "pencil",
                       ayuda: modelo.soloMirar ? "Editar (⌥R)" : "Volver a mirar (⌥R o Esc)",
                       encendido: !modelo.soloMirar) { modelo.alternarMirar() }
@@ -1327,6 +1397,9 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
               let clave = ventana.identifier?.rawValue,
               let abierta = abiertas[clave] else { return }
         abierta.modelo.editor.alFrente()
+        // Las marcas y sus vistas que llegaron de otro aparato (una vista
+        // cambiada en el PC con Mayus+clic).
+        abierta.modelo.releerMarcas()
     }
 
     /// **El asistente toco un lienzo abierto** (desde su hilo, con el

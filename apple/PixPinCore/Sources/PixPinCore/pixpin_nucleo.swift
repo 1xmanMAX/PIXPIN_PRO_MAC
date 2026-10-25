@@ -5667,6 +5667,413 @@ public func FfiConverterTypeManosAutomatizacion_lower(_ value: ManosAutomatizaci
 
 
 /**
+ * **Las marcas de un lienzo abierto**, con sus vistas y el viaje de la
+ * camara (el `Marcador` de Windows). Una por ventana.
+ */
+public protocol MarcasDelLienzoProtocol: AnyObject, Sendable {
+    
+    /**
+     * **Un paso del viaje** de `dt` segundos desde `camara`: la camara
+     * nueva, o `None` si no hay viaje (o se acaba de parar porque alguien
+     * cambio el aumento a mitad, como la rueda en Windows). El ultimo paso
+     * deja la camara exactamente en el destino.
+     */
+    func avanzar(camara: CamaraDelLienzo, dt: Float)  -> CamaraDelLienzo?
+    
+    /**
+     * Adonde lleva ir a la marca `id` en un hueco de `ancho_px` ×
+     * `alto_px`: a su vista si la tiene y, si no, a dejarla arriba y
+     * centrada a `bajo_la_barra` + [`AIRE_BAJO_LA_BARRA`] del borde, con el
+     * aumento de ahora.
+     */
+    func destino(id: Int64, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float, bajoLaBarra: Float)  -> CamaraDelLienzo?
+    
+    /**
+     * Los emoticonos de la tira, en su orden (1-9 y 0 eligen los diez
+     * primeros).
+     */
+    func emojis()  -> [String]
+    
+    /**
+     * **La vista de la marca `id` pasa a ser la de ahora** (Mayus+clic, o
+     * ⌘⇧1…9). `false` si no esta o el hueco no mide nada.
+     */
+    func fijarVista(id: Int64, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float)  -> Bool
+    
+    /**
+     * **Echa a volar la camara** hacia la marca `id` (ver
+     * [`MarcasDelLienzo::destino`]). Antes relee las vistas: la que se haya
+     * cambiado en otro aparato manda. `false` si la marca no esta.
+     */
+    func irA(id: Int64, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float, bajoLaBarra: Float)  -> Bool
+    
+    /**
+     * Las marcas en el orden del riel (de arriba abajo y de izquierda a
+     * derecha): ⌘1…9 van a las nueve primeras.
+     */
+    func lista()  -> [MarcaDelLienzo]
+    
+    /**
+     * La marca bajo el punto `(px, py)` de la vista (en puntos), con su
+     * redondel de `radio`: la ultima de la lista si se tapan.
+     */
+    func marcaEn(camara: CamaraDelLienzo, px: Float, py: Float, radio: Float)  -> Int64?
+    
+    /**
+     * La marca `id`, movida a `(x, y)` del mundo (con la mano). Su vista
+     * no cambia.
+     */
+    func mover(id: Int64, x: Double, y: Double) 
+    
+    /**
+     * Para el viaje (un clic, la rueda: la mano vuelve a mandar).
+     */
+    func parar() 
+    
+    /**
+     * **Planta una marca** en `(x, y)` del mundo con `emoji` y le guarda lo
+     * que se ve ahora (la `camara` en un hueco de `ancho_px` × `alto_px`
+     * puntos): es adonde se volvera. Devuelve su id.
+     */
+    func poner(x: Double, y: Double, emoji: String, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float)  -> Int64
+    
+    /**
+     * Sin la marca `id`; su vista se va con ella. `true` si estaba.
+     */
+    func quitar(id: Int64)  -> Bool
+    
+    /**
+     * **Vuelve a leer** las marcas y sus vistas (lo que llego de otro
+     * aparato). `true` si algo cambio.
+     */
+    func releer()  -> Bool
+    
+    /**
+     * Si la camara esta de viaje.
+     */
+    func volando()  -> Bool
+    
+}
+/**
+ * **Las marcas de un lienzo abierto**, con sus vistas y el viaje de la
+ * camara (el `Marcador` de Windows). Una por ventana.
+ */
+open class MarcasDelLienzo: MarcasDelLienzoProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_marcasdellienzo(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_marcasdellienzo(handle, $0) }
+    }
+
+    
+    /**
+     * Las marcas (y sus vistas) del dibujo `ruta` (`EditorLienzo::ruta`).
+     */
+public static func juntoAlDibujo(ruta: String) -> MarcasDelLienzo  {
+    return try!  FfiConverterTypeMarcasDelLienzo_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_constructor_marcasdellienzo_junto_al_dibujo(
+        FfiConverterString.lower(ruta),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+    /**
+     * **Un paso del viaje** de `dt` segundos desde `camara`: la camara
+     * nueva, o `None` si no hay viaje (o se acaba de parar porque alguien
+     * cambio el aumento a mitad, como la rueda en Windows). El ultimo paso
+     * deja la camara exactamente en el destino.
+     */
+open func avanzar(camara: CamaraDelLienzo, dt: Float) -> CamaraDelLienzo?  {
+    return try!  FfiConverterOptionTypeCamaraDelLienzo.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_avanzar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCamaraDelLienzo_lower(camara),
+        FfiConverterFloat.lower(dt),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Adonde lleva ir a la marca `id` en un hueco de `ancho_px` ×
+     * `alto_px`: a su vista si la tiene y, si no, a dejarla arriba y
+     * centrada a `bajo_la_barra` + [`AIRE_BAJO_LA_BARRA`] del borde, con el
+     * aumento de ahora.
+     */
+open func destino(id: Int64, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float, bajoLaBarra: Float) -> CamaraDelLienzo?  {
+    return try!  FfiConverterOptionTypeCamaraDelLienzo.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_destino(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterTypeCamaraDelLienzo_lower(camara),
+        FfiConverterFloat.lower(anchoPx),
+        FfiConverterFloat.lower(altoPx),
+        FfiConverterFloat.lower(bajoLaBarra),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Los emoticonos de la tira, en su orden (1-9 y 0 eligen los diez
+     * primeros).
+     */
+open func emojis() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_emojis(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La vista de la marca `id` pasa a ser la de ahora** (Mayus+clic, o
+     * ⌘⇧1…9). `false` si no esta o el hueco no mide nada.
+     */
+open func fijarVista(id: Int64, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_fijar_vista(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterTypeCamaraDelLienzo_lower(camara),
+        FfiConverterFloat.lower(anchoPx),
+        FfiConverterFloat.lower(altoPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Echa a volar la camara** hacia la marca `id` (ver
+     * [`MarcasDelLienzo::destino`]). Antes relee las vistas: la que se haya
+     * cambiado en otro aparato manda. `false` si la marca no esta.
+     */
+open func irA(id: Int64, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float, bajoLaBarra: Float) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_ir_a(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterTypeCamaraDelLienzo_lower(camara),
+        FfiConverterFloat.lower(anchoPx),
+        FfiConverterFloat.lower(altoPx),
+        FfiConverterFloat.lower(bajoLaBarra),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Las marcas en el orden del riel (de arriba abajo y de izquierda a
+     * derecha): ⌘1…9 van a las nueve primeras.
+     */
+open func lista() -> [MarcaDelLienzo]  {
+    return try!  FfiConverterSequenceTypeMarcaDelLienzo.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_lista(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La marca bajo el punto `(px, py)` de la vista (en puntos), con su
+     * redondel de `radio`: la ultima de la lista si se tapan.
+     */
+open func marcaEn(camara: CamaraDelLienzo, px: Float, py: Float, radio: Float) -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_marca_en(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeCamaraDelLienzo_lower(camara),
+        FfiConverterFloat.lower(px),
+        FfiConverterFloat.lower(py),
+        FfiConverterFloat.lower(radio),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La marca `id`, movida a `(x, y)` del mundo (con la mano). Su vista
+     * no cambia.
+     */
+open func mover(id: Int64, x: Double, y: Double)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_mover(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),
+        FfiConverterDouble.lower(x),
+        FfiConverterDouble.lower(y),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Para el viaje (un clic, la rueda: la mano vuelve a mandar).
+     */
+open func parar()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_parar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Planta una marca** en `(x, y)` del mundo con `emoji` y le guarda lo
+     * que se ve ahora (la `camara` en un hueco de `ancho_px` × `alto_px`
+     * puntos): es adonde se volvera. Devuelve su id.
+     */
+open func poner(x: Double, y: Double, emoji: String, camara: CamaraDelLienzo, anchoPx: Float, altoPx: Float) -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_poner(
+            self.uniffiCloneHandle(),
+        FfiConverterDouble.lower(x),
+        FfiConverterDouble.lower(y),
+        FfiConverterString.lower(emoji),
+        FfiConverterTypeCamaraDelLienzo_lower(camara),
+        FfiConverterFloat.lower(anchoPx),
+        FfiConverterFloat.lower(altoPx),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Sin la marca `id`; su vista se va con ella. `true` si estaba.
+     */
+open func quitar(id: Int64) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_quitar(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Vuelve a leer** las marcas y sus vistas (lo que llego de otro
+     * aparato). `true` si algo cambio.
+     */
+open func releer() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_releer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si la camara esta de viaje.
+     */
+open func volando() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdellienzo_volando(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMarcasDelLienzo: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = MarcasDelLienzo
+
+    public static func lift(_ handle: UInt64) throws -> MarcasDelLienzo {
+        return MarcasDelLienzo(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: MarcasDelLienzo) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarcasDelLienzo {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: MarcasDelLienzo, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcasDelLienzo_lift(_ handle: UInt64) throws -> MarcasDelLienzo {
+    return try FfiConverterTypeMarcasDelLienzo.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcasDelLienzo_lower(_ value: MarcasDelLienzo) -> UInt64 {
+    return FfiConverterTypeMarcasDelLienzo.lower(value)
+}
+
+
+
+
+
+
+/**
  * **Un modelo 3D abierto**, listo para Metal.
  */
 public protocol Modelo3dAppleProtocol: AnyObject, Sendable {
@@ -16354,6 +16761,68 @@ public func FfiConverterTypeCamara3d_lower(_ value: Camara3d) -> RustBuffer {
 
 
 /**
+ * La camara de la vista de Swift: el punto del mundo en la esquina de
+ * arriba a la izquierda y los puntos de pantalla por unidad.
+ */
+public struct CamaraDelLienzo: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var zoom: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, zoom: Float) {
+        self.x = x
+        self.y = y
+        self.zoom = zoom
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CamaraDelLienzo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCamaraDelLienzo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CamaraDelLienzo {
+        return
+            try CamaraDelLienzo(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                zoom: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CamaraDelLienzo, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.zoom, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCamaraDelLienzo_lift(_ buf: RustBuffer) throws -> CamaraDelLienzo {
+    return try FfiConverterTypeCamaraDelLienzo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCamaraDelLienzo_lower(_ value: CamaraDelLienzo) -> RustBuffer {
+    return FfiConverterTypeCamaraDelLienzo.lower(value)
+}
+
+
+/**
  * Una tecla de la conversacion: desde que milisegundo de la grabacion habla
  * `quien` (vacio: nadie).
  */
@@ -24167,6 +24636,93 @@ public func FfiConverterTypeMaquetaReflujo_lift(_ buf: RustBuffer) throws -> Maq
 #endif
 public func FfiConverterTypeMaquetaReflujo_lower(_ value: MaquetaReflujo) -> RustBuffer {
     return FfiConverterTypeMaquetaReflujo.lower(value)
+}
+
+
+/**
+ * Una marca del lienzo como la ve Swift.
+ */
+public struct MarcaDelLienzo: Equatable, Hashable {
+    /**
+     * Cuando se puso, en milisegundos: es su identidad.
+     */
+    public var id: Int64
+    /**
+     * Su sitio, en coordenadas del mundo del lienzo.
+     */
+    public var x: Double
+    public var y: Double
+    public var emoji: String
+    /**
+     * Si guarda la vista que se veia al ponerla.
+     */
+    public var conVista: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Cuando se puso, en milisegundos: es su identidad.
+         */id: Int64, 
+        /**
+         * Su sitio, en coordenadas del mundo del lienzo.
+         */x: Double, y: Double, emoji: String, 
+        /**
+         * Si guarda la vista que se veia al ponerla.
+         */conVista: Bool) {
+        self.id = id
+        self.x = x
+        self.y = y
+        self.emoji = emoji
+        self.conVista = conVista
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MarcaDelLienzo: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMarcaDelLienzo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarcaDelLienzo {
+        return
+            try MarcaDelLienzo(
+                id: FfiConverterInt64.read(from: &buf), 
+                x: FfiConverterDouble.read(from: &buf), 
+                y: FfiConverterDouble.read(from: &buf), 
+                emoji: FfiConverterString.read(from: &buf), 
+                conVista: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MarcaDelLienzo, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.id, into: &buf)
+        FfiConverterDouble.write(value.x, into: &buf)
+        FfiConverterDouble.write(value.y, into: &buf)
+        FfiConverterString.write(value.emoji, into: &buf)
+        FfiConverterBool.write(value.conVista, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcaDelLienzo_lift(_ buf: RustBuffer) throws -> MarcaDelLienzo {
+    return try FfiConverterTypeMarcaDelLienzo.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcaDelLienzo_lower(_ value: MarcaDelLienzo) -> RustBuffer {
+    return FfiConverterTypeMarcaDelLienzo.lower(value)
 }
 
 
@@ -37892,6 +38448,30 @@ fileprivate struct FfiConverterOptionTypeCamara3d: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeCamaraDelLienzo: FfiConverterRustBuffer {
+    typealias SwiftType = CamaraDelLienzo?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCamaraDelLienzo.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCamaraDelLienzo.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeCarpetaDePaginas: FfiConverterRustBuffer {
     typealias SwiftType = CarpetaDePaginas?
 
@@ -40810,6 +41390,31 @@ fileprivate struct FfiConverterSequenceTypeListaTareas: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeListaTareas.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeMarcaDelLienzo: FfiConverterRustBuffer {
+    typealias SwiftType = [MarcaDelLienzo]
+
+    public static func write(_ value: [MarcaDelLienzo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeMarcaDelLienzo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [MarcaDelLienzo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [MarcaDelLienzo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeMarcaDelLienzo.read(from: &buf))
         }
         return seq
     }
@@ -45521,6 +46126,45 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_llaveroapp_borrar() != 39892) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_avanzar() != 33247) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_destino() != 28395) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_emojis() != 40945) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_fijar_vista() != 56404) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_ir_a() != 38244) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_lista() != 61261) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_marca_en() != 29346) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_mover() != 21547) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_parar() != 26256) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_poner() != 45496) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_quitar() != 37219) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_releer() != 27386) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_volando() != 10593) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_modelo3dapple_camara_de_vista() != 30250) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -45744,6 +46388,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_json() != 46678) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_constructor_marcasdellienzo_junto_al_dibujo() != 61480) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_modelo3dapple_abrir() != 7304) {

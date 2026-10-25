@@ -240,7 +240,8 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 | modo_ventana (F11) | completo (⌃⌘F, se recuerda en `estado.toml`; nunca tocado abre en ventana) |
 | Exportar, imprimir y compartir; tapado; figuras y gráficas; lupas | completo (figuras: parcial, ver `biblioteca_figuras`) |
 | Mirar y editar (abre mirando, el lápiz del riel y ⌥R editan donde se esté, Esc vuelve a mirar); el riel con el lápiz y el marco; marcos a trazos azules de grosor fijo con su número (N/editor_marcos.rs); el marco fuera de la barra y la imagen suelta | completo (E, 25-oct) |
-| Hojita; marcas (los marcadores del riel); presentar; referencia; zona al chat | falta |
+| Marcas (los marcadores del riel) con su vista (25-oct): poner con el marcador del riel o ⌘M y su cifra, ir con su punto, ⌘1…9 o un clic en la marca, ⇧clic o ⌘⇧1…9 le ponen la vista de ahora, moverla con la de elegir, quitarla con clic derecho; `pins/draw/<d>.marcas` y `<d>.vistas.json` como Windows (N/marcas_lienzo.rs, K/Lienzo/MarcasLienzo.swift) | completo (G, 25-oct) |
+| Hojita; presentar; referencia; zona al chat | falta |
 | Anotador de pantalla | completo (E3, K/Captura/AnotadorPantalla.swift) |
 | congelar, medir | interno |
 
@@ -356,10 +357,9 @@ Lo que falta en el lienzo:
 - ⇧H / ⇧V (voltear), ⌘] / ⌘[ y ⇧⌘] / ⇧⌘[ (orden).
 - ⌥S (imán) y V (plumas).
 - Espacio + arrastrar.
-- Marcas: hay que elegir otra tecla que no sea ⌘M, y ⌘1…9 para ir a ellas.
 - ⇧⌘N (hojita), F5 (presentar). (Las del anotador de pantalla, hechas en E3: §1.6.)
 
-Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 3, ⇧⌘E (exportar), ⇧⌘C (copiar como PNG), ⌘P, ⇧⌘S, ⌃⌘F (pantalla completa, que se recuerda) y ⌥R (mirar y editar; mirando, Esc cierra y editando vuelve a mirar).
+Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 3, ⇧⌘E (exportar), ⇧⌘C (copiar como PNG), ⌘P, ⇧⌘S, ⌃⌘F (pantalla completa, que se recuerda), ⌥R (mirar y editar; mirando, Esc cierra y editando vuelve a mirar) y las marcas: ⌘M (la tira; 1-9 y 0 eligen), ⌘1…9 (ir) y ⌘⇧1…9 (su vista, la de ahora), cogidas antes que el menú (⌘M no minimiza el lienzo).
 
 ### 2.6 Lectores (PDF, Word, PPTX, visor)
 
@@ -438,7 +438,7 @@ Android espera lo mismo (`Protocolo.kt`: VERSION 4). Todo lo que viaja se transp
 | Anotado `anot-<uid>`: tinta, `.hoja`, `.marcas`, `.espacios`, `.maqueta`, `.voz`, `.sitio` | sí | sí | completo | N/documentos.rs (falta la pasada `marco_de_la_tinta::tras_sincronizar`) |
 | `anot-<uid>.comentarios.json` (comentarios de notas) | sí | sí | completo | N/notas/comentarios.rs (D4) |
 | `anot-<uid>.asistente.json` | no | no | falta | Se conserva |
-| `<dibujo>.marcas` (marcadores del lienzo) | no | no | falta | Es cosa del agente del lienzo |
+| `pins/draw/<d>.marcas` y `<d>.vistas.json` (marcadores del lienzo y su vista, §3.8) | sí | sí | completo | N/marcas_lienzo.rs (prueba de ida y vuelta con un `.vistas.json` de Windows en `tests/marcas_lienzo.rs`); se releen al traer el lienzo al frente y al ir a una marca |
 | `recuerdaEn` (recordatorio en un mensaje) y la llamada secreta | sí (B2) | sí (B2) | parcial | N/chats.rs (`CambioMensaje::Recordar`; quitarla borra la clave). El aviso del sistema se pone al ponerla desde este Mac; el vigía que los vuelve a poner al arrancar y tras sincronizar es A4; la llamada secreta, E5 (hecha: `quién llama` se queda en el Mac, como en el móvil) |
 | MINIAPP tareas con `⏰ AAAA-MM-DD HH:MM` | parcial | no | parcial | N/tareas.rs |
 | PAGINA, PROYECTO | sí | no | completo | K/Chat/BurbujasQueLlegan.swift, N/burbujas.rs (B9): la página con lo dibujado encima (al abrirla estrena su dibujo en el `proyecto.json` y en el mensaje, como Windows); el proyecto como puerta. Crearlos desde la hoja «+» sigue apagado |

@@ -86,6 +86,7 @@ pub mod hojas;
 pub mod lecciones;
 pub mod lienzo;
 pub mod lienzo_suelto;
+pub mod marcas_lienzo;
 // El horario de clases que llama (Windows, 17-oct).
 // Google Calendar, solo para ver (Windows, 18-oct).
 pub mod carpetas;
@@ -127,6 +128,7 @@ pub use compartidos::{
 };
 pub use documentos::{DondeAnota, LecturaDocumento, MarcaDocumento};
 pub use editor::{EditorLienzo, FasePuntero, PeticionLienzo};
+pub use marcas_lienzo::{CamaraDelLienzo, MarcaDelLienzo, MarcasDelLienzo};
 pub use editor_estilo::{
     CambioDeEstilo, ColorEstilo, EstiloLienzo, GrosorEstilo, LineaEstilo, RellenoEstilo,
 };
