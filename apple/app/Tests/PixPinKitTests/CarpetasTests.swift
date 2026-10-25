@@ -58,7 +58,8 @@ final class CarpetasTests: XCTestCase {
         XCTAssertEqual(nombreDelPdfDeCarpeta(titulo: enOrden.nombre), "Cuaderno.pdf")
 
         // Caso negativo: una carpeta sin nada que exportar no da PDF.
-        let vacia = CarpetaDePaginas(id: carpeta.id, nombre: "Vacía", paginas: [], mensaje: carpeta)
+        let vacia = CarpetaDePaginas(id: carpeta.id, nombre: "Vacía", paginas: [], mensaje: carpeta,
+                                     grabacion: false, voz: "", video: "", duracionMs: 0, detalle: "Vacía")
         let sinNada = await PdfDeCarpeta.preparar(vacia, chat: chat, almacen: almacen)
         XCTAssertNil(PdfDeCarpeta.pdf(sinNada))
     }

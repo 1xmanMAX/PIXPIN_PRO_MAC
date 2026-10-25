@@ -214,9 +214,12 @@ public struct VistaChat: View {
         return (almacen.mensajes[chat] ?? []).first { $0.id == id }
     }
 
-    /// Lo que se ve: la conversacion cargada o, buscando, lo que casa.
+    /// Lo que se ve: la conversacion cargada o, buscando, lo que casa. Lo
+    /// de dentro de una carpeta no sale suelto (lo representa su tarjeta,
+    /// Windows e1150e8), salvo con la lupa o al ir a el desde su carpeta.
     private var filas: [MensajeChat] {
-        buscador.filtrando ? buscador.hallados.map(\.mensaje) : (almacen.mensajes[chat] ?? [])
+        if buscador.filtrando { return buscador.hallados.map(\.mensaje) }
+        return CarpetasDelChat.sinLoDeDentro(almacen.mensajes[chat] ?? [], salvo: destacado)
     }
 
     /// El resultado elegido con ↑ ↓, buscando.
@@ -685,6 +688,9 @@ struct Burbuja: View {
             case "TABLA":
                 BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)
             // Una carpeta de paginas: su tarjeta, que la abre (`Chat/Carpetas.swift`).
+            // La de una clase grabada, una sola tarjeta que la abre para estudiarla.
+            case "MINIAPP" where CarpetasDelChat.esGrabacion(mensaje):
+                BurbujaGrabacion(mensaje: mensaje, chat: chat, almacen: almacen)
             case "MINIAPP" where CarpetasDelChat.esCarpeta(mensaje):
                 BurbujaCarpeta(mensaje: mensaje, chat: chat, almacen: almacen)
             case "MINIAPP" where BurbujaTareas.esTareas(mensaje):
