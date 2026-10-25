@@ -266,13 +266,18 @@ fn el_timeline_da_los_dias_y_sus_momentos_por_paginas() {
 /// Una lista de tareas escrita en un chat como la escribe Windows.
 fn lista(n: &Nucleo, datos: &Path, chat: &str, titulo: &str, tareas: &[mini::Tarea]) -> String {
     let doc = mini::escribir_tareas(titulo, tareas);
-    let numero = n.ultimos_mensajes(chat.into(), 1).unwrap().total as i64 + 1;
+    let pagina = n.ultimos_mensajes(chat.into(), 1000).unwrap();
+    let numero = pagina.total as i64 + 1;
+    // Un id (los milisegundos) que no sea el de otro mensaje del chat: una
+    // nota escrita en el mismo milisegundo daria el mismo y la lista no
+    // seria la que se busca.
+    let ultimo = pagina.mensajes.iter().map(|m| m.cuando).max().unwrap_or(0);
     let m = Mensaje::miniapp(
         mini::TAREAS,
         titulo,
         &doc,
         &Sello {
-            cuando: ahora() + numero,
+            cuando: (ahora() + numero).max(ultimo + 1),
             numero,
             aparato: "PC01".into(),
             proyecto: chat.into(),
@@ -460,7 +465,7 @@ fn editar_borrar_deshacer_y_mover_tareas() {
         n.tareas(0)
             .unwrap()
             .into_iter()
-            .find(|l| l.mensaje == lista)
+            .find(|l| l.chat == chat && l.mensaje == lista)
             .unwrap()
             .tareas
     };
@@ -488,13 +493,13 @@ fn editar_borrar_deshacer_y_mover_tareas() {
         .mover_tarea(chat.clone(), lista.clone(), 1, leer()[1].crudo.clone(), obra.id.clone(), otra.clone())
         .unwrap());
     assert_eq!(leer().len(), 1);
-    let alli = n.tareas(0).unwrap().into_iter().find(|l| l.mensaje == otra).unwrap();
+    let alli = n.tareas(0).unwrap().into_iter().find(|l| l.chat == obra.id && l.mensaje == otra).unwrap();
     assert!(alli.tareas[0].crudo.starts_with("comprar pan"));
     // Caso negativo: mover algo que ya no esta no deja copia en el destino.
     assert!(!n
         .mover_tarea(chat.clone(), lista.clone(), 0, "no esta".into(), obra.id.clone(), otra.clone())
         .unwrap());
-    let alli = n.tareas(0).unwrap().into_iter().find(|l| l.mensaje == otra).unwrap();
+    let alli = n.tareas(0).unwrap().into_iter().find(|l| l.chat == obra.id && l.mensaje == otra).unwrap();
     assert_eq!(alli.tareas.len(), 1);
 }
 
