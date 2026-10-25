@@ -1025,12 +1025,16 @@ final class Pin: NSObject {
         if si {
             prepararTextoVivo()
             superposicion?.selectableItemsHighlighted = true
-            avisar("Modo texto: selecciona con el ratón · ⌘C copia · ⇧C copia todo")
+            // Mientras se lee, «Leyendo…» (Windows 8efde62, `pin-v2-leyendo`);
+            // el aviso del modo texto sale al llegar el texto.
+            avisar(superposicion?.analysis == nil && tareaAnalisis != nil ? "Leyendo…" : Pin.avisoModoTexto)
         } else {
             superposicion?.resetSelection()
             superposicion?.selectableItemsHighlighted = false
         }
     }
+
+    static let avisoModoTexto = "Modo texto: selecciona con el ratón · ⌘C copia · ⇧C copia todo"
 
     /// ⇧C: todo el texto reconocido al portapapeles.
     private func copiarTodoElTexto() {
@@ -1287,7 +1291,10 @@ final class Pin: NSObject {
                 self.superposicion = capa
             }
             capa.analysis = analisis
-            if self.modoTexto { capa.selectableItemsHighlighted = true }
+            if self.modoTexto {
+                capa.selectableItemsHighlighted = true
+                self.avisar(Pin.avisoModoTexto)
+            }
         }
     }
 

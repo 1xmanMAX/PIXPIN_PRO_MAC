@@ -198,9 +198,17 @@ final class EstadoApp: ObservableObject {
         // Las automatizaciones (E6): la hora, las capturas nuevas y la
         // sincronizacion las hacen saltar.
         if let nucleo = almacen?.nucleo { MotorAutomatizaciones.compartido.arrancar(nucleo: nucleo, almacen: almacen) }
+        // Cada captura de texto lleva su turno y solo copia si al acabar sigue
+        // siendo la ultima pedida: dos seguidas podian acabar al reves y dejar
+        // la vieja en el portapapeles (Windows c0632e7).
+        let turnos = TurnosDeTexto()
         capturador.alSacarTexto = { imagen in
-            Task {
-                guard let texto = try? await sacarTexto(de: imagen), !texto.isEmpty else {
+            turnos.ultimo += 1
+            let mio = turnos.ultimo
+            Task { @MainActor in
+                let texto = (try? await sacarTexto(de: imagen)) ?? ""
+                guard turnos.ultimo == mio else { return }
+                guard !texto.isEmpty else {
                     NSSound.beep()
                     return
                 }
@@ -304,4 +312,10 @@ struct AlReabrirSaleProyectos: ViewModifier {
             NSApp.activate()
         }
     }
+}
+
+/// El turno de la ultima captura de texto pedida (ver `alSacarTexto`).
+@MainActor
+private final class TurnosDeTexto {
+    var ultimo = 0
 }

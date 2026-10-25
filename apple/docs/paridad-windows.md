@@ -111,6 +111,7 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 
 | Módulo Windows | Función | Estado Mac | Archivo(s) Mac | Qué falta |
 |---|---|---|---|---|
+| ocr_motor, pines/leer_texto (Indra) | OCR con motor a elegir (Windows de fábrica o Indra, `[ocr]` con corrección y «Mi vocabulario»); el texto del pin y de la captura de texto en otro hilo | no aplica (OCR) / completo (lo demás) | K/Pines/Pin.swift, APP | OCR: en el Mac lo hace **Vision** (`ImageAnalyzer`, `VNRecognizeTextRequest`), mejor que los dos motores de Windows; `pixpin-indra` queda solo de referencia (`por-traducir/`) y la sección `[ocr]` de `ajustes.toml` se conserva tal cual (pixpin-store). Hecho (25-oct, 8efde62 y c0632e7): el pin ya leía en otro hilo y descartaba lo viejo; ahora dice «Leyendo…» en modo texto hasta que llega, y la captura de texto solo copia la última pedida |
 | main (bandeja) | Menú de la bandeja con 27 comandos | parcial | APP, K/Ajustes/ComandosApp.swift | Faltan: clic a través y restaurar el último pin (salen solos cuando los pines los den) |
 | main (arranque) | Restaurar pines, vigía de recordatorios, automatizaciones, línea de órdenes, avisos de caducidad | parcial | APP, K/Pines/GestorPines.swift | Recordatorios (las automatizaciones arrancan con la app: E6) |
 | marco_de_la_tinta | Migrar la tinta vieja al marco `.hoja` | interno | N/documentos.rs (lee el marco) | Pasada `tras_sincronizar`; solo hace falta con datos viejos |
