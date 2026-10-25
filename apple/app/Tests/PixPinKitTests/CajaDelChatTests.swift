@@ -38,7 +38,9 @@ final class CajaDelChatTests: XCTestCase {
     func testOchoBaldosasNumeradasYLosChipsDebajo() {
         let o = HojaAdjuntar.opciones
         XCTAssertEqual(o.compactMap(\.numero), [1, 2, 3, 4, 5, 6, 7, 8])
-        XCTAssertEqual(o.count, 20, "las 20 entradas de Windows")
+        XCTAssertEqual(o.count, 21, "las 21 entradas de Windows")
+        // «Figura» tambien en los chats normales (Windows 1d50a7c), en los chips.
+        XCTAssertEqual(HojaAdjuntar.visibles("plantilla").map(\.accion), [.figura])
         // La carpeta de paginas, en los chips (26-oct-2026).
         XCTAssertEqual(HojaAdjuntar.visibles("cuaderno").map(\.accion), [.carpeta])
         // Las baldosas primero, los chips despues.
@@ -59,8 +61,10 @@ final class CajaDelChatTests: XCTestCase {
         XCTAssertEqual(o.filter { !$0.esBaldosa }.map(\.accion), [.pedirFigura, .pagina, .proyecto, .tabla, .delMovil])
         XCTAssertEqual(HojaAdjuntar.visibles("plantilla", en: o).map(\.accion), [.figura])
         XCTAssertEqual(HojaAdjuntar.visibles("hazme", en: o).map(\.accion), [.pedirFigura])
-        // Caso negativo: la hoja de siempre no las trae.
-        XCTAssertFalse(HojaAdjuntar.opciones.contains { $0.accion == .figura || $0.accion == .pedirFigura })
+        // Caso negativo: la hoja de siempre trae «Figura» (en un chip) pero
+        // no «Pedir una figura nueva», que es del asistente.
+        XCTAssertFalse(HojaAdjuntar.opciones.contains { $0.accion == .pedirFigura })
+        XCTAssertFalse(HojaAdjuntar.opciones.contains { $0.accion == .figura && $0.esBaldosa })
         XCTAssertEqual(HojaAdjuntar.opciones.compactMap(\.numero), [1, 2, 3, 4, 5, 6, 7, 8], "sin tocar")
     }
 
@@ -91,6 +95,36 @@ final class CajaDelChatTests: XCTestCase {
         let faltan = HojaAdjuntar.opciones.filter { !$0.accion.enElMac }.map(\.rotulo)
         // Conversacion, Teleprónter y Pronunciar ya abren sus ventanitas (E5).
         XCTAssertTrue(faltan.isEmpty, "\(faltan)")
+    }
+
+    // MARK: La ficha del chat
+
+    func testLaIslaOcupaSuParteDelHuecoYSinSitioLoLlenaEntero() {
+        let (t, completa) = MedidasFicha.isla(en: CGSize(width: 1000, height: 800))
+        XCTAssertFalse(completa)
+        XCTAssertEqual(t.width, 580, accuracy: 0.5, "el 58 %")
+        XCTAssertEqual(t.height, 800 - 2 * 28)
+        // Topes: no pasa de 720 de ancho ni de 860 de alto.
+        let grande = MedidasFicha.isla(en: CGSize(width: 3000, height: 2000)).tamano
+        XCTAssertEqual(grande.width, 720)
+        XCTAssertEqual(grande.height, 860)
+        // Estrecha: al menos 360.
+        XCTAssertEqual(MedidasFicha.isla(en: CGSize(width: 500, height: 600)).tamano.width, 360)
+        // Caso negativo: sin sitio para la minima, el hueco entero.
+        let chica = MedidasFicha.isla(en: CGSize(width: 400, height: 300))
+        XCTAssertTrue(chica.completa)
+        XCTAssertEqual(chica.tamano, CGSize(width: 400, height: 300))
+    }
+
+    func testLosTextosDeLaFicha() {
+        XCTAssertEqual(TextosFicha.rotulo(.videos), "Vídeos")
+        XCTAssertEqual(TextosFicha.rotulo(.enlaces), "Enlaces")
+        XCTAssertEqual(TextosFicha.resumen(cosas: 1, codigo: "K7Q2"), "1 cosa  ·  K7Q2")
+        XCTAssertEqual(TextosFicha.resumen(cosas: 24, codigo: ""), "24 cosas")
+        XCTAssertEqual(TextosFicha.posicion(3, de: 24), "3 de 24")
+        XCTAssertNil(TextosFicha.clase("NOTA"), "una nota es solo su texto")
+        XCTAssertEqual(TextosFicha.clase("VOZ"), "Nota de voz")
+        XCTAssertEqual(TextosFicha.clase("CROQUIS"), "CROQUIS", "lo que no se conoce, con su palabra")
     }
 
     // MARK: Buscar en el chat

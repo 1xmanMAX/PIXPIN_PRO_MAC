@@ -36,7 +36,7 @@ public struct VentanaProyectos: View {
         // Como en Windows: la franja fina arriba, la lista a la izquierda
         // (se estira por su borde) y el chat sobre su papel a la derecha.
         VStack(spacing: 0) {
-            FranjaProyectos(ventana: ventana)
+            FranjaProyectos(ventana: ventana) { VentanaFiguras.abrir(nucleo: almacen.nucleo, destino: nil) }
             HStack(spacing: 0) {
                 // Estrecha, como el movil: o la lista o el chat (con ← para volver).
                 if !estrecho || elegido == nil {
@@ -176,6 +176,8 @@ public struct VistaChat: View {
     @StateObject private var menu: ChatAbierto
     /// La lupa del chat (`Chat/BuscarEnChat.swift`).
     @StateObject private var buscador: BuscadorDelChat
+    /// La ficha del chat, la isla de su nombre (`Chat/FichaDelChat.swift`).
+    @StateObject private var ficha: ModeloFichaDelChat
     /// La escala del chat, en por ciento (`Chat/EscalaChat.swift`).
     @AppStorage(EscalaChat.clave) private var escala = EscalaChat.porDefecto
     /// Sube para devolver el foco a la caja de escribir.
@@ -187,6 +189,7 @@ public struct VistaChat: View {
         self.chat = chat
         _menu = StateObject(wrappedValue: ChatAbierto(chat: chat, almacen: almacen))
         _buscador = StateObject(wrappedValue: BuscadorDelChat(chat: chat, nucleo: almacen.nucleo))
+        _ficha = StateObject(wrappedValue: ModeloFichaDelChat(chat: chat, almacen: almacen))
     }
 
     private var eleccion: Eleccion { menu.eleccion }
@@ -216,6 +219,9 @@ public struct VistaChat: View {
 
     public var body: some View {
         VStack(spacing: 0) {
+            // El nombre del chat: abre su ficha (Windows 71bd8b5).
+            CabeceraDelChat(almacen: almacen, chat: chat, ficha: ficha, buscador: buscador)
+            Divider()
             if almacen.chats.first(where: { $0.id == chat })?.esAsistente == true {
                 CabeceraDelAsistente(almacen: almacen, chat: chat)
                 Divider()
@@ -307,6 +313,8 @@ public struct VistaChat: View {
         // Lo elegido que ya no esta cargado (borrado, otra pagina) se olvida.
         .onChange(of: almacen.mensajes[chat]?.count) { _, _ in
             menu.eleccion.quedarse(con: Set(idsCargados))
+            // Con la ficha abierta, lo nuevo se ve en ella.
+            ficha.releer()
         }
         // Describir, cambiar el nombre o la hora de avisar: una linea.
         .sheet(item: $menu.escritura) { e in
@@ -330,6 +338,10 @@ public struct VistaChat: View {
                     .padding(4)
                     .allowsHitTesting(false)
             }
+        }
+        // La ficha del chat, encima de todo (`Chat/FichaDelChat.swift`).
+        .overlay {
+            if ficha.abierta { IslaFichaDelChat(ficha: ficha, verEnElChat: verEnElChat) }
         }
         .background(AccesoVentana { ventana.ventana = $0 })
         .onAppear {
@@ -403,6 +415,18 @@ public struct VistaChat: View {
         focoCaja += 1
     }
 
+    /// «Ver en el chat» de la ficha: la cierra y salta al mensaje (cargando
+    /// su pagina si no esta, como un salto desde Buscar).
+    private func verEnElChat(_ c: CosaDeLaFicha) {
+        ficha.cerrar()
+        if buscador.abierto { buscador.cerrar() }
+        if idsCargados.contains(c.mensaje.id) {
+            ir(a: c.mensaje.id)
+        } else {
+            peticion.salto = SaltoAMensaje(chat: chat, mensaje: c.mensaje.id, posicion: c.posicion)
+        }
+    }
+
     /// ⌘V con ficheros o una imagen en el portapapeles los adjunta, aunque
     /// la caja de escribir tenga el foco (ella solo sabe pegar texto). Con
     /// texto, el ⌘V sigue su camino de siempre.
@@ -435,13 +459,28 @@ public struct VistaChat: View {
         let ventana = self.ventana
         let buscador = self.buscador
         let menu = self.menu
+        let ficha = self.ficha
         let escala = $escala
         vigiaTeclas = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { evento in
             guard let v = ventana.ventana, evento.window === v, v.attachedSheet == nil else { return evento }
             let teclas = evento.modifierFlags.intersection([.command, .shift, .option, .control])
             let letra = evento.charactersIgnoringModifiers ?? ""
             let esc = evento.keyCode == 53
+            let codigo = evento.keyCode
             let tomada = MainActor.assumeIsolated { () -> Bool in
+                // Con la ficha abierta, Esc y ← → son suyos (Esc: de la
+                // previa a la rejilla, la lupa y, al final, cerrar).
+                if ficha.abierta, teclas.isEmpty {
+                    if esc {
+                        ficha.escape()
+                        return true
+                    }
+                    // ← y → (123 y 124) pasan de cosa en la previa.
+                    if ficha.enPrevia != nil, codigo == 123 || codigo == 124 {
+                        ficha.mover(codigo == 123 ? -1 : 1)
+                        return true
+                    }
+                }
                 // Esc apaga la lupa antes que nada mas.
                 if esc, teclas.isEmpty, buscador.abierto {
                     buscador.cerrar()

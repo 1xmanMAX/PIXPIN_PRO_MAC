@@ -3,10 +3,13 @@
 // las mejore, o decirle hazme una figura, y lo puedo anadir facilmente a la
 // lista de figuras»):
 //
-// - en la hoja del clip del chat del asistente, **Figura** (un menu por
-//   grupos con las de la biblioteca: la elegida entra en un lienzo nuevo
-//   del chat con su nombre y la caja empieza con «Mejora la figura …») y
-//   **Pedir una figura nueva** (la caja empieza con «Hazme una figura de »);
+// - en la hoja del clip de cualquier chat, **Figura**: abre la ventana de
+//   las figuras eligiendo para ese chat (Windows 1d50a7c, se elige viendola
+//   y no en menus en cascada); la elegida entra en un lienzo nuevo del chat
+//   con su nombre y, en el del asistente, la caja empieza con «Mejora la
+//   figura …»;
+// - en la del asistente, ademas, **Pedir una figura nueva** (la caja empieza
+//   con «Hazme una figura de »);
 // - en el menu de un lienzo del chat, **Guardar en mis figuras**.
 //
 // Lo que toca el disco es de Rust (`galeria_figuras.rs`: `adjuntar_figura`,
@@ -33,47 +36,36 @@ enum FigurasDelChat {
         }
     }
 
-    /// El menu de las figuras por grupos (lo del usuario primero), donde
-    /// esta el raton.
+    /// **«Figura»** (Windows 1d50a7c, el usuario: «al adjuntar figuras no
+    /// veo las figuras, me sale una lista y tengo que buscar»): abre la
+    /// ventana de las figuras eligiendo para este chat, con su boton
+    /// «Adjuntar a …». La elegida entra como un lienzo con ella dentro.
     private static func elegirFigura(chat: String, almacen: Almacen, avisar: @escaping (String) -> Void,
                                      empezar: @escaping (String) -> Void) {
-        let nucleo = almacen.nucleo
-        let grupos = (try? nucleo.figurasPorGrupos()) ?? []
-        guard !grupos.isEmpty else {
-            return avisar("Todavía no hay figuras. En un lienzo, elige algo y «Guardar como figura».")
+        let ficha = almacen.chats.first { $0.id == chat }
+        let destino = ChatDeLaFigura(chat: chat, nombre: ficha?.nombre ?? "") { f in
+            // En el chat del asistente, la caja empieza con «Mejora la figura …».
+            FigurasDelChat.adjuntar(f.id, nombre: f.corto, chat: chat, almacen: almacen, avisar: avisar,
+                     empezar: ficha?.esAsistente == true ? empezar : nil)
         }
-        let menu = NSMenu()
-        for g in grupos {
-            let item = NSMenuItem(title: "\(g.nombre) (\(g.figuras.count))", action: nil, keyEquivalent: "")
-            item.image = NSImage(systemSymbolName: "folder", accessibilityDescription: nil)
-            let sub = NSMenu()
-            for f in g.figuras {
-                let i = ItemConAccion.nuevo(f.nombre) {
-                    adjuntar(f, chat: chat, almacen: almacen, avisar: avisar, empezar: empezar)
-                }
-                i.image = NSImage(systemSymbolName: "paintpalette", accessibilityDescription: nil)
-                sub.addItem(i)
-            }
-            item.submenu = sub
-            menu.addItem(item)
-        }
-        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+        VentanaFiguras.abrirParaAdjuntar(nucleo: almacen.nucleo, chat: destino)
     }
 
-    /// La figura, a un lienzo nuevo del chat con su nombre.
-    private static func adjuntar(_ f: FiguraDeBiblioteca, chat: String, almacen: Almacen,
-                                 avisar: @escaping (String) -> Void, empezar: @escaping (String) -> Void) {
+    /// La figura `id`, a un lienzo nuevo del chat con su nombre. Si el chat
+    /// no es el que se ve, se trae (como `ir_a` de Windows).
+    private static func adjuntar(_ id: String, nombre: String, chat: String, almacen: Almacen,
+                                 avisar: @escaping (String) -> Void, empezar: ((String) -> Void)?) {
         let nucleo = almacen.nucleo
-        let id = f.id
         Task {
             let r = await Task.detached(priority: .userInitiated) { () -> Result<MensajeChat, Error> in
                 Result { try nucleo.adjuntarFigura(chat: chat, id: id) }
             }.value
             switch r {
             case let .success(m):
-                almacen.anadir([m], en: chat)
+                await almacen.alFinal(m, en: chat)
                 NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
-                empezar("Mejora la figura «\(f.nombre)»: ")
+                PeticionDeChat.compartida.chat = chat
+                empezar?("Mejora la figura «\(nombre)»: ")
             case .failure:
                 avisar("No se pudo: mira el registro de PixPin")
             }

@@ -343,6 +343,23 @@ struct ControlArranque: View {
     }
 }
 
+/// La escala de la interfaz, con sus escalones (`EscalaChat.escalones`): el
+/// chat abierto la coge al vuelo, que lee la misma clave.
+struct ControlEscalaInterfaz: View {
+    @AppStorage(EscalaChat.clave) private var escala = EscalaChat.porDefecto
+
+    var body: some View {
+        Picker("", selection: Binding(get: { EscalaChat.valida(escala) }, set: { escala = $0 })) {
+            ForEach(EscalaChat.escalones, id: \.self) { n in
+                Text(verbatim: "\(n) %").tag(n)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .fixedSize()
+    }
+}
+
 /// **La clave de un proveedor de la nube** (la «pantalla de claves» de
 /// Windows): pegarla y guardarla en el Llavero, ver la que hay (enmascarada),
 /// **probarla** (una llamada minima: unos pocos tokens; al guardar se prueba

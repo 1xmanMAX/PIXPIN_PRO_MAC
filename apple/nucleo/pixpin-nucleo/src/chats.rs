@@ -910,4 +910,30 @@ impl Nucleo {
             lineas_rotas: ind.lineas_rotas,
         })
     }
+
+    /// **Todos los mensajes visibles** del chat, en el orden de sus paginas:
+    /// el sitio de cada uno es su posicion para saltar a el. Una linea que
+    /// el indice cuenta pero no se entiende entera queda como `None`, para
+    /// no correr las posiciones de las de detras (la ficha del chat).
+    pub(crate) fn mensajes_en_orden(
+        &self,
+        chat: &str,
+    ) -> Result<Vec<Option<Mensaje>>, ErrorNucleo> {
+        validar_chat(chat)?;
+        let fichero = almacen::carpeta(self.ruta(), chat).join("guardados.jsonl");
+        let Some(ind) = self.cache_tomada().indice(&fichero)? else {
+            return Ok(Vec::new());
+        };
+        let texto = std::fs::read(&fichero)?;
+        Ok(ind
+            .lineas
+            .iter()
+            .map(|&(i, l)| {
+                let (a, b) = (i as usize, i as usize + l as usize);
+                texto
+                    .get(a..b)
+                    .and_then(|linea| serde_json::from_slice::<Mensaje>(linea).ok())
+            })
+            .collect())
+    }
 }

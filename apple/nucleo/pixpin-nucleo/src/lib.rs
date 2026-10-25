@@ -80,6 +80,8 @@ pub mod editor_marcos;
 pub mod editor_tapado;
 pub mod editor_ventana;
 pub mod envio;
+// La isla de la ficha del chat (Windows 71bd8b5).
+pub mod ficha_del_chat;
 pub mod galeria;
 pub mod galeria_sincro;
 pub mod hojas;

@@ -7015,6 +7015,19 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, decidir: DecidirOferta) throws  -> [RecibidoEnvio]?
     
     /**
+     * **Lo que ensena una pestana** de la ficha, del mas antiguo al mas
+     * nuevo, con lo `buscado` con su lupa ya filtrado (vacio: todo).
+     */
+    func cosasDeLaFicha(chat: String, seccion: SeccionFicha, buscado: String) throws  -> [CosaDeLaFicha]
+    
+    /**
+     * **La cabecera y las pestanas de la ficha** del chat: cuantas cosas
+     * tiene, su codigo y las pestanas que salen (con `actual` aunque se haya
+     * quedado vacia).
+     */
+    func fichaDelChat(chat: String, actual: SeccionFicha?) throws  -> FichaDelChatLeida
+    
+    /**
      * **Borra capturas**: a la papelera de PixPin (`papelera/capturas/`),
      * sin preguntar (se deshace con [`Nucleo::devolver_capturas`]), y se
      * olvida si estaban conservadas o prorrogadas (su nombre queda libre).
@@ -9896,6 +9909,38 @@ open func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, 
         FfiConverterUInt16.lower(puerto),
         FfiConverterString.lower(codigo),
         FfiConverterCallbackInterfaceDecidirOferta_lower(decidir),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo que ensena una pestana** de la ficha, del mas antiguo al mas
+     * nuevo, con lo `buscado` con su lupa ya filtrado (vacio: todo).
+     */
+open func cosasDeLaFicha(chat: String, seccion: SeccionFicha, buscado: String)throws  -> [CosaDeLaFicha]  {
+    return try  FfiConverterSequenceTypeCosaDeLaFicha.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_cosas_de_la_ficha(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterTypeSeccionFicha_lower(seccion),
+        FfiConverterString.lower(buscado),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La cabecera y las pestanas de la ficha** del chat: cuantas cosas
+     * tiene, su codigo y las pestanas que salen (con `actual` aunque se haya
+     * quedado vacia).
+     */
+open func fichaDelChat(chat: String, actual: SeccionFicha?)throws  -> FichaDelChatLeida  {
+    return try  FfiConverterTypeFichaDelChatLeida_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ficha_del_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterOptionTypeSeccionFicha.lower(actual),uniffiCallStatus
     )
 })
 }
@@ -18657,6 +18702,85 @@ public func FfiConverterTypeCopiaHoja_lower(_ value: CopiaHoja) -> RustBuffer {
 
 
 /**
+ * Una cosa de una pestana.
+ */
+public struct CosaDeLaFicha: Equatable, Hashable {
+    public var mensaje: MensajeChat
+    /**
+     * Su posicion en el chat (0 el mas antiguo), la de `Nucleo::mensajes`:
+     * «Ver en el chat» salta a ella.
+     */
+    public var posicion: UInt64
+    public var esVideo: Bool
+    /**
+     * El primer enlace de su texto, si lo lleva.
+     */
+    public var enlace: EnlaceFicha?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(mensaje: MensajeChat, 
+        /**
+         * Su posicion en el chat (0 el mas antiguo), la de `Nucleo::mensajes`:
+         * «Ver en el chat» salta a ella.
+         */posicion: UInt64, esVideo: Bool, 
+        /**
+         * El primer enlace de su texto, si lo lleva.
+         */enlace: EnlaceFicha?) {
+        self.mensaje = mensaje
+        self.posicion = posicion
+        self.esVideo = esVideo
+        self.enlace = enlace
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CosaDeLaFicha: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCosaDeLaFicha: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CosaDeLaFicha {
+        return
+            try CosaDeLaFicha(
+                mensaje: FfiConverterTypeMensajeChat.read(from: &buf), 
+                posicion: FfiConverterUInt64.read(from: &buf), 
+                esVideo: FfiConverterBool.read(from: &buf), 
+                enlace: FfiConverterOptionTypeEnlaceFicha.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CosaDeLaFicha, into buf: inout [UInt8]) {
+        FfiConverterTypeMensajeChat.write(value.mensaje, into: &buf)
+        FfiConverterUInt64.write(value.posicion, into: &buf)
+        FfiConverterBool.write(value.esVideo, into: &buf)
+        FfiConverterOptionTypeEnlaceFicha.write(value.enlace, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCosaDeLaFicha_lift(_ buf: RustBuffer) throws -> CosaDeLaFicha {
+    return try FfiConverterTypeCosaDeLaFicha.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCosaDeLaFicha_lower(_ value: CosaDeLaFicha) -> RustBuffer {
+    return FfiConverterTypeCosaDeLaFicha.lower(value)
+}
+
+
+/**
  * Una cosa de lo que se ofrece, para decidir antes de aceptar.
  */
 public struct CosaOfrecida: Equatable, Hashable {
@@ -19719,6 +19843,85 @@ public func FfiConverterTypeEnganche_lower(_ value: Enganche) -> RustBuffer {
 
 
 /**
+ * Un enlace como se ensena en su fila (`tarjetas::Enlace` de Windows).
+ */
+public struct EnlaceFicha: Equatable, Hashable {
+    /**
+     * La direccion completa, la que se abre.
+     */
+    public var url: String
+    /**
+     * De donde es: `github.com`.
+     */
+    public var donde: String
+    /**
+     * De que va: el camino con las barras aireadas (`forge / pixpin`).
+     */
+    public var deQue: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La direccion completa, la que se abre.
+         */url: String, 
+        /**
+         * De donde es: `github.com`.
+         */donde: String, 
+        /**
+         * De que va: el camino con las barras aireadas (`forge / pixpin`).
+         */deQue: String) {
+        self.url = url
+        self.donde = donde
+        self.deQue = deQue
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EnlaceFicha: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEnlaceFicha: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EnlaceFicha {
+        return
+            try EnlaceFicha(
+                url: FfiConverterString.read(from: &buf), 
+                donde: FfiConverterString.read(from: &buf), 
+                deQue: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EnlaceFicha, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.url, into: &buf)
+        FfiConverterString.write(value.donde, into: &buf)
+        FfiConverterString.write(value.deQue, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnlaceFicha_lift(_ buf: RustBuffer) throws -> EnlaceFicha {
+    return try FfiConverterTypeEnlaceFicha.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnlaceFicha_lower(_ value: EnlaceFicha) -> RustBuffer {
+    return FfiConverterTypeEnlaceFicha.lower(value)
+}
+
+
+/**
  * Un hipervinculo de la pagina: su caja en puntos y adonde va.
  */
 public struct EnlaceOffice: Equatable, Hashable {
@@ -20635,6 +20838,99 @@ public func FfiConverterTypeFichaDeFigura_lift(_ buf: RustBuffer) throws -> Fich
 #endif
 public func FfiConverterTypeFichaDeFigura_lower(_ value: FichaDeFigura) -> RustBuffer {
     return FfiConverterTypeFichaDeFigura.lower(value)
+}
+
+
+/**
+ * La cabecera y las pestanas de la ficha.
+ */
+public struct FichaDelChatLeida: Equatable, Hashable {
+    /**
+     * Las que tienen algo (y la puesta, aunque se haya vaciado), en `ORDEN`.
+     */
+    public var pestanas: [PestanaFicha]
+    /**
+     * Con la que se abre: la primera que tenga algo; en un chat vacio,
+     * «Todo», que dice que no hay nada.
+     */
+    public var primera: SeccionFicha
+    /**
+     * Cuantas cosas tiene el chat («24 cosas»).
+     */
+    public var cosas: UInt32
+    /**
+     * El codigo unico del chat: el que hay que mirar para saber si lo de
+     * aqui y lo del movil son lo mismo (en el movil sale igual).
+     */
+    public var codigo: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Las que tienen algo (y la puesta, aunque se haya vaciado), en `ORDEN`.
+         */pestanas: [PestanaFicha], 
+        /**
+         * Con la que se abre: la primera que tenga algo; en un chat vacio,
+         * «Todo», que dice que no hay nada.
+         */primera: SeccionFicha, 
+        /**
+         * Cuantas cosas tiene el chat («24 cosas»).
+         */cosas: UInt32, 
+        /**
+         * El codigo unico del chat: el que hay que mirar para saber si lo de
+         * aqui y lo del movil son lo mismo (en el movil sale igual).
+         */codigo: String) {
+        self.pestanas = pestanas
+        self.primera = primera
+        self.cosas = cosas
+        self.codigo = codigo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FichaDelChatLeida: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFichaDelChatLeida: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FichaDelChatLeida {
+        return
+            try FichaDelChatLeida(
+                pestanas: FfiConverterSequenceTypePestanaFicha.read(from: &buf), 
+                primera: FfiConverterTypeSeccionFicha.read(from: &buf), 
+                cosas: FfiConverterUInt32.read(from: &buf), 
+                codigo: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FichaDelChatLeida, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypePestanaFicha.write(value.pestanas, into: &buf)
+        FfiConverterTypeSeccionFicha.write(value.primera, into: &buf)
+        FfiConverterUInt32.write(value.cosas, into: &buf)
+        FfiConverterString.write(value.codigo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFichaDelChatLeida_lift(_ buf: RustBuffer) throws -> FichaDelChatLeida {
+    return try FfiConverterTypeFichaDelChatLeida.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFichaDelChatLeida_lower(_ value: FichaDelChatLeida) -> RustBuffer {
+    return FfiConverterTypeFichaDelChatLeida.lower(value)
 }
 
 
@@ -27515,6 +27811,75 @@ public func FfiConverterTypePersonaCompartida_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypePersonaCompartida_lower(_ value: PersonaCompartida) -> RustBuffer {
     return FfiConverterTypePersonaCompartida.lower(value)
+}
+
+
+/**
+ * Una pestana con lo que tiene.
+ */
+public struct PestanaFicha: Equatable, Hashable {
+    public var seccion: SeccionFicha
+    public var cuenta: UInt32
+    /**
+     * Lo que se mira (fotos, videos, dibujos, hojas) va en rejilla; lo que
+     * se lee, en filas (`Seccion::es_cuadricula`).
+     */
+    public var cuadricula: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(seccion: SeccionFicha, cuenta: UInt32, 
+        /**
+         * Lo que se mira (fotos, videos, dibujos, hojas) va en rejilla; lo que
+         * se lee, en filas (`Seccion::es_cuadricula`).
+         */cuadricula: Bool) {
+        self.seccion = seccion
+        self.cuenta = cuenta
+        self.cuadricula = cuadricula
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PestanaFicha: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePestanaFicha: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PestanaFicha {
+        return
+            try PestanaFicha(
+                seccion: FfiConverterTypeSeccionFicha.read(from: &buf), 
+                cuenta: FfiConverterUInt32.read(from: &buf), 
+                cuadricula: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PestanaFicha, into buf: inout [UInt8]) {
+        FfiConverterTypeSeccionFicha.write(value.seccion, into: &buf)
+        FfiConverterUInt32.write(value.cuenta, into: &buf)
+        FfiConverterBool.write(value.cuadricula, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePestanaFicha_lift(_ buf: RustBuffer) throws -> PestanaFicha {
+    return try FfiConverterTypePestanaFicha.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePestanaFicha_lower(_ value: PestanaFicha) -> RustBuffer {
+    return FfiConverterTypePestanaFicha.lower(value)
 }
 
 
@@ -36439,6 +36804,131 @@ public func FfiConverterTypeRellenoEstilo_lower(_ value: RellenoEstilo) -> RustB
 
 
 /**
+ * Una pestana de la ficha (`cuaderno::Seccion`).
+ */
+
+public enum SeccionFicha: Equatable, Hashable {
+    
+    case galeria
+    case todo
+    case fotos
+    case videos
+    case archivos
+    case enlaces
+    case voz
+    case dibujos
+    case fijados
+    case buzon
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SeccionFicha: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSeccionFicha: FfiConverterRustBuffer {
+    typealias SwiftType = SeccionFicha
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SeccionFicha {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .galeria
+        
+        case 2: return .todo
+        
+        case 3: return .fotos
+        
+        case 4: return .videos
+        
+        case 5: return .archivos
+        
+        case 6: return .enlaces
+        
+        case 7: return .voz
+        
+        case 8: return .dibujos
+        
+        case 9: return .fijados
+        
+        case 10: return .buzon
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SeccionFicha, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .galeria:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .todo:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .fotos:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .videos:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .archivos:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .enlaces:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .voz:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .dibujos:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .fijados:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .buzon:
+            writeInt(&buf, Int32(10))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeccionFicha_lift(_ buf: RustBuffer) throws -> SeccionFicha {
+    return try FfiConverterTypeSeccionFicha.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSeccionFicha_lower(_ value: SeccionFicha) -> RustBuffer {
+    return FfiConverterTypeSeccionFicha.lower(value)
+}
+
+
+
+/**
  * De que color va (los de la hoja del movil; Swift los pone del tono).
  */
 
@@ -38180,6 +38670,30 @@ fileprivate struct FfiConverterOptionTypeEleccionSincro: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeEnlaceFicha: FfiConverterRustBuffer {
+    typealias SwiftType = EnlaceFicha?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEnlaceFicha.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEnlaceFicha.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEstiloCeldaHoja: FfiConverterRustBuffer {
     typealias SwiftType = EstiloCeldaHoja?
 
@@ -38964,6 +39478,30 @@ fileprivate struct FfiConverterOptionTypePeticionLienzo: FfiConverterRustBuffer 
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypePeticionLienzo.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeSeccionFicha: FfiConverterRustBuffer {
+    typealias SwiftType = SeccionFicha?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSeccionFicha.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSeccionFicha.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -40010,6 +40548,31 @@ fileprivate struct FfiConverterSequenceTypeCopiaDeSeguridad: FfiConverterRustBuf
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCopiaDeSeguridad.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCosaDeLaFicha: FfiConverterRustBuffer {
+    typealias SwiftType = [CosaDeLaFicha]
+
+    public static func write(_ value: [CosaDeLaFicha], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCosaDeLaFicha.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CosaDeLaFicha] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CosaDeLaFicha]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCosaDeLaFicha.read(from: &buf))
         }
         return seq
     }
@@ -41335,6 +41898,31 @@ fileprivate struct FfiConverterSequenceTypePersonaCompartida: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypePersonaCompartida.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypePestanaFicha: FfiConverterRustBuffer {
+    typealias SwiftType = [PestanaFicha]
+
+    public static func write(_ value: [PestanaFicha], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePestanaFicha.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PestanaFicha] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PestanaFicha]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePestanaFicha.read(from: &buf))
         }
         return seq
     }
@@ -44736,6 +45324,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_recibir_envio_preguntando() != 28836) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_cosas_de_la_ficha() != 24274) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ficha_del_chat() != 39044) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_capturas() != 35273) {

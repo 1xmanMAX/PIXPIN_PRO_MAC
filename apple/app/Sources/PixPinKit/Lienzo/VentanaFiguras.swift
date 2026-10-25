@@ -18,6 +18,15 @@
 // guarda es de Rust (`galeria_figuras.rs`); las miniaturas son el bufer de
 // siempre, pintado con `PintorLienzo` como la vista previa de un lienzo.
 //
+// **Elegir para adjuntar** (Windows 1d50a7c, el usuario: «adjuntar figura
+// deberia abrir directamente la ventana de figuras, yo selecciono, aparece
+// el boton de adjuntar y se adjunta al chat»): abierta desde «Figura» de la
+// hoja del clip de un chat (`abrirParaAdjuntar`), la ventana sabe a que chat
+// va. El panel lleva entonces, justo debajo del dibujo, el boton grande
+// «Adjuntar a …»; doble clic en una figura o Intro hacen lo mismo. La figura
+// entra en el chat como un lienzo con ella dentro y la ventana se queda
+// abierta con «Adjuntada ✓», por si se quiere otra.
+//
 // Lo que falta respecto a Windows: mover lo elegido con las flechas.
 
 import AppKit
@@ -37,6 +46,15 @@ private enum MedidasFiguras {
     static let lado = Color(hex: 0x202022)
 }
 
+/// El chat al que se adjunta lo que se elija (la ventana abierta desde el
+/// clip de uno); `adjuntar` mete la figura `id` en el.
+struct ChatDeLaFigura {
+    let chat: String
+    /// Su nombre, para el boton («Adjuntar a «Casa Lima»»).
+    let nombre: String
+    let adjuntar: @MainActor (FichaDeFigura) -> Void
+}
+
 /// Un grupo de la rejilla: el titulo de su categoria y sus figuras.
 struct GrupoVisibleFiguras: Identifiable {
     let nombre: String
@@ -53,6 +71,12 @@ final class ModeloFiguras: ObservableObject {
     weak var destino: ModeloEditorLienzo? {
         didSet { objectWillChange.send() }
     }
+    /// El chat al que se adjunta (abierta desde su clip); sin el, no se
+    /// adjunta nada.
+    @Published var paraElChat: ChatDeLaFigura?
+    /// «Adjuntada a … ✓», mientras se ve.
+    @Published private(set) var aviso: String?
+    private var avisos = 0
 
     @Published var consulta = "" { didSet { if consulta != oldValue { rehacer() } } }
     /// `nil`: todas.
@@ -108,6 +132,24 @@ final class ModeloFiguras: ObservableObject {
 
     var puedeInsertar: Bool { destino?.vista != nil }
     var puedeGuardarSeleccion: Bool { destino?.hayElegidos == true && destino?.nucleo != nil }
+
+    /// **Adjunta la elegida** al chat de `paraElChat`, si lo hay, y deja el
+    /// aviso un momento (1,8 s, `DURA_AVISO`). `false` sin chat: la ventana
+    /// se abrio para mirar.
+    @discardableResult
+    func adjuntar() -> Bool {
+        guard let d = paraElChat, let e = elegida else { return false }
+        d.adjuntar(e)
+        aviso = "Adjuntada a «\(d.nombre)» ✓"
+        avisos += 1
+        let mio = avisos
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(1800))
+            guard let self, self.avisos == mio else { return }
+            self.aviso = nil
+        }
+        return true
+    }
 
     /// Vuelve a leer la biblioteca (se guardo una desde el lienzo o el chat).
     func releer() {
@@ -218,8 +260,19 @@ enum VentanaFiguras {
     /// **Abre la ventana**, o la trae delante: con `destino`, lo elegido se
     /// inserta en ese lienzo.
     static func abrir(nucleo: Nucleo, destino: ModeloEditorLienzo?) {
+        abrir(nucleo: nucleo, destino: destino, paraElChat: nil)
+    }
+
+    /// **Abre la ventana para adjuntar una figura al chat** (el clip →
+    /// «Figura»). Si ya estaba abierta, cambia a ese chat y se trae delante.
+    static func abrirParaAdjuntar(nucleo: Nucleo, chat: ChatDeLaFigura) {
+        abrir(nucleo: nucleo, destino: nil, paraElChat: chat)
+    }
+
+    private static func abrir(nucleo: Nucleo, destino: ModeloEditorLienzo?, paraElChat: ChatDeLaFigura?) {
         if let v = ventana, let m = modelo {
             m.destino = destino
+            m.paraElChat = paraElChat
             m.releer()
             v.makeKeyAndOrderFront(nil)
             NSApp.activate()
@@ -227,6 +280,7 @@ enum VentanaFiguras {
         }
         guard let galeria = try? nucleo.galeriaDeFiguras() else { return NSSound.beep() }
         let m = ModeloFiguras(galeria: galeria, destino: destino)
+        m.paraElChat = paraElChat
         // Grande: casi toda la pantalla de trabajo, hasta 1440 x 900.
         let area = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1600, height: 900)
         let marco = NSRect(x: 0, y: 0, width: min(1440, area.width * 0.9), height: min(900, area.height * 0.9))
@@ -262,7 +316,9 @@ struct VistaFiguras: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Cabecera("Figuras", subtitulo: "\(modelo.cuantas) figuras y plantillas",
+            // Eligiendo para un chat, el subtitulo dice para cual.
+            Cabecera("Figuras", subtitulo: modelo.paraElChat.map { "Elige una figura para «\($0.nombre)»" }
+                         ?? "\(modelo.cuantas) figuras y plantillas",
                      buscador: BuscadorCabecera($modelo.consulta, pista: "Buscar figuras", enfocar: true)) {
                 if modelo.puedeGuardarSeleccion {
                     BotonCabecera(icono: "rectangle.stack.badge.plus", rotulo: "Guardar lo elegido") {
@@ -275,6 +331,20 @@ struct VistaFiguras: View {
                     .frame(width: MedidasFiguras.lateral)
                 RejillaFiguras(modelo: modelo)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .bottom) {
+                        // «Adjuntada a … ✓», una pastilla abajo en el centro.
+                        if let aviso = modelo.aviso {
+                            Text(aviso)
+                                .font(.system(size: 14))
+                                .foregroundStyle(Color.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 9)
+                                .background(Color(hex: 0x248A3D), in: Capsule())
+                                .padding(.bottom, 40)
+                                .transition(.opacity)
+                        }
+                    }
+                    .animation(.easeOut(duration: 0.15), value: modelo.aviso)
                 PanelFiguras(modelo: modelo)
                     .frame(width: MedidasFiguras.panel)
             }
@@ -409,7 +479,8 @@ private struct RejillaFiguras: View {
                     .onAppear { modelo.pedirMiniatura(f.id) }
                     .onTapGesture(count: 2) {
                         modelo.elegir(f)
-                        modelo.insertar()
+                        // Eligiendo para un chat, el doble clic la adjunta.
+                        if !modelo.adjuntar() { modelo.insertar() }
                     }
                     .onTapGesture { modelo.elegir(f) }
             }
@@ -499,7 +570,31 @@ private struct PanelFiguras: View {
         MiniaturaFigura(mini: modelo.miniaturas[f.id])
             .frame(height: modelo.campos.isEmpty ? 300 : 230)
             .onAppear { modelo.pedirMiniatura(f.id) }
-            .padding(.bottom, 18)
+            .padding(.bottom, 16)
+        // Eligiendo para un chat, el boton grande va justo debajo del
+        // dibujo: es lo primero que se busca al elegir una.
+        if let d = modelo.paraElChat {
+            Button { _ = modelo.adjuntar() } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "paperclip")
+                    Text("Adjuntar a «\(d.nombre)»")
+                        .font(.system(size: 15, weight: .medium))
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .foregroundStyle(Color.white)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(Color(hex: 0x0A6CD6), in: RoundedRectangle(cornerRadius: 12))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .keyboardShortcut(enNombre ? nil : KeyboardShortcut.defaultAction)
+            Text("O doble clic en la figura, o Intro.")
+                .font(.system(size: 11.5))
+                .foregroundStyle(Paleta.v2.gris)
+                .padding(.top, 6)
+                .padding(.bottom, 18)
+        }
         Text(f.corto)
             .font(.system(size: 18, weight: .semibold))
             .foregroundStyle(Paleta.v2.texto)
