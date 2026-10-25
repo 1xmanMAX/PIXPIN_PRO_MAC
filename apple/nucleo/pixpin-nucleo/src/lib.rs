@@ -89,6 +89,9 @@ pub mod envio;
 pub mod estudiar_clase;
 // La isla de la ficha del chat (Windows 71bd8b5).
 pub mod ficha_del_chat;
+/// La pestana Funciones de la ventana de los chats (Windows 2e0da60 y
+/// 768b73f).
+pub mod funciones;
 pub mod galeria;
 pub mod galeria_sincro;
 pub mod hojas;
