@@ -113,6 +113,8 @@ public struct VentanaProyectos: View {
             await almacen.cargarChats()
             // El chat «Asistente», fijo detras de «Mensajes guardados» (E1).
             await almacen.asegurarAsistente()
+            // Lo que el asistente dejo a medias al cerrarse PixPin (una vez).
+            Task { await AsistenteEnElChat.compartido.retomarAlArrancar(almacen) }
         }
         .onChange(of: elegido) { _, visible in almacen.aligerar(visible: visible) }
         .onDisappear { almacen.nadaAlFrente() }

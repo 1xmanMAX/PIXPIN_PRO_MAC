@@ -6232,6 +6232,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func sondearDireccion(host: String, puerto: UInt16)  -> Bool
     
     /**
+     * **Lo que quedo a medias la ultima vez** que se cerro PixPin con el
+     * asistente trabajando: cada burbuja cortada dice que paso y, lo que se
+     * puede, nace otra vez debajo para que Swift lo lance. Se llama una vez
+     * al arrancar, fuera del hilo principal (mira el motor de `ajustes`).
+     */
+    func iaRetomarAlArrancar(ajustes: AjustesIa)  -> [RetomadoIa]
+    
+    /**
      * **El chat «Asistente»**, creandolo si no esta (como «Mensajes
      * guardados»: fijo, detras de el en la lista).
      *
@@ -6258,6 +6266,24 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func iaConversacionNueva(chat: String) throws  -> MensajeChat
     
     /**
+     * **Un boton de la tarjeta de opciones** de la respuesta `nota`:
+     * `Some(n)`, la opcion `n` (desde 0); `None`, «Otro…» (lo siguiente que
+     * se escriba es la respuesta). `false` si ya no esperaba nada.
+     */
+    func iaElegir(chat: String, nota: String, opcion: UInt32?)  -> Bool
+    
+    /**
+     * **Lo escrito mientras el asistente trabaja** en `chat` (Windows,
+     * 25-oct-2026, «como en Claude Code»): si hay una duda con opciones
+     * esperando y el mensaje es para el (o se pulso «Otro…»), es su
+     * respuesta; si no, y es para el, va al turno en marcha, que lo lee
+     * antes de su siguiente paso y corrige, anade o para («para» a secas lo
+     * corta). `false` si no habia turno en marcha que lo recoja (Swift dice
+     * entonces que esta ocupado).
+     */
+    func iaEscribirMientrasTrabaja(chat: String, mensaje: String)  -> Bool
+    
+    /**
      * **La lista de `@`** para lo escrito tras el `@`: el asistente (fuera
      * de su chat) y los lienzos y hojas de la conversacion, del mas nuevo
      * al mas viejo.
@@ -6277,6 +6303,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * `.excalidraw`) al lienzo del chat, apuntado para su «Abrir lienzo».
      */
     func iaResponder(chat: String, nota: String, texto: String, lienzo: String?) throws  -> MensajeChat
+    
+    /**
+     * **La carpeta de la memoria del asistente** (la franja del chat
+     * «Asistente» de Windows: ahi el usuario la lee y la cambia con
+     * cualquier editor), creandola si no esta.
+     */
+    func iaCarpetaDeMemoria() throws  -> String
     
     /**
      * La quita (de la fila y de las automatizaciones: es la misma).
@@ -8124,6 +8157,22 @@ open func sondearDireccion(host: String, puerto: UInt16) -> Bool  {
 }
     
     /**
+     * **Lo que quedo a medias la ultima vez** que se cerro PixPin con el
+     * asistente trabajando: cada burbuja cortada dice que paso y, lo que se
+     * puede, nace otra vez debajo para que Swift lo lance. Se llama una vez
+     * al arrancar, fuera del hilo principal (mira el motor de `ajustes`).
+     */
+open func iaRetomarAlArrancar(ajustes: AjustesIa) -> [RetomadoIa]  {
+    return try!  FfiConverterSequenceTypeRetomadoIa.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_retomar_al_arrancar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeAjustesIa_lower(ajustes),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **El chat «Asistente»**, creandolo si no esta (como «Mensajes
      * guardados»: fijo, detras de el en la lista).
      *
@@ -8174,6 +8223,43 @@ open func iaConversacionNueva(chat: String)throws  -> MensajeChat  {
 }
     
     /**
+     * **Un boton de la tarjeta de opciones** de la respuesta `nota`:
+     * `Some(n)`, la opcion `n` (desde 0); `None`, «Otro…» (lo siguiente que
+     * se escriba es la respuesta). `false` si ya no esperaba nada.
+     */
+open func iaElegir(chat: String, nota: String, opcion: UInt32?) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_elegir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(nota),
+        FfiConverterOptionUInt32.lower(opcion),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo escrito mientras el asistente trabaja** en `chat` (Windows,
+     * 25-oct-2026, «como en Claude Code»): si hay una duda con opciones
+     * esperando y el mensaje es para el (o se pulso «Otro…»), es su
+     * respuesta; si no, y es para el, va al turno en marcha, que lo lee
+     * antes de su siguiente paso y corrige, anade o para («para» a secas lo
+     * corta). `false` si no habia turno en marcha que lo recoja (Swift dice
+     * entonces que esta ocupado).
+     */
+open func iaEscribirMientrasTrabaja(chat: String, mensaje: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_escribir_mientras_trabaja(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **La lista de `@`** para lo escrito tras el `@`: el asistente (fuera
      * de su chat) y los lienzos y hojas de la conversacion, del mas nuevo
      * al mas viejo.
@@ -8219,6 +8305,20 @@ open func iaResponder(chat: String, nota: String, texto: String, lienzo: String?
         FfiConverterString.lower(nota),
         FfiConverterString.lower(texto),
         FfiConverterOptionString.lower(lienzo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La carpeta de la memoria del asistente** (la franja del chat
+     * «Asistente» de Windows: ahi el usuario la lee y la cambia con
+     * cualquier editor), creandola si no esta.
+     */
+open func iaCarpetaDeMemoria()throws  -> String  {
+    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_ia_carpeta_de_memoria(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -19365,6 +19465,74 @@ public func FfiConverterTypeEleccion3d_lower(_ value: Eleccion3d) -> RustBuffer 
 
 
 /**
+ * **Una duda con opciones** en la burbuja (Windows, 22-oct): la primera
+ * opcion es la recomendada.
+ */
+public struct EleccionIa: Equatable, Hashable {
+    public var pregunta: String
+    public var opciones: [OpcionIa]
+    /**
+     * Se pulso «Otro…»: lo siguiente que se escriba es la respuesta.
+     */
+    public var otro: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(pregunta: String, opciones: [OpcionIa], 
+        /**
+         * Se pulso «Otro…»: lo siguiente que se escriba es la respuesta.
+         */otro: Bool) {
+        self.pregunta = pregunta
+        self.opciones = opciones
+        self.otro = otro
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EleccionIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEleccionIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EleccionIa {
+        return
+            try EleccionIa(
+                pregunta: FfiConverterString.read(from: &buf), 
+                opciones: FfiConverterSequenceTypeOpcionIa.read(from: &buf), 
+                otro: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EleccionIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.pregunta, into: &buf)
+        FfiConverterSequenceTypeOpcionIa.write(value.opciones, into: &buf)
+        FfiConverterBool.write(value.otro, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEleccionIa_lift(_ buf: RustBuffer) throws -> EleccionIa {
+    return try FfiConverterTypeEleccionIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEleccionIa_lower(_ value: EleccionIa) -> RustBuffer {
+    return FfiConverterTypeEleccionIa.lower(value)
+}
+
+
+/**
  * Lo que contesta el usuario (`vuelta::Eleccion`).
  */
 public struct EleccionSincro: Equatable, Hashable {
@@ -25483,6 +25651,63 @@ public func FfiConverterTypeOfertaRecibida_lower(_ value: OfertaRecibida) -> Rus
 
 
 /**
+ * Una opcion de la tarjeta: lo que pone el boton y que pasa si se elige.
+ */
+public struct OpcionIa: Equatable, Hashable {
+    public var etiqueta: String
+    public var descripcion: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(etiqueta: String, descripcion: String) {
+        self.etiqueta = etiqueta
+        self.descripcion = descripcion
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OpcionIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOpcionIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OpcionIa {
+        return
+            try OpcionIa(
+                etiqueta: FfiConverterString.read(from: &buf), 
+                descripcion: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OpcionIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.etiqueta, into: &buf)
+        FfiConverterString.write(value.descripcion, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionIa_lift(_ buf: RustBuffer) throws -> OpcionIa {
+    return try FfiConverterTypeOpcionIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionIa_lower(_ value: OpcionIa) -> RustBuffer {
+    return FfiConverterTypeOpcionIa.lower(value)
+}
+
+
+/**
  * Una opcion de la lista de `@` mientras se escribe.
  */
 public struct OpcionMencionIa: Equatable, Hashable {
@@ -29503,6 +29728,88 @@ public func FfiConverterTypeResumenSincro_lower(_ value: ResumenSincro) -> RustB
 
 
 /**
+ * Lo que se retoma al arrancar: las respuestas cortadas (ya reescritas) y
+ * los turnos que hay que volver a lanzar.
+ */
+public struct RetomadoIa: Equatable, Hashable {
+    /**
+     * El chat.
+     */
+    public var chat: String
+    /**
+     * La burbuja cortada, como quedo (para cambiarla en lo cargado).
+     */
+    public var cortada: MensajeChat
+    /**
+     * La respuesta nueva que nace debajo, si se vuelve a lanzar
+     * (`ia_turno_en_chat` con ella).
+     */
+    public var otraVez: InicioIa?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El chat.
+         */chat: String, 
+        /**
+         * La burbuja cortada, como quedo (para cambiarla en lo cargado).
+         */cortada: MensajeChat, 
+        /**
+         * La respuesta nueva que nace debajo, si se vuelve a lanzar
+         * (`ia_turno_en_chat` con ella).
+         */otraVez: InicioIa?) {
+        self.chat = chat
+        self.cortada = cortada
+        self.otraVez = otraVez
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RetomadoIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRetomadoIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RetomadoIa {
+        return
+            try RetomadoIa(
+                chat: FfiConverterString.read(from: &buf), 
+                cortada: FfiConverterTypeMensajeChat.read(from: &buf), 
+                otraVez: FfiConverterOptionTypeInicioIa.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RetomadoIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterTypeMensajeChat.write(value.cortada, into: &buf)
+        FfiConverterOptionTypeInicioIa.write(value.otraVez, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRetomadoIa_lift(_ buf: RustBuffer) throws -> RetomadoIa {
+    return try FfiConverterTypeRetomadoIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRetomadoIa_lower(_ value: RetomadoIa) -> RustBuffer {
+    return FfiConverterTypeRetomadoIa.lower(value)
+}
+
+
+/**
  * **Un rotulo**: un numero de la rejilla o la etiqueta `#id` de un
  * elemento (`etiqueta`, sobre amarillo), con su esquina de arriba a la
  * izquierda en pixeles de la imagen.
@@ -31022,6 +31329,11 @@ public struct VivoIa: Equatable, Hashable {
      * La pregunta de «¿seguro?» que espera el «Sí» o el «No».
      */
     public var pregunta: String?
+    /**
+     * **La duda con opciones** que espera (`preguntar_usuario`): la
+     * tarjeta con un boton por opcion y «Otro…» ([`Nucleo::ia_elegir`]).
+     */
+    public var eleccion: EleccionIa?
     public var acabado: Bool
 
     // Default memberwise initializers are never public by default, so we
@@ -31035,11 +31347,16 @@ public struct VivoIa: Equatable, Hashable {
          */texto: String, pensado: PensadoIa, 
         /**
          * La pregunta de «¿seguro?» que espera el «Sí» o el «No».
-         */pregunta: String?, acabado: Bool) {
+         */pregunta: String?, 
+        /**
+         * **La duda con opciones** que espera (`preguntar_usuario`): la
+         * tarjeta con un boton por opcion y «Otro…» ([`Nucleo::ia_elegir`]).
+         */eleccion: EleccionIa?, acabado: Bool) {
         self.nota = nota
         self.texto = texto
         self.pensado = pensado
         self.pregunta = pregunta
+        self.eleccion = eleccion
         self.acabado = acabado
     }
 
@@ -31063,6 +31380,7 @@ public struct FfiConverterTypeVivoIa: FfiConverterRustBuffer {
                 texto: FfiConverterString.read(from: &buf), 
                 pensado: FfiConverterTypePensadoIa.read(from: &buf), 
                 pregunta: FfiConverterOptionString.read(from: &buf), 
+                eleccion: FfiConverterOptionTypeEleccionIa.read(from: &buf), 
                 acabado: FfiConverterBool.read(from: &buf)
         )
     }
@@ -31072,6 +31390,7 @@ public struct FfiConverterTypeVivoIa: FfiConverterRustBuffer {
         FfiConverterString.write(value.texto, into: &buf)
         FfiConverterTypePensadoIa.write(value.pensado, into: &buf)
         FfiConverterOptionString.write(value.pregunta, into: &buf)
+        FfiConverterOptionTypeEleccionIa.write(value.eleccion, into: &buf)
         FfiConverterBool.write(value.acabado, into: &buf)
     }
 }
@@ -37813,6 +38132,30 @@ fileprivate struct FfiConverterOptionTypeEleccion3d: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeEleccionIa: FfiConverterRustBuffer {
+    typealias SwiftType = EleccionIa?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEleccionIa.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEleccionIa.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEleccionSincro: FfiConverterRustBuffer {
     typealias SwiftType = EleccionSincro?
 
@@ -40775,6 +41118,31 @@ fileprivate struct FfiConverterSequenceTypeNoDibujado: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeOpcionIa: FfiConverterRustBuffer {
+    typealias SwiftType = [OpcionIa]
+
+    public static func write(_ value: [OpcionIa], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOpcionIa.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [OpcionIa] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [OpcionIa]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOpcionIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeOpcionMencionIa: FfiConverterRustBuffer {
     typealias SwiftType = [OpcionMencionIa]
 
@@ -41192,6 +41560,31 @@ fileprivate struct FfiConverterSequenceTypeResultadoBusqueda: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeResultadoBusqueda.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeRetomadoIa: FfiConverterRustBuffer {
+    typealias SwiftType = [RetomadoIa]
+
+    public static func write(_ value: [RetomadoIa], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRetomadoIa.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RetomadoIa] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RetomadoIa]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRetomadoIa.read(from: &buf))
         }
         return seq
     }
@@ -44006,6 +44399,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sondear_direccion() != 15525) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_retomar_al_arrancar() != 12851) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_asistente() != 26250) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -44015,6 +44411,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_conversacion_nueva() != 29870) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_elegir() != 25618) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_escribir_mientras_trabaja() != 31428) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_opciones_mencion() != 10230) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -44022,6 +44424,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_responder() != 19377) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_carpeta_de_memoria() != 59658) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ia_receta_borrar() != 32432) {
