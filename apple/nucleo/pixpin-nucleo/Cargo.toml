@@ -80,6 +80,9 @@ pixpin-office = { version = "0.1.0", path = "../pixpin-office" }
 # La capa de texto de un PDF (buscar y anotar desde el asistente, E1): el
 # mismo lector que el de Windows, Rust puro.
 pixpin-pdf = { path = "../pixpin-pdf" }
+# Los graficos de un Excel (su ancla y sus valores en cache): el lector del
+# visor de hojas de Windows. Ya estaba en el arbol (`pixpin-ia`).
+pixpin-hojas = { path = "../pixpin-hojas" }
 pdfsqueeze-core = { workspace = true }
 rayon = "1"
 sha2 = "0.10"

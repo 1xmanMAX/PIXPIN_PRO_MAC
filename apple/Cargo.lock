@@ -1750,6 +1750,7 @@ dependencies = [
  "pixpin-docs",
  "pixpin-frase",
  "pixpin-geom",
+ "pixpin-hojas",
  "pixpin-ia",
  "pixpin-lecciones",
  "pixpin-motor-audio",

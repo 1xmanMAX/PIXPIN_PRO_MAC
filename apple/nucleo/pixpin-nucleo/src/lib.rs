@@ -50,12 +50,13 @@ uniffi::setup_scaffolding!();
 
 pub mod adjuntos;
 pub mod ajustes;
+// Ajustes → Tareas, Lienzo y Pinear del iPad (25-oct), aparte de `AjustesMac`.
+pub mod ajustes_organizar;
 pub mod aligerar;
 /// «Enviar a Anki» del menu de un mensaje (Windows 2561be0).
 pub mod anki;
 pub mod anotador_al_chat;
 pub mod aparatos;
-pub mod grafito_plano;
 pub mod asistente;
 pub mod automatizaciones;
 pub mod burbujas;
@@ -63,8 +64,8 @@ pub mod buscar;
 pub mod chats;
 /// Grabar una clase o una reunion: lo que se guarda en el chat (Windows edd0ffa).
 pub mod clase;
-pub mod compartir;
 pub mod compartidos;
+pub mod compartir;
 pub mod conversacion;
 pub mod copias;
 pub mod diapositivas;
@@ -74,16 +75,19 @@ pub mod editor_construir;
 pub mod editor_estilo;
 pub mod editor_exportar;
 pub mod editor_figuras;
-pub mod galeria_figuras;
 pub mod editor_herramientas;
 pub mod editor_imagenes;
 pub mod editor_marcos;
 pub mod editor_tapado;
-pub mod editor_ventana;
-pub mod envio;
 /// Grabar clase en dos modos y la ventana «Estudiar la clase» (Windows
 /// 3af2647 y ce6c058).
 pub mod estudiar_clase;
+pub mod galeria_figuras;
+pub mod grafito_plano;
+// Editar una tabla dibujada con su cajetin (iPad, 25-oct).
+pub mod editor_tabla;
+pub mod editor_ventana;
+pub mod envio;
 // La isla de la ficha del chat (Windows 71bd8b5).
 pub mod ficha_del_chat;
 pub mod galeria;
@@ -92,6 +96,13 @@ pub mod hojas;
 pub mod lecciones;
 pub mod lienzo;
 pub mod lienzo_suelto;
+// Medir el texto del lienzo con las letras de verdad (iPad, 25-oct).
+pub mod letras_lienzo;
+// Las palabras magicas de Pinear (iPad, 25-oct; `pixpin_pin::magia`).
+pub mod magia;
+// Fusionar paginas del PDF del proyecto en un lienzo (iPad, 25-oct).
+pub mod fusionar_paginas;
+// La zona al chat como sublienzo y el salto por su enlace (iPad, 25-oct).
 pub mod marcas_lienzo;
 /// La mezcla y el tratamiento del sonido del motor de audio de Windows
 /// (38204cb): microfono y sonido del Mac por bloques.
@@ -99,24 +110,27 @@ pub mod mezcla_audio;
 /// El motor de video de la clase sin nada del Mac (Windows bea497b):
 /// perfiles, cadena de caidas, ritmo variable y reloj.
 pub mod motor_video;
+pub mod zona_al_chat;
 // El horario de clases que llama (Windows, 17-oct).
 // Google Calendar, solo para ver (Windows, 18-oct).
-pub mod carpetas;
 pub mod calendario_google;
+pub mod carpetas;
 pub mod horario;
 // Clip → «Página de un proyecto» (Windows, `ventana_chat/paginas.rs`).
-pub mod paginas;
 pub mod llamada;
 pub mod llavero;
 pub mod mini_tiempos;
 pub mod miniapps;
 pub mod modelos3d;
-pub mod notas;
 /// La nota rica del chat: su Markdown con formato y sus fotos en album
 /// dentro de la burbuja (Windows 974d5ba).
 pub mod nota_rica;
+pub mod notas;
 pub mod office;
+pub mod paginas;
 pub mod planos;
+// Renombrar y archivar proyectos (iPad, 25-oct).
+pub mod proyectos;
 pub mod recepcion;
 pub mod recordatorios;
 pub mod red;
@@ -134,22 +148,27 @@ use std::sync::atomic::AtomicU16;
 use std::sync::{Arc, Mutex};
 
 pub use ajustes::AjustesMac;
+pub use anki::EnvioAnki;
 pub use asistente::{CorteIa, HerramientaUsada, MensajeIa, OyenteIa, RespuestaIa};
 pub use buscar::{Busqueda, ClaseDeResultado, PaginaBusqueda, ResultadoBusqueda};
 pub use chats::{FichaChat, MensajeChat, PaginaMensajes};
+pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
 pub use compartidos::{
     AvisoInvitacion, ChatCompartidoMac, CodigoDeInvitacion, Invitacion, PersonaCompartida,
     ResumenPersona,
 };
 pub use documentos::{DondeAnota, LecturaDocumento, MarcaDocumento};
 pub use editor::{EditorLienzo, FasePuntero, PeticionLienzo};
-pub use marcas_lienzo::{CamaraDelLienzo, MarcaDelLienzo, MarcasDelLienzo};
 pub use editor_estilo::{
     CambioDeEstilo, ColorEstilo, EstiloLienzo, GrosorEstilo, LineaEstilo, RellenoEstilo,
 };
 pub use envio::{
     ArchivoLlegado, AvisoEnvio, CodigoDeEnvio, DondeLlego, EnvioSuelto, FinEnvio, FinRecibir,
     FrenteMac, PuertaEnvio, PuertaRecibir, RecibidoEnvio,
+};
+pub use estudiar_clase::{
+    CapturaParaEstudiar, ClaseParaEstudiar, EnUnaClase, FilaDeClase, LineaDeClase, ModoDeGrabar,
+    SenalDeClase,
 };
 pub use galeria::{CapturaBorrada, CapturaCaducada, CapturaGaleria, PaginaGaleria};
 pub use lecciones::{
@@ -159,29 +178,26 @@ pub use lecciones::{
 pub use lienzo::{CajaLienzo, ImagenDelLienzo, Lienzo, LienzoPlano};
 pub use llamada::LlamadaSecreta;
 pub use llavero::LlaveroApp;
+pub use marcas_lienzo::{CamaraDelLienzo, MarcaDelLienzo, MarcasDelLienzo};
+pub use mezcla_audio::{BloqueMezclado, FuenteDeMezcla, MezclaDeAudio, PapelDeAudio};
 pub use miniapps::{AccionContador, CuentaMini, GastoMini, GiroRuleta, LibroMini, ResumenMini};
 pub use modelos3d::{
     Caja3d, Camara3d, Categoria3d, ClaseDeModelo, Eleccion3d, Filtro3d, Indices3d, InfoElemento3d,
     Modelo3dApple, Nivel3d, Punto3d, ResumenModelo3d,
 };
+pub use motor_video::{CaminoDelVideo, CodificadorVideo, PerfilVideo, RitmoDelVideo};
 pub use planos::{
     AnotadoPlano, BuferesGrupo, CajaPlano, CapaPlano, CotaPlano, EncajePlano, Enganche, GrupoPlano,
     NoDibujado, Plano, PuntoPlano, ResumenPlano, TipoEnganche,
 };
 pub use recordatorios::{RecordatorioMac, TareaRecordada};
 pub use sincro::{AnuncioBonjour, Atendido, Escucha, ParTxt, ResumenSincro};
-pub use tareas::{ListaTareas, MarcasTarea, Tarea, marcas_de_tarea, tarea_con_nota, tarea_entendida};
+pub use tareas::{
+    ListaTareas, MarcasTarea, Tarea, marcas_de_tarea, tarea_con_nota, tarea_entendida,
+};
 pub use timeline::{DiaTimeline, MomentoTimeline, PaginaDias, PaginaMomentos};
 pub use turnos::{CambioDeTurno, TurnoVoz};
 pub use voz::{GrabacionVoz, SegmentoVoz};
-pub use anki::EnvioAnki;
-pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
-pub use estudiar_clase::{
-    CapturaParaEstudiar, ClaseParaEstudiar, EnUnaClase, FilaDeClase, LineaDeClase, ModoDeGrabar,
-    SenalDeClase,
-};
-pub use mezcla_audio::{BloqueMezclado, FuenteDeMezcla, MezclaDeAudio, PapelDeAudio};
-pub use motor_video::{CaminoDelVideo, CodificadorVideo, PerfilVideo, RitmoDelVideo};
 
 /// Lo que puede salir mal, tal como lo ve Swift (un `enum` que `throws`).
 ///

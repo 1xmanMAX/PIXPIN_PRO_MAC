@@ -19,6 +19,10 @@
 
 pub(crate) mod adjuntos;
 mod comentarios;
+mod comentarios_nativos;
+mod nativo_md;
+pub use comentarios_nativos::{ComentariosNota, HiloNota, RespuestaNota};
+pub use nativo_md::{ComandoBarraMd, ConsultaBarraMd, FotoMd, TablaMd};
 pub mod vista;
 pub mod web;
 
