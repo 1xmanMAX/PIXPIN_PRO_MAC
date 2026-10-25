@@ -84,6 +84,7 @@ pub mod lienzo;
 pub mod lienzo_suelto;
 // El horario de clases que llama (Windows, 17-oct).
 // Google Calendar, solo para ver (Windows, 18-oct).
+pub mod carpetas;
 pub mod calendario_google;
 pub mod horario;
 // Clip → «Página de un proyecto» (Windows, `ventana_chat/paginas.rs`).

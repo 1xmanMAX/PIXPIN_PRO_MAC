@@ -6453,6 +6453,63 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func calendarioLeer() throws  -> Bool
     
     /**
+     * **Mete el mensaje `pagina` en la carpeta `carpeta`**, al final y con
+     * el titulo que le toca («Día 3» si la carpeta lleva una serie; si no,
+     * el nombre de la hoja). Si ya estaba no se toca. `None` si la carpeta
+     * ya no esta. Bloqueante.
+     */
+    func anadirACarpeta(chat: String, carpeta: String, pagina: String) throws  -> AnadidaACarpeta?
+    
+    /**
+     * **Cambia una carpeta** desde su ventana (reordenar, renombrar una
+     * pagina, quitarla). Devuelve la carpeta como quedo, o `None` si ya no
+     * esta. Lo borrado del chat se poda de paso. Bloqueante.
+     */
+    func cambiarCarpeta(chat: String, carpeta: String, cambio: CambioCarpeta) throws  -> MensajeChat?
+    
+    /**
+     * **Una carpeta con sus paginas vivas**, en orden. `None` si el
+     * mensaje ya no esta o no es una carpeta que se entienda. No escribe:
+     * lo borrado se salta aqui y se poda al cambiarla. Bloqueante.
+     */
+    func carpetaDePaginas(chat: String, id: String) throws  -> CarpetaDePaginas?
+    
+    /**
+     * **Las carpetas del chat** para «Añadir a carpeta…» de `pagina`, la
+     * mas vieja primero, con la marca de si ya la llevan.
+     */
+    func carpetasDelChat(chat: String, pagina: String) throws  -> [CarpetaDelChat]
+    
+    /**
+     * **Una carpeta de paginas nueva** al final del chat («Carpeta de
+     * páginas» del clip; con `primera`, «Nueva carpeta con esta página»).
+     * Se llama «Cuaderno» (o «Cuaderno 2»…): quien llama ofrece cambiarle
+     * el nombre enseguida, como Windows. Bloqueante.
+     */
+    func crearCarpetaDePaginas(chat: String, primera: String?) throws  -> MensajeChat
+    
+    /**
+     * **Las hojas de un lienzo para el PDF de una carpeta**
+     * (`exportar::hojas_de_cuaderno`): una por plantilla, en orden de
+     * lectura; sin plantilla, cada marco; sin marcos, todo. Con sus ordenes
+     * para pintarlas y su SVG. Vacio si no hay nada. Bloqueante.
+     */
+    func hojasDeCarpeta(chat: String, dibujo: String) throws  -> [HojaDeDibujo]
+    
+    /**
+     * **«Nueva página»**: un lienzo nuevo en el chat con la plantilla de la
+     * ultima pagina que sea un lienzo, vacia, o en blanco si no tiene; con
+     * el titulo siguiente («Día 3» tras «Día 2»), y al final de la
+     * carpeta. Bloqueante.
+     */
+    func paginaSiguienteDeCarpeta(chat: String, carpeta: String) throws  -> PaginaNuevaDeCarpeta
+    
+    /**
+     * Si el mensaje `id` se ofrece para «Añadir a carpeta…».
+     */
+    func sePuedeAnadirACarpeta(chat: String, id: String)  -> Bool
+    
+    /**
      * **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
      * Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
      * **la marca de cada uno** para sincronizar (sin ella, la vuelta
@@ -8529,6 +8586,137 @@ open func calendarioLeer()throws  -> Bool  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_nucleo_calendario_leer(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Mete el mensaje `pagina` en la carpeta `carpeta`**, al final y con
+     * el titulo que le toca («Día 3» si la carpeta lleva una serie; si no,
+     * el nombre de la hoja). Si ya estaba no se toca. `None` si la carpeta
+     * ya no esta. Bloqueante.
+     */
+open func anadirACarpeta(chat: String, carpeta: String, pagina: String)throws  -> AnadidaACarpeta?  {
+    return try  FfiConverterOptionTypeAnadidaACarpeta.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_anadir_a_carpeta(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(carpeta),
+        FfiConverterString.lower(pagina),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Cambia una carpeta** desde su ventana (reordenar, renombrar una
+     * pagina, quitarla). Devuelve la carpeta como quedo, o `None` si ya no
+     * esta. Lo borrado del chat se poda de paso. Bloqueante.
+     */
+open func cambiarCarpeta(chat: String, carpeta: String, cambio: CambioCarpeta)throws  -> MensajeChat?  {
+    return try  FfiConverterOptionTypeMensajeChat.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_cambiar_carpeta(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(carpeta),
+        FfiConverterTypeCambioCarpeta_lower(cambio),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Una carpeta con sus paginas vivas**, en orden. `None` si el
+     * mensaje ya no esta o no es una carpeta que se entienda. No escribe:
+     * lo borrado se salta aqui y se poda al cambiarla. Bloqueante.
+     */
+open func carpetaDePaginas(chat: String, id: String)throws  -> CarpetaDePaginas?  {
+    return try  FfiConverterOptionTypeCarpetaDePaginas.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_carpeta_de_paginas(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las carpetas del chat** para «Añadir a carpeta…» de `pagina`, la
+     * mas vieja primero, con la marca de si ya la llevan.
+     */
+open func carpetasDelChat(chat: String, pagina: String)throws  -> [CarpetaDelChat]  {
+    return try  FfiConverterSequenceTypeCarpetaDelChat.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_carpetas_del_chat(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(pagina),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Una carpeta de paginas nueva** al final del chat («Carpeta de
+     * páginas» del clip; con `primera`, «Nueva carpeta con esta página»).
+     * Se llama «Cuaderno» (o «Cuaderno 2»…): quien llama ofrece cambiarle
+     * el nombre enseguida, como Windows. Bloqueante.
+     */
+open func crearCarpetaDePaginas(chat: String, primera: String?)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_crear_carpeta_de_paginas(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterOptionString.lower(primera),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las hojas de un lienzo para el PDF de una carpeta**
+     * (`exportar::hojas_de_cuaderno`): una por plantilla, en orden de
+     * lectura; sin plantilla, cada marco; sin marcos, todo. Con sus ordenes
+     * para pintarlas y su SVG. Vacio si no hay nada. Bloqueante.
+     */
+open func hojasDeCarpeta(chat: String, dibujo: String)throws  -> [HojaDeDibujo]  {
+    return try  FfiConverterSequenceTypeHojaDeDibujo.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_hojas_de_carpeta(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(dibujo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Nueva página»**: un lienzo nuevo en el chat con la plantilla de la
+     * ultima pagina que sea un lienzo, vacia, o en blanco si no tiene; con
+     * el titulo siguiente («Día 3» tras «Día 2»), y al final de la
+     * carpeta. Bloqueante.
+     */
+open func paginaSiguienteDeCarpeta(chat: String, carpeta: String)throws  -> PaginaNuevaDeCarpeta  {
+    return try  FfiConverterTypePaginaNuevaDeCarpeta_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_pagina_siguiente_de_carpeta(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si el mensaje `id` se ofrece para «Añadir a carpeta…».
+     */
+open func sePuedeAnadirACarpeta(chat: String, id: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_se_puede_anadir_a_carpeta(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(id),uniffiCallStatus
     )
 })
 }
@@ -14616,6 +14804,109 @@ public func FfiConverterTypeAlarmaMini_lower(_ value: AlarmaMini) -> RustBuffer 
 
 
 /**
+ * Lo que deja «Añadir a carpeta…».
+ */
+public struct AnadidaACarpeta: Equatable, Hashable {
+    /**
+     * El mensaje de la carpeta como quedo.
+     */
+    public var carpeta: MensajeChat
+    /**
+     * El nombre de la carpeta, para el aviso.
+     */
+    public var nombre: String
+    /**
+     * El titulo con el que entro la pagina (o el que ya tenia).
+     */
+    public var titulo: String
+    public var paginas: UInt32
+    /**
+     * Si no habia ninguna carpeta con ese nombre y se creo (el asistente).
+     */
+    public var creada: Bool
+    /**
+     * Si ya estaba: entonces no se toco nada.
+     */
+    public var yaEstaba: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El mensaje de la carpeta como quedo.
+         */carpeta: MensajeChat, 
+        /**
+         * El nombre de la carpeta, para el aviso.
+         */nombre: String, 
+        /**
+         * El titulo con el que entro la pagina (o el que ya tenia).
+         */titulo: String, paginas: UInt32, 
+        /**
+         * Si no habia ninguna carpeta con ese nombre y se creo (el asistente).
+         */creada: Bool, 
+        /**
+         * Si ya estaba: entonces no se toco nada.
+         */yaEstaba: Bool) {
+        self.carpeta = carpeta
+        self.nombre = nombre
+        self.titulo = titulo
+        self.paginas = paginas
+        self.creada = creada
+        self.yaEstaba = yaEstaba
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AnadidaACarpeta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAnadidaACarpeta: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AnadidaACarpeta {
+        return
+            try AnadidaACarpeta(
+                carpeta: FfiConverterTypeMensajeChat.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                titulo: FfiConverterString.read(from: &buf), 
+                paginas: FfiConverterUInt32.read(from: &buf), 
+                creada: FfiConverterBool.read(from: &buf), 
+                yaEstaba: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AnadidaACarpeta, into buf: inout [UInt8]) {
+        FfiConverterTypeMensajeChat.write(value.carpeta, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterUInt32.write(value.paginas, into: &buf)
+        FfiConverterBool.write(value.creada, into: &buf)
+        FfiConverterBool.write(value.yaEstaba, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAnadidaACarpeta_lift(_ buf: RustBuffer) throws -> AnadidaACarpeta {
+    return try FfiConverterTypeAnadidaACarpeta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAnadidaACarpeta_lower(_ value: AnadidaACarpeta) -> RustBuffer {
+    return FfiConverterTypeAnadidaACarpeta.lower(value)
+}
+
+
+/**
  * El ancho de una columna puesto a mano, en pixeles.
  */
 public struct AnchoColumna: Equatable, Hashable {
@@ -16430,6 +16721,150 @@ public func FfiConverterTypeCapturaGaleria_lift(_ buf: RustBuffer) throws -> Cap
 #endif
 public func FfiConverterTypeCapturaGaleria_lower(_ value: CapturaGaleria) -> RustBuffer {
     return FfiConverterTypeCapturaGaleria.lower(value)
+}
+
+
+/**
+ * **Una carpeta leida**: su nombre y sus paginas vivas, en orden.
+ */
+public struct CarpetaDePaginas: Equatable, Hashable {
+    /**
+     * El `id` del mensaje de la carpeta.
+     */
+    public var id: String
+    public var nombre: String
+    public var paginas: [PaginaDeCarpeta]
+    /**
+     * El mensaje de la carpeta como esta en el disco (para la tarjeta).
+     */
+    public var mensaje: MensajeChat
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El `id` del mensaje de la carpeta.
+         */id: String, nombre: String, paginas: [PaginaDeCarpeta], 
+        /**
+         * El mensaje de la carpeta como esta en el disco (para la tarjeta).
+         */mensaje: MensajeChat) {
+        self.id = id
+        self.nombre = nombre
+        self.paginas = paginas
+        self.mensaje = mensaje
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CarpetaDePaginas: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCarpetaDePaginas: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CarpetaDePaginas {
+        return
+            try CarpetaDePaginas(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                paginas: FfiConverterSequenceTypePaginaDeCarpeta.read(from: &buf), 
+                mensaje: FfiConverterTypeMensajeChat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CarpetaDePaginas, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterSequenceTypePaginaDeCarpeta.write(value.paginas, into: &buf)
+        FfiConverterTypeMensajeChat.write(value.mensaje, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetaDePaginas_lift(_ buf: RustBuffer) throws -> CarpetaDePaginas {
+    return try FfiConverterTypeCarpetaDePaginas.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetaDePaginas_lower(_ value: CarpetaDePaginas) -> RustBuffer {
+    return FfiConverterTypeCarpetaDePaginas.lower(value)
+}
+
+
+/**
+ * Una carpeta del chat para el menu «Añadir a carpeta…».
+ */
+public struct CarpetaDelChat: Equatable, Hashable {
+    public var id: String
+    public var nombre: String
+    /**
+     * Si la pagina por la que se pregunta ya esta dentro.
+     */
+    public var laLleva: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, nombre: String, 
+        /**
+         * Si la pagina por la que se pregunta ya esta dentro.
+         */laLleva: Bool) {
+        self.id = id
+        self.nombre = nombre
+        self.laLleva = laLleva
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CarpetaDelChat: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCarpetaDelChat: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CarpetaDelChat {
+        return
+            try CarpetaDelChat(
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                laLleva: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CarpetaDelChat, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterBool.write(value.laLleva, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetaDelChat_lift(_ buf: RustBuffer) throws -> CarpetaDelChat {
+    return try FfiConverterTypeCarpetaDelChat.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetaDelChat_lower(_ value: CarpetaDelChat) -> RustBuffer {
+    return FfiConverterTypeCarpetaDelChat.lower(value)
 }
 
 
@@ -25089,6 +25524,69 @@ public func FfiConverterTypePaginaBusqueda_lower(_ value: PaginaBusqueda) -> Rus
 
 
 /**
+ * Una pagina de la carpeta, ya con su mensaje.
+ */
+public struct PaginaDeCarpeta: Equatable, Hashable {
+    /**
+     * Su titulo en la carpeta, o el nombre del mensaje si no lleva.
+     */
+    public var titulo: String
+    public var mensaje: MensajeChat
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Su titulo en la carpeta, o el nombre del mensaje si no lleva.
+         */titulo: String, mensaje: MensajeChat) {
+        self.titulo = titulo
+        self.mensaje = mensaje
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaginaDeCarpeta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaginaDeCarpeta: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaginaDeCarpeta {
+        return
+            try PaginaDeCarpeta(
+                titulo: FfiConverterString.read(from: &buf), 
+                mensaje: FfiConverterTypeMensajeChat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaginaDeCarpeta, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterTypeMensajeChat.write(value.mensaje, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaDeCarpeta_lift(_ buf: RustBuffer) throws -> PaginaDeCarpeta {
+    return try FfiConverterTypePaginaDeCarpeta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaDeCarpeta_lower(_ value: PaginaDeCarpeta) -> RustBuffer {
+    return FfiConverterTypePaginaDeCarpeta.lower(value)
+}
+
+
+/**
  * Una pagina de dias, del mas nuevo al mas viejo.
  */
 public struct PaginaDias: Equatable, Hashable {
@@ -25526,6 +26024,89 @@ public func FfiConverterTypePaginaMomentos_lift(_ buf: RustBuffer) throws -> Pag
 #endif
 public func FfiConverterTypePaginaMomentos_lower(_ value: PaginaMomentos) -> RustBuffer {
     return FfiConverterTypePaginaMomentos.lower(value)
+}
+
+
+/**
+ * Lo que deja «Nueva página».
+ */
+public struct PaginaNuevaDeCarpeta: Equatable, Hashable {
+    /**
+     * El lienzo nuevo, ya en el chat y en la carpeta.
+     */
+    public var lienzo: MensajeChat
+    /**
+     * La carpeta como quedo.
+     */
+    public var carpeta: MensajeChat
+    public var titulo: String
+    /**
+     * Si lleva la plantilla de la ultima pagina (si no, en blanco).
+     */
+    public var conPlantilla: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El lienzo nuevo, ya en el chat y en la carpeta.
+         */lienzo: MensajeChat, 
+        /**
+         * La carpeta como quedo.
+         */carpeta: MensajeChat, titulo: String, 
+        /**
+         * Si lleva la plantilla de la ultima pagina (si no, en blanco).
+         */conPlantilla: Bool) {
+        self.lienzo = lienzo
+        self.carpeta = carpeta
+        self.titulo = titulo
+        self.conPlantilla = conPlantilla
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension PaginaNuevaDeCarpeta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypePaginaNuevaDeCarpeta: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PaginaNuevaDeCarpeta {
+        return
+            try PaginaNuevaDeCarpeta(
+                lienzo: FfiConverterTypeMensajeChat.read(from: &buf), 
+                carpeta: FfiConverterTypeMensajeChat.read(from: &buf), 
+                titulo: FfiConverterString.read(from: &buf), 
+                conPlantilla: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: PaginaNuevaDeCarpeta, into buf: inout [UInt8]) {
+        FfiConverterTypeMensajeChat.write(value.lienzo, into: &buf)
+        FfiConverterTypeMensajeChat.write(value.carpeta, into: &buf)
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterBool.write(value.conPlantilla, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaNuevaDeCarpeta_lift(_ buf: RustBuffer) throws -> PaginaNuevaDeCarpeta {
+    return try FfiConverterTypePaginaNuevaDeCarpeta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypePaginaNuevaDeCarpeta_lower(_ value: PaginaNuevaDeCarpeta) -> RustBuffer {
+    return FfiConverterTypePaginaNuevaDeCarpeta.lower(value)
 }
 
 
@@ -31197,6 +31778,103 @@ public func FfiConverterTypeAvisoInvitacion_lower(_ value: AvisoInvitacion) -> R
 
 
 /**
+ * Lo que se le cambia a una carpeta desde su ventana. Las posiciones son
+ * las de sus paginas vivas (las que se ven).
+ */
+
+public enum CambioCarpeta: Equatable, Hashable {
+    
+    /**
+     * Lleva la pagina `desde` al sitio `hasta` (arrastrar, ← →).
+     */
+    case mover(desde: UInt32, hasta: UInt32
+    )
+    /**
+     * Otro titulo para la pagina `pagina` (el `id` de su mensaje).
+     */
+    case renombrar(pagina: String, titulo: String
+    )
+    /**
+     * Quita la pagina de la carpeta; el mensaje sigue en el chat.
+     */
+    case quitar(pagina: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension CambioCarpeta: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCambioCarpeta: FfiConverterRustBuffer {
+    typealias SwiftType = CambioCarpeta
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CambioCarpeta {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .mover(desde: try FfiConverterUInt32.read(from: &buf), hasta: try FfiConverterUInt32.read(from: &buf)
+        )
+        
+        case 2: return .renombrar(pagina: try FfiConverterString.read(from: &buf), titulo: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .quitar(pagina: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: CambioCarpeta, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .mover(desde,hasta):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt32.write(desde, into: &buf)
+            FfiConverterUInt32.write(hasta, into: &buf)
+            
+        
+        case let .renombrar(pagina,titulo):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(pagina, into: &buf)
+            FfiConverterString.write(titulo, into: &buf)
+            
+        
+        case let .quitar(pagina):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(pagina, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCambioCarpeta_lift(_ buf: RustBuffer) throws -> CambioCarpeta {
+    return try FfiConverterTypeCambioCarpeta.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCambioCarpeta_lower(_ value: CambioCarpeta) -> RustBuffer {
+    return FfiConverterTypeCambioCarpeta.lower(value)
+}
+
+
+
+/**
  * Un mando de la barra pulsado.
  */
 
@@ -36337,6 +37015,30 @@ fileprivate struct FfiConverterOptionTypeNucleo: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeAnadidaACarpeta: FfiConverterRustBuffer {
+    typealias SwiftType = AnadidaACarpeta?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeAnadidaACarpeta.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeAnadidaACarpeta.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeAnuncioBonjour: FfiConverterRustBuffer {
     typealias SwiftType = AnuncioBonjour?
 
@@ -36473,6 +37175,30 @@ fileprivate struct FfiConverterOptionTypeCamara3d: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeCamara3d.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeCarpetaDePaginas: FfiConverterRustBuffer {
+    typealias SwiftType = CarpetaDePaginas?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeCarpetaDePaginas.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeCarpetaDePaginas.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -38209,6 +38935,31 @@ fileprivate struct FfiConverterSequenceTypeCapturaGaleria: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCarpetaDelChat: FfiConverterRustBuffer {
+    typealias SwiftType = [CarpetaDelChat]
+
+    public static func write(_ value: [CarpetaDelChat], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCarpetaDelChat.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CarpetaDelChat] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CarpetaDelChat]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCarpetaDelChat.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCategoria3d: FfiConverterRustBuffer {
     typealias SwiftType = [Categoria3d]
 
@@ -39584,6 +40335,31 @@ fileprivate struct FfiConverterSequenceTypeOpcionMencionIa: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypePaginaDeCarpeta: FfiConverterRustBuffer {
+    typealias SwiftType = [PaginaDeCarpeta]
+
+    public static func write(_ value: [PaginaDeCarpeta], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypePaginaDeCarpeta.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [PaginaDeCarpeta] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [PaginaDeCarpeta]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypePaginaDeCarpeta.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypePaginaElegible: FfiConverterRustBuffer {
     typealias SwiftType = [PaginaElegible]
 
@@ -40864,6 +41640,43 @@ public func automatizacionHerramientas() -> [HerramientaAutomatizacion]  {
     return try!  FfiConverterSequenceTypeHerramientaAutomatizacion.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_automatizacion_herramientas(uniffiCallStatus
+    )
+})
+}
+/**
+ * Si el mensaje es una carpeta de paginas (para Swift, que solo ve la
+ * clase y la palabra).
+ */
+public func esCarpetaDePaginas(clase: String, miniapp: String?) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_es_carpeta_de_paginas(
+        FfiConverterString.lower(clase),
+        FfiConverterOptionString.lower(miniapp),uniffiCallStatus
+    )
+})
+}
+/**
+ * El nombre del PDF de una carpeta (`compartir::carpeta::nombre_de_fichero`
+ * de Windows): el de la carpeta y, sin el, «Carpeta.pdf».
+ */
+public func nombreDelPdfDeCarpeta(titulo: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nombre_del_pdf_de_carpeta(
+        FfiConverterString.lower(titulo),uniffiCallStatus
+    )
+})
+}
+/**
+ * Los `id` de las paginas de una carpeta, en orden, de su `texto` (la
+ * tarjeta del chat). Vacio si no se entiende.
+ */
+public func paginasDeCarpeta(texto: String) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_paginas_de_carpeta(
+        FfiConverterString.lower(texto),uniffiCallStatus
     )
 })
 }
@@ -42305,6 +43118,15 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_automatizacion_herramientas() != 54389) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_es_carpeta_de_paginas() != 856) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_nombre_del_pdf_de_carpeta() != 52725) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_paginas_de_carpeta() != 44772) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_etiqueta_de_invitacion() != 50993) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -42786,6 +43608,30 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_calendario_leer() != 39044) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_anadir_a_carpeta() != 14497) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_cambiar_carpeta() != 10848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_carpeta_de_paginas() != 18658) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_carpetas_del_chat() != 41382) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_carpeta_de_paginas() != 33373) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_hojas_de_carpeta() != 56388) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_pagina_siguiente_de_carpeta() != 16950) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_se_puede_anadir_a_carpeta() != 12253) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_mensajes() != 49997) {

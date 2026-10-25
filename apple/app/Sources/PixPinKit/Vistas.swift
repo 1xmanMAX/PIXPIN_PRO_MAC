@@ -535,6 +535,9 @@ public struct VistaChat: View {
         }
         if FigurasDelChat.hacer(accion, chat: chat, almacen: almacen,
                                 avisar: { [menu] in menu.avisar($0) }, empezar: empezar) { return }
+        // Una carpeta nace con el nombre listo para escribirlo (la hoja de
+        // cambiar el nombre es del chat).
+        if accion == .carpeta { return menu.crearCarpeta(primera: nil) }
         let abrir = abrirVentana
         AdjuntarEnChat.hacer(accion, chat: chat, almacen: almacen,
                              avisar: { [menu] in menu.avisar($0) },
@@ -589,6 +592,9 @@ struct Burbuja: View {
             // «TABLA» siempre es tabla; una «MINIAPP» solo si lo que trae lo es.
             case "TABLA":
                 BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)
+            // Una carpeta de paginas: su tarjeta, que la abre (`Chat/Carpetas.swift`).
+            case "MINIAPP" where CarpetasDelChat.esCarpeta(mensaje):
+                BurbujaCarpeta(mensaje: mensaje, chat: chat, almacen: almacen)
             case "MINIAPP" where BurbujaTareas.esTareas(mensaje):
                 BurbujaTareas(mensaje: mensaje)
             case "MINIAPP" where BurbujaTabla.esTabla(mensaje):

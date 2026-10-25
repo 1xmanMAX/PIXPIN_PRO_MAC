@@ -38,7 +38,9 @@ final class CajaDelChatTests: XCTestCase {
     func testOchoBaldosasNumeradasYLosChipsDebajo() {
         let o = HojaAdjuntar.opciones
         XCTAssertEqual(o.compactMap(\.numero), [1, 2, 3, 4, 5, 6, 7, 8])
-        XCTAssertEqual(o.count, 19, "las 19 entradas de Windows")
+        XCTAssertEqual(o.count, 20, "las 20 entradas de Windows")
+        // La carpeta de paginas, en los chips (26-oct-2026).
+        XCTAssertEqual(HojaAdjuntar.visibles("cuaderno").map(\.accion), [.carpeta])
         // Las baldosas primero, los chips despues.
         XCTAssertEqual(o.prefix(8).filter(\.esBaldosa).count, 8)
         XCTAssertTrue(o.dropFirst(8).allSatisfy { !$0.esBaldosa })

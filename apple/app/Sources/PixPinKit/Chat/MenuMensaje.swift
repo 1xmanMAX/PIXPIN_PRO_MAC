@@ -494,6 +494,16 @@ private struct MenuDeMensaje<Propias: View>: View {
                 .keyboardShortcut("n", modifiers: [])
         }
         propias
+        // Las carpetas de paginas (26-oct-2026): un lienzo, una pagina o una
+        // foto, a la vista; lo demas que puede ser pagina, en «Más». Y una
+        // carpeta, abrirla.
+        if CarpetasDelChat.esCarpeta(m) {
+            Button { CarpetasDelChat.abrir(m, chat: c.chat, almacen: c.almacen) } label: {
+                Label(TextosCarpeta.abrir, systemImage: "book")
+            }
+        } else if CarpetasDelChat.seOfrece(m), CarpetasDelChat.aLaVista(m) {
+            Button { c.anadirACarpeta(m) } label: { Label(TextosCarpeta.anadirA, systemImage: "book") }
+        }
 
         // ── Mandarlo a otro sitio y acordarse ──
         Divider()
@@ -542,6 +552,9 @@ private struct MenuDeMensaje<Propias: View>: View {
             }
             Button { c.fijar([m.id]) } label: {
                 Label(m.fijado ? "Quitar de arriba" : "Fijar arriba", systemImage: m.fijado ? "flag.slash" : "flag")
+            }
+            if CarpetasDelChat.seOfrece(m), !CarpetasDelChat.aLaVista(m) {
+                Button { c.anadirACarpeta(m) } label: { Label(TextosCarpeta.anadirA, systemImage: "book") }
             }
             if let url = c.fichero(m) {
                 MenuAbrirCon(url: url, avisar: c.avisar)

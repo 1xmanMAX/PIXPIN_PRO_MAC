@@ -23,6 +23,8 @@ enum AccionAdjuntar: Hashable, Sendable {
     /// La hoja del asistente: una figura de la biblioteca, a un lienzo del
     /// chat para que la mejore, y pedirle una nueva (`para_el_asistente`).
     case figura, pedirFigura
+    /// Una carpeta de paginas (26-oct-2026): un cuaderno con nombre.
+    case carpeta
     /// Una mini-app (`tareas`, `cronometro`...), por su nombre en el nucleo.
     case mini(String)
 
@@ -84,6 +86,7 @@ enum HojaAdjuntar {
               color: 0xC93C35, simbolo: "crop", numero: 8),
         .init("Página de un proyecto", "pagina proyecto page", .pagina),
         .init("Proyecto entero", "proyecto entero project", .proyecto),
+        .init("Carpeta de páginas", "carpeta cuaderno diario libreta folder notebook", .carpeta),
         .init("Teleprónter", "teleprompter leer", .telepronter),
         .init("Pronunciar", "pronunciar ingles pronounce", .pronunciar),
         .init("Cronómetro", "cronometro stopwatch mini-app", .mini("cronometro")),
@@ -409,6 +412,16 @@ enum AdjuntarEnChat {
         case .figura, .pedirFigura:
             // Las hace el chat: tocan la caja de escribir (`FigurasDelChat.swift`).
             break
+        case .carpeta:
+            // El chat la crea con el nombre listo para escribirlo
+            // (`ChatAbierto.crearCarpeta`); sin chat, sin mas.
+            let nucleo = almacen.nucleo
+            Task {
+                guard let m = try? await Task.detached(operation: {
+                    try nucleo.crearCarpetaDePaginas(chat: chat, primera: nil)
+                }).value else { return avisar(TextosCarpeta.noSePudo) }
+                await almacen.alFinal(m, en: chat)
+            }
         }
     }
 
