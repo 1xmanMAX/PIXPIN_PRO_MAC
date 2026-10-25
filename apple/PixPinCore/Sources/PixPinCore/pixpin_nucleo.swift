@@ -7308,6 +7308,25 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func sePuedeAnadirACarpeta(chat: String, id: String)  -> Bool
     
     /**
+     * **La carpeta de `chat`** con el `id` dado o, si ya no esta, la que se
+     * llama `nombre` (el pedido `carpeta_paginas`). `None` si no hay.
+     */
+    func buscarCarpetaDePaginas(chat: String, id: String?, nombre: String) throws  -> MensajeChat?
+    
+    /**
+     * **Las carpetas que se llaman como `texto`** (todas sin texto) de
+     * todos los chats, la mas reciente primero. Bloqueante.
+     */
+    func carpetasParaFlow(texto: String) throws  -> CarpetasDeFlow
+    
+    /**
+     * **Una carpeta nueva** en `chat` llamada `nombre` (o «Cuaderno»), sin
+     * repetir el de otra («Cuaderno 2»), como `crear_por_nombre` de
+     * Windows. Devuelve su mensaje. Bloqueante.
+     */
+    func crearCarpetaPorNombre(chat: String, nombre: String) throws  -> MensajeChat
+    
+    /**
      * **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
      * Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
      * **la marca de cada uno** para sincronizar (sin ella, la vuelta
@@ -8069,6 +8088,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * chat «Asignaturas» (los dos se crean si no estan).
      */
     func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [String], desfaseMs: Int64) throws  -> ListaTareas
+    
+    /**
+     * **La lista de la asignatura** `asignatura` entre `listas` (las de
+     * Tareas): la del chat «Asignaturas» que se llama asi, sin tildes ni
+     * mayusculas (`asignaturas::de` de Windows). No crea nada: `None` si
+     * aun no tiene tareas. Lo que ensena el Horario debajo de la elegida.
+     */
+    func listaDeAsignatura(listas: [ListaTareas], asignatura: String)  -> ListaTareas?
     
     /**
      * Los nombres de las asignaturas del horario (la lista lateral y las de
@@ -9779,6 +9806,52 @@ open func sePuedeAnadirACarpeta(chat: String, id: String) -> Bool  {
 }
     
     /**
+     * **La carpeta de `chat`** con el `id` dado o, si ya no esta, la que se
+     * llama `nombre` (el pedido `carpeta_paginas`). `None` si no hay.
+     */
+open func buscarCarpetaDePaginas(chat: String, id: String?, nombre: String)throws  -> MensajeChat?  {
+    return try  FfiConverterOptionTypeMensajeChat.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_buscar_carpeta_de_paginas(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterOptionString.lower(id),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las carpetas que se llaman como `texto`** (todas sin texto) de
+     * todos los chats, la mas reciente primero. Bloqueante.
+     */
+open func carpetasParaFlow(texto: String)throws  -> CarpetasDeFlow  {
+    return try  FfiConverterTypeCarpetasDeFlow_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_carpetas_para_flow(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Una carpeta nueva** en `chat` llamada `nombre` (o «Cuaderno»), sin
+     * repetir el de otra («Cuaderno 2»), como `crear_por_nombre` de
+     * Windows. Devuelve su mensaje. Bloqueante.
+     */
+open func crearCarpetaPorNombre(chat: String, nombre: String)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_crear_carpeta_por_nombre(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Borra mensajes de un chat** (`ids`), como `borrar_mensajes` de
      * Windows y `borrarAdjunto` del movil: se quitan del cuaderno, se deja
      * **la marca de cada uno** para sincronizar (sin ella, la vuelta
@@ -11453,6 +11526,23 @@ open func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [Stri
         FfiConverterString.lower(texto),
         FfiConverterSequenceString.lower(imagenes),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La lista de la asignatura** `asignatura` entre `listas` (las de
+     * Tareas): la del chat «Asignaturas» que se llama asi, sin tildes ni
+     * mayusculas (`asignaturas::de` de Windows). No crea nada: `None` si
+     * aun no tiene tareas. Lo que ensena el Horario debajo de la elegida.
+     */
+open func listaDeAsignatura(listas: [ListaTareas], asignatura: String) -> ListaTareas?  {
+    return try!  FfiConverterOptionTypeListaTareas.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_lista_de_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeListaTareas.lower(listas),
+        FfiConverterString.lower(asignatura),uniffiCallStatus
     )
 })
 }
@@ -18246,6 +18336,71 @@ public func FfiConverterTypeCajaReflujo_lower(_ value: CajaReflujo) -> RustBuffe
 
 
 /**
+ * Una caja en puntos de la ventana (la `y` hacia abajo, como SwiftUI).
+ */
+public struct CajaVistaTareas: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var ancho: Float
+    public var alto: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, ancho: Float, alto: Float) {
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CajaVistaTareas: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCajaVistaTareas: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CajaVistaTareas {
+        return
+            try CajaVistaTareas(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CajaVistaTareas, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaVistaTareas_lift(_ buf: RustBuffer) throws -> CajaVistaTareas {
+    return try FfiConverterTypeCajaVistaTareas.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaVistaTareas_lower(_ value: CajaVistaTareas) -> RustBuffer {
+    return FfiConverterTypeCajaVistaTareas.lower(value)
+}
+
+
+/**
  * La camara del visor 3D (`pixpin_cad::orbita::Orbita`).
  */
 public struct Camara3d: Equatable, Hashable {
@@ -19290,6 +19445,105 @@ public func FfiConverterTypeCapturaParaEstudiar_lower(_ value: CapturaParaEstudi
 
 
 /**
+ * Una carpeta de paginas de algun chat, para la lista de Buscar.
+ */
+public struct CarpetaDeFlow: Equatable, Hashable {
+    public var chat: String
+    public var nombreChat: String
+    /**
+     * El `id` de su mensaje.
+     */
+    public var id: String
+    public var nombre: String
+    /**
+     * Cuantas paginas lleva (las borradas del chat aun cuentan: se saltan
+     * al abrirla), como el plugin de Windows.
+     */
+    public var paginas: UInt32
+    /**
+     * La de una clase o reunion grabada: se abre, pero no se le anaden
+     * paginas.
+     */
+    public var grabacion: Bool
+    public var cuando: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(chat: String, nombreChat: String, 
+        /**
+         * El `id` de su mensaje.
+         */id: String, nombre: String, 
+        /**
+         * Cuantas paginas lleva (las borradas del chat aun cuentan: se saltan
+         * al abrirla), como el plugin de Windows.
+         */paginas: UInt32, 
+        /**
+         * La de una clase o reunion grabada: se abre, pero no se le anaden
+         * paginas.
+         */grabacion: Bool, cuando: Int64) {
+        self.chat = chat
+        self.nombreChat = nombreChat
+        self.id = id
+        self.nombre = nombre
+        self.paginas = paginas
+        self.grabacion = grabacion
+        self.cuando = cuando
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CarpetaDeFlow: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCarpetaDeFlow: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CarpetaDeFlow {
+        return
+            try CarpetaDeFlow(
+                chat: FfiConverterString.read(from: &buf), 
+                nombreChat: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                paginas: FfiConverterUInt32.read(from: &buf), 
+                grabacion: FfiConverterBool.read(from: &buf), 
+                cuando: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CarpetaDeFlow, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterString.write(value.nombreChat, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterUInt32.write(value.paginas, into: &buf)
+        FfiConverterBool.write(value.grabacion, into: &buf)
+        FfiConverterInt64.write(value.cuando, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetaDeFlow_lift(_ buf: RustBuffer) throws -> CarpetaDeFlow {
+    return try FfiConverterTypeCarpetaDeFlow.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetaDeFlow_lower(_ value: CarpetaDeFlow) -> RustBuffer {
+    return FfiConverterTypeCarpetaDeFlow.lower(value)
+}
+
+
+/**
  * **Una carpeta leida**: su nombre y sus paginas vivas, en orden.
  */
 public struct CarpetaDePaginas: Equatable, Hashable {
@@ -19486,6 +19740,69 @@ public func FfiConverterTypeCarpetaDelChat_lift(_ buf: RustBuffer) throws -> Car
 #endif
 public func FfiConverterTypeCarpetaDelChat_lower(_ value: CarpetaDelChat) -> RustBuffer {
     return FfiConverterTypeCarpetaDelChat.lower(value)
+}
+
+
+/**
+ * Lo que sale para `carpeta <texto>`.
+ */
+public struct CarpetasDeFlow: Equatable, Hashable {
+    public var carpetas: [CarpetaDeFlow]
+    /**
+     * Si alguna se llama justo asi: entonces no se ofrece crearla.
+     */
+    public var exacta: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(carpetas: [CarpetaDeFlow], 
+        /**
+         * Si alguna se llama justo asi: entonces no se ofrece crearla.
+         */exacta: Bool) {
+        self.carpetas = carpetas
+        self.exacta = exacta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CarpetasDeFlow: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCarpetasDeFlow: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CarpetasDeFlow {
+        return
+            try CarpetasDeFlow(
+                carpetas: FfiConverterSequenceTypeCarpetaDeFlow.read(from: &buf), 
+                exacta: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CarpetasDeFlow, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeCarpetaDeFlow.write(value.carpetas, into: &buf)
+        FfiConverterBool.write(value.exacta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetasDeFlow_lift(_ buf: RustBuffer) throws -> CarpetasDeFlow {
+    return try FfiConverterTypeCarpetasDeFlow.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCarpetasDeFlow_lower(_ value: CarpetasDeFlow) -> RustBuffer {
+    return FfiConverterTypeCarpetasDeFlow.lower(value)
 }
 
 
@@ -20019,6 +20336,105 @@ public func FfiConverterTypeChatNuevo_lift(_ buf: RustBuffer) throws -> ChatNuev
 #endif
 public func FfiConverterTypeChatNuevo_lower(_ value: ChatNuevo) -> RustBuffer {
     return FfiConverterTypeChatNuevo.lower(value)
+}
+
+
+/**
+ * Una tarea con hora colocada en la semana.
+ */
+public struct ChipSemana: Equatable, Hashable {
+    /**
+     * Su sitio en las horas que se pasaron.
+     */
+    public var indice: UInt32
+    /**
+     * 0 lunes … 6 domingo.
+     */
+    public var dia: UInt8
+    /**
+     * El minuto del dia donde se pinta (ya dentro de la rejilla).
+     */
+    public var minuto: UInt32
+    /**
+     * 0 la primera de su hora, 1 la de debajo...
+     */
+    public var carril: UInt8
+    /**
+     * Las de su hora que no caben, si es la ultima que cabe («+2»).
+     */
+    public var mas: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Su sitio en las horas que se pasaron.
+         */indice: UInt32, 
+        /**
+         * 0 lunes … 6 domingo.
+         */dia: UInt8, 
+        /**
+         * El minuto del dia donde se pinta (ya dentro de la rejilla).
+         */minuto: UInt32, 
+        /**
+         * 0 la primera de su hora, 1 la de debajo...
+         */carril: UInt8, 
+        /**
+         * Las de su hora que no caben, si es la ultima que cabe («+2»).
+         */mas: UInt32) {
+        self.indice = indice
+        self.dia = dia
+        self.minuto = minuto
+        self.carril = carril
+        self.mas = mas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChipSemana: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChipSemana: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChipSemana {
+        return
+            try ChipSemana(
+                indice: FfiConverterUInt32.read(from: &buf), 
+                dia: FfiConverterUInt8.read(from: &buf), 
+                minuto: FfiConverterUInt32.read(from: &buf), 
+                carril: FfiConverterUInt8.read(from: &buf), 
+                mas: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChipSemana, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.indice, into: &buf)
+        FfiConverterUInt8.write(value.dia, into: &buf)
+        FfiConverterUInt32.write(value.minuto, into: &buf)
+        FfiConverterUInt8.write(value.carril, into: &buf)
+        FfiConverterUInt32.write(value.mas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChipSemana_lift(_ buf: RustBuffer) throws -> ChipSemana {
+    return try FfiConverterTypeChipSemana.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChipSemana_lower(_ value: ChipSemana) -> RustBuffer {
+    return FfiConverterTypeChipSemana.lower(value)
 }
 
 
@@ -22075,6 +22491,93 @@ public func FfiConverterTypeDireccionRecordada_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeDireccionRecordada_lower(_ value: DireccionRecordada) -> RustBuffer {
     return FfiConverterTypeDireccionRecordada.lower(value)
+}
+
+
+/**
+ * Donde va cada parte del horario.
+ */
+public struct DisposicionHorario: Equatable, Hashable {
+    /**
+     * La lista de asignaturas (y debajo, las tareas de la elegida).
+     */
+    public var lateral: CajaVistaTareas
+    /**
+     * Las franjas de la semana, sin la columna de las horas (a su
+     * izquierda) ni la fila de los dias (encima).
+     */
+    public var semana: CajaVistaTareas
+    /**
+     * El ancho de la columna de las horas y el alto de la fila de los
+     * dias, ya con la escala.
+     */
+    public var columnaHoras: Float
+    public var cabeceraDias: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La lista de asignaturas (y debajo, las tareas de la elegida).
+         */lateral: CajaVistaTareas, 
+        /**
+         * Las franjas de la semana, sin la columna de las horas (a su
+         * izquierda) ni la fila de los dias (encima).
+         */semana: CajaVistaTareas, 
+        /**
+         * El ancho de la columna de las horas y el alto de la fila de los
+         * dias, ya con la escala.
+         */columnaHoras: Float, cabeceraDias: Float) {
+        self.lateral = lateral
+        self.semana = semana
+        self.columnaHoras = columnaHoras
+        self.cabeceraDias = cabeceraDias
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension DisposicionHorario: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDisposicionHorario: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DisposicionHorario {
+        return
+            try DisposicionHorario(
+                lateral: FfiConverterTypeCajaVistaTareas.read(from: &buf), 
+                semana: FfiConverterTypeCajaVistaTareas.read(from: &buf), 
+                columnaHoras: FfiConverterFloat.read(from: &buf), 
+                cabeceraDias: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: DisposicionHorario, into buf: inout [UInt8]) {
+        FfiConverterTypeCajaVistaTareas.write(value.lateral, into: &buf)
+        FfiConverterTypeCajaVistaTareas.write(value.semana, into: &buf)
+        FfiConverterFloat.write(value.columnaHoras, into: &buf)
+        FfiConverterFloat.write(value.cabeceraDias, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisposicionHorario_lift(_ buf: RustBuffer) throws -> DisposicionHorario {
+    return try FfiConverterTypeDisposicionHorario.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDisposicionHorario_lower(_ value: DisposicionHorario) -> RustBuffer {
+    return FfiConverterTypeDisposicionHorario.lower(value)
 }
 
 
@@ -28595,6 +29098,72 @@ public func FfiConverterTypeMarcasTarea_lift(_ buf: RustBuffer) throws -> Marcas
 #endif
 public func FfiConverterTypeMarcasTarea_lower(_ value: MarcasTarea) -> RustBuffer {
     return FfiConverterTypeMarcasTarea.lower(value)
+}
+
+
+/**
+ * Un marco de ventana en puntos de pantalla. Solo cambian `x` y `ancho`,
+ * asi que da igual que la `y` crezca hacia arriba (AppKit) o hacia abajo.
+ */
+public struct MarcoVentanaTareas: Equatable, Hashable {
+    public var x: Int32
+    public var y: Int32
+    public var ancho: UInt32
+    public var alto: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Int32, y: Int32, ancho: UInt32, alto: UInt32) {
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MarcoVentanaTareas: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMarcoVentanaTareas: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarcoVentanaTareas {
+        return
+            try MarcoVentanaTareas(
+                x: FfiConverterInt32.read(from: &buf), 
+                y: FfiConverterInt32.read(from: &buf), 
+                ancho: FfiConverterUInt32.read(from: &buf), 
+                alto: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MarcoVentanaTareas, into buf: inout [UInt8]) {
+        FfiConverterInt32.write(value.x, into: &buf)
+        FfiConverterInt32.write(value.y, into: &buf)
+        FfiConverterUInt32.write(value.ancho, into: &buf)
+        FfiConverterUInt32.write(value.alto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcoVentanaTareas_lift(_ buf: RustBuffer) throws -> MarcoVentanaTareas {
+    return try FfiConverterTypeMarcoVentanaTareas.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcoVentanaTareas_lower(_ value: MarcoVentanaTareas) -> RustBuffer {
+    return FfiConverterTypeMarcoVentanaTareas.lower(value)
 }
 
 
@@ -42136,6 +42705,91 @@ public func FfiConverterTypeToqueFormula_lower(_ value: ToqueFormula) -> RustBuf
 
 
 
+/**
+ * Como se ensenan las tareas.
+ */
+
+public enum VistaTareas: Equatable, Hashable {
+    
+    /**
+     * Cuadrados en rejilla, con la foto de fondo.
+     */
+    case tarjetas
+    /**
+     * Una columna por lista.
+     */
+    case kanban
+    /**
+     * La semana del horario de clases, con sus asignaturas al lado.
+     */
+    case horario
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension VistaTareas: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVistaTareas: FfiConverterRustBuffer {
+    typealias SwiftType = VistaTareas
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VistaTareas {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .tarjetas
+        
+        case 2: return .kanban
+        
+        case 3: return .horario
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VistaTareas, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .tarjetas:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .kanban:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .horario:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistaTareas_lift(_ buf: RustBuffer) throws -> VistaTareas {
+    return try FfiConverterTypeVistaTareas.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistaTareas_lower(_ value: VistaTareas) -> RustBuffer {
+    return FfiConverterTypeVistaTareas.lower(value)
+}
+
+
+
 
 
 /**
@@ -44102,6 +44756,30 @@ fileprivate struct FfiConverterOptionTypeLienzoPlano: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeListaTareas: FfiConverterRustBuffer {
+    typealias SwiftType = ListaTareas?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeListaTareas.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeListaTareas.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeLlamadaSecreta: FfiConverterRustBuffer {
     typealias SwiftType = LlamadaSecreta?
 
@@ -44646,6 +45324,30 @@ fileprivate struct FfiConverterOptionTypeSeccionFicha: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeSeccionFicha.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeVistaTareas: FfiConverterRustBuffer {
+    typealias SwiftType = VistaTareas?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeVistaTareas.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeVistaTareas.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -45550,6 +46252,31 @@ fileprivate struct FfiConverterSequenceTypeCapturaParaEstudiar: FfiConverterRust
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCarpetaDeFlow: FfiConverterRustBuffer {
+    typealias SwiftType = [CarpetaDeFlow]
+
+    public static func write(_ value: [CarpetaDeFlow], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCarpetaDeFlow.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CarpetaDeFlow] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CarpetaDeFlow]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCarpetaDeFlow.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCarpetaDelChat: FfiConverterRustBuffer {
     typealias SwiftType = [CarpetaDelChat]
 
@@ -45692,6 +46419,31 @@ fileprivate struct FfiConverterSequenceTypeChatCompartidoMac: FfiConverterRustBu
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeChatCompartidoMac.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeChipSemana: FfiConverterRustBuffer {
+    typealias SwiftType = [ChipSemana]
+
+    public static func write(_ value: [ChipSemana], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChipSemana.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChipSemana] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChipSemana]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChipSemana.read(from: &buf))
         }
         return seq
     }
@@ -48858,6 +49610,17 @@ public func paginasDeCarpeta(texto: String) -> [String]  {
 })
 }
 /**
+ * El subtitulo de la fila de una carpeta, como el plugin de Windows.
+ */
+public func detalleDeCarpetaDeFlow(c: CarpetaDeFlow) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_detalle_de_carpeta_de_flow(
+        FfiConverterTypeCarpetaDeFlow_lower(c),uniffiCallStatus
+    )
+})
+}
+/**
  * **La captura del minuto que suena** entre las de una clase (`tiempos`,
  * en orden): su posicion, o `None` sin capturas.
  */
@@ -50772,6 +51535,139 @@ public func turnosDeLaConversacion(cambios: [CambioDeTurno], finMs: Int64) -> [T
     )
 })
 }
+/**
+ * El ancho de la ventana en esta vista, en puntos.
+ */
+public func anchoDeVistaTareas(vista: VistaTareas) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ancho_de_vista_tareas(
+        FfiConverterTypeVistaTareas_lower(vista),uniffiCallStatus
+    )
+})
+}
+/**
+ * **La caja de una chapita** en la columna de su dia, a la altura `y` de
+ * su minuto: pegada a la derecha (las clases se leen a la izquierda).
+ */
+public func cajaDeChip(xDia: Float, anchoDia: Float, y: Float, carril: UInt8, alto: Float, escala: Float) -> CajaVistaTareas  {
+    return try!  FfiConverterTypeCajaVistaTareas_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_caja_de_chip(
+        FfiConverterFloat.lower(xDia),
+        FfiConverterFloat.lower(anchoDia),
+        FfiConverterFloat.lower(y),
+        FfiConverterUInt8.lower(carril),
+        FfiConverterFloat.lower(alto),
+        FfiConverterFloat.lower(escala),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Las tareas con hora de la semana que se ve**, como chapitas
+ * (`pixpin_ui::vista_tareas::chips_de_la_semana`): `horas` en ms locales,
+ * `lunes` en dias desde 1970, `dias` las columnas, `desde`/`hasta` los
+ * minutos de la rejilla y `paso` lo que junta dos en la misma hora.
+ */
+public func chipsDeLaSemana(horas: [Int64], lunes: Int64, dias: UInt8, desde: UInt32, hasta: UInt32, paso: UInt32) -> [ChipSemana]  {
+    return try!  FfiConverterSequenceTypeChipSemana.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_chips_de_la_semana(
+        FfiConverterSequenceInt64.lower(horas),
+        FfiConverterInt64.lower(lunes),
+        FfiConverterUInt8.lower(dias),
+        FfiConverterUInt32.lower(desde),
+        FfiConverterUInt32.lower(hasta),
+        FfiConverterUInt32.lower(paso),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El horario en `area`** (lo de debajo de la barra de arriba), con las
+ * medidas de Windows.
+ */
+public func disponerHorarioDeTareas(area: CajaVistaTareas, escala: Float) -> DisposicionHorario  {
+    return try!  FfiConverterTypeDisposicionHorario_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_disponer_horario_de_tareas(
+        FfiConverterTypeCajaVistaTareas_lower(area),
+        FfiConverterFloat.lower(escala),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El lunes de la semana que se ve** (dias desde 1970) para el dia
+ * `hoy` (sus ms locales). Sin la columna del domingo (`dias` 6), en
+ * domingo se ve la semana que empieza manana: la pasada ya no sirve
+ * (Windows, 18-oct).
+ */
+public func lunesALaVista(hoyMsLocales: Int64, dias: UInt8) -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_lunes_a_la_vista(
+        FfiConverterInt64.lower(hoyMsLocales),
+        FfiConverterUInt8.lower(dias),uniffiCallStatus
+    )
+})
+}
+/**
+ * **La ventana para otra vista**: el ancho de la vista, con el mismo
+ * centro y el mismo alto, metida en `trabajo` (lo visible de la pantalla).
+ */
+public func marcoDeVistaTareas(actual: MarcoVentanaTareas, trabajo: MarcoVentanaTareas, vista: VistaTareas) -> MarcoVentanaTareas  {
+    return try!  FfiConverterTypeMarcoVentanaTareas_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_marco_de_vista_tareas(
+        FfiConverterTypeMarcoVentanaTareas_lower(actual),
+        FfiConverterTypeMarcoVentanaTareas_lower(trabajo),
+        FfiConverterTypeVistaTareas_lower(vista),uniffiCallStatus
+    )
+})
+}
+/**
+ * La letra de su atajo: T, K y H (en Windows con Ctrl; en el Mac con ⌃⌘,
+ * porque ⌘H oculta la app y ⌥⌘H oculta las demas).
+ */
+public func vistaTareasAtajo(vista: VistaTareas) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_vista_tareas_atajo(
+        FfiConverterTypeVistaTareas_lower(vista),uniffiCallStatus
+    )
+})
+}
+public func vistaTareasComoTexto(vista: VistaTareas) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_vista_tareas_como_texto(
+        FfiConverterTypeVistaTareas_lower(vista),uniffiCallStatus
+    )
+})
+}
+/**
+ * La vista de una letra pulsada con el atajo, si es la de alguna.
+ */
+public func vistaTareasDeAtajo(letra: String) -> VistaTareas?  {
+    return try!  FfiConverterOptionTypeVistaTareas.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_vista_tareas_de_atajo(
+        FfiConverterString.lower(letra),uniffiCallStatus
+    )
+})
+}
+/**
+ * La vista recordada: `tarjetas`, `kanban` u `horario` (como el
+ * `tareas-vista.txt` de Windows). Lo demas (la «lista» quitada, las «Por
+ * fecha» y «Por lista» que el Mac guardaba antes) son las tarjetas.
+ */
+public func vistaTareasDeTexto(texto: String) -> VistaTareas  {
+    return try!  FfiConverterTypeVistaTareas_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_vista_tareas_de_texto(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
 
 private enum InitializationResult {
     case ok
@@ -50927,6 +51823,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_paginas_de_carpeta() != 44772) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_detalle_de_carpeta_de_flow() != 22514) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_captura_de_la_clase_en() != 25017) {
@@ -51379,6 +52278,36 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_turnos_de_la_conversacion() != 47376) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_ancho_de_vista_tareas() != 10293) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_caja_de_chip() != 28465) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_chips_de_la_semana() != 13912) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_disponer_horario_de_tareas() != 21729) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_lunes_a_la_vista() != 51203) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_marco_de_vista_tareas() != 45781) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_vista_tareas_atajo() != 60024) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_vista_tareas_como_texto() != 49270) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_vista_tareas_de_atajo() != 31339) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_vista_tareas_de_texto() != 28563) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_aparato() != 58843) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -51587,6 +52516,15 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_se_puede_anadir_a_carpeta() != 12253) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_buscar_carpeta_de_paginas() != 52819) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_carpetas_para_flow() != 40005) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_carpeta_por_nombre() != 13025) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_borrar_mensajes() != 49997) {
@@ -51908,6 +52846,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_en_asignatura() != 29781) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_lista_de_asignatura() != 51738) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_nombres_de_asignaturas() != 21994) {

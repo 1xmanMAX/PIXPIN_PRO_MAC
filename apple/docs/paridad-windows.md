@@ -176,7 +176,7 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 | sincronizar/galeria | La galería viaja | completo | N/galeria_sincro.rs | — |
 | sincronizar/presencia | Localizable mientras está abierta | completo | K/Sincro/Anunciador.swift, Sincronizador.swift | Interruptor «Dejarse encontrar» en Ajustes → Sincronizar (C3): abre o cierra la puerta al momento |
 | tareas (ventana) | Tareas de todos los chats | parcial | K/Tareas/Tareas.swift, N/tareas.rs | Buscar, «Mover a…», borrar y deshacer, F2, pegar imágenes (el `⏰`, hecho en A4: se ve y se pone desde el menú de la fila) |
-| tareas/rejilla, tarjetas, emoticonos | Vista de tarjetas y etiquetas | falta | — | Todo |
+| tareas/rejilla, tarjetas, kanban, horario (25-oct, 5139e5d) | Las tres vistas de Tareas: Tarjetas (cuadrados con la foto de fondo), Kanban y Horario (el calendario semanal dentro, con las tareas con hora como chapitas); sin la Lista | completo | K/Tareas/Tareas.swift, K/Recordatorios/VentanaHorario.swift, N/vista_tareas.rs (de `pixpin_ui::vista_tareas`) | Hecho (ronda 6): la vista se guarda con la palabra de Windows (lo de antes, «Por fecha»/«Por lista», abre en Tarjetas); ⌃⌘T/K/H (⌘H oculta la app y ⌥⌘H las demás); la ventana se ensancha en el Horario; «Horario de clases…» y el mosaico Horario abren Tareas en el Horario; la asignatura elegida enseña sus tareas pendientes (`lista_de_asignatura`) y «Abrir en Tareas»; pulsar una chapita la enseña en las tarjetas. Falta: el foco del teclado por las tarjetas (flechas) y la ficha de una clase (aula, nota, aviso) |
 | teleprompter | Telepronter | completo | K/VozVentanas/Telepronter.swift | Hecho (E5): en la otra pantalla a pantalla completa, franja de lectura, ensayar, 3-2-1, grabar con pausa y tirar, A−/A+, velocidad con palabras y la rueda, raya de lo leído; la nota entra con su texto `[m:ss]` ya puesto (`bien`). Se elige el texto: lo escrito en la caja, notas o `.txt`/`.md` del chat. Falta abrirla luego en «Letra» (no hay Letra en el Mac) |
 | tema_cosmos | Tema Cosmos | falta | — | Es un adorno |
 | timeline (ventana) | Hoy, Momentos, Estado, Lecciones; apuntar | completo | K/Timeline/*, N/timeline.rs | Hecho (B5): apuntar texto, fotos (elegir, pegar, soltar) y voz; corregir (↑), borrar con deshacer, a «Momentos», la bombilla de lección; buscar en todo; el detalle con sus flechas, pinear y anotar en un lienzo |
@@ -256,7 +256,7 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 |---|---|---|
 | `apps/pixpin-mcp` (servidor MCP para Claude) | falta | Se podría hacer en Mac con el mismo protocolo (stdio) |
 | `apps/pixpin-puente` y `extensiones/navegador` | falta | Native Messaging de Chrome/Edge; en Mac también hay Safari |
-| `apps/pixpin-lanzador` (buscar) | parcial | Está en `por-adaptar/`, igual que Windows (A7); falta adaptarlo |
+| `apps/pixpin-lanzador` (buscar) | parcial | Está en `por-adaptar/`, igual que Windows (A7); falta adaptarlo. Hecho (ronda 6, 22c3ce2/211a1cd) en «Buscar en PixPin»: «clase»/«reunión» graba una clase, «carpeta [nombre]» lista las carpetas de todos los chats con «Nueva página en …» (no en la de una clase grabada) y «Nueva carpeta …» (N/carpetas_flow.rs, K/Buscar/CarpetasSinChat.swift); pedidos `carpeta_paginas` y `ventana {cual: clase / horario}` |
 | `apps/pixpin-aligerar` | completo | Igual que Windows; el Mac usa N/aligerar.rs |
 | Integraciones: CLI, PowerShell, AutoHotkey, menú del Explorador | parcial | C2: el esquema `pixpinmax://` (Stream Deck, Raycast, Alfred, `open` en Terminal), 9 App Intents y los Servicios del Finder (PixPin ▸ Al chat, Pinear, Copiar texto (OCR), Enviar al móvil, Preguntar al asistente; varios ficheros en una llamada). Falta la línea de órdenes |
 | Extensión Compartir y Quick Look | completo | Solo en Mac (XC/Compartir, XC/VistaPrevia) |
@@ -404,7 +404,7 @@ Ya están: ⌘Z / ⇧⌘Z, ⌘A, ⌫, ⎋, ⌘V de imagen, ⌘ + rueda, 1 / 2 / 
 | Ventana (Windows) | Atajos Windows | Mac | Estado |
 |---|---|---|---|
 | Buscar en PixPin | ↑↓, RePág/AvPág, Tab (pestañas), →, Intro, Ctrl+Intro, Alt+Intro, Supr, Ctrl+C/V/Z, Esc | ↑↓, RePág/AvPág, Tab/⇧Tab y ⌘1…7, → / ←, ↩, ⌘↩, ⌥↩ (abrir con), Supr o ⌘⌫ (captura), ⌘C, ⌘V (texto), ⌘Z, Esc por capas | completo salvo pegar imagen |
-| Tareas | Ctrl+F, Ctrl+L, Ctrl+T, F2, Supr, Tab, Espacio, Intro, Ctrl+Z, Ctrl+V, Esc | ↩, ⌘R | parcial |
+| Tareas | Ctrl+F, Ctrl+T, Ctrl+K, Ctrl+H, F2, Supr, Tab, Espacio, Intro, Ctrl+Z, Ctrl+V, Esc | ↩, ⌘R, ⌃⌘T, ⌃⌘K, ⌃⌘H, F2, ⌘Z | parcial |
 | Timeline | Ctrl+1…4, Ctrl+F, Ctrl+M (en Mac, otra tecla), Ctrl+Z, Intro, Ctrl+V, ↑ corrige | ⌘1…4, ⌘F, ⌘⇧M, ⌘Z, ↩ / ⇧↩, ⌘V (imagen), ↑, Esc por capas; en el detalle ←/→ y ↑/↓ | completo |
 | Lecciones (ficha) | Esc guarda, Ctrl+Intro, Ctrl+E, Tab | ⌘S | parcial |
 | Galería | flechas, Espacio, Intro, Supr, Ctrl+C/S/A/Z, Esc, escribir busca | flechas, Inicio/Fin, Espacio, ↩, ⌫, ⌘C/S/A/Z, ⌘F, ⌘Y, Esc, escribir busca | completo |

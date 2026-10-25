@@ -13,9 +13,10 @@ import SwiftUI
 
 @MainActor
 public enum HorarioClases {
-    /// Abre la ventana semanal (Windows, 18-oct); el texto, desde ella.
+    /// Abre el calendario semanal (Windows, 18-oct): desde el 25-oct, la
+    /// ventana de Tareas en su vista Horario; el texto, desde ella.
     public static func abrir(nucleo: Nucleo) {
-        VentanasDeHorario.abrir(nucleo: nucleo)
+        VentanaTareas.abrir(vista: .horario)
     }
 
     /// Abre el horario en el editor de notas (lo crea con la plantilla).

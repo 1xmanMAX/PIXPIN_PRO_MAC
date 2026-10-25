@@ -124,6 +124,8 @@ public struct Pedido: Equatable, Sendable, CustomStringConvertible {
         "conservar_captura", "borrar_captura", "copiar_imagen", "quitar_tarea", "corregir_tarea",
         "borrar_lista", "enviar_al_movil", "sincronizar", "asistente", "automatizacion",
         "tabla_nueva", "posponer", "pines", "timeline", "leer_en_voz", "ocr", "herramienta",
+        // 26-oct (Windows 22c3ce2): las carpetas de paginas desde Flow.
+        "carpeta_paginas",
     ]
 
     public var accion: String

@@ -126,6 +126,11 @@ pub mod red;
 pub mod sincro;
 pub mod sincro_auto;
 pub mod tareas;
+/// Las vistas de Tareas (Tarjetas, Kanban, Horario) y las chapitas de la
+/// semana (Windows 5dab99a, 25-oct).
+pub mod vista_tareas;
+/// `carpeta` en Buscar: las carpetas de todos los chats (Windows 22c3ce2).
+pub mod carpetas_flow;
 pub mod timeline;
 pub mod turnos;
 pub mod unidades;
