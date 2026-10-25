@@ -117,7 +117,9 @@ public struct PintorLienzo {
                 // Lo de dentro de un mosaico o una lupa (`TapadoLienzo.swift`)
                 // un pelo mas grande: el borde suavizado dejaba asomar la
                 // banda maciza de debajo como un filo gris.
-                if PintorDeTapados.esTapado(id) { local = local.insetBy(dx: -0.75, dy: -0.75) }
+                // (`id >> 62 != 0`, como `PintorDeTapados.esTapado`: aqui a mano
+                // porque la vista previa de Quick Look compila este fichero solo).
+                if id >> 62 != 0 { local = local.insetBy(dx: -0.75, dy: -0.75) }
                 if var bitmap = imagen(id) ?? GrafitosPintados.imagen(id) {
                     if let r = recorte, let nat = natural, nat.width > 0, nat.height > 0 {
                         // El recorte viene en las medidas naturales de la foto.
