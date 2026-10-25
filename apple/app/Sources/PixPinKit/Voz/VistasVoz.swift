@@ -59,6 +59,19 @@ struct BurbujaVoz: View {
                     .disabled(transcribiendo)
                     .help(mensaje.transcripcion?.isEmpty == false ? "Volver a pasar a texto (T)" : "Pasar a texto (T)")
                 }
+                // Una clase lleva al lado la pastilla de estudiarla (Windows
+                // ce6c058): el video o la captura del minuto, el texto y las
+                // capturas, que se siguen.
+                if let clase = ClaseEnElChat.deUnaClase(mensaje, chat: chat, nucleo: almacen.nucleo) {
+                    Button {
+                        EstudiarClase.abrir(chat: chat, mensaje: clase.voz, ms: clase.ms, almacen: almacen)
+                    } label: {
+                        Image(systemName: "book").font(.system(size: 15))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    .help("Estudiar la clase")
+                }
             }
             texto
         }
@@ -86,13 +99,8 @@ struct BurbujaVoz: View {
                         Label("Mostrar en el Finder", systemImage: "folder")
                     }
                 }
-                // Una clase grabada: el texto junto a sus capturas (la
-                // pantalla de la letra de Windows).
-                if !ClaseEnElChat.capturas(mensaje, chat: chat, nucleo: almacen.nucleo).isEmpty {
-                    Button { VisorClase.abrir(mensaje, chat: chat, almacen: almacen) } label: {
-                        Label("Ver con las capturas", systemImage: "photo.on.rectangle")
-                    }
-                }
+                // Una clase grabada: «Estudiar la clase» lo pone el menu
+                // comun (`MenuDeMensaje`), tambien en sus capturas y su video.
             }
         }
         .task(id: mensaje.id) {

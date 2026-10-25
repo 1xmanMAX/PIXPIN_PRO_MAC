@@ -6087,10 +6087,18 @@ public protocol MezclaDeAudioProtocol: AnyObject, Sendable {
      * **Un bloque de la fuente `fuente`** (su posicion en la lista), de
      * `canales` canales: intercalado, o un canal entero detras de otro si
      * `separadas`. Lo llama el hilo de esa fuente con cada bloque del
-     * sistema; no espera a la mezcla. Devuelve los marcos que entraron
-     * (si el anillo estaba lleno, lo que no cabe se tira).
+     * sistema; no espera a la mezcla. Se fecha al llegar. Devuelve los
+     * marcos que entraron (si no caben, lo que sobra se tira y se cuenta).
      */
     func empujar(fuente: UInt32, muestras: [Float], canales: UInt16, separadas: Bool)  -> UInt32
+    
+    /**
+     * Lo mismo con la fecha de la tarjeta: `fin_ns`, cuando acaba el
+     * bloque, en nanosegundos del reloj de la maquina (el `hostTime` de
+     * `AVAudioTime` pasado a nanosegundos). Una fecha del futuro es la de
+     * ahora; cero, sin fecha.
+     */
+    func empujarFechado(fuente: UInt32, muestras: [Float], canales: UInt16, separadas: Bool, finNs: UInt64)  -> UInt32
     
     func enPausa()  -> Bool
     
@@ -6121,6 +6129,12 @@ public protocol MezclaDeAudioProtocol: AnyObject, Sendable {
      * Pausa o sigue: en pausa lo que llega se tira y el reloj no corre.
      */
     func pausar(pausa: Bool) 
+    
+    /**
+     * Cuantas veces se durmio el Mac (o se congelo el proceso) mientras se
+     * grababa: cada una es una pausa en la nota.
+     */
+    func saltosDelReloj()  -> UInt64
     
     /**
      * **Al parar**: lo que toque y lo que quede en los anillos. Despues no
@@ -6204,8 +6218,8 @@ public static func nueva(fuentes: [FuenteDeMezcla], muestreo: UInt32)throws  -> 
      * **Un bloque de la fuente `fuente`** (su posicion en la lista), de
      * `canales` canales: intercalado, o un canal entero detras de otro si
      * `separadas`. Lo llama el hilo de esa fuente con cada bloque del
-     * sistema; no espera a la mezcla. Devuelve los marcos que entraron
-     * (si el anillo estaba lleno, lo que no cabe se tira).
+     * sistema; no espera a la mezcla. Se fecha al llegar. Devuelve los
+     * marcos que entraron (si no caben, lo que sobra se tira y se cuenta).
      */
 open func empujar(fuente: UInt32, muestras: [Float], canales: UInt16, separadas: Bool) -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
@@ -6216,6 +6230,26 @@ open func empujar(fuente: UInt32, muestras: [Float], canales: UInt16, separadas:
         FfiConverterSequenceFloat.lower(muestras),
         FfiConverterUInt16.lower(canales),
         FfiConverterBool.lower(separadas),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo mismo con la fecha de la tarjeta: `fin_ns`, cuando acaba el
+     * bloque, en nanosegundos del reloj de la maquina (el `hostTime` de
+     * `AVAudioTime` pasado a nanosegundos). Una fecha del futuro es la de
+     * ahora; cero, sin fecha.
+     */
+open func empujarFechado(fuente: UInt32, muestras: [Float], canales: UInt16, separadas: Bool, finNs: UInt64) -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_mezcladeaudio_empujar_fechado(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(fuente),
+        FfiConverterSequenceFloat.lower(muestras),
+        FfiConverterUInt16.lower(canales),
+        FfiConverterBool.lower(separadas),
+        FfiConverterUInt64.lower(finNs),uniffiCallStatus
     )
 })
 }
@@ -6297,6 +6331,19 @@ open func pausar(pausa: Bool)  {try! rustCall() {
         FfiConverterBool.lower(pausa),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Cuantas veces se durmio el Mac (o se congelo el proceso) mientras se
+     * grababa: cada una es una pausa en la nota.
+     */
+open func saltosDelReloj() -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_mezcladeaudio_saltos_del_reloj(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -7715,6 +7762,52 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * gracias»). `None` si se dijo que no.
      */
     func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, decidir: DecidirOferta) throws  -> [RecibidoEnvio]?
+    
+    /**
+     * **Cuando cambio por ultima vez el cuaderno de `chat`** (ms desde
+     * 1970; 0 si no hay): la ventana de estudiar lo mira cada poco y, si
+     * cambio (llego el texto, un marcador del movil), relee la clase. Solo
+     * mira la fecha del fichero.
+     */
+    func cambioDelCuadernoMs(chat: String)  -> Int64
+    
+    /**
+     * **La clase de `mensaje` para estudiarla** (la nota, una captura o el
+     * video). Bloqueante.
+     */
+    func claseParaEstudiar(chat: String, mensaje: String) throws  -> ClaseParaEstudiar
+    
+    /**
+     * **De que clase es `mensaje`** de `chat`, si lo es: su nota de voz y
+     * el minuto donde abrirla. Bloqueante (lee el cuaderno): Swift lo
+     * guarda por mensaje.
+     */
+    func deUnaClase(chat: String, mensaje: String) throws  -> EnUnaClase?
+    
+    /**
+     * **El ultimo modo con que se grabo una clase en este aparato** (sin
+     * nada recordado, el de capturas).
+     */
+    func modoDeGrabar()  -> ModoDeGrabar
+    
+    /**
+     * **Pone un marcador** en `ms` de la nota `voz` con `texto` (recortado
+     * y en una linea; en el mismo milisegundo, cambia la nota del que
+     * habia). Devuelve la clase como quedo.
+     */
+    func ponerMarcadorDeClase(chat: String, voz: String, ms: Int64, texto: String) throws  -> ClaseParaEstudiar
+    
+    /**
+     * **Quita la senal de `ms`**: la banderita del movil si lo es, o el
+     * marcador, cada una de su campo. Devuelve la clase como quedo.
+     */
+    func quitarSenalDeClase(chat: String, voz: String, ms: Int64) throws  -> ClaseParaEstudiar
+    
+    /**
+     * Recuerda `modo` para la proxima vez. Si no se puede, se sigue: es
+     * una comodidad.
+     */
+    func recordarModoDeGrabar(modo: ModoDeGrabar) 
     
     /**
      * **Lo que ensena una pestana** de la ficha, lo mas nuevo primero, con
@@ -10646,6 +10739,113 @@ open func recibirEnvioPreguntando(host: String, puerto: UInt16, codigo: String, 
         FfiConverterCallbackInterfaceDecidirOferta_lower(decidir),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * **Cuando cambio por ultima vez el cuaderno de `chat`** (ms desde
+     * 1970; 0 si no hay): la ventana de estudiar lo mira cada poco y, si
+     * cambio (llego el texto, un marcador del movil), relee la clase. Solo
+     * mira la fecha del fichero.
+     */
+open func cambioDelCuadernoMs(chat: String) -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_cambio_del_cuaderno_ms(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La clase de `mensaje` para estudiarla** (la nota, una captura o el
+     * video). Bloqueante.
+     */
+open func claseParaEstudiar(chat: String, mensaje: String)throws  -> ClaseParaEstudiar  {
+    return try  FfiConverterTypeClaseParaEstudiar_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_clase_para_estudiar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **De que clase es `mensaje`** de `chat`, si lo es: su nota de voz y
+     * el minuto donde abrirla. Bloqueante (lee el cuaderno): Swift lo
+     * guarda por mensaje.
+     */
+open func deUnaClase(chat: String, mensaje: String)throws  -> EnUnaClase?  {
+    return try  FfiConverterOptionTypeEnUnaClase.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_de_una_clase(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El ultimo modo con que se grabo una clase en este aparato** (sin
+     * nada recordado, el de capturas).
+     */
+open func modoDeGrabar() -> ModoDeGrabar  {
+    return try!  FfiConverterTypeModoDeGrabar_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_modo_de_grabar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pone un marcador** en `ms` de la nota `voz` con `texto` (recortado
+     * y en una linea; en el mismo milisegundo, cambia la nota del que
+     * habia). Devuelve la clase como quedo.
+     */
+open func ponerMarcadorDeClase(chat: String, voz: String, ms: Int64, texto: String)throws  -> ClaseParaEstudiar  {
+    return try  FfiConverterTypeClaseParaEstudiar_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_marcador_de_clase(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(voz),
+        FfiConverterInt64.lower(ms),
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Quita la senal de `ms`**: la banderita del movil si lo es, o el
+     * marcador, cada una de su campo. Devuelve la clase como quedo.
+     */
+open func quitarSenalDeClase(chat: String, voz: String, ms: Int64)throws  -> ClaseParaEstudiar  {
+    return try  FfiConverterTypeClaseParaEstudiar_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_quitar_senal_de_clase(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(voz),
+        FfiConverterInt64.lower(ms),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Recuerda `modo` para la proxima vez. Si no se puede, se sigue: es
+     * una comodidad.
+     */
+open func recordarModoDeGrabar(modo: ModoDeGrabar)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_recordar_modo_de_grabar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeModoDeGrabar_lower(modo),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -18590,6 +18790,67 @@ public func FfiConverterTypeCapturaGaleria_lower(_ value: CapturaGaleria) -> Rus
 
 
 /**
+ * Una captura de la clase que esta en este Mac.
+ */
+public struct CapturaParaEstudiar: Equatable, Hashable {
+    public var ms: Int64
+    public var id: String
+    public var ruta: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, id: String, ruta: String) {
+        self.ms = ms
+        self.id = id
+        self.ruta = ruta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CapturaParaEstudiar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCapturaParaEstudiar: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CapturaParaEstudiar {
+        return
+            try CapturaParaEstudiar(
+                ms: FfiConverterInt64.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                ruta: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CapturaParaEstudiar, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.ruta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaParaEstudiar_lift(_ buf: RustBuffer) throws -> CapturaParaEstudiar {
+    return try FfiConverterTypeCapturaParaEstudiar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCapturaParaEstudiar_lower(_ value: CapturaParaEstudiar) -> RustBuffer {
+    return FfiConverterTypeCapturaParaEstudiar.lower(value)
+}
+
+
+/**
  * **Una carpeta leida**: su nombre y sus paginas vivas, en orden.
  */
 public struct CarpetaDePaginas: Equatable, Hashable {
@@ -19272,6 +19533,119 @@ public func FfiConverterTypeClaseGuardada_lift(_ buf: RustBuffer) throws -> Clas
 #endif
 public func FfiConverterTypeClaseGuardada_lower(_ value: ClaseGuardada) -> RustBuffer {
     return FfiConverterTypeClaseGuardada.lower(value)
+}
+
+
+/**
+ * **Todo lo de una clase**, leido del cuaderno (la `Clase` de Windows).
+ */
+public struct ClaseParaEstudiar: Equatable, Hashable {
+    public var chat: String
+    /**
+     * El id de la nota de voz (aunque se abriera desde una captura).
+     */
+    public var id: String
+    public var nombre: String
+    public var duracionMs: Int64
+    /**
+     * La nota de voz y el video en este Mac, si estan.
+     */
+    public var audio: String?
+    public var video: String?
+    /**
+     * En orden; las que ya no estan en el disco, fuera.
+     */
+    public var capturas: [CapturaParaEstudiar]
+    public var lineas: [LineaDeClase]
+    public var senales: [SenalDeClase]
+    /**
+     * El texto con las senales en su minuto.
+     */
+    public var filas: [FilaDeClase]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(chat: String, 
+        /**
+         * El id de la nota de voz (aunque se abriera desde una captura).
+         */id: String, nombre: String, duracionMs: Int64, 
+        /**
+         * La nota de voz y el video en este Mac, si estan.
+         */audio: String?, video: String?, 
+        /**
+         * En orden; las que ya no estan en el disco, fuera.
+         */capturas: [CapturaParaEstudiar], lineas: [LineaDeClase], senales: [SenalDeClase], 
+        /**
+         * El texto con las senales en su minuto.
+         */filas: [FilaDeClase]) {
+        self.chat = chat
+        self.id = id
+        self.nombre = nombre
+        self.duracionMs = duracionMs
+        self.audio = audio
+        self.video = video
+        self.capturas = capturas
+        self.lineas = lineas
+        self.senales = senales
+        self.filas = filas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ClaseParaEstudiar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeClaseParaEstudiar: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ClaseParaEstudiar {
+        return
+            try ClaseParaEstudiar(
+                chat: FfiConverterString.read(from: &buf), 
+                id: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                duracionMs: FfiConverterInt64.read(from: &buf), 
+                audio: FfiConverterOptionString.read(from: &buf), 
+                video: FfiConverterOptionString.read(from: &buf), 
+                capturas: FfiConverterSequenceTypeCapturaParaEstudiar.read(from: &buf), 
+                lineas: FfiConverterSequenceTypeLineaDeClase.read(from: &buf), 
+                senales: FfiConverterSequenceTypeSenalDeClase.read(from: &buf), 
+                filas: FfiConverterSequenceTypeFilaDeClase.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ClaseParaEstudiar, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterInt64.write(value.duracionMs, into: &buf)
+        FfiConverterOptionString.write(value.audio, into: &buf)
+        FfiConverterOptionString.write(value.video, into: &buf)
+        FfiConverterSequenceTypeCapturaParaEstudiar.write(value.capturas, into: &buf)
+        FfiConverterSequenceTypeLineaDeClase.write(value.lineas, into: &buf)
+        FfiConverterSequenceTypeSenalDeClase.write(value.senales, into: &buf)
+        FfiConverterSequenceTypeFilaDeClase.write(value.filas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClaseParaEstudiar_lift(_ buf: RustBuffer) throws -> ClaseParaEstudiar {
+    return try FfiConverterTypeClaseParaEstudiar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClaseParaEstudiar_lower(_ value: ClaseParaEstudiar) -> RustBuffer {
+    return FfiConverterTypeClaseParaEstudiar.lower(value)
 }
 
 
@@ -21270,6 +21644,75 @@ public func FfiConverterTypeEleccionSincro_lower(_ value: EleccionSincro) -> Rus
 
 
 /**
+ * La clase a la que pertenece un mensaje: su nota de voz y donde empezar.
+ */
+public struct EnUnaClase: Equatable, Hashable {
+    /**
+     * El id de la nota de voz de la clase.
+     */
+    public var voz: String
+    /**
+     * El minuto donde abrirla (el de la captura; 0 la nota y el video).
+     */
+    public var ms: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El id de la nota de voz de la clase.
+         */voz: String, 
+        /**
+         * El minuto donde abrirla (el de la captura; 0 la nota y el video).
+         */ms: Int64) {
+        self.voz = voz
+        self.ms = ms
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EnUnaClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEnUnaClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EnUnaClase {
+        return
+            try EnUnaClase(
+                voz: FfiConverterString.read(from: &buf), 
+                ms: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EnUnaClase, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.voz, into: &buf)
+        FfiConverterInt64.write(value.ms, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnUnaClase_lift(_ buf: RustBuffer) throws -> EnUnaClase {
+    return try FfiConverterTypeEnUnaClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnUnaClase_lower(_ value: EnUnaClase) -> RustBuffer {
+    return FfiConverterTypeEnUnaClase.lower(value)
+}
+
+
+/**
  * Como cae la capa de tinta del plano en el dibujo:
  * `x = cero_x + x_capa * u`, `y = cero_y - y_capa * u` (la y de la capa baja).
  */
@@ -22877,6 +23320,69 @@ public func FfiConverterTypeFiguraDeBiblioteca_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeFiguraDeBiblioteca_lower(_ value: FiguraDeBiblioteca) -> RustBuffer {
     return FfiConverterTypeFiguraDeBiblioteca.lower(value)
+}
+
+
+/**
+ * Una fila de la columna del texto: una linea (`linea`) o una senal
+ * (`senal`), por su sitio en su lista, con el minuto con que se sigue el
+ * scroll (`tiempos_de_filas`: el suyo o el de la anterior, nunca baja).
+ */
+public struct FilaDeClase: Equatable, Hashable {
+    public var linea: UInt32?
+    public var senal: UInt32?
+    public var ms: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(linea: UInt32?, senal: UInt32?, ms: Int64) {
+        self.linea = linea
+        self.senal = senal
+        self.ms = ms
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FilaDeClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFilaDeClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FilaDeClase {
+        return
+            try FilaDeClase(
+                linea: FfiConverterOptionUInt32.read(from: &buf), 
+                senal: FfiConverterOptionUInt32.read(from: &buf), 
+                ms: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FilaDeClase, into buf: inout [UInt8]) {
+        FfiConverterOptionUInt32.write(value.linea, into: &buf)
+        FfiConverterOptionUInt32.write(value.senal, into: &buf)
+        FfiConverterInt64.write(value.ms, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilaDeClase_lift(_ buf: RustBuffer) throws -> FilaDeClase {
+    return try FfiConverterTypeFilaDeClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFilaDeClase_lower(_ value: FilaDeClase) -> RustBuffer {
+    return FfiConverterTypeFilaDeClase.lower(value)
 }
 
 
@@ -25907,6 +26413,63 @@ public func FfiConverterTypeLienzoPlano_lift(_ buf: RustBuffer) throws -> Lienzo
 #endif
 public func FfiConverterTypeLienzoPlano_lower(_ value: LienzoPlano) -> RustBuffer {
     return FfiConverterTypeLienzoPlano.lower(value)
+}
+
+
+/**
+ * Un trozo del texto de la clase: su minuto (si lo lleva) y lo que dice.
+ */
+public struct LineaDeClase: Equatable, Hashable {
+    public var ms: Int64?
+    public var texto: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64?, texto: String) {
+        self.ms = ms
+        self.texto = texto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension LineaDeClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeLineaDeClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LineaDeClase {
+        return
+            try LineaDeClase(
+                ms: FfiConverterOptionInt64.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LineaDeClase, into buf: inout [UInt8]) {
+        FfiConverterOptionInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLineaDeClase_lift(_ buf: RustBuffer) throws -> LineaDeClase {
+    return try FfiConverterTypeLineaDeClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeLineaDeClase_lower(_ value: LineaDeClase) -> RustBuffer {
+    return FfiConverterTypeLineaDeClase.lower(value)
 }
 
 
@@ -32500,6 +33063,68 @@ public func FfiConverterTypeSeleccionHoja_lower(_ value: SeleccionHoja) -> RustB
 
 
 /**
+ * Una senal de la barra y de la lista: un marcador (con su nota) o una
+ * banderita del movil (sin ella).
+ */
+public struct SenalDeClase: Equatable, Hashable {
+    public var ms: Int64
+    public var texto: String
+    public var banderita: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, texto: String, banderita: Bool) {
+        self.ms = ms
+        self.texto = texto
+        self.banderita = banderita
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SenalDeClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSenalDeClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SenalDeClase {
+        return
+            try SenalDeClase(
+                ms: FfiConverterInt64.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf), 
+                banderita: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SenalDeClase, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+        FfiConverterBool.write(value.banderita, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSenalDeClase_lift(_ buf: RustBuffer) throws -> SenalDeClase {
+    return try FfiConverterTypeSenalDeClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSenalDeClase_lower(_ value: SenalDeClase) -> RustBuffer {
+    return FfiConverterTypeSenalDeClase.lower(value)
+}
+
+
+/**
  * Una tarea de una lista.
  */
 public struct Tarea: Equatable, Hashable {
@@ -38491,6 +39116,81 @@ public func FfiConverterTypeLineaEstilo_lower(_ value: LineaEstilo) -> RustBuffe
 
 
 /**
+ * **Que se graba**: el selector de arriba de Preparar.
+ */
+
+public enum ModoDeGrabar: Equatable, Hashable {
+    
+    /**
+     * El video de la pantalla con su sonido.
+     */
+    case pantalla
+    /**
+     * Solo el sonido, con capturas de la pantalla entera.
+     */
+    case capturas
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ModoDeGrabar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModoDeGrabar: FfiConverterRustBuffer {
+    typealias SwiftType = ModoDeGrabar
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModoDeGrabar {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .pantalla
+        
+        case 2: return .capturas
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ModoDeGrabar, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .pantalla:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .capturas:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModoDeGrabar_lift(_ buf: RustBuffer) throws -> ModoDeGrabar {
+    return try FfiConverterTypeModoDeGrabar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModoDeGrabar_lower(_ value: ModoDeGrabar) -> RustBuffer {
+    return FfiConverterTypeModoDeGrabar.lower(value)
+}
+
+
+
+/**
  * Por que se sincroniza ahora.
  */
 
@@ -41523,6 +42223,30 @@ fileprivate struct FfiConverterOptionTypeEleccionSincro: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeEnUnaClase: FfiConverterRustBuffer {
+    typealias SwiftType = EnUnaClase?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEnUnaClase.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEnUnaClase.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEnlaceFicha: FfiConverterRustBuffer {
     typealias SwiftType = EnlaceFicha?
 
@@ -43232,6 +43956,31 @@ fileprivate struct FfiConverterSequenceTypeCapturaGaleria: FfiConverterRustBuffe
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeCapturaParaEstudiar: FfiConverterRustBuffer {
+    typealias SwiftType = [CapturaParaEstudiar]
+
+    public static func write(_ value: [CapturaParaEstudiar], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCapturaParaEstudiar.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CapturaParaEstudiar] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CapturaParaEstudiar]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCapturaParaEstudiar.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCarpetaDelChat: FfiConverterRustBuffer {
     typealias SwiftType = [CarpetaDelChat]
 
@@ -43982,6 +44731,31 @@ fileprivate struct FfiConverterSequenceTypeFiguraDeBiblioteca: FfiConverterRustB
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFilaDeClase: FfiConverterRustBuffer {
+    typealias SwiftType = [FilaDeClase]
+
+    public static func write(_ value: [FilaDeClase], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFilaDeClase.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FilaDeClase] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FilaDeClase]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFilaDeClase.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFilaElegir: FfiConverterRustBuffer {
     typealias SwiftType = [FilaElegir]
 
@@ -44374,6 +45148,31 @@ fileprivate struct FfiConverterSequenceTypeLetraOffice: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeLetraOffice.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeLineaDeClase: FfiConverterRustBuffer {
+    typealias SwiftType = [LineaDeClase]
+
+    public static func write(_ value: [LineaDeClase], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeLineaDeClase.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [LineaDeClase] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [LineaDeClase]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeLineaDeClase.read(from: &buf))
         }
         return seq
     }
@@ -45332,6 +46131,31 @@ fileprivate struct FfiConverterSequenceTypeSegmentoVoz: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeSenalDeClase: FfiConverterRustBuffer {
+    typealias SwiftType = [SenalDeClase]
+
+    public static func write(_ value: [SenalDeClase], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeSenalDeClase.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [SenalDeClase] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [SenalDeClase]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeSenalDeClase.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeTarea: FfiConverterRustBuffer {
     typealias SwiftType = [Tarea]
 
@@ -45674,6 +46498,31 @@ fileprivate struct FfiConverterSequenceTypeOrdenNota: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeOrdenNota.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceOptionInt64: FfiConverterRustBuffer {
+    typealias SwiftType = [Int64?]
+
+    public static func write(_ value: [Int64?], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterOptionInt64.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Int64?] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Int64?]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterOptionInt64.read(from: &buf))
         }
         return seq
     }
@@ -46739,6 +47588,171 @@ public func tipoDeServicioRecibir() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_tipo_de_servicio_recibir(uniffiCallStatus
+    )
+})
+}
+/**
+ * Acerca `actual` a `destino` un trozo cada fotograma.
+ */
+public func claseAcercar(actual: Float, destino: Float, k: Float) -> Float  {
+    return try!  FfiConverterFloat.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_acercar(
+        FfiConverterFloat.lower(actual),
+        FfiConverterFloat.lower(destino),
+        FfiConverterFloat.lower(k),uniffiCallStatus
+    )
+})
+}
+/**
+ * La linea del texto que suena en `ms` (la ultima con minuto que ya paso).
+ */
+public func claseLineaEn(lineas: [Int64?], ms: Int64) -> UInt32?  {
+    return try!  FfiConverterOptionUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_linea_en(
+        FfiConverterSequenceOptionInt64.lower(lineas),
+        FfiConverterInt64.lower(ms),uniffiCallStatus
+    )
+})
+}
+/**
+ * El milisegundo que se esta leyendo en una lista con `scroll`.
+ */
+public func claseMsLeido(tiempos: [Int64], altos: [Float], altoVista: Float, scroll: Float) -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_ms_leido(
+        FfiConverterSequenceInt64.lower(tiempos),
+        FfiConverterSequenceFloat.lower(altos),
+        FfiConverterFloat.lower(altoVista),
+        FfiConverterFloat.lower(scroll),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El trozo anterior o el siguiente** al que suena en `ms` (↑/↓,
+ * `Vista::otro_trozo` de Windows): adelante, el primero que empieza mas de
+ * 200 ms despues; atras, el anterior si se acaba de empezar este (menos de
+ * 1,5 s), o el principio de este.
+ */
+public func claseOtroTrozo(tiempos: [Int64], ms: Int64, adelante: Bool) -> Int64?  {
+    return try!  FfiConverterOptionInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_otro_trozo(
+        FfiConverterSequenceInt64.lower(tiempos),
+        FfiConverterInt64.lower(ms),
+        FfiConverterBool.lower(adelante),uniffiCallStatus
+    )
+})
+}
+/**
+ * Un clic en la barra en `x`: el milisegundo, o el de la senal si cae a
+ * menos de `tolerancia`.
+ */
+public func clasePegarASenal(x: Float, ancho: Float, duracionMs: Int64, senales: [Int64], tolerancia: Float) -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_pegar_a_senal(
+        FfiConverterFloat.lower(x),
+        FfiConverterFloat.lower(ancho),
+        FfiConverterInt64.lower(duracionMs),
+        FfiConverterSequenceInt64.lower(senales),
+        FfiConverterFloat.lower(tolerancia),uniffiCallStatus
+    )
+})
+}
+/**
+ * Salta `delta` desde `ms` sin salirse de la nota.
+ */
+public func claseSaltar(ms: Int64, delta: Int64, duracionMs: Int64) -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_saltar(
+        FfiConverterInt64.lower(ms),
+        FfiConverterInt64.lower(delta),
+        FfiConverterInt64.lower(duracionMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * El scroll de una lista para que `ms` quede en su ancla (a un tercio).
+ */
+public func claseScrollPara(tiempos: [Int64], altos: [Float], altoVista: Float, ms: Int64, suave: Bool) -> Float  {
+    return try!  FfiConverterFloat.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_scroll_para(
+        FfiConverterSequenceInt64.lower(tiempos),
+        FfiConverterSequenceFloat.lower(altos),
+        FfiConverterFloat.lower(altoVista),
+        FfiConverterInt64.lower(ms),
+        FfiConverterBool.lower(suave),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El scroll de la otra lista** cuando el usuario mueve una.
+ */
+public func claseSeguir(deTiempos: [Int64], deAltos: [Float], deVista: Float, deScroll: Float, aTiempos: [Int64], aAltos: [Float], aVista: Float) -> Float?  {
+    return try!  FfiConverterOptionFloat.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_seguir(
+        FfiConverterSequenceInt64.lower(deTiempos),
+        FfiConverterSequenceFloat.lower(deAltos),
+        FfiConverterFloat.lower(deVista),
+        FfiConverterFloat.lower(deScroll),
+        FfiConverterSequenceInt64.lower(aTiempos),
+        FfiConverterSequenceFloat.lower(aAltos),
+        FfiConverterFloat.lower(aVista),uniffiCallStatus
+    )
+})
+}
+/**
+ * Lo mas abajo que se puede bajar una lista.
+ */
+public func claseTope(altos: [Float], altoVista: Float) -> Float  {
+    return try!  FfiConverterFloat.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_tope(
+        FfiConverterSequenceFloat.lower(altos),
+        FfiConverterFloat.lower(altoVista),uniffiCallStatus
+    )
+})
+}
+/**
+ * El ultimo de `tiempos` que ya paso en `ms` (antes del primero, el
+ * primero): la captura del minuto, la senal por la que va.
+ */
+public func claseUltimoAntes(tiempos: [Int64], ms: Int64) -> UInt32?  {
+    return try!  FfiConverterOptionUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_ultimo_antes(
+        FfiConverterSequenceInt64.lower(tiempos),
+        FfiConverterInt64.lower(ms),uniffiCallStatus
+    )
+})
+}
+/**
+ * La x de un milisegundo en la barra del tiempo.
+ */
+public func claseXEnLaBarra(ms: Int64, ancho: Float, duracionMs: Int64) -> Float  {
+    return try!  FfiConverterFloat.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_x_en_la_barra(
+        FfiConverterInt64.lower(ms),
+        FfiConverterFloat.lower(ancho),
+        FfiConverterInt64.lower(duracionMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * El otro modo, para Swift.
+ */
+public func otroModoDeGrabar(modo: ModoDeGrabar) -> ModoDeGrabar  {
+    return try!  FfiConverterTypeModoDeGrabar_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_otro_modo_de_grabar(
+        FfiConverterTypeModoDeGrabar_lower(modo),uniffiCallStatus
     )
 })
 }
@@ -48085,6 +49099,42 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_recibir() != 11481) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_acercar() != 32631) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_linea_en() != 30198) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_ms_leido() != 62198) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_otro_trozo() != 31600) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_pegar_a_senal() != 14696) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_saltar() != 58415) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_scroll_para() != 4089) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_seguir() != 18268) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_tope() != 52987) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_ultimo_antes() != 33743) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_x_en_la_barra() != 4796) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_otro_modo_de_grabar() != 5216) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_columnas_de_la_ficha() != 58442) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -48755,6 +49805,27 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_recibir_envio_preguntando() != 28836) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_cambio_del_cuaderno_ms() != 57063) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_clase_para_estudiar() != 48827) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_de_una_clase() != 28144) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_modo_de_grabar() != 37950) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_marcador_de_clase() != 63346) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_quitar_senal_de_clase() != 13471) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_recordar_modo_de_grabar() != 9692) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_cosas_de_la_ficha() != 8252) {
@@ -49594,7 +50665,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_volando() != 10593) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_empujar() != 63208) {
+    if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_empujar() != 59724) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_empujar_fechado() != 40846) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_en_pausa() != 29109) {
@@ -49616,6 +50690,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_pausar() != 19800) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_saltos_del_reloj() != 57310) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_terminar() != 2157) {

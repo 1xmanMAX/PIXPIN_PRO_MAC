@@ -80,6 +80,9 @@ pub mod editor_marcos;
 pub mod editor_tapado;
 pub mod editor_ventana;
 pub mod envio;
+/// Grabar clase en dos modos y la ventana «Estudiar la clase» (Windows
+/// 3af2647 y ce6c058).
+pub mod estudiar_clase;
 // La isla de la ficha del chat (Windows 71bd8b5).
 pub mod ficha_del_chat;
 pub mod galeria;
@@ -172,6 +175,10 @@ pub use turnos::{CambioDeTurno, TurnoVoz};
 pub use voz::{GrabacionVoz, SegmentoVoz};
 pub use anki::EnvioAnki;
 pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
+pub use estudiar_clase::{
+    CapturaParaEstudiar, ClaseParaEstudiar, EnUnaClase, FilaDeClase, LineaDeClase, ModoDeGrabar,
+    SenalDeClase,
+};
 pub use mezcla_audio::{BloqueMezclado, FuenteDeMezcla, MezclaDeAudio, PapelDeAudio};
 pub use motor_video::{CaminoDelVideo, CodificadorVideo, PerfilVideo, RitmoDelVideo};
 
