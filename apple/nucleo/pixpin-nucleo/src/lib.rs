@@ -163,7 +163,7 @@ pub use timeline::{DiaTimeline, MomentoTimeline, PaginaDias, PaginaMomentos};
 pub use turnos::{CambioDeTurno, TurnoVoz};
 pub use voz::{GrabacionVoz, SegmentoVoz};
 pub use anki::EnvioAnki;
-pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
+pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada, VideoDeLaClase};
 
 /// Lo que puede salir mal, tal como lo ve Swift (un `enum` que `throws`).
 ///

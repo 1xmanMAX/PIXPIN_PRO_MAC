@@ -7045,13 +7045,19 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func capturasDeLaClase(chat: String, mensaje: String) throws  -> [CapturaDeLaClase]
     
     /**
-     * **Mete una clase grabada en `chat`**: la nota de voz de `ruta_audio`
-     * y detras cada captura, enlazadas, como `grabar_clase::guardar` de
-     * Windows. `desfase_ms` es el de la hora local (el nombre lleva la
-     * fecha de aqui). Bloqueante: copia los ficheros. Los de origen no se
-     * tocan. Una captura que no entra se salta sin llevarse las demas.
+     * **Mete una clase grabada en `chat`**: la nota de voz de `ruta_audio`,
+     * detras el video de `ruta_video` y cada captura, enlazados, como
+     * `grabar_clase::guardar` de Windows. `desfase_ms` es el de la hora
+     * local (el nombre lleva la fecha de aqui). Bloqueante: copia las
+     * capturas y mueve el video (que ya no estara en `ruta_video`); la nota
+     * y las capturas de origen no se tocan.
+     *
+     * Sin `ruta_audio` (la nota no se pudo cerrar) entran igual el video y
+     * las capturas, sueltos. Una captura que no entra se salta sin dejar un
+     * hueco en los numeros; un video que no entra queda en la carpeta del
+     * proyecto.
      */
-    func guardarClase(chat: String, rutaAudio: String, duracionMs: Int64, picos: [Int32], capturas: [CapturaClase], desfaseMs: Int64) throws  -> ClaseGuardada
+    func guardarClase(chat: String, rutaAudio: String?, duracionMs: Int64, picos: [Int32], rutaVideo: String?, capturas: [CapturaClase], desfaseMs: Int64) throws  -> ClaseGuardada
     
     /**
      * El chat compartido de la ficha `ficha` (`FichaChat.id`), si lo esta.
@@ -9475,21 +9481,28 @@ open func capturasDeLaClase(chat: String, mensaje: String)throws  -> [CapturaDeL
 }
     
     /**
-     * **Mete una clase grabada en `chat`**: la nota de voz de `ruta_audio`
-     * y detras cada captura, enlazadas, como `grabar_clase::guardar` de
-     * Windows. `desfase_ms` es el de la hora local (el nombre lleva la
-     * fecha de aqui). Bloqueante: copia los ficheros. Los de origen no se
-     * tocan. Una captura que no entra se salta sin llevarse las demas.
+     * **Mete una clase grabada en `chat`**: la nota de voz de `ruta_audio`,
+     * detras el video de `ruta_video` y cada captura, enlazados, como
+     * `grabar_clase::guardar` de Windows. `desfase_ms` es el de la hora
+     * local (el nombre lleva la fecha de aqui). Bloqueante: copia las
+     * capturas y mueve el video (que ya no estara en `ruta_video`); la nota
+     * y las capturas de origen no se tocan.
+     *
+     * Sin `ruta_audio` (la nota no se pudo cerrar) entran igual el video y
+     * las capturas, sueltos. Una captura que no entra se salta sin dejar un
+     * hueco en los numeros; un video que no entra queda en la carpeta del
+     * proyecto.
      */
-open func guardarClase(chat: String, rutaAudio: String, duracionMs: Int64, picos: [Int32], capturas: [CapturaClase], desfaseMs: Int64)throws  -> ClaseGuardada  {
+open func guardarClase(chat: String, rutaAudio: String?, duracionMs: Int64, picos: [Int32], rutaVideo: String?, capturas: [CapturaClase], desfaseMs: Int64)throws  -> ClaseGuardada  {
     return try  FfiConverterTypeClaseGuardada_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_nucleo_guardar_clase(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
-        FfiConverterString.lower(rutaAudio),
+        FfiConverterOptionString.lower(rutaAudio),
         FfiConverterInt64.lower(duracionMs),
         FfiConverterSequenceInt32.lower(picos),
+        FfiConverterOptionString.lower(rutaVideo),
         FfiConverterSequenceTypeCapturaClase.lower(capturas),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
     )
@@ -18302,17 +18315,19 @@ public func FfiConverterTypeCitaIa_lower(_ value: CitaIa) -> RustBuffer {
 
 
 /**
- * Lo que dejo la clase en el chat: la voz como quedo y sus capturas, en el
- * orden del cuaderno.
+ * Lo que dejo la clase en el chat, en el orden del cuaderno: la voz como
+ * quedo (si entro), su video (si lo habia y entro) y sus capturas.
  */
 public struct ClaseGuardada: Equatable, Hashable {
-    public var voz: MensajeChat
+    public var voz: MensajeChat?
+    public var video: MensajeChat?
     public var capturas: [MensajeChat]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(voz: MensajeChat, capturas: [MensajeChat]) {
+    public init(voz: MensajeChat?, video: MensajeChat?, capturas: [MensajeChat]) {
         self.voz = voz
+        self.video = video
         self.capturas = capturas
     }
 
@@ -18332,13 +18347,15 @@ public struct FfiConverterTypeClaseGuardada: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ClaseGuardada {
         return
             try ClaseGuardada(
-                voz: FfiConverterTypeMensajeChat.read(from: &buf), 
+                voz: FfiConverterOptionTypeMensajeChat.read(from: &buf), 
+                video: FfiConverterOptionTypeMensajeChat.read(from: &buf), 
                 capturas: FfiConverterSequenceTypeMensajeChat.read(from: &buf)
         )
     }
 
     public static func write(_ value: ClaseGuardada, into buf: inout [UInt8]) {
-        FfiConverterTypeMensajeChat.write(value.voz, into: &buf)
+        FfiConverterOptionTypeMensajeChat.write(value.voz, into: &buf)
+        FfiConverterOptionTypeMensajeChat.write(value.video, into: &buf)
         FfiConverterSequenceTypeMensajeChat.write(value.capturas, into: &buf)
     }
 }
@@ -32157,6 +32174,104 @@ public func FfiConverterTypeValorDeCampo_lower(_ value: ValorDeCampo) -> RustBuf
 
 
 /**
+ * Como se graba el video de una clase en una pantalla: lo que Windows fija
+ * en `grabar_clase/video.rs`.
+ */
+public struct VideoDeLaClase: Equatable, Hashable {
+    /**
+     * El tamano del MP4, en pixeles (pares).
+     */
+    public var ancho: UInt32
+    public var alto: UInt32
+    public var porSegundo: UInt32
+    /**
+     * Del H.264.
+     */
+    public var bitsPorSegundo: UInt32
+    /**
+     * Del AAC (mono, al muestreo de la nota).
+     */
+    public var bitsAudio: UInt32
+    /**
+     * Lo que se espera a la primera imagen antes de empezar en negro.
+     */
+    public var esperaPrimeroMs: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El tamano del MP4, en pixeles (pares).
+         */ancho: UInt32, alto: UInt32, porSegundo: UInt32, 
+        /**
+         * Del H.264.
+         */bitsPorSegundo: UInt32, 
+        /**
+         * Del AAC (mono, al muestreo de la nota).
+         */bitsAudio: UInt32, 
+        /**
+         * Lo que se espera a la primera imagen antes de empezar en negro.
+         */esperaPrimeroMs: Int64) {
+        self.ancho = ancho
+        self.alto = alto
+        self.porSegundo = porSegundo
+        self.bitsPorSegundo = bitsPorSegundo
+        self.bitsAudio = bitsAudio
+        self.esperaPrimeroMs = esperaPrimeroMs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VideoDeLaClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVideoDeLaClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VideoDeLaClase {
+        return
+            try VideoDeLaClase(
+                ancho: FfiConverterUInt32.read(from: &buf), 
+                alto: FfiConverterUInt32.read(from: &buf), 
+                porSegundo: FfiConverterUInt32.read(from: &buf), 
+                bitsPorSegundo: FfiConverterUInt32.read(from: &buf), 
+                bitsAudio: FfiConverterUInt32.read(from: &buf), 
+                esperaPrimeroMs: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VideoDeLaClase, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.ancho, into: &buf)
+        FfiConverterUInt32.write(value.alto, into: &buf)
+        FfiConverterUInt32.write(value.porSegundo, into: &buf)
+        FfiConverterUInt32.write(value.bitsPorSegundo, into: &buf)
+        FfiConverterUInt32.write(value.bitsAudio, into: &buf)
+        FfiConverterInt64.write(value.esperaPrimeroMs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoDeLaClase_lift(_ buf: RustBuffer) throws -> VideoDeLaClase {
+    return try FfiConverterTypeVideoDeLaClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVideoDeLaClase_lower(_ value: VideoDeLaClase) -> RustBuffer {
+    return FfiConverterTypeVideoDeLaClase.lower(value)
+}
+
+
+/**
  * **Lo que Swift pinta para el modelo**: la zona `(x0, y0)–(x1, y1)` del
  * mundo en una imagen de `ancho` x `alto` (`escala` pixeles por unidad),
  * con el papel y lo dibujado (`plano`, sus fotos en `imagenes`) y encima la
@@ -44022,6 +44137,36 @@ public func capturaDeLaClaseEn(tiempos: [Int64], posicionMs: Int64) -> UInt32?  
 })
 }
 /**
+ * **Cuantos fotogramas del video de la clase tocan** tras `muestras` de
+ * sonido a `muestreo`: el sonido es el reloj del video, asi que las dos
+ * pistas no se separan y en pausa (no llega sonido) no se escribe ninguno.
+ * Si ya se llevaban `hechos` y tocan mas, se escribe solo el ultimo, que
+ * empieza en `debidos - 1` (en decimas de segundo); el primero, en el cero
+ * aunque llegue tarde (`escala::tramo_del_fotograma`).
+ */
+public func fotogramasDebidosDeLaClase(muestras: UInt64, muestreo: UInt32) -> UInt64  {
+    return try!  FfiConverterUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_fotogramas_debidos_de_la_clase(
+        FfiConverterUInt64.lower(muestras),
+        FfiConverterUInt32.lower(muestreo),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El video de una clase en una pantalla de `ancho`x`alto` pixeles**: a
+ * 10 fotogramas por segundo y como mucho 1280x720, como Windows.
+ */
+public func videoDeLaClase(anchoPantalla: UInt32, altoPantalla: UInt32) -> VideoDeLaClase  {
+    return try!  FfiConverterTypeVideoDeLaClase_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_video_de_la_clase(
+        FfiConverterUInt32.lower(anchoPantalla),
+        FfiConverterUInt32.lower(altoPantalla),uniffiCallStatus
+    )
+})
+}
+/**
  * La etiqueta (TXT `g`) de quien invita con ese codigo. PBKDF2: fuera del
  * hilo de la interfaz.
  */
@@ -45534,6 +45679,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_captura_de_la_clase_en() != 25017) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_fotogramas_debidos_de_la_clase() != 59488) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_video_de_la_clase() != 48572) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_etiqueta_de_invitacion() != 50993) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -46101,7 +46252,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_capturas_de_la_clase() != 28461) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_clase() != 23146) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_clase() != 11818) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_compartido() != 45518) {

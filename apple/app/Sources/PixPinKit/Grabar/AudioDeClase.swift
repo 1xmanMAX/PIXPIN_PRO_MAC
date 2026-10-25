@@ -15,6 +15,9 @@
 //   no suena) y la nota sigue al reloj de la pared, para que las capturas
 //   hechas durante la grabacion caigan en su minuto.
 // - En pausa lo que llega se tira y el reloj de la nota no corre.
+// - Con video (Windows 20162e9), cada bloque que se escribe en la nota va
+//   tambien a `copia` (`pixpin_audio::Copia`): es el sonido del MP4 y su
+//   reloj (`VideoDeClase`).
 //
 // Rendimiento (§4bis): nada se guarda en memoria mas alla de la holgura de
 // un cuarto de segundo; todo pasa en una cola serie con prioridad de
@@ -188,6 +191,9 @@ final class AudioDeClase: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
     private var flujo: SCStream?
     private var tic: DispatchSourceTimer?
     private let indiceMicrofono = 0
+    /// Lo que se escribe en la nota, para el video (en `cola`). Se pone
+    /// antes de `empezar`.
+    var copia: (([Float]) -> Void)?
     private var indiceEquipo: Int { fuentes.microfono ? 1 : 0 }
 
     // Con cerrojo: lo que mira la barra.
@@ -356,6 +362,7 @@ final class AudioDeClase: NSObject, SCStreamOutput, SCStreamDelegate, @unchecked
         v.withUnsafeBufferPointer { p in d[0].update(from: p.baseAddress!, count: v.count) }
         b.frameLength = AVAudioFrameCount(v.count)
         try? escritor.escribir(b)
+        copia?(v)
         let pico = v.reduce(Float(0)) { max($0, abs($1)) }
         cerrojo.lock()
         _nivel = pico

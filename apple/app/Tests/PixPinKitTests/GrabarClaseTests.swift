@@ -76,6 +76,19 @@ final class GrabarClaseTests: XCTestCase {
         XCTAssertNil(ClaseEnElChat.enElMinuto([], posicionMs: 1_000))
     }
 
+    // MARK: El video
+
+    func testElVideoSeGrabaAlTamanoYRitmoDeWindows() {
+        let v = videoDeLaClase(anchoPantalla: 2880, altoPantalla: 1800)
+        XCTAssertEqual(v.ancho, 1152)
+        XCTAssertEqual(v.alto, 720)
+        XCTAssertEqual(v.porSegundo, 10)
+        XCTAssertEqual(fotogramasDebidosDeLaClase(muestras: 48_000, muestreo: 48_000), 11)
+        // Caso negativo: un fotograma negro sale aunque la pantalla no de
+        // ninguna imagen.
+        XCTAssertNotNil(VideoDeClase.negro(ancho: Int(v.ancho), alto: Int(v.alto)))
+    }
+
     // MARK: Lo que queda en el chat
 
     @MainActor
@@ -89,14 +102,23 @@ final class GrabarClaseTests: XCTestCase {
         try Data("m4a".utf8).write(to: audio)
         let png = raiz.appendingPathComponent("a.png")
         try Data("png".utf8).write(to: png)
+        let mp4 = raiz.appendingPathComponent("clase.m4a.video.mp4")
+        try Data("mp4".utf8).write(to: mp4)
         let hecho = try almacen.nucleo.guardarClase(chat: chat, rutaAudio: audio.path, duracionMs: 60_000, picos: [1, 2],
+                                                    rutaVideo: mp4.path,
                                                     capturas: [CapturaClase(ms: 65_400, rutaPng: png.path)], desfaseMs: 0)
-        XCTAssertEqual(hecho.voz.clase, "VOZ")
-        XCTAssertTrue(hecho.voz.nombre.hasPrefix("Clase "))
+        let voz = try XCTUnwrap(hecho.voz)
+        XCTAssertEqual(voz.clase, "VOZ")
+        XCTAssertTrue(voz.nombre.hasPrefix("Clase "))
         XCTAssertEqual(hecho.capturas.count, 1)
         let pie = try XCTUnwrap(hecho.capturas.first?.texto)
         XCTAssertTrue(pie.hasPrefix("⏱ 1:05 · Clase "), pie)
-        let lista = ClaseEnElChat.capturas(hecho.voz, chat: chat, nucleo: almacen.nucleo)
+        // El video, detras de la voz, como un archivo `Clase ….mp4` (movido).
+        let video = try XCTUnwrap(hecho.video)
+        XCTAssertEqual(video.clase, "ARCHIVO")
+        XCTAssertTrue(video.nombre.hasPrefix("Clase ") && video.nombre.hasSuffix(".mp4"), video.nombre)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: mp4.path))
+        let lista = ClaseEnElChat.capturas(voz, chat: chat, nucleo: almacen.nucleo)
         XCTAssertEqual(lista.map(\.ms), [65_400])
         XCTAssertNotNil(lista.first?.ruta)
         // Caso negativo: una foto suelta no es una clase.
@@ -105,7 +127,7 @@ final class GrabarClaseTests: XCTestCase {
 
         // «Enviar a Anki» sale en la clase y en una nota con tarjetas.
         let c = ChatAbierto(chat: chat, almacen: almacen)
-        XCTAssertTrue(c.sePuedeAnki(hecho.voz))
+        XCTAssertTrue(c.sePuedeAnki(voz))
         let escrita = await almacen.escribir(nota: "capital :: Lima", en: chat)
         let nota = try XCTUnwrap(escrita)
         XCTAssertTrue(c.sePuedeAnki(nota))
