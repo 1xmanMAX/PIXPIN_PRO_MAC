@@ -44,7 +44,35 @@ const CONTORNO_ACTIVO: Color = hex(0x4a47b1);
 const PISTA_RECORRIDA: Color = hex(0xccccff);
 const PULGAR: Color = hex(0x3d3d3d);
 
+/// **El panel quitado** (24-oct-2026, «pon un boton para mostrarla y
+/// quitarla»): lo dice el boton de arriba a la izquierda y vale para todos
+/// los lienzos de la sesion, no solo el de esta ventana.
+static PLEGADO: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Si el panel esta quitado.
+pub fn plegado() -> bool {
+    PLEGADO.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+/// **El panel de este hilo lleva el boton de quitarlo** (o deja de
+/// llevarlo). Lo pide el lienzo al abrir.
+pub fn con_boton_plegar(si: bool) {
+    CON_PLEGAR.with(|c| c.set(si));
+}
+
+/// Quita o saca el panel (y cierra su desplegable).
+pub fn poner_plegado(si: bool) {
+    PLEGADO.store(si, std::sync::atomic::Ordering::Relaxed);
+    if si {
+        cerrar_desplegable();
+    }
+}
+
 thread_local! {
+    /// Si el panel de este hilo lleva el boton de quitarlo: solo el del
+    /// lienzo ([`con_boton_plegar`]); el de un pin, el lector o la hojita
+    /// van en su sitio de siempre, sin el.
+    static CON_PLEGAR: Cell<bool> = const { Cell::new(false) };
     /// El desplegable abierto (la paleta o las puntas).
     ///
     /// Es el unico estado del panel y vive aqui, por hilo, porque cada
@@ -55,6 +83,9 @@ thread_local! {
     /// Si el ultimo boton-abajo fue del panel: su boton-arriba tambien lo es
     /// (ver `atender_clic`). Por hilo por lo mismo que `ABIERTO`.
     static PULSADO_EN_PANEL: Cell<bool> = const { Cell::new(false) };
+    /// Se pulso «Guardar en figuras»: lo recoge el editor
+    /// ([`tomar_guardar_figura`]), que es quien abre el cajetin del nombre.
+    static GUARDAR_FIGURA: Cell<bool> = const { Cell::new(false) };
     /// Lo que se va escribiendo en el campo del codigo, si se esta
     /// escribiendo. **Mientras hay algo aqui el teclado es del panel**
     /// (`tecla_del_hex`): una «r» es un digito que no vale y no la
@@ -276,7 +307,8 @@ pub fn panel_para(
             )
         }
     };
-    PanelLateral::construir(
+    let papel = PAPEL.with(Cell::get);
+    let panel = PanelLateral::construir(
         area,
         escala_por_cien,
         ContextoPanel {
@@ -285,9 +317,17 @@ pub fn panel_para(
             seleccionados: elegidos.len(),
             mandos,
             abierto: ABIERTO.with(Cell::get),
-            lienzo: PAPEL.with(Cell::get).then_some(escena.fondo),
+            lienzo: papel.then_some(escena.fondo),
         },
-    )
+    )?;
+    // Quitado, solo su boton; el papel pedido desde el menu sale siempre.
+    Some(if !CON_PLEGAR.with(Cell::get) {
+        panel
+    } else if plegado() && !papel {
+        PanelLateral::plegado(area, escala_por_cien)
+    } else {
+        panel.con_plegar(area, escala_por_cien)
+    })
 }
 
 /// Lo que fue de un clic del raton frente al panel.
@@ -310,6 +350,11 @@ pub enum ClicPanel {
 ///
 /// `pulsado` distingue el boton-abajo del boton-arriba: la accion va con el
 /// primero; el segundo solo se traga para que no llegue al lienzo.
+/// Si se pulso «Guardar en figuras» desde la ultima vez (y lo olvida).
+pub fn tomar_guardar_figura() -> bool {
+    GUARDAR_FIGURA.with(|g| g.replace(false))
+}
+
 pub fn atender_clic(
     p: pixpin_geom::Punto,
     pulsado: bool,
@@ -364,6 +409,10 @@ fn solo_quien_admite(accion: &AccionPanel, gesto: &Gesto, escena: &Escena) -> Se
 pub fn aplicar(accion: AccionPanel, gesto: &mut Gesto, escena: &mut Escena) -> bool {
     let sel = gesto.seleccion.clone();
     match accion {
+        AccionPanel::Plegar => {
+            poner_plegado(!plegado());
+            return true;
+        }
         AccionPanel::Abrir(d) => {
             // El mismo disparador abre y cierra, como en Excalidraw.
             ABIERTO.with(|a| a.set(if a.get() == Some(d) { None } else { Some(d) }));
@@ -410,6 +459,11 @@ pub fn aplicar(accion: AccionPanel, gesto: &mut Gesto, escena: &mut Escena) -> b
         AccionPanel::Repartir(r) => organizar::repartir(escena, &sel, r),
         AccionPanel::Agrupar => return organizar::agrupar(escena, &sel).is_some(),
         AccionPanel::Desagrupar => organizar::desagrupar(escena, &sel),
+        // No toca la escena: lo apunta para el editor ([`tomar_guardar_figura`]).
+        AccionPanel::GuardarFigura => {
+            GUARDAR_FIGURA.with(|g| g.set(true));
+            return false;
+        }
         AccionPanel::Duplicar => {
             // Como Ctrl+D en Excalidraw: copias desplazadas 10 unidades, y
             // quedan elegidas las copias. Por `portapapeles::pegar` y no a
@@ -505,6 +559,65 @@ fn rotulo_de_imagen(accion: AccionPanel) -> Option<String> {
         // El modo guia: la palabra, que un icono de regla no dice que lo que
         // se trace sera andamio.
         AccionPanel::ModoGuia(_) => Some(textos().t("lienzo-guia-corto").to_string()),
+        // Las de las laminas de geometria, con su palabra: no hay iconos de
+        // Excalidraw para «sector» ni para «radial».
+        AccionPanel::Forma(CambioForma::Degradado(t)) => Some(
+            textos()
+                .t(match t {
+                    None => "lienzo-degradado-liso",
+                    Some(pixpin_motor2d::geometria_exacta::TipoDegradado::Lineal) => {
+                        "lienzo-degradado-lineal"
+                    }
+                    Some(pixpin_motor2d::geometria_exacta::TipoDegradado::Radial) => {
+                        "lienzo-degradado-radial"
+                    }
+                })
+                .to_string(),
+        ),
+        AccionPanel::Forma(CambioForma::CierreArco(c)) => Some(
+            textos()
+                .t(match c {
+                    None => "lienzo-cierre-abierto",
+                    Some(pixpin_motor2d::geometria_exacta::CierreArco::Sector) => {
+                        "lienzo-cierre-sector"
+                    }
+                    Some(pixpin_motor2d::geometria_exacta::CierreArco::Segmento) => {
+                        "lienzo-cierre-segmento"
+                    }
+                })
+                .to_string(),
+        ),
+        AccionPanel::Forma(CambioForma::ModoArco(m)) => Some(
+            textos()
+                .t(match m {
+                    pixpin_motor2d::geometria_exacta::ModoArco::Guia => "lienzo-arco-modo-guia",
+                    pixpin_motor2d::geometria_exacta::ModoArco::CentroYPuntos => {
+                        "lienzo-arco-modo-centro"
+                    }
+                    pixpin_motor2d::geometria_exacta::ModoArco::TresPuntos => {
+                        "lienzo-arco-modo-tres"
+                    }
+                })
+                .to_string(),
+        ),
+        AccionPanel::Forma(CambioForma::ArcosAngulo(n)) => Some(")".repeat(n as usize)),
+        AccionPanel::Forma(CambioForma::ModoAngulo(m)) => Some(
+            textos()
+                .t(match m {
+                    pixpin_motor2d::geometria_exacta::ModoAngulo::Griega => {
+                        "lienzo-angulo-modo-griega"
+                    }
+                    pixpin_motor2d::geometria_exacta::ModoAngulo::Simple => {
+                        "lienzo-angulo-modo-simple"
+                    }
+                    pixpin_motor2d::geometria_exacta::ModoAngulo::Recto => {
+                        "lienzo-angulo-modo-recto"
+                    }
+                })
+                .to_string(),
+        ),
+        // El raya-punto: el dibujo con letras, que Excalidraw no lo tiene.
+        AccionPanel::Estilo(CambioEstilo::Estilo(EstiloTrazo::RayaPunto)) => Some("— · —".into()),
         _ => None,
     }
 }
@@ -626,6 +739,7 @@ fn icono_de(accion: AccionPanel) -> Option<&'static pixpin_render::icono::Icono>
         AccionPanel::Borrar => &i::TRASH_ICON,
         AccionPanel::Agrupar => &i::GROUP_ICON,
         AccionPanel::Desagrupar => &i::UNGROUP_ICON,
+        AccionPanel::GuardarFigura => &i::LIBRARY_ICON,
         // Si o no: la marca y el aspa.
         AccionPanel::PedirMedida(true) => &i::TABLER_CHECK_ICON,
         AccionPanel::PedirMedida(false) => &i::CLOSE_ICON,
@@ -636,6 +750,18 @@ fn icono_de(accion: AccionPanel) -> Option<&'static pixpin_render::icono::Icono>
         // esconde), cerrado y marcado mientras estan escondidas.
         AccionPanel::VerGuias(false) => &i::EYE_ICON,
         AccionPanel::VerGuias(true) => &i::EYE_CLOSED_ICON,
+        // Las de las laminas de geometria van con su palabra
+        // (`rotulo_de_imagen`); estos son los iconos de reserva.
+        AccionPanel::Estilo(CambioEstilo::Estilo(EstiloTrazo::RayaPunto)) => {
+            &i::STROKE_STYLE_DASHED_ICON
+        }
+        AccionPanel::Forma(CambioForma::Degradado(None)) => &i::FILL_SOLID_ICON,
+        AccionPanel::Forma(CambioForma::Degradado(Some(_))) => &i::FILL_ZIG_ZAG_ICON,
+        AccionPanel::Forma(CambioForma::CierreArco(None)) => &i::EDGE_ROUND_ICON,
+        AccionPanel::Forma(CambioForma::CierreArco(Some(_))) => &i::ANGLE_ICON,
+        AccionPanel::Forma(CambioForma::ModoArco(_)) => &i::EDGE_ROUND_ICON,
+        AccionPanel::Forma(CambioForma::ArcosAngulo(_)) => &i::ANGLE_ICON,
+        AccionPanel::Forma(CambioForma::ModoAngulo(_)) => &i::ANGLE_ICON,
         _ => return None,
     })
 }
@@ -677,6 +803,11 @@ fn clave(s: Seccion) -> &'static str {
         Seccion::GuiaLupa => "lienzo-panel-guia",
         Seccion::Oscurecer => "lienzo-panel-oscurecer",
         Seccion::ZonaFoco => "lienzo-panel-zona-foco",
+        Seccion::Degradado => "lienzo-panel-degradado",
+        Seccion::CierreArco => "lienzo-panel-cierre-arco",
+        Seccion::ModoArco => "lienzo-panel-modo-arco",
+        Seccion::ArcosAngulo => "lienzo-panel-arcos-angulo",
+        Seccion::ModoAngulo => "lienzo-panel-modo-angulo",
     }
 }
 
@@ -717,6 +848,30 @@ fn pintar_isla(p: &Pintor, marco: Rect, e: f32) {
 
 pub fn pintar(p: &Pintor, panel: &PanelLateral, escala_por_cien: u32) {
     let e = escala_por_cien as f32 / 100.0;
+    // El boton de mostrar y quitar: una isla como la del panel, con la
+    // paleta para sacarlo y la flecha para quitarlo.
+    if let Some(b) = panel.plegar {
+        pintar_isla(p, b, e);
+        let lado = 20.0 * e;
+        let r = rf(b);
+        p.icono(
+            if panel.plegado {
+                &pixpin_render::icono::material::PALETTE
+            } else {
+                &pixpin_render::icono::material::CHEVRON_LEFT
+            },
+            RectF {
+                x: r.x + (r.ancho - lado) / 2.0,
+                y: r.y + (r.alto - lado) / 2.0,
+                ancho: lado,
+                alto: lado,
+            },
+            TEXTO,
+        );
+    }
+    if panel.plegado {
+        return;
+    }
     pintar_isla(p, panel.marco, e);
     pintar_controles(p, &panel.controles, e);
     // El desplegable, encima de todo lo demas.
@@ -1280,6 +1435,54 @@ mod pruebas {
             .collect()
     }
 
+    /// 24-oct-2026: el boton de arriba a la izquierda quita el panel y lo
+    /// vuelve a sacar, por el mismo camino del clic que el usuario.
+    #[test]
+    fn el_boton_quita_el_panel_y_lo_vuelve_a_sacar() {
+        let mut escena = Escena::nueva();
+        let mut gesto = Gesto::default();
+        gesto.tomar_herramienta(Herramienta::Rectangulo);
+        poner_plegado(false);
+        // Caso negativo: fuera del lienzo (un pin, el lector) no hay boton.
+        assert!(
+            panel_para(&gesto, &escena, area(), 100)
+                .unwrap()
+                .plegar
+                .is_none()
+        );
+        con_boton_plegar(true);
+        let entero = panel_para(&gesto, &escena, area(), 100).unwrap();
+        let b = entero.plegar.expect("lleva el boton");
+        let centro = pixpin_geom::Punto {
+            x: b.x + b.ancho as i32 / 2,
+            y: b.y + b.alto as i32 / 2,
+        };
+        let dentro = pixpin_geom::Punto {
+            x: entero.marco.x + 20,
+            y: entero.marco.y + 20,
+        };
+        assert_eq!(
+            atender_clic(centro, true, &mut gesto, &mut escena, area(), 100),
+            ClicPanel::Suyo { repintar: true }
+        );
+        let _ = atender_clic(centro, false, &mut gesto, &mut escena, area(), 100);
+        assert!(panel_para(&gesto, &escena, area(), 100).unwrap().plegado);
+        // Caso negativo: quitado, donde estaba el panel el clic es del lienzo.
+        assert!(matches!(
+            atender_clic(dentro, true, &mut gesto, &mut escena, area(), 100),
+            ClicPanel::Fuera { .. }
+        ));
+        let _ = atender_clic(dentro, false, &mut gesto, &mut escena, area(), 100);
+        assert_eq!(
+            atender_clic(centro, true, &mut gesto, &mut escena, area(), 100),
+            ClicPanel::Suyo { repintar: true }
+        );
+        let _ = atender_clic(centro, false, &mut gesto, &mut escena, area(), 100);
+        assert!(!panel_para(&gesto, &escena, area(), 100).unwrap().plegado);
+        poner_plegado(false);
+        con_boton_plegar(false);
+    }
+
     #[test]
     fn con_el_grafito_salen_las_siete_durezas_y_elegir_una_queda_para_el_proximo() {
         use pixpin_motor2d::tinta::grafito::Dureza;
@@ -1298,7 +1501,14 @@ mod pruebas {
             durezas.iter().map(|d| d.0).collect::<Vec<_>>(),
             Dureza::TODAS.to_vec()
         );
-        assert_eq!(durezas.iter().filter(|d| d.1).map(|d| d.0).collect::<Vec<_>>(), [Dureza::Hb]);
+        assert_eq!(
+            durezas
+                .iter()
+                .filter(|d| d.1)
+                .map(|d| d.0)
+                .collect::<Vec<_>>(),
+            [Dureza::Hb]
+        );
         // Cada boton dice su nombre.
         for d in Dureza::TODAS {
             assert_eq!(
@@ -1333,10 +1543,20 @@ mod pruebas {
                 .filter(|(a, _)| matches!(a, AccionPanel::ModoGuia(_) | AccionPanel::VerGuias(_)))
                 .collect()
         };
-        assert_eq!(guias(&gesto, &escena), [(AccionPanel::ModoGuia(true), false)]);
-        assert!(aplicar(AccionPanel::ModoGuia(true), &mut gesto, &mut escena));
+        assert_eq!(
+            guias(&gesto, &escena),
+            [(AccionPanel::ModoGuia(true), false)]
+        );
+        assert!(aplicar(
+            AccionPanel::ModoGuia(true),
+            &mut gesto,
+            &mut escena
+        ));
         assert!(gesto.modo_guia());
-        assert_eq!(guias(&gesto, &escena), [(AccionPanel::ModoGuia(false), true)]);
+        assert_eq!(
+            guias(&gesto, &escena),
+            [(AccionPanel::ModoGuia(false), true)]
+        );
         // Una guia en la escena: sale el ojo, y pulsarlo la esconde.
         let id = con(&mut escena, Figura::Elipse);
         escena.buscar_mut(id).unwrap().extras.referencia = true;
@@ -1347,11 +1567,23 @@ mod pruebas {
                 (AccionPanel::VerGuias(false), false)
             ]
         );
-        assert!(aplicar(AccionPanel::VerGuias(false), &mut gesto, &mut escena));
+        assert!(aplicar(
+            AccionPanel::VerGuias(false),
+            &mut gesto,
+            &mut escena
+        ));
         assert!(!escena.referencias_visibles);
         // Pulsar lo que ya esta no cambia nada.
-        assert!(!aplicar(AccionPanel::VerGuias(false), &mut gesto, &mut escena));
-        assert!(!aplicar(AccionPanel::ModoGuia(true), &mut gesto, &mut escena));
+        assert!(!aplicar(
+            AccionPanel::VerGuias(false),
+            &mut gesto,
+            &mut escena
+        ));
+        assert!(!aplicar(
+            AccionPanel::ModoGuia(true),
+            &mut gesto,
+            &mut escena
+        ));
         // Con la mano y nada elegido sale por haber guias.
         gesto.tomar_herramienta(Herramienta::Mano);
         assert!(panel_para(&gesto, &escena, area(), 100).is_some());
@@ -1530,9 +1762,7 @@ mod pruebas {
             CambioEstilo::Rugosidad(r) => (e.rugosidad - r).abs() < 1e-3,
             CambioEstilo::Opacidad(o) => (e.opacidad - o).abs() < 1e-3,
             CambioEstilo::Material(m) => e.material == m,
-            CambioEstilo::Dureza(d) => {
-                pixpin_motor2d::tinta::grafito::Dureza::de(e) == d
-            }
+            CambioEstilo::Dureza(d) => pixpin_motor2d::tinta::grafito::Dureza::de(e) == d,
         }
     }
 
@@ -1578,6 +1808,16 @@ mod pruebas {
                 let caja = pixpin_motor2d::lupa_elemento::caja_de(e);
                 (pixpin_motor2d::lupa_elemento::zona_de(cristal, caja) - z).abs() < 0.01
             }
+            (CambioForma::Degradado(t), _) => e.extras.degradado.map(|d| d.tipo) == t,
+            (CambioForma::CierreArco(c), Figura::Arco { .. }) => e.extras.cierre == c,
+            (CambioForma::ArcosAngulo(n), Figura::Arco { .. }) => {
+                e.extras.marca_angulo.as_ref().is_some_and(|m| m.arcos == n)
+            }
+            (CambioForma::ModoAngulo(m), Figura::Arco { .. }) => e
+                .extras
+                .marca_angulo
+                .as_ref()
+                .is_some_and(|x| pixpin_ui::panel_lateral::modo_de_marca(x) == m),
             _ => false,
         }
     }
@@ -1687,7 +1927,10 @@ mod pruebas {
             }
             AccionPanel::VerGuias(v) => {
                 if despues.referencias_visibles != v {
-                    return Err(format!("las guias quedaron {}", despues.referencias_visibles));
+                    return Err(format!(
+                        "las guias quedaron {}",
+                        despues.referencias_visibles
+                    ));
                 }
                 if despues.elementos != antes.elementos {
                     return Err("esconder las guias toco elementos".into());
@@ -1828,6 +2071,28 @@ mod pruebas {
                     return Err("no se deshizo el grupo".into());
                 }
             }
+            // Quita el panel: no toca la escena; queda solo su boton.
+            AccionPanel::Plegar => {
+                if despues.elementos != antes.elementos {
+                    return Err("quitar el panel cambio el dibujo".into());
+                }
+                con_boton_plegar(true);
+                let quitado = panel_para(gesto, despues, area(), 100).is_some_and(|p| p.plegado);
+                con_boton_plegar(false);
+                poner_plegado(false);
+                if !quitado {
+                    return Err("el panel no se quito".into());
+                }
+            }
+            // No toca la escena: deja apuntado el cajetin para el editor.
+            AccionPanel::GuardarFigura => {
+                if despues.elementos != antes.elementos {
+                    return Err("guardar en figuras cambio el dibujo".into());
+                }
+                if !tomar_guardar_figura() {
+                    return Err("no quedo pedido el cajetin del nombre".into());
+                }
+            }
             // El campo del codigo: no toca la escena, empieza a escribir con
             // el codigo que ensena, entero y elegido.
             AccionPanel::EditarHex => {
@@ -1871,7 +2136,7 @@ mod pruebas {
     fn deberia_cambiar(accion: AccionPanel, escena: &Escena, ids: &[u64]) -> bool {
         let elegidos: Vec<&Elemento> = ids.iter().map(|id| escena.buscar(*id).unwrap()).collect();
         match accion {
-            AccionPanel::Abrir(_) | AccionPanel::EditarHex => false,
+            AccionPanel::Abrir(_) | AccionPanel::EditarHex | AccionPanel::GuardarFigura => false,
             // El modo guia y el ojo no dibujan ni van al historial, como en
             // el movil: los mira su propia prueba.
             AccionPanel::ModoGuia(_) | AccionPanel::VerGuias(_) => false,

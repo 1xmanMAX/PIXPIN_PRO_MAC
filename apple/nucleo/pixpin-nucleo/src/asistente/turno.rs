@@ -620,6 +620,11 @@ pub(crate) fn turno_nucleo(
         rapido: Some(ahora),
         ojos,
         revisar: if ojos && entorno.nube { 1 } else { 0 },
+        memoria: None,
+        critico: None,
+        repasar: entorno.nube,
+        jefe: None,
+        entrantes: None,
     };
 
     let mut recogido = Recogido::default();
@@ -911,6 +916,9 @@ impl EjecutorDelMac {
         let todas = nucleo.biblioteca_cargar().map_err(|e| format!("no se pudo leer la biblioteca de figuras: {e}"))?;
         match p {
             PedidoFiguras::Lista => Ok(lista(&todas)),
+            PedidoFiguras::Alargar { .. } | PedidoFiguras::Secciones { .. } => {
+                Err("cambiar el intervalo o las secciones de una plantilla aun no lo hace el Mac".into())
+            }
             PedidoFiguras::Poner { nombre } => {
                 let f = buscar(&todas, nombre).ok_or_else(|| format!("no hay ninguna figura guardada como «{nombre}» ({})", lista(&todas)))?;
                 self.semilla += 1;

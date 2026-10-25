@@ -24,10 +24,12 @@
 //! formatos se ven y donde cae cada mando, en `pixpin_ui::hoja_compartir`.
 
 pub(crate) mod adjuntos;
+/// Una carpeta de paginas del chat como PDF (26-oct-2026).
+pub(crate) mod carpeta;
+pub(crate) mod documento_web;
+pub(crate) mod enlace;
 /// El «Exportar» comun de todos los visores (13-oct-2026).
 pub(crate) mod exportable;
-pub(crate) mod enlace;
-pub(crate) mod documento_web;
 mod pdf;
 pub(crate) mod pdf_anotado;
 pub(crate) mod ventana;
@@ -341,16 +343,30 @@ fn preparar_sin_rotulos(cosa: Cosa, t: &Catalogo) -> Result<Preparado> {
 /// **Lo de un visor**: sus hojas como paginas, sus formatos propios y,
 /// del fichero que se ve, el original y el `.pixpin` (lo comun).
 fn de_visor(x: exportable::Exportable, t: &Catalogo) -> Preparado {
-    let mut p = Preparado::nuevo(if x.titulo.trim().is_empty() { t.t("compartir-sin-nombre") } else { x.titulo.clone() });
+    let mut p = Preparado::nuevo(if x.titulo.trim().is_empty() {
+        t.t("compartir-sin-nombre")
+    } else {
+        x.titulo.clone()
+    });
     let varias = x.hojas.len() > 1;
     let mut tablas = x.tablas;
     for (i, h) in x.hojas.into_iter().enumerate() {
-        let imagenes: HashMap<u64, Arc<ImagenRgba>> = h.imagenes.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
+        let imagenes: HashMap<u64, Arc<ImagenRgba>> = h
+            .imagenes
+            .into_iter()
+            .map(|(k, v)| (k, Arc::new(v)))
+            .collect();
         let mut hoja = h.hoja;
-        p.traducir(&mut hoja, &mut HashMap::new(), &|id| imagenes.get(&id).cloned().map(FuenteImagen::Cargada));
+        p.traducir(&mut hoja, &mut HashMap::new(), &|id| {
+            imagenes.get(&id).cloned().map(FuenteImagen::Cargada)
+        });
         let clave = format!("hoja-{}", i + 1);
         let nombre = if h.nombre.trim().is_empty() {
-            if varias { format!("{} {}", t.t("compartir-pagina"), i + 1) } else { p.titulo.clone() }
+            if varias {
+                format!("{} {}", t.t("compartir-pagina"), i + 1)
+            } else {
+                p.titulo.clone()
+            }
         } else {
             h.nombre
         };
@@ -361,16 +377,31 @@ fn de_visor(x: exportable::Exportable, t: &Catalogo) -> Preparado {
         }
     }
     for propio in x.propios {
-        p.extras.push(Extra { id: propio.id, clave: propio.clave, que: Entero::Funcion(propio.hacer) });
+        p.extras.push(Extra {
+            id: propio.id,
+            clave: propio.clave,
+            que: Entero::Funcion(propio.hacer),
+        });
     }
     if let Some(o) = x.original {
-        anadir_original(&mut p, exportable::ORIGINAL, "compartir-original", vec![o.clone()]);
+        anadir_original(
+            &mut p,
+            exportable::ORIGINAL,
+            "compartir-original",
+            vec![o.clone()],
+        );
         let (raiz, proyecto, anotado) = (x.raiz, x.proyecto, x.anotado);
         p.extras.push(Extra {
             id: exportable::PIXPIN,
             clave: "compartir-pixpin",
             que: Entero::Funcion(Arc::new(move |carpeta: &Path| {
-                let (fichero, bytes) = exportable::pixpin_de(raiz.as_deref(), proyecto.as_deref(), &o, &anotado, pixpin_shell::entorno::ahora_utc_ms())?;
+                let (fichero, bytes) = exportable::pixpin_de(
+                    raiz.as_deref(),
+                    proyecto.as_deref(),
+                    &o,
+                    &anotado,
+                    pixpin_shell::entorno::ahora_utc_ms(),
+                )?;
                 let ruta = carpeta.join(fichero);
                 escribir(&ruta, &bytes)?;
                 Ok(vec![ruta])
@@ -388,13 +419,26 @@ fn anadir_pixpin(p: &mut Preparado, ruta: PathBuf) {
     }
     let mut lado = ruta.as_os_str().to_owned();
     lado.push(".pixpin-anotado");
-    let anotado: Vec<PathBuf> = std::fs::read_dir(PathBuf::from(lado)).map(|d| d.flatten().map(|e| e.path()).filter(|r| r.is_file()).collect()).unwrap_or_default();
+    let anotado: Vec<PathBuf> = std::fs::read_dir(PathBuf::from(lado))
+        .map(|d| {
+            d.flatten()
+                .map(|e| e.path())
+                .filter(|r| r.is_file())
+                .collect()
+        })
+        .unwrap_or_default();
     let raiz = crate::oscuro::ubicacion().map(|u| u.raiz().to_path_buf());
     p.extras.push(Extra {
         id: exportable::PIXPIN,
         clave: "compartir-pixpin",
         que: Entero::Funcion(Arc::new(move |carpeta: &Path| {
-            let (fichero, bytes) = exportable::pixpin_de(raiz.as_deref(), None, &ruta, &anotado, pixpin_shell::entorno::ahora_utc_ms())?;
+            let (fichero, bytes) = exportable::pixpin_de(
+                raiz.as_deref(),
+                None,
+                &ruta,
+                &anotado,
+                pixpin_shell::entorno::ahora_utc_ms(),
+            )?;
             let r = carpeta.join(fichero);
             escribir(&r, &bytes)?;
             Ok(vec![r])
@@ -415,36 +459,44 @@ fn de_lienzo_suelto(l: LienzoSuelto, t: &Catalogo) -> Preparado {
         l.fotos.into_iter().map(|(k, v)| (k, Arc::new(v))).collect();
     let fuente = |id: u64| fotos.get(&id).cloned().map(FuenteImagen::Cargada);
     anadir_lienzo(&mut p, "lienzo", "", &l.escena, papel, &fuente, t);
-    // El lienzo viaja dentro de la web y va entero como `.excalidraw`: con
-    // cualquiera de los dos se sigue editando, aqui, en el movil o en
-    // excalidraw.com.
+    // El lienzo viaja dentro de la web, para volver a editarlo. Fuera, lo
+    // editable es el `.pixpin` (el `.excalidraw` suelto ya no se ofrece,
+    // 20-oct-2026): un proyecto con el lienzo como su hoja, como lo manda el
+    // movil, para seguir en otro PixPin o en el movil.
     let json = excalidraw_de(&l.escena);
-    p.extras.push(Extra {
-        id: "excalidraw",
-        clave: "compartir-editable",
-        que: Entero::Escrito {
-            fichero: format!("{}.excalidraw", nombre_de_fichero(&p.titulo)),
-            bytes: json.clone().into_bytes(),
-        },
-    });
-    // Y como `.pixpin`: un proyecto con el lienzo dentro, para seguir en
-    // otro PixPin o en el movil.
     let (titulo, editable) = (p.titulo.clone(), json.clone());
     p.extras.push(Extra {
         id: exportable::PIXPIN,
         clave: "compartir-pixpin",
         que: Entero::Funcion(Arc::new(move |carpeta: &Path| {
-            let lienzo = carpeta.join(format!("{}.excalidraw", nombre_de_fichero(&titulo)));
-            escribir(&lienzo, editable.as_bytes())?;
-            let (fichero, bytes) = exportable::pixpin_de(None, None, &lienzo, &[], pixpin_shell::entorno::ahora_utc_ms())?;
-            let _ = std::fs::remove_file(&lienzo);
-            let r = carpeta.join(fichero);
-            escribir(&r, &bytes)?;
+            let nombre = nombre_de_fichero(&titulo);
+            let r = carpeta.join(format!("{nombre}.pixpin"));
+            escribir(&r, &pixpin_de_un_lienzo(carpeta, &nombre, &editable)?)?;
             Ok(vec![r])
         })),
     });
     p.excalidraw = Some(json);
     p
+}
+
+/// **El `.pixpin` de un lienzo** (su `.excalidraw` en `json`): el lienzo
+/// como la hoja de un proyecto nuevo (`lienzo_suelto::empaquetar`, lo de
+/// `EnviarActivity.deLienzo` del movil), no como un fichero adjunto. El
+/// `.excalidraw` de paso se escribe en `carpeta` y se quita.
+fn pixpin_de_un_lienzo(carpeta: &Path, nombre: &str, json: &str) -> Result<Vec<u8>> {
+    let lienzo = carpeta.join(format!("{nombre}.pixpin-lienzo.excalidraw"));
+    escribir(&lienzo, json.as_bytes())?;
+    let raiz = crate::oscuro::ubicacion()
+        .map(|u| u.raiz().to_path_buf())
+        .unwrap_or_else(|| carpeta.to_path_buf());
+    let hecho = crate::recibir::lienzo_suelto::empaquetar(
+        &raiz,
+        &lienzo,
+        pixpin_shell::entorno::ahora_utc_ms(),
+    );
+    let _ = std::fs::remove_file(&lienzo);
+    let (_, bytes) = hecho.map_err(|e| anyhow::anyhow!("{e}"))?;
+    Ok(bytes)
 }
 
 fn excalidraw_de(escena: &Escena) -> String {
@@ -616,8 +668,7 @@ fn foto_con_dibujo(raiz: &Path, proyecto: &str, m: &Mensaje, foto: &Path) -> boo
     let movil = pixpin_codec::imagen::medidas(foto).is_ok_and(|(w, h)| {
         crate::foto_anotada::dibujo_de_la_foto(raiz, proyecto, m, (w as f32, h as f32)).is_some()
     });
-    movil
-        || pixpin_motor2d::cargar(&dibujo_de_foto(foto)).is_ok_and(|e| e.cuantos_visibles() > 0)
+    movil || pixpin_motor2d::cargar(&dibujo_de_foto(foto)).is_ok_and(|e| e.cuantos_visibles() > 0)
 }
 
 /// **La foto de un mensaje con lo dibujado encima, en un PNG**: lo que se
@@ -770,17 +821,10 @@ fn anadir_mensaje(
             {
                 pieza.pagina.nombre = nombre;
             }
+            // Lo editable fuera es el `.pixpin` del chat (lo pone
+            // `de_mensajes`); el lienzo solo va dentro de la pagina web.
             if puesto && solo && referencia.is_some() {
-                let json = excalidraw_de(&escena);
-                p.extras.push(Extra {
-                    id: "excalidraw",
-                    clave: "compartir-editable",
-                    que: Entero::Escrito {
-                        fichero: format!("{}.excalidraw", nombre_de_fichero(&p.titulo)),
-                        bytes: json.clone().into_bytes(),
-                    },
-                });
-                p.excalidraw = Some(json);
+                p.excalidraw = Some(excalidraw_de(&escena));
             }
             puesto
         }
@@ -795,13 +839,11 @@ fn anadir_mensaje(
             // (`foto_anotada`), con la foto dentro: si tiene algo encima, se
             // comparte ese lienzo entero. Sin esto una foto anotada en el
             // movil salia limpia al compartirla o arrastrarla desde aqui.
-            let del_movil = crate::foto_anotada::dibujo_de_la_foto(
-                raiz,
-                proyecto,
-                m,
-                (w as f32, h as f32),
-            )
-            .and_then(|_| lienzo_de_hoja(raiz, proyecto, &crate::foto_anotada::id_del_lienzo(m)));
+            let del_movil =
+                crate::foto_anotada::dibujo_de_la_foto(raiz, proyecto, m, (w as f32, h as f32))
+                    .and_then(|_| {
+                        lienzo_de_hoja(raiz, proyecto, &crate::foto_anotada::id_del_lienzo(m))
+                    });
             let puesto = if let Some((escena, fotos)) = del_movil {
                 let fuente = |id: u64| fotos.get(&id).cloned().map(FuenteImagen::Fichero);
                 anadir_lienzo(
@@ -968,12 +1010,22 @@ fn de_mensajes(
         anadir_original(&mut p, id, clave, rutas);
     }
     // El proyecto entero del chat, para abrirlo en otro PixPin o el movil.
-    if pixpin_proyecto::almacen::Indice::leer(raiz).buscar(proyecto).is_some() {
-        let nombre = pixpin_proyecto::almacen::Indice::leer(raiz).buscar(proyecto).map(|f| f.nombre.clone()).unwrap_or_default();
+    if pixpin_proyecto::almacen::Indice::leer(raiz)
+        .buscar(proyecto)
+        .is_some()
+    {
+        let nombre = pixpin_proyecto::almacen::Indice::leer(raiz)
+            .buscar(proyecto)
+            .map(|f| f.nombre.clone())
+            .unwrap_or_default();
         p.extras.push(Extra {
             id: exportable::PIXPIN,
             clave: "compartir-pixpin",
-            que: Entero::Proyectos(vec![(raiz.to_path_buf(), proyecto.to_string(), format!("{}.pixpin", exportar_html::nombre_de_fichero(&nombre)))]),
+            que: Entero::Proyectos(vec![(
+                raiz.to_path_buf(),
+                proyecto.to_string(),
+                format!("{}.pixpin", exportar_html::nombre_de_fichero(&nombre)),
+            )]),
         });
     }
     // Una foto o un fichero solos: lo que se suele querer es mandarlos tal
@@ -1016,8 +1068,9 @@ fn de_proyectos(raiz: &Path, ids: &[String], t: &Catalogo) -> Result<Preparado> 
             raiz, &ficha.id, &aparato,
         ));
         mensajes.sort_by_key(|m| m.cuando);
-        p.adjuntos
-            .extend(adjuntos::de_originales(&originales(raiz, &ficha.id, &mensajes)));
+        p.adjuntos.extend(adjuntos::de_originales(&originales(
+            raiz, &ficha.id, &mensajes,
+        )));
         let desde = p.piezas.len();
         for m in &mensajes {
             anadir_mensaje(&mut p, raiz, &ficha.id, m, false, t);
@@ -1725,7 +1778,11 @@ pub(crate) fn compartible(p: &Preparado, t: &Catalogo) -> Compartible {
     }
     // Un formato propio de un visor sustituye al de las paginas con su id
     // (el HTML interactivo de un plano en vez del dibujo de sus hojas).
-    de_paginas.retain(|f| !p.extras.iter().any(|e| e.id == f.id && matches!(e.que, Entero::Funcion(_))));
+    de_paginas.retain(|f| {
+        !p.extras
+            .iter()
+            .any(|e| e.id == f.id && matches!(e.que, Entero::Funcion(_)))
+    });
     let enteros: Vec<Formato> = p
         .extras
         .iter()
@@ -1908,7 +1965,10 @@ pub(crate) fn generar(
         _ if propio.is_some() => {
             let hacer = propio.context("sin formato")?;
             let v = hacer(carpeta)?;
-            anyhow::ensure!(!v.is_empty() && v.iter().all(|r| r.is_file()), "el formato no dejo ningun fichero");
+            anyhow::ensure!(
+                !v.is_empty() && v.iter().all(|r| r.is_file()),
+                "el formato no dejo ningun fichero"
+            );
             if matches!(formato, PNG | JPG)
                 && let Some(r) = v.first()
             {
@@ -1995,8 +2055,7 @@ pub(crate) fn generar(
                 p.excalidraw.as_deref(),
             )
             .context("sin hojas")?;
-            let pagina =
-                adjuntos::meter(pagina, &adjuntos::html(&p.adjuntos, &p.rotulo_adjuntos));
+            let pagina = adjuntos::meter(pagina, &adjuntos::html(&p.adjuntos, &p.rotulo_adjuntos));
             let ruta = carpeta.join(format!("{base}.html"));
             escribir(&ruta, pagina.as_bytes())?;
             vec![ruta]

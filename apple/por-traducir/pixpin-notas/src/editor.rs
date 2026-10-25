@@ -556,7 +556,9 @@ fn poner_formato(edit: HWND, f: &CHARFORMAT2W) {
 /// Sube, baja o esconde los trozos de la formula `[desde, hasta)` (en
 /// UTF-16 del texto `u`), ver [`crate::formulas::toques`].
 fn formula_compuesta(edit: HWND, u: &[u16], desde: usize, hasta: usize) {
-    let Some(trozo) = u.get(desde..hasta) else { return };
+    let Some(trozo) = u.get(desde..hasta) else {
+        return;
+    };
     for (a, b, toque) in crate::formulas::toques(&String::from_utf16_lossy(trozo)) {
         let mut f = formato();
         match toque {
@@ -1283,8 +1285,33 @@ fn alternar_casilla(e: &Estado, linea: usize) {
     }
 }
 
-/// Mete un renglon propio en el sitio del cursor (una foto): en el renglon
-/// si esta vacio, o en uno nuevo debajo. Fuera de una tabla.
+/// **Donde entra un renglon propio** (una foto, una tarjeta) con el cursor
+/// en la letra `cursor`: la posicion donde se escribe y lo que se escribe.
+/// La foto va **en el sitio del cursor**, no al final del parrafo (pedido
+/// del usuario del 17-oct: «que se ingresen en el mismo lugar»; antes iba
+/// siempre debajo del renglon entero). En un renglon vacio lo ocupa; al
+/// principio de uno, va encima; al final, debajo; en medio, lo parte y
+/// queda entre las dos mitades: una foto es un renglon entero
+/// (`![alt](ruta)`), asi que partir es la unica forma de ponerla ahi. El
+/// cursor acaba detras de la foto y la siguiente pegada entra a
+/// continuacion, en orden.
+pub(crate) fn sitio_del_renglon(texto: &str, cursor: usize, renglon: &str) -> (usize, String) {
+    let ls = md_vivo::lineas(texto);
+    let l = ls[md_vivo::linea_de(&ls, cursor)];
+    let c = cursor.clamp(l.desde, l.hasta);
+    if l.desde == l.hasta {
+        (l.desde, renglon.to_string())
+    } else if c == l.hasta {
+        (l.hasta, format!("\r{renglon}"))
+    } else if c == l.desde {
+        (l.desde, format!("{renglon}\r"))
+    } else {
+        (c, format!("\r{renglon}\r"))
+    }
+}
+
+/// Mete un renglon propio en el sitio del cursor (una foto): ver
+/// [`sitio_del_renglon`]. Fuera de una tabla.
 fn insertar_renglon(e: &Estado, renglon: &str) {
     let texto = leer(e.edit);
     let (_, b) = seleccion(e.edit);
@@ -1299,13 +1326,7 @@ fn insertar_renglon(e: &Estado, renglon: &str) {
         );
         return;
     }
-    let ls = md_vivo::lineas(&texto);
-    let l = ls[md_vivo::linea_de(&ls, b)];
-    let (pos, puesto) = if l.desde == l.hasta {
-        (l.desde, renglon.to_string())
-    } else {
-        (l.hasta, format!("\r{renglon}"))
-    };
+    let (pos, puesto) = sitio_del_renglon(&texto, b, renglon);
     elegir(e.edit, pos, pos);
     enviar(
         e.edit,
@@ -3024,6 +3045,71 @@ struct Opciones {
     claro: Option<bool>,
 }
 
+/// **El corrector de Windows, en un hilo que no acaba** (24-oct-2026).
+/// El control de las notas guarda el estado del corrector para todo el
+/// proceso (`CSpellerGlobalState` de msftedit) y lo prepara en segundo plano
+/// con objetos del COM del hilo que lo encendio primero. Si ese hilo acaba
+/// antes (una nota que se cierra pronto, cada prueba en su hilo), al soltar
+/// esos objetos el proceso cae con un acceso invalido (la pila de la CI, en
+/// `CSpellerGlobalState::~CSpellerGlobalState`). Asi lo enciende primero un
+/// hilo propio que vive lo que el proceso, con su control oculto, y la DLL
+/// del corrector no se descarga nunca.
+fn sujetar_el_corrector() {
+    static UNA_VEZ: std::sync::Once = std::sync::Once::new();
+    UNA_VEZ.call_once(|| {
+        let (listo, esperar) = std::sync::mpsc::channel();
+        let lanzado = std::thread::Builder::new()
+            .name("corrector-de-las-notas".into())
+            .spawn(move || {
+                let _com = pixpin_shell::ComDelHilo::iniciar();
+                // SAFETY: DLL del sistema por su nombre, con una referencia que
+                // no se suelta; un control oculto de este hilo, que no se
+                // destruye; el bucle de mensajes es de este hilo.
+                unsafe {
+                    let _ = windows::Win32::System::LibraryLoader::LoadLibraryW(w!(
+                        "MsSpellCheckingFacility.dll"
+                    ));
+                    if windows::Win32::System::LibraryLoader::LoadLibraryW(w!("msftedit.dll"))
+                        .is_ok()
+                        && let Ok(edit) = CreateWindowExW(
+                            WINDOW_EX_STYLE::default(),
+                            MSFTEDIT_CLASS,
+                            w!(""),
+                            WINDOW_STYLE((ES_MULTILINE) as u32),
+                            0,
+                            0,
+                            10,
+                            10,
+                            None,
+                            None,
+                            None,
+                            None,
+                        )
+                    {
+                        let opciones = enviar(edit, EM_GETLANGOPTIONS, 0, 0);
+                        enviar(
+                            edit,
+                            EM_SETLANGOPTIONS,
+                            0,
+                            opciones | IMF_SPELLCHECKING as isize,
+                        );
+                        let ctf = SES_USECTF | SES_CTFALLOWPROOFING;
+                        enviar(edit, EM_SETEDITSTYLE, ctf as usize, ctf as isize);
+                    }
+                    let _ = listo.send(());
+                    let mut m = MSG::default();
+                    while GetMessageW(&mut m, None, 0, 0).as_bool() {
+                        let _ = TranslateMessage(&m);
+                        DispatchMessageW(&m);
+                    }
+                }
+            });
+        if lanzado.is_ok() {
+            let _ = esperar.recv_timeout(std::time::Duration::from_secs(3));
+        }
+    });
+}
+
 /// Crea las ventanas y mete la nota. No ensena nada.
 fn montar(p: Pedido, op: Opciones) -> windows::core::Result<Estado> {
     // SAFETY: todo lo que se crea aqui es de este hilo y lo suelta
@@ -3128,6 +3214,7 @@ fn montar(p: Pedido, op: Opciones) -> windows::core::Result<Estado> {
         );
         enviar(edit, EM_SETTARGETDEVICE, 0, 0);
         // El corrector ortografico de Windows (8 en adelante) y el IME.
+        sujetar_el_corrector();
         let opciones = enviar(edit, EM_GETLANGOPTIONS, 0, 0);
         enviar(
             edit,

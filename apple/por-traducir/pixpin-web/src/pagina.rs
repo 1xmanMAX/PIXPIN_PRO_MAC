@@ -43,27 +43,29 @@ use webview2_com::{
     WebMessageReceivedEventHandler, WebResourceRequestedEventHandler, take_pwstr,
 };
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
-use windows::Win32::Graphics::Dwm::{DWMWA_USE_IMMERSIVE_DARK_MODE, DwmExtendFrameIntoClientArea, DwmSetWindowAttribute};
-use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow};
+use windows::Win32::Graphics::Dwm::{
+    DWMWA_USE_IMMERSIVE_DARK_MODE, DwmExtendFrameIntoClientArea, DwmSetWindowAttribute,
+};
+use windows::Win32::Graphics::Gdi::{
+    GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromWindow,
+};
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Controls::MARGINS;
 use windows::Win32::UI::Input::KeyboardAndMouse::ReleaseCapture;
-use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::SHCreateMemStream;
 use windows::Win32::UI::WindowsAndMessaging::{
-    CS_HREDRAW, CS_VREDRAW, CreateWindowExW, DefWindowProcW,
-    DestroyWindow, DispatchMessageW, GetClientRect,
-    GetWindowPlacement, HICON, IDC_ARROW, LoadCursorW, LoadIconW, MINMAXINFO, MSG,
-    MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, PM_REMOVE, PeekMessageW, QS_ALLINPUT,
-    RegisterClassExW, SET_WINDOW_POS_FLAGS, SPI_GETWORKAREA, SW_SHOWMAXIMIZED, SW_SHOWNORMAL,
-    SWP_NOACTIVATE, SWP_NOZORDER, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SetForegroundWindow,
-    SetWindowPos, SetWindowTextW, ShowWindow, SystemParametersInfoW,
-    TranslateMessage, WINDOWPLACEMENT, WM_CLOSE, WM_DPICHANGED, WM_GETMINMAXINFO, WM_MOVE,
-    WM_SETFOCUS, WM_SIZE, WNDCLASSEXW, WS_EX_APPWINDOW,
-    GWL_STYLE, GetSystemMetrics, GetWindowLongPtrW, HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT,
-    HTCAPTION, HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT, HTTOPRIGHT, HWND_TOP, IsZoomed,
-    NCCALCSIZE_PARAMS, SM_CXPADDEDBORDER, SM_CXSIZEFRAME, SM_CYSIZEFRAME, SW_MAXIMIZE,
-    SW_MINIMIZE, SW_RESTORE, SWP_FRAMECHANGED, SWP_NOMOVE, SWP_NOSIZE, SendMessageW,
-    SetWindowPlacement, WM_NCCALCSIZE, WM_NCLBUTTONDOWN, WS_MAXIMIZEBOX,
+    CS_HREDRAW, CS_VREDRAW, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW,
+    GWL_STYLE, GetClientRect, GetSystemMetrics, GetWindowLongPtrW, GetWindowPlacement, HICON,
+    HTBOTTOM, HTBOTTOMLEFT, HTBOTTOMRIGHT, HTCAPTION, HTLEFT, HTRIGHT, HTTOP, HTTOPLEFT,
+    HTTOPRIGHT, HWND_TOP, IDC_ARROW, IsZoomed, LoadCursorW, LoadIconW, MINMAXINFO, MSG,
+    MWMO_INPUTAVAILABLE, MsgWaitForMultipleObjectsEx, NCCALCSIZE_PARAMS, PM_REMOVE, PeekMessageW,
+    QS_ALLINPUT, RegisterClassExW, SET_WINDOW_POS_FLAGS, SM_CXPADDEDBORDER, SM_CXSIZEFRAME,
+    SM_CYSIZEFRAME, SPI_GETWORKAREA, SW_MAXIMIZE, SW_MINIMIZE, SW_RESTORE, SW_SHOWMAXIMIZED,
+    SW_SHOWNORMAL, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER,
+    SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SendMessageW, SetForegroundWindow, SetWindowPlacement,
+    SetWindowPos, SetWindowTextW, ShowWindow, SystemParametersInfoW, TranslateMessage,
+    WINDOWPLACEMENT, WM_CLOSE, WM_DPICHANGED, WM_GETMINMAXINFO, WM_MOVE, WM_NCCALCSIZE,
+    WM_NCLBUTTONDOWN, WM_SETFOCUS, WM_SIZE, WNDCLASSEXW, WS_EX_APPWINDOW, WS_MAXIMIZEBOX,
     WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
 };
 use windows::core::{Interface, PCWSTR, PWSTR, w};
@@ -79,6 +81,10 @@ pub struct Recurso {
     pub tipo: String,
 }
 
+/// Lo que sirve lo de debajo de `https://pixpin.nota/`: recibe lo que va
+/// detras; `None` es un 404.
+pub type Servir = Box<dyn Fn(&str) -> Option<Recurso>>;
+
 /// Como se abre.
 pub struct OpcionesPagina {
     pub titulo: String,
@@ -93,7 +99,17 @@ pub struct OpcionesPagina {
     pub pagina: &'static [u8],
     /// Lo demas bajo `https://pixpin.nota/`: recibe lo que va detras
     /// (`archivo?r=…`). `None` es un 404.
-    pub servir: Box<dyn Fn(&str) -> Option<Recurso>>,
+    pub servir: Servir,
+    /// **Dentro de una ventana de quien llama** (17-oct-2026: el lector de
+    /// notas como pin, con la barra comun de los visores). Con ella no se
+    /// crea ventana: el WebView2 va dentro de esa, en [`Self::area`] (aqui
+    /// en pixeles de su zona de cliente), y la ventana, sus gestos, mostrarla
+    /// y cerrarla son de quien llama; [`Pagina::mover`] lo recoloca.
+    pub padre: Option<isize>,
+    /// El esquema de color de la pagina desde el principio (el
+    /// `prefers-color-scheme`): `Some(true)` oscuro, `Some(false)` claro,
+    /// `None` el del sistema.
+    pub oscuro: Option<bool>,
 }
 
 /// Lo que paso desde la ultima vez.
@@ -119,7 +135,8 @@ struct Estado {
 }
 
 /// El estilo de la ventana: sin titulo, con bordes que se estiran.
-const ESTILO: u32 = WS_POPUP.0 | WS_THICKFRAME.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0 | WS_SYSMENU.0;
+const ESTILO: u32 =
+    WS_POPUP.0 | WS_THICKFRAME.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0 | WS_SYSMENU.0;
 
 thread_local! {
     /// El estado de cada ventana de este hilo, por su `HWND`: el
@@ -128,7 +145,14 @@ thread_local! {
 }
 
 fn estado_de(hwnd: HWND) -> Option<Rc<RefCell<Estado>>> {
-    ESTADOS.with(|e| e.borrow().get(&(hwnd.0 as isize)).cloned())
+    ESTADOS
+        .try_with(|e| {
+            e.try_borrow()
+                .ok()
+                .and_then(|e| e.get(&(hwnd.0 as isize)).cloned())
+        })
+        .ok()
+        .flatten()
 }
 
 /// Una ventana con su pagina. Soltarla la cierra.
@@ -138,6 +162,9 @@ pub struct Pagina {
     vista: ICoreWebView2,
     estado: Rc<RefCell<Estado>>,
     temporal: PathBuf,
+    /// Va dentro de una ventana ajena ([`OpcionesPagina::padre`]): soltarla
+    /// no la destruye.
+    dentro_de_otra: bool,
 }
 
 impl Pagina {
@@ -150,15 +177,26 @@ impl Pagina {
             .map_err(|e| ErrorWeb::Creacion(format!("no se pudo crear {temporal:?}: {e}")))?;
 
         let estado = Rc::new(RefCell::new(Estado::default()));
-        let hwnd = crear_ventana(&o.titulo, o.area)?;
-        ESTADOS.with(|e| e.borrow_mut().insert(hwnd.0 as isize, estado.clone()));
+        let dentro_de_otra = o.padre.is_some();
+        let hwnd = match o.padre {
+            Some(p) => HWND(p as *mut _),
+            None => {
+                let h = crear_ventana(&o.titulo, o.area)?;
+                ESTADOS.with(|e| e.borrow_mut().insert(h.0 as isize, estado.clone()));
+                h
+            }
+        };
 
-        let entorno = crate::crear_entorno(&temporal)?;
-        let controlador = crate::crear_controlador(&entorno, hwnd)?;
+        let t0 = std::time::Instant::now();
+        let (entorno, controlador) = crate::entorno_y_controlador(hwnd)?;
         // SAFETY: `controlador` acaba de llegar de WebView2 y es valido.
-        let vista = unsafe { controlador.CoreWebView2() }
-            .map_err(|e| ErrorWeb::Creacion(e.to_string()))?;
+        let vista =
+            unsafe { controlador.CoreWebView2() }.map_err(|e| ErrorWeb::Creacion(e.to_string()))?;
+        crate::medir_carga(&vista, "pagina", t0);
         estado.borrow_mut().controlador = Some(controlador.clone());
+        if let Some(oscuro) = o.oscuro {
+            crate::poner_esquema(&controlador, oscuro);
+        }
 
         if let Ok(c2) = controlador.cast::<ICoreWebView2Controller2>() {
             let (r, g, b) = o.fondo;
@@ -175,6 +213,27 @@ impl Pagina {
         ajustes(&vista)?;
         servir(&vista, &entorno, o.pagina, o.servir)?;
         escuchar(&vista, estado.clone())?;
+
+        if dentro_de_otra {
+            // La ventana es de quien llama, ya a la vista: solo se coloca la
+            // pagina dentro y se le da el teclado.
+            let area = o.area.unwrap_or_else(|| cliente(hwnd));
+            // SAFETY: el controlador es valido; el RECT es local.
+            unsafe {
+                let _ = controlador.SetBounds(crate::a_rect(area));
+                let _ = controlador.SetIsVisible(true);
+                let _ = controlador.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+            }
+            navegar(&vista)?;
+            return Ok(Pagina {
+                hwnd,
+                controlador,
+                vista,
+                estado,
+                temporal,
+                dentro_de_otra,
+            });
+        }
 
         recolocar(hwnd, &controlador);
         // SAFETY: ventana propia de este hilo, recien creada.
@@ -196,10 +255,7 @@ impl Pagina {
             let _ = controlador.MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
         }
 
-        let url = CoTaskMemPWSTR::from(format!("{ORIGEN}index.html").as_str());
-        // SAFETY: `url` vive durante la llamada y WebView2 la copia.
-        unsafe { vista.Navigate(*url.as_ref().as_pcwstr()) }
-            .map_err(|e| ErrorWeb::Navegacion(e.to_string()))?;
+        navegar(&vista)?;
 
         Ok(Pagina {
             hwnd,
@@ -207,11 +263,56 @@ impl Pagina {
             vista,
             estado,
             temporal,
+            dentro_de_otra,
         })
     }
 
     pub fn hwnd(&self) -> isize {
         self.hwnd.0 as isize
+    }
+
+    /// Recoloca la pagina dentro de la ventana de quien la lleva
+    /// ([`OpcionesPagina::padre`]), en pixeles de su zona de cliente; y le
+    /// dice al WebView2 que la ventana se movio (sus menus salen donde toca).
+    pub fn mover(&self, area: Rect) {
+        // SAFETY: el controlador vive mientras `self`; el RECT es local.
+        unsafe {
+            let _ = self.controlador.SetBounds(crate::a_rect(area));
+            let _ = self.controlador.NotifyParentWindowPositionChanged();
+        }
+    }
+
+    /// **El zoom de la pagina** (`ZoomFactor`, 1 es el 100 %).
+    pub fn zoom(&self) -> f64 {
+        crate::zoom_de(&self.controlador)
+    }
+
+    /// Pone el zoom de la pagina (un marcador que vuelve a su vista).
+    pub fn poner_zoom(&self, zoom: f64) {
+        crate::poner_zoom_en(&self.controlador, zoom);
+    }
+
+    /// Le da el teclado a la pagina (la ventana que la lleva lo tenia).
+    pub fn enfocar(&self) {
+        crate::enfocar(&self.controlador);
+    }
+
+    /// El esquema de color de la pagina (la luna/sol de los visores) y el
+    /// fondo que se ve mientras se repinta.
+    pub fn poner_oscuro(&self, oscuro: bool, fondo: (u8, u8, u8)) {
+        crate::poner_esquema(&self.controlador, oscuro);
+        if let Ok(c2) = self.controlador.cast::<ICoreWebView2Controller2>() {
+            let (r, g, b) = fondo;
+            // SAFETY: interfaz recien consultada del controlador vivo.
+            let _ = unsafe {
+                c2.SetDefaultBackgroundColor(COREWEBVIEW2_COLOR {
+                    A: 255,
+                    R: r,
+                    G: g,
+                    B: b,
+                })
+            };
+        }
     }
 
     /// Le pasa `texto` a la pagina (le llega como `event.data`, una cadena).
@@ -221,6 +322,12 @@ impl Pagina {
         if let Err(e) = unsafe { self.vista.PostWebMessageAsString(*t.as_ref().as_pcwstr()) } {
             tracing::warn!(error = %e, "no se pudo mandar a la pagina");
         }
+    }
+
+    /// **Corre `js` en la pagina** y le da a `al_volver` lo que devuelva, en
+    /// JSON (ver [`crate::VisorHtml::ejecutar`]).
+    pub fn ejecutar(&self, js: &str, al_volver: Box<dyn FnOnce(String) + 'static>) {
+        crate::ejecutar_en(&self.vista, js, al_volver);
     }
 
     pub fn poner_titulo(&self, titulo: &str) {
@@ -252,7 +359,12 @@ impl Pagina {
         // para que Windows lo lleve.
         unsafe {
             let _ = ReleaseCapture();
-            SendMessageW(self.hwnd, WM_NCLBUTTONDOWN, Some(WPARAM(HTCAPTION as usize)), Some(LPARAM(0)));
+            SendMessageW(
+                self.hwnd,
+                WM_NCLBUTTONDOWN,
+                Some(WPARAM(HTCAPTION as usize)),
+                Some(LPARAM(0)),
+            );
         }
     }
 
@@ -272,7 +384,12 @@ impl Pagina {
         // SAFETY: como en `arrastrar`.
         unsafe {
             let _ = ReleaseCapture();
-            SendMessageW(self.hwnd, WM_NCLBUTTONDOWN, Some(WPARAM(ht as usize)), Some(LPARAM(0)));
+            SendMessageW(
+                self.hwnd,
+                WM_NCLBUTTONDOWN,
+                Some(WPARAM(ht as usize)),
+                Some(LPARAM(0)),
+            );
         }
     }
 
@@ -298,7 +415,15 @@ impl Pagina {
         unsafe {
             if let Some(p) = antes {
                 let _ = SetWindowPlacement(self.hwnd, &p);
-                let _ = SetWindowPos(self.hwnd, None, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                let _ = SetWindowPos(
+                    self.hwnd,
+                    None,
+                    0,
+                    0,
+                    0,
+                    0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED,
+                );
                 return false;
             }
             let mut p = WINDOWPLACEMENT {
@@ -317,7 +442,15 @@ impl Pagina {
             if IsZoomed(self.hwnd).as_bool() {
                 let _ = ShowWindow(self.hwnd, SW_RESTORE);
             }
-            let _ = SetWindowPos(self.hwnd, Some(HWND_TOP), r.left, r.top, r.right - r.left, r.bottom - r.top, SWP_FRAMECHANGED);
+            let _ = SetWindowPos(
+                self.hwnd,
+                Some(HWND_TOP),
+                r.left,
+                r.top,
+                r.right - r.left,
+                r.bottom - r.top,
+                SWP_FRAMECHANGED,
+            );
             true
         }
     }
@@ -349,9 +482,16 @@ impl Drop for Pagina {
         // el queda un proceso huerfano). La ventana es de este hilo.
         unsafe {
             let _ = self.controlador.Close();
-            let _ = DestroyWindow(self.hwnd);
+            // La ventana ajena la cierra su dueno.
+            if !self.dentro_de_otra {
+                let _ = DestroyWindow(self.hwnd);
+            }
         }
-        ESTADOS.with(|e| e.borrow_mut().remove(&(self.hwnd.0 as isize)));
+        let _ = ESTADOS.try_with(|e| {
+            e.try_borrow_mut()
+                .map(|mut e| e.remove(&(self.hwnd.0 as isize)))
+        });
+        crate::controlador_cerrado();
         let _ = std::fs::remove_dir_all(&self.temporal);
     }
 }
@@ -406,8 +546,24 @@ fn crear_ventana(titulo: &str, area: Option<Rect>) -> Result<HWND, ErrorWeb> {
             std::mem::size_of::<i32>() as u32,
         );
         // Un pixel de marco de DWM: la sombra y las esquinas de Windows 11.
-        let _ = DwmExtendFrameIntoClientArea(hwnd, &MARGINS { cxLeftWidth: 0, cxRightWidth: 0, cyTopHeight: 1, cyBottomHeight: 0 });
-        let _ = SetWindowPos(hwnd, None, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+        let _ = DwmExtendFrameIntoClientArea(
+            hwnd,
+            &MARGINS {
+                cxLeftWidth: 0,
+                cxRightWidth: 0,
+                cyTopHeight: 1,
+                cyBottomHeight: 0,
+            },
+        );
+        let _ = SetWindowPos(
+            hwnd,
+            None,
+            0,
+            0,
+            0,
+            0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED,
+        );
         Ok(hwnd)
     }
 }
@@ -440,6 +596,27 @@ fn area_por_defecto() -> Rect {
         y: t.top + (h - ah) / 2,
         ancho: aw.max(600) as u32,
         alto: ah.max(420) as u32,
+    }
+}
+
+/// Abre la pagina servida desde memoria.
+fn navegar(vista: &ICoreWebView2) -> Result<(), ErrorWeb> {
+    let url = CoTaskMemPWSTR::from(format!("{ORIGEN}index.html").as_str());
+    // SAFETY: `url` vive durante la llamada y WebView2 la copia.
+    unsafe { vista.Navigate(*url.as_ref().as_pcwstr()) }
+        .map_err(|e| ErrorWeb::Navegacion(e.to_string()))
+}
+
+/// La zona de cliente entera de `hwnd`.
+fn cliente(hwnd: HWND) -> Rect {
+    let mut r = RECT::default();
+    // SAFETY: `r` es local; un handle muerto solo da error (y un rect vacio).
+    let _ = unsafe { GetClientRect(hwnd, &mut r) };
+    Rect {
+        x: 0,
+        y: 0,
+        ancho: (r.right - r.left).max(1) as u32,
+        alto: (r.bottom - r.top).max(1) as u32,
     }
 }
 
@@ -569,7 +746,7 @@ fn servir(
     vista: &ICoreWebView2,
     entorno: &ICoreWebView2Environment,
     pagina: &'static [u8],
-    servir: Box<dyn Fn(&str) -> Option<Recurso>>,
+    servir: Servir,
 ) -> Result<(), ErrorWeb> {
     let filtro = CoTaskMemPWSTR::from(format!("{ORIGEN}*").as_str());
     // SAFETY: `filtro` vive durante la llamada y WebView2 la copia.
@@ -642,7 +819,9 @@ fn escuchar(vista: &ICoreWebView2, estado: Rc<RefCell<Estado>>) -> Result<(), Er
             // SAFETY: `args` vive durante el evento; la cadena se libera con
             // `take_pwstr`.
             if unsafe { args.TryGetWebMessageAsString(&mut m) }.is_ok() {
-                e1.borrow_mut().sucesos.push_back(Suceso::Mensaje(take_pwstr(m)));
+                e1.borrow_mut()
+                    .sucesos
+                    .push_back(Suceso::Mensaje(take_pwstr(m)));
             }
         }
         Ok(())
@@ -670,16 +849,24 @@ fn escuchar(vista: &ICoreWebView2, estado: Rc<RefCell<Estado>>) -> Result<(), Er
             args.Uri(&mut uri)?;
             args.SetHandled(true)?;
         }
-        e3.borrow_mut().sucesos.push_back(Suceso::Navegar(take_pwstr(uri)));
+        e3.borrow_mut()
+            .sucesos
+            .push_back(Suceso::Navegar(take_pwstr(uri)));
         Ok(())
     }));
     let mut token = 0i64;
     // SAFETY: `token` es local; los manejadores quedan referenciados por
     // WebView2.
     unsafe {
-        vista.add_WebMessageReceived(&mensajes, &mut token).map_err(error)?;
-        vista.add_NavigationStarting(&navegar, &mut token).map_err(error)?;
-        vista.add_NewWindowRequested(&ventana_nueva, &mut token).map_err(error)?;
+        vista
+            .add_WebMessageReceived(&mensajes, &mut token)
+            .map_err(error)?;
+        vista
+            .add_NavigationStarting(&navegar, &mut token)
+            .map_err(error)?;
+        vista
+            .add_NewWindowRequested(&ventana_nueva, &mut token)
+            .map_err(error)?;
     }
     Ok(())
 }

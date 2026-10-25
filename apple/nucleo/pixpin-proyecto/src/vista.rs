@@ -51,6 +51,9 @@ fn archivado_en_ficha(f: &Ficha) -> bool {
     f.resto.get(MARCA_ARCHIVADO).and_then(|v| v.as_bool()) == Some(true)
 }
 
+#[path = "vista/asistente_unico.rs"]
+mod asistente_unico;
+
 /// El `Disco` de este equipo.
 pub struct DiscoPc {
     raiz: PathBuf,
@@ -272,6 +275,11 @@ impl DiscoPc {
         if let Some(a) = &f.aparato {
             kotlin::poner(&mut p, "aparato", Json::cadena(a.clone()));
         }
+        // El chat del asistente lo dice como el movil (`Proyecto.asistente`):
+        // sin esto el otro aparato creaba el suyo (22-oct-2026).
+        if f.es_asistente() {
+            kotlin::poner(&mut p, "asistente", Json::booleano(true));
+        }
         p
     }
 }
@@ -394,7 +402,11 @@ pub const CLASE_TABLA: &str = "TABLA";
 /// Es la verdad de la tabla: se lee y se guarda AHI, con el mismo JSON
 /// (`TablaDeCalculo`), y viaja como cualquier tabla del movil, celda a
 /// celda. `None` si el mensaje no es una tabla del movil.
-pub fn tabla_del_movil(raiz: &Path, ficha_id: &str, m: &crate::cuaderno::Mensaje) -> Option<PathBuf> {
+pub fn tabla_del_movil(
+    raiz: &Path,
+    ficha_id: &str,
+    m: &crate::cuaderno::Mensaje,
+) -> Option<PathBuf> {
     if m.clase != Some(crate::cuaderno::Clase::Otra(CLASE_TABLA.into())) {
         return None;
     }
@@ -419,7 +431,12 @@ pub fn tablas_viejas_del_libro(raiz: &Path, ficha_id: &str, libro_id: &str) -> V
     let chat = chat_de_ficha(raiz, ficha_id).unwrap_or_else(|| ficha_id.to_string());
     let disco = DiscoPc::nuevo(raiz);
     (0..10_000)
-        .map(|i| disco.ruta(&chat, &format!("tablas/{}.json", limpio(&format!("libro-{libro_id}-{i}")))))
+        .map(|i| {
+            disco.ruta(
+                &chat,
+                &format!("tablas/{}.json", limpio(&format!("libro-{libro_id}-{i}"))),
+            )
+        })
         .take_while(|r| r.is_file())
         .collect()
 }
@@ -762,6 +779,9 @@ impl Disco for DiscoPc {
     }
 
     fn sellar(&self) -> io::Result<()> {
+        // Antes de mirar que hay: si llego otro chat del asistente, se junta
+        // con el de aqui y el que sobra se va como un chat borrado.
+        self.unificar_asistentes()?;
         let aparato = crate::codigos::de_aparato(&self.identidad()?.yo.id);
         for (chat, _) in self.mapa() {
             let _cerrojo = crate::cuaderno::cerrojo();
@@ -885,7 +905,9 @@ impl Disco for DiscoPc {
         // letras del usuario (`<raiz>/fuentes-shx`, el boton «Aa»): asi lo
         // que llega de otro aparato propio se usa al momento, y lo que se
         // borra alli se borra aqui. De otro chat, a su carpeta: inerte.
-        if let Some(nombre) = rel.strip_prefix(LETRAS_PORTATIL).filter(|n| !n.is_empty() && !n.contains('/'))
+        if let Some(nombre) = rel
+            .strip_prefix(LETRAS_PORTATIL)
+            .filter(|n| !n.is_empty() && !n.contains('/'))
             && self.ficha_de(chat).is_some_and(|f| f.es_asistente())
         {
             return self.raiz.join(CARPETA_DE_LETRAS).join(nombre);
@@ -976,7 +998,8 @@ impl DiscoPc {
         let mut en_uso: HashSet<String> = quedan.iter().filter_map(rel_de).collect();
         if let Ok(Some(p)) = self.proyecto_portatil(chat) {
             for campo in ["pdfOrigen", "pdfLimpio"] {
-                if let Some(rel) = kotlin::cadena(&p, campo).and_then(|r| r.strip_prefix(PORTATIL)) {
+                if let Some(rel) = kotlin::cadena(&p, campo).and_then(|r| r.strip_prefix(PORTATIL))
+                {
                     en_uso.insert(rel.to_string());
                 }
             }

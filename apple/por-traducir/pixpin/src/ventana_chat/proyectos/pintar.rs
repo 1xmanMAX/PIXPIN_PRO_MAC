@@ -346,7 +346,10 @@ fn tarjeta(
             &crate::caja_texto::Colores {
                 texto: pal.texto,
                 invitacion: pal.texto_suave,
-                seleccion: Color { a: 0.30, ..pal.texto },
+                seleccion: Color {
+                    a: 0.30,
+                    ..pal.texto
+                },
                 rayita: pal.texto,
             },
             true,
@@ -593,7 +596,8 @@ fn contenido(
         }
         // Una pagina que aun se esta pintando: el hueco, y llega sola.
         None if h.por_pedir || m.pagina.is_some() => {}
-        None => pintar_tarjeta_galeria(p, c, m, caja),
+        // Una carpeta de paginas no es una hoja: su tarjeta de siempre.
+        None | Some(Ojeada::Carpeta(_)) => pintar_tarjeta_galeria(p, c, m, caja),
     }
 }
 
@@ -920,6 +924,7 @@ pub(crate) fn pintar_interruptor(
     v.interruptor.set(Some(i));
     let radio = i.caja.alto as f32 / 2.0;
     p.rellenar_redondeado(rf(i.caja), radio, tema.boton_sobre);
+    // Figuras no se queda elegida: abre su ventana y el chat sigue igual.
     let puesta = if v.activa() { i.proyectos } else { i.chat };
     p.rellenar_redondeado(
         encoger(rf(puesta), 2.0 * e),
@@ -929,6 +934,7 @@ pub(crate) fn pintar_interruptor(
     for (mitad, clave, elegida) in [
         (i.chat, "proyectos-interruptor-chat", !v.activa()),
         (i.proyectos, "proyectos-interruptor-proyectos", v.activa()),
+        (i.figuras, "proyectos-interruptor-figuras", false),
     ] {
         let t = textos.t(clave);
         let tam = ui::INTERRUPTOR_TAM * e;

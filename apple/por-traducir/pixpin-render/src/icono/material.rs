@@ -283,6 +283,16 @@ pub const GRID_VIEW: Icono = Icono {
     )],
 };
 
+/// La vista Kanban de Tareas (17-oct-2026): tres columnas de alto distinto,
+/// como las listas del tablero. Hecho a mano sobre la rejilla de 24.
+pub const VIEW_KANBAN: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M3 4h5v16H3V4zM9.5 4h5v10h-5V4zM16 4h5v13h-5V4z",
+        false,
+    )],
+};
+
 /// `hearing` (`src/av/hearing/materialicons/24px.svg`).
 pub const HEARING: Icono = Icono {
     vista: VISTA,
@@ -433,6 +443,27 @@ pub const MORE_VERT: Icono = Icono {
     vista: VISTA,
     trazos: &[relleno(
         "M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
+        false,
+    )],
+};
+
+/// `edit_note` (`src/editor/edit_note/materialicons/24px.svg`): editar el
+/// TEXTO (las celdas de una hoja, una nota). El lapiz a secas (`EDIT`) es
+/// anotar encima, en todos los visores: no se confunden (19-oct-2026).
+pub const EDIT_NOTE: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M3 10h11v2H3v-2zm0-2h11V6H3v2zm0 8h7v-2H3v2zm15.01-3.13.71-.71c.39-.39 1.02-.39 1.41 0l.71.71c.39.39.39 1.02 0 1.41l-.71.71-2.12-2.12zm-.71.71-5.3 5.3V21h2.12l5.3-5.3-2.12-2.12z",
+        false,
+    )],
+};
+
+/// `crop_free` (`src/image/crop_free/materialicons/24px.svg`): el marco
+/// para imprimir de los visores (las cuatro esquinas de un recuadro).
+pub const CROP_FREE: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M3 5v4h2V5h4V3H5c-1.1 0-2 .9-2 2zm2 10H3v4c0 1.1.9 2 2 2h4v-2H5v-4zm14 4h-4v2h4c1.1 0 2-.9 2-2v-4h-2v4zm0-16h-4v2h4v4h2V5c0-1.1-.9-2-2-2z",
         false,
     )],
 };
@@ -703,12 +734,18 @@ pub const TIMELINE: Icono = Icono {
 /// el mes anterior y el siguiente del calendario del timeline.
 pub const CHEVRON_LEFT: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z", false)],
+    trazos: &[relleno(
+        "M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z",
+        false,
+    )],
 };
 
 pub const CHEVRON_RIGHT: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z", false)],
+    trazos: &[relleno(
+        "M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z",
+        false,
+    )],
 };
 
 /// `redo` (`src/content/redo/materialicons/24px.svg`): «Rehacer» en la hoja
@@ -745,19 +782,28 @@ pub const FORMAT_BOLD: Icono = Icono {
 /// cursiva de la hoja del pin.
 pub const FORMAT_ITALIC: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z", false)],
+    trazos: &[relleno(
+        "M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z",
+        false,
+    )],
 };
 
 /// `format_underlined` (`src/editor/format_underlined/materialicons/24px.svg`).
 pub const FORMAT_UNDERLINED: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z", false)],
+    trazos: &[relleno(
+        "M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z",
+        false,
+    )],
 };
 
 /// `format_strikethrough` (`src/editor/format_strikethrough/materialicons/24px.svg`).
 pub const FORMAT_STRIKETHROUGH: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zM3 14h18v-2H3v2z", false)],
+    trazos: &[relleno(
+        "M10 19h4v-3h-4v3zM5 4v3h5v3h4V7h5V4H5zM3 14h18v-2H3v2z",
+        false,
+    )],
 };
 
 /// `format_color_fill` (`src/editor/format_color_fill/materialicons/24px.svg`):
@@ -784,25 +830,37 @@ pub const DARK_MODE: Icono = Icono {
 /// el color de la letra.
 pub const FORMAT_COLOR_TEXT: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M2 20h20v4H2v-4zm3.49-3h2.42l1.27-3.58h5.65L16.09 17h2.42L13.25 3h-2.5L5.49 17zm4.42-5.61l2.03-5.79h.12l2.03 5.79H9.91z", false)],
+    trazos: &[relleno(
+        "M2 20h20v4H2v-4zm3.49-3h2.42l1.27-3.58h5.65L16.09 17h2.42L13.25 3h-2.5L5.49 17zm4.42-5.61l2.03-5.79h.12l2.03 5.79H9.91z",
+        false,
+    )],
 };
 
 /// `format_align_left` (`src/editor/format_align_left/materialicons/24px.svg`).
 pub const FORMAT_ALIGN_LEFT: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z", false)],
+    trazos: &[relleno(
+        "M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z",
+        false,
+    )],
 };
 
 /// `format_align_center` (`src/editor/format_align_center/materialicons/24px.svg`).
 pub const FORMAT_ALIGN_CENTER: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z", false)],
+    trazos: &[relleno(
+        "M7 15v2h10v-2H7zm-4 6h18v-2H3v2zm0-8h18v-2H3v2zm4-6v2h10V7H7zM3 3v2h18V3H3z",
+        false,
+    )],
 };
 
 /// `format_align_right` (`src/editor/format_align_right/materialicons/24px.svg`).
 pub const FORMAT_ALIGN_RIGHT: Icono = Icono {
     vista: VISTA,
-    trazos: &[relleno("M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z", false)],
+    trazos: &[relleno(
+        "M3 21h18v-2H3v2zm6-4h12v-2H9v2zm-6-4h18v-2H3v2zm6-4h12V7H9v2zM3 3v2h18V3H3z",
+        false,
+    )],
 };
 
 /// `wrap_text` (`src/editor/wrap_text/materialicons/24px.svg`): ajustar el
@@ -847,6 +905,13 @@ pub const LIGHT_MODE: Icono = Icono {
 
 /// Todos, para poder comprobarlos de una vez.
 pub const TODOS: &[Icono] = &[
+    EDIT_NOTE,
+    CROP_FREE,
+    MORE_VERT,
+    STRAIGHTEN,
+    LAYERS,
+    CONTENT_CUT,
+    FONT_DOWNLOAD,
     FORMAT_ITALIC,
     FORMAT_UNDERLINED,
     FORMAT_STRIKETHROUGH,
@@ -939,6 +1004,76 @@ pub const TODOS: &[Icono] = &[
     WIFI,
 ];
 
+/// `fullscreen` (`src/navigation/fullscreen/materialicons/24px.svg`): los
+/// lectores, de pin a pantalla completa.
+pub const FULLSCREEN: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z",
+        false,
+    )],
+};
+
+/// `fullscreen_exit` (`src/navigation/fullscreen_exit/materialicons/24px.svg`).
+pub const FULLSCREEN_EXIT: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z",
+        false,
+    )],
+};
+
+/// `drag_indicator` (`src/action/drag_indicator/materialicons/24px.svg`): el
+/// asa de la barra de un pin, de donde se arrastra la ventana.
+pub const DRAG_INDICATOR: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
+        false,
+    )],
+};
+
+/// `straighten` (`src/image/straighten/materialicons/24px.svg`): la regla
+/// de acotar en el visor de planos.
+pub const STRAIGHTEN: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h2v4h2V8h2v4h2V8h2v4h2V8h2v4h2V8h2v8z",
+        false,
+    )],
+};
+
+/// `layers` (`src/maps/layers/materialicons/24px.svg`): los niveles y las
+/// categorias del visor de modelos 3D.
+pub const LAYERS: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z",
+        false,
+    )],
+};
+
+/// `content_cut` (`src/content/content_cut/materialicons/24px.svg`): la
+/// caja de seccion del visor de modelos 3D (los `<circle>` del original son
+/// `fill="none"`, no pintan).
+pub const CONTENT_CUT: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M9.64 7.64c.23-.5.36-1.05.36-1.64 0-2.21-1.79-4-4-4S2 3.79 2 6s1.79 4 4 4c.59 0 1.14-.13 1.64-.36L10 12l-2.36 2.36C7.14 14.13 6.59 14 6 14c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4c0-.59-.13-1.14-.36-1.64L12 14l7 7h3v-1L9.64 7.64zM6 8c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm0 12c-1.1 0-2-.89-2-2s.9-2 2-2 2 .89 2 2-.9 2-2 2zm6-7.5c-.28 0-.5-.22-.5-.5s.22-.5.5-.5.5.22.5.5-.22.5-.5.5zM19 3l-6 6 2 2 7-7V3z",
+        false,
+    )],
+};
+
+/// `font_download` (`src/content/font_download/materialicons/24px.svg`): el
+/// boton de las letras (fuentes) del visor de planos.
+pub const FONT_DOWNLOAD: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M9.93 13.5h4.14L12 7.98zM20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-4.05 16.5l-1.14-3H9.17l-1.12 3H5.96l5.11-13h1.86l5.11 13h-2.09z",
+        false,
+    )],
+};
+
 #[cfg(test)]
 mod pruebas {
     use super::*;
@@ -982,26 +1117,3 @@ mod pruebas {
         }
     }
 }
-
-/// `fullscreen` (`src/navigation/fullscreen/materialicons/24px.svg`): los
-/// lectores, de pin a pantalla completa.
-pub const FULLSCREEN: Icono = Icono {
-    vista: VISTA,
-    trazos: &[relleno("M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z", false)],
-};
-
-/// `fullscreen_exit` (`src/navigation/fullscreen_exit/materialicons/24px.svg`).
-pub const FULLSCREEN_EXIT: Icono = Icono {
-    vista: VISTA,
-    trazos: &[relleno("M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z", false)],
-};
-
-/// `drag_indicator` (`src/action/drag_indicator/materialicons/24px.svg`): el
-/// asa de la barra de un pin, de donde se arrastra la ventana.
-pub const DRAG_INDICATOR: Icono = Icono {
-    vista: VISTA,
-    trazos: &[relleno(
-        "M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2zm-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
-        false,
-    )],
-};

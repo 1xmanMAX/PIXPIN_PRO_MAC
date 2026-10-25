@@ -63,6 +63,9 @@ pub fn cual_de_origen(origen: &str) -> Option<&'static str> {
     if cual == COLOR {
         return Some(COLOR);
     }
+    if cual == super::tarea::TAREA {
+        return Some(super::tarea::TAREA);
+    }
     mini::TODAS.into_iter().find(|m| *m == cual)
 }
 
@@ -217,6 +220,9 @@ pub struct Herramienta {
     /// El pin de color se acaba de copiar: su rotulo dice «Copiado» un
     /// momento (el `toast` del movil, dentro del propio pin).
     pub copiado: bool,
+    /// El pin de una tarea (`tarea::TAREA`): la nota que se esta
+    /// escribiendo, o `None` si no se escribe.
+    pub nota: Option<String>,
 }
 
 /// La moneda con la que nacen unos gastos: la del idioma elegido.
@@ -235,7 +241,13 @@ impl Herramienta {
             avisado: false,
             vinculo: None,
             copiado: false,
+            nota: None,
         }
+    }
+
+    /// El pin de una tarea sola (17-oct-2026, `tarea.rs`).
+    pub fn es_tarea(&self) -> bool {
+        self.cual == super::tarea::TAREA
     }
 
     pub fn es_tabla(&self) -> bool {
@@ -481,9 +493,15 @@ const COLUMNA_TABLA: u32 = 110;
 /// sitio para cinco lineas de lista. Luego se estira libre.
 pub fn tamano_natural(h: &Herramienta, escala: u32, moneda: &gastos::Moneda) -> (u32, u32) {
     let e = |v: u32| v * escala / 100;
+    if h.es_tarea() {
+        return super::tarea::tamano_natural(escala);
+    }
     if h.es_color() {
         // La muestra cuadrada y su valor debajo (`ColorPinBody`: 96 dp).
-        return (e(LADO_COLOR + 2 * MARGEN_COLOR), e(LADO_COLOR + ROTULO_COLOR + 2 * MARGEN_COLOR));
+        return (
+            e(LADO_COLOR + 2 * MARGEN_COLOR),
+            e(LADO_COLOR + ROTULO_COLOR + 2 * MARGEN_COLOR),
+        );
     }
     if h.es_tabla() {
         let filas = pixpin_pin::tabla::leer(&h.documento);
@@ -511,14 +529,14 @@ pub fn tamano_natural(h: &Herramienta, escala: u32, moneda: &gastos::Moneda) -> 
 
 /// Los colores de la tarjeta: los del pin (blanca o casi negra segun el
 /// tema), con el acento del chat para lo que se pulsa.
-struct Tema {
-    papel: Color,
-    texto: Color,
-    apagado: Color,
-    acento: Color,
-    borde: Color,
-    separador: Color,
-    caja: Color,
+pub(super) struct Tema {
+    pub(super) papel: Color,
+    pub(super) texto: Color,
+    pub(super) apagado: Color,
+    pub(super) acento: Color,
+    pub(super) borde: Color,
+    pub(super) separador: Color,
+    pub(super) caja: Color,
 }
 
 fn tema(claro: bool) -> Tema {
@@ -580,6 +598,10 @@ impl Cuadro {
         p.rellenar(caja, t.papel);
         if self.herramienta.es_tabla() {
             pintar_tabla(p, caja, &self.herramienta, self.escala, &t);
+            return;
+        }
+        if self.herramienta.es_tarea() {
+            super::tarea::pintar(p, caja, &self.herramienta, self.escala, &t, textos);
             return;
         }
         if self.herramienta.es_color() {
@@ -1371,7 +1393,10 @@ mod pruebas {
             alt: false,
         };
         assert_eq!(h.tecla(esc, (w, alto), 100, &euro(), 0, 0.0), Hecho::Cerrar);
-        assert_eq!(h.caracter('x', (w, alto), 100, &euro(), 0, 0.0), Hecho::Nada);
+        assert_eq!(
+            h.caracter('x', (w, alto), 100, &euro(), 0, 0.0),
+            Hecho::Nada
+        );
         // Caso negativo: un texto que no es color no da pin de color.
         assert_eq!(documento_nuevo(COLOR, "hola", &euro()), None);
         assert_eq!(Herramienta::nueva(TABLA, "#fff".into()).color(), None);

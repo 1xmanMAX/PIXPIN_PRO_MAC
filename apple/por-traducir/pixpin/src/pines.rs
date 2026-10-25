@@ -15,6 +15,8 @@ pub(crate) mod herramienta;
 mod panel;
 mod pizarra;
 mod sacar;
+// El pin de una tarea sola, con la nota de por que no se hace (17-oct-2026).
+pub(crate) mod tarea;
 // El panel «Pines abiertos» (rediseno v2).
 mod abiertos;
 mod dispositivo;
@@ -24,6 +26,8 @@ mod extras;
 pub(crate) mod marcas_texto;
 use marcas_texto::Cambio;
 pub(crate) mod foto;
+// Los marcos numerados de los pines de imagen, como en el plano (19-oct-2026).
+mod marcos;
 
 /// El catalogo de los rotulos que pintan las herramientas. El pintor de un
 /// pin se llama desde su `WM_PAINT`, sin el catalogo a mano; como el panel
@@ -103,6 +107,11 @@ pub(crate) fn textos_v2(t: &pixpin_store::Catalogo) -> pixpin_pin::TextosV2 {
         leer_seguida: t.t("pin-v2-leer-seguida"),
         pagina: t.t("pin-v2-pagina"),
         minutos: t.t("pin-v2-minutos"),
+        imprimir_marcos: t.t("marcos-imprimir"),
+        borrar_marcos: t.t("marcos-borrar"),
+        riel_anotar: t.t("riel-anotar"),
+        riel_marcos: t.t("riel-marcos"),
+        riel_imprimir: t.t("riel-imprimir-zona"),
     }
 }
 
@@ -392,6 +401,9 @@ pub struct Pines {
     pizarras: HashMap<u64, (u8, u8)>,
     /// Lo hecho con la barra de marcas en cada pin, para `Ctrl+Z`.
     marcas: HashMap<u64, Vec<marcas_texto::Paso>>,
+    /// Los marcos numerados de cada pin de imagen (`marcos`), con su
+    /// fichero al lado de la imagen del almacen.
+    marcos: HashMap<u64, crate::marcos_doc::Marcos>,
     /// La pegatina y la pagina de la nota de cada pin (`extras`). Las
     /// palabras magicas ya no viven aqui: son las de los ajustes
     /// (`magia::vigentes`).
@@ -581,6 +593,7 @@ impl Pines {
             herramientas: HashMap::new(),
             pizarras: HashMap::new(),
             marcas: HashMap::new(),
+            marcos: HashMap::new(),
             extras: extras::Extras::abrir(raiz),
             panel: None,
             pedidos_panel: Rc::new(RefCell::new(Vec::new())),
@@ -739,6 +752,8 @@ impl Pines {
         self.vestir(id);
         // Y con su pegatina y la pagina por la que se leia, si las tenia.
         self.poner_extras(id);
+        // Y con sus marcos numerados, si es una foto que los tiene.
+        self.cargar_marcos(id);
         // Y el panel «Pines abiertos», si esta a la vista, lo cuenta ya.
         self.refrescar_panel();
         Ok(())
@@ -1471,6 +1486,7 @@ impl Pines {
             self.herramientas.remove(&id);
             self.pizarras.remove(&id);
             self.marcas.remove(&id);
+            self.marcos.remove(&id);
             // Soltar el pin en vivo cierra tambien su captura (Drop).
             if let Some((_, recorte)) = self.en_vivo.remove(&id) {
                 tracing::info!(
@@ -1552,7 +1568,10 @@ impl Pines {
             CambioPin::CongelarPedido => Ok(()),
             // Ctrl+C en un pin de color copia el color, como el toque.
             CambioPin::CopiarPedido
-                if self.herramientas.get(&id).is_some_and(herramienta::Herramienta::es_color) =>
+                if self
+                    .herramientas
+                    .get(&id)
+                    .is_some_and(herramienta::Herramienta::es_color) =>
             {
                 self.copiar_color(id)
             }
@@ -1586,6 +1605,19 @@ impl Pines {
             CambioPin::GuardarComoPedido => self.guardar_como(id),
             CambioPin::ExportarPedido => self.exportar(id),
             CambioPin::AnotarPedido => self.entrar_a_anotar(id),
+            // El lapiz del riel, encendido: salir como con el boton de la
+            // paleta. Solo si es este pin el que se anota.
+            CambioPin::SalirDeAnotarPedido => {
+                if self.anotacion.as_ref().is_some_and(|a| a.id == id) {
+                    self.salir_de_anotar()?;
+                }
+                Ok(())
+            }
+            CambioPin::ImprimirPedido => {
+                self.imprimir_zona(id);
+                Ok(())
+            }
+            CambioPin::MarcoPedido(pedido) => self.pedido_de_marcos(id, pedido),
             // `purgar` los lleva por `procesar_anotacion` en tandas; esto
             // queda para quien atienda un pedido suelto.
             CambioPin::PunteroPulsado(_)
@@ -1643,6 +1675,9 @@ impl Pines {
         // Salir del anterior guardando: dos pines anotandose a la vez no
         // significa nada y enredaria el foco del teclado.
         self.salir_de_anotar()?;
+        // Y del modo de los marcos de este pin: anotar y poner marcos no
+        // van a la vez.
+        self.salir_de_marcos(id);
 
         let ruta = self
             .ruta_anotacion(id)
@@ -1814,6 +1849,33 @@ impl Pines {
             self.repintar_paleta();
         }
         Ok(())
+    }
+
+    /// **El marco del riel del pin**: el de todos los visores
+    /// (`marco_imprimir`), sobre lo que se ve del pin. La zona es la del
+    /// contenido, sin el margen de la sombra; anotando, sale con lo dibujado.
+    fn imprimir_zona(&self, id: u64) {
+        let Some(pin) = self.vivos.get(&id) else {
+            return;
+        };
+        let (hwnd, area) = (pin.hwnd(), pin.rect_contenido());
+        if area.ancho == 0 || area.alto == 0 {
+            return;
+        }
+        // El titulo del trabajo de impresion: el nombre de su fichero.
+        let titulo = {
+            let a = self.almacen.borrow();
+            a.entradas()
+                .iter()
+                .find(|e| e.id == id)
+                .and_then(|e| {
+                    a.ruta_objeto(e)
+                        .file_stem()
+                        .map(|s| s.to_string_lossy().into_owned())
+                })
+                .unwrap_or_else(|| "PixPin".to_string())
+        };
+        crate::marco_imprimir::imprimir_zona(hwnd.0 as isize, area, &titulo, textos());
     }
 
     /// Sale del modo anotacion guardando el dibujo.
@@ -2373,33 +2435,56 @@ impl Pines {
     fn exportar(&self, id: u64) -> Result<()> {
         let (tipo, objeto) = {
             let a = self.almacen.borrow();
-            let e = a.entradas().iter().find(|e| e.id == id).context("la entrada ya no esta en el almacen")?;
+            let e = a
+                .entradas()
+                .iter()
+                .find(|e| e.id == id)
+                .context("la entrada ya no esta en el almacen")?;
             (e.tipo, a.ruta_objeto(e))
         };
-        let titulo = objeto.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
+        let titulo = objeto
+            .file_stem()
+            .map(|s| s.to_string_lossy().into_owned())
+            .unwrap_or_default();
         let nombre = pixpin_docs::nombre(&objeto);
         let cosa = match tipo {
-            TipoEntrada::Imagen => crate::compartir::Cosa::Visor(crate::compartir::exportable::de_imagen(&titulo, &objeto, self.ruta_anotacion(id).as_deref())?),
+            TipoEntrada::Imagen => {
+                crate::compartir::Cosa::Visor(crate::compartir::exportable::de_imagen(
+                    &titulo,
+                    &objeto,
+                    self.ruta_anotacion(id).as_deref(),
+                )?)
+            }
             TipoEntrada::Nota => {
                 let texto = std::fs::read_to_string(&objeto).unwrap_or_default();
-                crate::compartir::Cosa::Visor(crate::compartir::exportable::de_texto(&titulo, &texto, Some(&objeto)))
+                crate::compartir::Cosa::Visor(crate::compartir::exportable::de_texto(
+                    &titulo,
+                    &texto,
+                    Some(&objeto),
+                ))
             }
             // Un documento que se lee (PDF, Word, libro): con sus paginas y lo anotado.
-            TipoEntrada::Archivo if crate::lector_pdf::se_abre(&nombre) || crate::visor::se_abre(&nombre) => crate::compartir::Cosa::Documento(objeto),
+            TipoEntrada::Archivo
+                if crate::lector_pdf::se_abre(&nombre) || crate::visor::se_abre(&nombre) =>
+            {
+                crate::compartir::Cosa::Documento(objeto)
+            }
             TipoEntrada::Archivo if crate::plano_cad::se_abre(&nombre) => {
                 // Un plano, sin abrirlo: lo que se pueda sin su visor (original y .pixpin).
                 let mut x = crate::compartir::exportable::Exportable::nuevo(titulo);
                 x.original = Some(objeto);
                 crate::compartir::Cosa::Visor(x)
             }
-            TipoEntrada::Archivo => match crate::compartir::exportable::de_imagen(&titulo, &objeto, None) {
-                Ok(x) => crate::compartir::Cosa::Visor(x),
-                Err(_) => {
-                    let mut x = crate::compartir::exportable::Exportable::nuevo(titulo);
-                    x.original = Some(objeto);
-                    crate::compartir::Cosa::Visor(x)
+            TipoEntrada::Archivo => {
+                match crate::compartir::exportable::de_imagen(&titulo, &objeto, None) {
+                    Ok(x) => crate::compartir::Cosa::Visor(x),
+                    Err(_) => {
+                        let mut x = crate::compartir::exportable::Exportable::nuevo(titulo);
+                        x.original = Some(objeto);
+                        crate::compartir::Cosa::Visor(x)
+                    }
                 }
-            },
+            }
         };
         let ubicacion = crate::oscuro::ubicacion().context("sin la carpeta de datos")?;
         crate::compartir::ventana::abrir(crate::compartir::idioma_de(&ubicacion), ubicacion, cosa);
@@ -2596,7 +2681,12 @@ impl Pines {
         // silencio: el usuario tiene que poder ver que esa hoja existe.
         if hoja.dibujo.is_none() {
             if let Some(croquis) = &hoja.croquis {
-                if crate::croquis3d::abrir_de_paquete(crate::croquis3d::idioma_del_sistema(), paquete, croquis, &hoja.nombre) {
+                if crate::croquis3d::abrir_de_paquete(
+                    crate::croquis3d::idioma_del_sistema(),
+                    paquete,
+                    croquis,
+                    &hoja.nombre,
+                ) {
                     return Ok(true);
                 }
                 let aviso = format!(
@@ -3198,7 +3288,10 @@ pub(crate) fn escena_para_lienzo(
     ruta: &Path,
 ) -> Result<(Escena, bool), pixpin_motor2d::ErrorFormato> {
     let habia = ruta.is_file();
-    let escena = pixpin_motor2d::cargar(ruta)?;
+    let mut escena = pixpin_motor2d::cargar(ruta)?;
+    // Lo ultimo que anoto el asistente en esta foto, en un solo Ctrl+Z
+    // (`lector_tinta::turnos`).
+    let _ = crate::lector_tinta::turnos::marcar(ruta, &mut escena);
     Ok((escena, habia))
 }
 
@@ -3250,7 +3343,6 @@ mod pruebas {
             Herramienta::Rombo,
             Herramienta::Grafito,
             Herramienta::FlechaLibre,
-            Herramienta::Marco,
         ] {
             assert!(b.contains(&BotonCaja::Elegir(h)), "{h:?}");
         }

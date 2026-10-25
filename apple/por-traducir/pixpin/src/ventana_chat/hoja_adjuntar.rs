@@ -183,6 +183,12 @@ impl Hoja {
                 "proyecto entero project",
                 Accion::AdjProyectos,
             ),
+            // Las carpetas de paginas (26-oct-2026): un cuaderno con nombre.
+            chip(
+                "carpeta-nueva",
+                "carpeta cuaderno diario libreta folder notebook",
+                Accion::AdjCarpeta,
+            ),
             chip(
                 "chat-adj-telepronter",
                 "teleprompter leer",
@@ -239,6 +245,70 @@ impl Hoja {
             titulo_mas: textos.t("v2menus-adj-mas"),
             nada: textos.t("v2menus-adj-nada"),
         }
+    }
+
+    /// **La hoja del chat del asistente** (25-oct-2026, el usuario:
+    /// «especializalo para el asistente … que pueda adjuntar figuras para que
+    /// las mejore, o decirle hazme una figura»): primero **Figura** (una de la
+    /// biblioteca, a un lienzo del chat, para mejorarla) y lo que se le suele
+    /// dar a mirar; en chips, pedir una figura nueva y lo demas que sirve.
+    pub(super) fn para_el_asistente(textos: &Catalogo) -> Hoja {
+        let mut h = Hoja::nueva(textos);
+        let mut de_siempre = std::mem::take(&mut h.opciones);
+        let mut sacar = |accion: Accion| {
+            de_siempre
+                .iter()
+                .position(|o| o.accion == accion)
+                .map(|i| de_siempre.remove(i))
+        };
+        let mut opciones = vec![Opcion {
+            rotulo: textos.t("asistente-adj-figura"),
+            buscable: normalizar(&format!(
+                "{} figura plantilla biblioteca mejorar shape",
+                textos.t("asistente-adj-figura")
+            )),
+            accion: Accion::AdjFigura,
+            color: 0x8e44b8,
+            icono: &mi::PALETTE,
+            numero: None,
+        }];
+        for accion in [
+            Accion::AdjImagen,
+            Accion::AdjArchivo,
+            Accion::AdjCaptura,
+            Accion::AdjLienzo,
+            Accion::AdjNotaMd,
+        ] {
+            opciones.extend(sacar(accion));
+        }
+        for (n, o) in opciones.iter_mut().enumerate() {
+            o.numero = Some(n as u8 + 1);
+        }
+        opciones.push(Opcion {
+            rotulo: textos.t("asistente-adj-pedir-figura"),
+            buscable: normalizar(&format!(
+                "{} nueva crear hazme dibuja",
+                textos.t("asistente-adj-pedir-figura")
+            )),
+            accion: Accion::PedirFigura,
+            color: 0,
+            icono: &mi::CHECKLIST,
+            numero: None,
+        });
+        for accion in [
+            Accion::AdjPagina,
+            Accion::AdjProyectos,
+            Accion::AdjTabla,
+            Accion::AdjDelMovil,
+        ] {
+            if let Some(mut o) = sacar(accion) {
+                o.numero = None;
+                opciones.push(o);
+            }
+        }
+        h.anchos = RefCell::new(vec![100.0; opciones.len()]);
+        h.opciones = opciones;
+        h
     }
 
     /// Las opciones que se ven con lo escrito, por indice de `opciones`, en
@@ -768,6 +838,7 @@ mod pruebas {
             Accion::Telepronter,
             Accion::Pronunciar,
             Accion::AdjDelMovil,
+            Accion::AdjCarpeta,
         ] {
             assert!(acciones.contains(&&a), "falta {a:?}");
         }

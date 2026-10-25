@@ -31,7 +31,6 @@ use pixpin_shell::overlay::{EventoOverlay, VentanaOverlay};
 use pixpin_store::Catalogo;
 use pixpin_ui::CajaHerramientas;
 use std::path::PathBuf;
-use windows::Win32::Foundation::HWND;
 
 /// Lo que mide una letra con DirectWrite, que es con lo que se pinta: asi
 /// las piezas de una ecuacion quedan pegadas donde toca. Si DirectWrite no
@@ -254,13 +253,17 @@ const MAXIMAS_SERIES: u32 = 900;
 /// tablas de coordenadas, una entrada por serie (`visibles[i]` dice si se ve)
 /// con la de crear otra y la de esconderla o verla.
 pub(super) fn entradas_de_graficar(t: &Catalogo, visibles: &[bool]) -> Vec<EntradaMenu> {
-    let mut v: Vec<EntradaMenu> = [(2, "figuras-plano"), (1, "figuras-recta"), (3, "figuras-espacio")]
-        .into_iter()
-        .map(|(ejes, clave)| EntradaMenu {
-            id: ID_INSTRUMENTO + ejes,
-            texto: t.t(clave),
-        })
-        .collect();
+    let mut v: Vec<EntradaMenu> = [
+        (2, "figuras-plano"),
+        (1, "figuras-recta"),
+        (3, "figuras-espacio"),
+    ]
+    .into_iter()
+    .map(|(ejes, clave)| EntradaMenu {
+        id: ID_INSTRUMENTO + ejes,
+        texto: t.t(clave),
+    })
+    .collect();
     if visibles.is_empty() {
         v.push(EntradaMenu {
             id: ID_COORDENADAS_NUEVA,
@@ -297,6 +300,7 @@ pub(super) fn entradas_de_graficar(t: &Catalogo, visibles: &[bool]) -> Vec<Entra
 /// encima); luego las de fabrica —la grafica, la tabla en blanco, pegar—,
 /// las propias, las nuevas arriba (`BibliotecaStore.anadir`), y al final
 /// guardar y quitar.
+#[cfg(test)]
 pub(super) fn entradas(
     t: &Catalogo,
     figuras: &[FiguraGuardada],
@@ -560,22 +564,8 @@ pub(super) fn editar_coordenadas(
     ed.escena.poner_tablas(tablas, origen)
 }
 
-/// El menu, bajo el boton de las figuras.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn menu(
-    propietaria: HWND,
-    x: i32,
-    y: i32,
-    t: &Catalogo,
-    figuras: &[FiguraGuardada],
-    hay_seleccion: bool,
-    tabla: TablaElegida,
-    series: &[bool],
-) -> Option<Eleccion> {
-    let v = entradas_con_series(t, figuras, hay_seleccion, tabla, series);
-    let id = pixpin_shell::exportar::menu_emergente(propietaria, x, y, &v)?;
-    eleccion_de(id, figuras.len())
-}
+/// La ventana de las figuras (22-oct), en vez del menu con submenus.
+mod ventana;
 
 // ---------------------------------------------------------------------------
 // El cajetin: la grafica, la tabla y el nombre de una figura
@@ -1896,6 +1886,7 @@ pub(super) fn poner_copia_de_zona(
 /// El editor entero, prestado mientras se atiende un boton de la barra.
 pub(super) struct Editor<'a> {
     pub ventana: &'a VentanaOverlay,
+    pub dispositivo: &'a pixpin_capture::Dispositivo,
     pub motor: &'a mut MotorRender,
     pub superficie: &'a Superficie,
     pub escena: &'a mut Escena,
@@ -1945,26 +1936,49 @@ impl Editor<'_> {
     }
 }
 
-/// **El menu de las figuras y lo que se elija en el.** `true` si cambio el
-/// dibujo.
-pub(super) fn atender_figuras(mut ed: Editor<'_>, en: pixpin_geom::Punto, t: &Catalogo) -> bool {
+/// **La ventana de las figuras y lo que se elija en ella** (22-oct: antes un
+/// menu con submenus, ver [`ventana`]). `true` si cambio el dibujo.
+pub(super) fn atender_figuras(mut ed: Editor<'_>, _en: pixpin_geom::Punto, t: &Catalogo) -> bool {
     let ruta = ruta_biblioteca();
-    let mut biblio = cargar_biblioteca(&ruta);
     let hay_seleccion = !ed.gesto.seleccion.esta_vacia();
     let tabla = TablaElegida::de(ed.escena, ed.gesto);
-    let Some(eleccion) = menu(
-        ed.ventana.handle(),
-        en.x,
-        en.y,
+    let series: Vec<bool> = ed.escena.tablas.iter().map(|s| s.visible).collect();
+    // Lo demas del menu de siempre, para la barra de la izquierda: todo
+    // menos las figuras, quitarlas y guardar (esas van en la ventana).
+    let herramientas: Vec<(u32, String)> = entradas_con_series(t, &[], false, tabla, &series)
+        .into_iter()
+        .filter(|e| e.id != 0)
+        .map(|e| (e.id, e.texto))
+        .collect();
+    let (biblio, pedido) = ventana::elegir(
+        ed.dispositivo,
+        ed.motor,
+        ed.escala_por_cien,
         t,
-        &biblio,
+        cargar_biblioteca(&ruta),
+        herramientas,
         hay_seleccion,
-        tabla,
-        &ed.escena.tablas.iter().map(|s| s.visible).collect::<Vec<_>>(),
-    ) else {
-        return false;
-    };
+        |v| {
+            guardar_biblioteca(&ruta, v);
+        },
+    );
     let centro = ed.centro();
+    let eleccion = match pedido {
+        None => return false,
+        Some(ventana::Pedido::Herramienta(e)) => e,
+        Some(ventana::Pedido::Estampar(i)) => Eleccion::Estampar(i),
+        Some(ventana::Pedido::Hojas(hojas)) => {
+            let ids = crate::asistente::al_lienzo::colocar_hojas_en_medio(
+                ed.escena,
+                &hojas,
+                (centro.x, centro.y),
+            );
+            let hubo = !ids.is_empty();
+            ed.gesto.seleccion.poner_todos(ids);
+            return hubo;
+        }
+    };
+    let mut biblio = biblio;
     match eleccion {
         // El instrumento de fabrica con el pincel de ahora, en medio de la
         // vista y elegido para llevarlo a su sitio.
@@ -2045,28 +2059,7 @@ pub(super) fn atender_figuras(mut ed: Editor<'_>, en: pixpin_geom::Punto, t: &Ca
             let ids = ed.gesto.seleccion.ids().to_vec();
             pixpin_motor2d::tabla_dibujada::leer::meter_en_celdas(ed.escena, &ids)
         }
-        Eleccion::GuardarSeleccion => {
-            let mut f = Formulario::nuevo(
-                t.t("figuras-nombre-titulo"),
-                vec![Campo::nuevo(t.t("figuras-nombre"), "")],
-                t.t("figuras-nombre-ayuda"),
-                t.t("figuras-guardar"),
-                t.t("cajetin-cancelar"),
-            );
-            if !pedir(ed.lienzo(), &mut f, |_| Ok(())) {
-                return false;
-            }
-            let nombre = f.campos[0].texto.trim();
-            let nombre = if nombre.is_empty() { "Figura" } else { nombre };
-            if let Some(nueva) =
-                biblioteca::de_la_seleccion(&ed.escena.elementos, ed.gesto.seleccion.ids(), nombre)
-            {
-                // Las nuevas, arriba: lo ultimo que se guarda es lo que se usa.
-                biblio.insert(0, nueva);
-                guardar_biblioteca(&ruta, &biblio);
-            }
-            false
-        }
+        Eleccion::GuardarSeleccion => guardar_seleccion(ed, t),
         Eleccion::Estampar(i) => match biblio.get(i) {
             Some(fig) => {
                 let ids = biblioteca::estampar_en_escena(ed.escena, fig, centro);
@@ -2258,12 +2251,27 @@ mod pruebas {
         assert_eq!(eleccion_de(7, 0), Some(Eleccion::Instrumento(1)));
         assert_eq!(eleccion_de(8, 0), Some(Eleccion::Instrumento(2)));
         assert_eq!(eleccion_de(9, 0), Some(Eleccion::Instrumento(3)));
-        assert_eq!(eleccion_de(ID_COORDENADAS_NUEVA, 0), Some(Eleccion::Coordenadas(None)));
+        assert_eq!(
+            eleccion_de(ID_COORDENADAS_NUEVA, 0),
+            Some(Eleccion::Coordenadas(None))
+        );
         let con = entradas_de_graficar(&t, &[true, false]);
-        assert!(con.iter().any(|e| e.id == ID_SERIE + 1 && e.texto.ends_with('2')));
-        assert!(con.iter().any(|e| e.id == ID_VER_SERIE + 1 && e.texto.starts_with("Ver")));
-        assert!(con.iter().any(|e| e.id == ID_VER_SERIE && e.texto.starts_with("Esconder")));
-        assert_eq!(eleccion_de(ID_SERIE + 1, 0), Some(Eleccion::Coordenadas(Some(1))));
+        assert!(
+            con.iter()
+                .any(|e| e.id == ID_SERIE + 1 && e.texto.ends_with('2'))
+        );
+        assert!(
+            con.iter()
+                .any(|e| e.id == ID_VER_SERIE + 1 && e.texto.starts_with("Ver"))
+        );
+        assert!(
+            con.iter()
+                .any(|e| e.id == ID_VER_SERIE && e.texto.starts_with("Esconder"))
+        );
+        assert_eq!(
+            eleccion_de(ID_SERIE + 1, 0),
+            Some(Eleccion::Coordenadas(Some(1)))
+        );
         assert_eq!(eleccion_de(ID_VER_SERIE, 0), Some(Eleccion::VerSerie(0)));
         // Caso negativo: un id que no es de nada no elige nada.
         assert_eq!(eleccion_de(4999, 0), None);
@@ -2308,7 +2316,10 @@ mod pruebas {
         f.campos[3].texto.clear();
         assert_eq!(f.pegar_coordenadas("P1\t3\t4\nP2\t5\t6"), 2);
         assert_eq!(puntos_del_formulario(&f).len(), 3);
-        assert_eq!(f.celdas().last().unwrap(), &vec![String::new(), String::new()]);
+        assert_eq!(
+            f.celdas().last().unwrap(),
+            &vec![String::new(), String::new()]
+        );
         // Caso negativo: lo que no trae pares no toca nada.
         let antes = f.celdas();
         assert_eq!(f.pegar_coordenadas("hola"), 0);
@@ -2327,11 +2338,16 @@ mod pruebas {
         assert!(escena.poner_tablas(tablas, origen));
         let (tablas, origen) =
             tablas_tras_aceptar(&escena, None, p.clone(), Punto2::nuevo(900.0, 900.0));
-        assert_eq!(origen, Some(Punto2::nuevo(50.0, 60.0)), "el eje no se mueve");
+        assert_eq!(
+            origen,
+            Some(Punto2::nuevo(50.0, 60.0)),
+            "el eje no se mueve"
+        );
         assert_eq!(tablas[1].color, "#1971c2", "otro color, otra serie");
         assert!(escena.poner_tablas(tablas, origen));
         // Sin puntos la serie se quita y el eje se queda.
-        let (tablas, origen) = tablas_tras_aceptar(&escena, Some(0), Vec::new(), Punto2::nuevo(0.0, 0.0));
+        let (tablas, origen) =
+            tablas_tras_aceptar(&escena, Some(0), Vec::new(), Punto2::nuevo(0.0, 0.0));
         assert_eq!(tablas.len(), 1);
         assert_eq!(origen, Some(Punto2::nuevo(50.0, 60.0)));
         // Caso negativo: una serie nueva sin puntos no nace.
@@ -2705,7 +2721,10 @@ mod pruebas {
         assert!(guardar_biblioteca(&ruta, std::slice::from_ref(&f)));
         let leidas = cargar_biblioteca(&ruta);
         assert_eq!(leidas.len(), 1);
-        assert_eq!((leidas[0].id.as_str(), leidas[0].nombre.as_str()), ("s", "Sello"));
+        assert_eq!(
+            (leidas[0].id.as_str(), leidas[0].nombre.as_str()),
+            ("s", "Sello")
+        );
         assert_eq!(leidas[0].tamano(), f.tamano());
         std::fs::write(&ruta, b"{roto").unwrap();
         assert!(cargar_biblioteca(&ruta).is_empty());
@@ -2723,7 +2742,8 @@ mod pruebas {
             nombre: "Sello".into(),
             elementos: vec![Elemento::default()],
         };
-        let mut v = serde_json::to_value(vec![buena.clone(), buena.clone(), buena.clone()]).unwrap();
+        let mut v =
+            serde_json::to_value(vec![buena.clone(), buena.clone(), buena.clone()]).unwrap();
         let cronograma = serde_json::json!({"tipo": "cronograma", "periodos": 6,
             "tareas": [{"nombre": "Obra", "desde": 0.0, "cuanto": 2.0, "color": null}]});
         // La segunda: el sello y un cronograma. La tercera: solo el cronograma.
@@ -2735,7 +2755,11 @@ mod pruebas {
         std::fs::write(&ruta, serde_json::to_vec(&v).unwrap()).unwrap();
         let leidas = cargar_biblioteca(&ruta);
         assert_eq!(leidas.len(), 2, "sin el cronograma, lo demas");
-        assert!(leidas.iter().all(|f| f.nombre == buena.nombre && f.elementos.len() == 1));
+        assert!(
+            leidas
+                .iter()
+                .all(|f| f.nombre == buena.nombre && f.elementos.len() == 1)
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -2963,3 +2987,52 @@ mod muestras_figuras;
 
 #[cfg(test)]
 mod muestras_instrumentos;
+
+/// **Guardar lo elegido en la biblioteca de figuras** («Guardar la
+/// seleccion» del menu y «Guardar en figuras» del panel lateral): pide el
+/// nombre y la pone arriba del todo. Si lo elegido es una plantilla de serie
+/// (una alargada, 22-oct), el nombre sale ya puesto con su categoria
+/// («Planificación · Lista de tareas»), para que caiga en su submenu. No
+/// cambia el dibujo: devuelve `false`.
+pub(super) fn guardar_seleccion(mut ed: Editor<'_>, t: &Catalogo) -> bool {
+    use pixpin_motor2d::figuras_de_serie as serie;
+    if ed.gesto.seleccion.esta_vacia() {
+        return false;
+    }
+    let elegidas: Vec<Elemento> = ed
+        .escena
+        .visibles()
+        .filter(|e| ed.gesto.seleccion.contiene(e.id))
+        .cloned()
+        .collect();
+    let propuesto = serie::cual_es(&elegidas)
+        .and_then(|clave| {
+            serie::catalogo()
+                .into_iter()
+                .find(|f| serie::clave_de(f) == Some(clave.as_str()))
+        })
+        .map(|f| format!("{} ", f.nombre))
+        .unwrap_or_default();
+    let mut f = Formulario::nuevo(
+        t.t("figuras-nombre-titulo"),
+        vec![Campo::nuevo(t.t("figuras-nombre"), propuesto)],
+        t.t("figuras-nombre-ayuda"),
+        t.t("figuras-guardar"),
+        t.t("cajetin-cancelar"),
+    );
+    if !pedir(ed.lienzo(), &mut f, |_| Ok(())) {
+        return false;
+    }
+    let nombre = f.campos[0].texto.trim();
+    let nombre = if nombre.is_empty() { "Figura" } else { nombre };
+    let ruta = ruta_biblioteca();
+    let mut biblio = cargar_biblioteca(&ruta);
+    if let Some(nueva) =
+        biblioteca::de_la_seleccion(&ed.escena.elementos, ed.gesto.seleccion.ids(), nombre)
+    {
+        // Las nuevas, arriba: lo ultimo que se guarda es lo que se usa.
+        biblio.insert(0, nueva);
+        guardar_biblioteca(&ruta, &biblio);
+    }
+    false
+}

@@ -560,7 +560,17 @@ pub(crate) fn pintar_escena(
     zoom: f32,
     sin_cache: impl Fn(u64) -> bool,
 ) {
-    pintar_escena_si(p, escena, cache, cache_tinta, imagenes, vista, zoom, sin_cache, |_| true);
+    pintar_escena_si(
+        p,
+        escena,
+        cache,
+        cache_tinta,
+        imagenes,
+        vista,
+        zoom,
+        sin_cache,
+        |_| true,
+    );
 }
 
 /// Como [`pintar_escena`], pero solo lo que `pintar_este` diga de su caja
@@ -610,7 +620,11 @@ pub(crate) fn pintar_escena_si(
             }
             _ => zoom,
         };
-        let (t, realizadas, fallos) = (std::time::Instant::now(), cache_tinta.realizadas(), cache.fallos());
+        let (t, realizadas, fallos) = (
+            std::time::Instant::now(),
+            cache_tinta.realizadas(),
+            cache.fallos(),
+        );
         let mut indice = 0u32;
         por_cada_orden(cache, e, zoom_ordenes, escena.escala.as_ref(), |orden| {
             let tinta = cacheable.then_some((&mut *cache_tinta, (e.id, e.version, indice)));
@@ -750,6 +764,10 @@ pub(crate) fn pintar_encima(
             }
         }
     }
+    // Lo elegido del texto que se escribe (Mayus+flechas), debajo del cursor.
+    for orden in gesto.seleccion_de_texto(escena) {
+        dibujar_orden(p, &orden, vista, None, imagenes, zoom, None);
+    }
     if let Some(cursor) = gesto.cursor_de_texto(escena, zoom) {
         dibujar_orden(p, &cursor, vista, None, imagenes, zoom, None);
     }
@@ -779,6 +797,10 @@ pub(crate) fn pintar_encima(
     }
     // La bolita de elegir, mientras se pasa (`bolita.rs`).
     if let Some(orden) = gesto.bolita.orden(zoom) {
+        dibujar_orden(p, &orden, vista, None, imagenes, zoom, None);
+    }
+    // Los clics ya puestos del arco exacto (centro, inicio...).
+    for orden in gesto.ordenes_de_arco_en_curso(zoom) {
         dibujar_orden(p, &orden, vista, None, imagenes, zoom, None);
     }
     // La pista del iman: encima de todo, porque es lo que dice donde va a
@@ -839,6 +861,7 @@ pub(crate) fn ordenes_encima(
     if let Some(tiradores) = gesto.tiradores(escena, escala) {
         v.extend(tiradores.ordenes(escala));
     }
+    v.extend(gesto.seleccion_de_texto(escena));
     v.extend(gesto.cursor_de_texto(escena, zoom));
     if let Some((x0, y0, x1, y1)) = gesto.marquesina() {
         v.push(Orden::Polilinea {
@@ -867,6 +890,7 @@ pub(crate) fn ordenes_encima(
     }
     v.extend(gesto.laser.ordenes(zoom));
     v.extend(gesto.bolita.orden(zoom));
+    v.extend(gesto.ordenes_de_arco_en_curso(zoom));
     if let Some(a) = gesto.anclaje_activo {
         v.push(pixpin_motor2d::enganche::pista(&a, zoom));
     }

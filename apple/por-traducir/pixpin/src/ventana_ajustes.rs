@@ -23,6 +23,7 @@ use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
 
 use windows::Win32::Foundation::HWND;
 
+use crate::caja_texto::CajaLinea;
 use anyhow::{Context, Result};
 use fluent_bundle::FluentArgs;
 use pixpin_geom::{Punto, Rect};
@@ -39,7 +40,6 @@ use pixpin_store::ajustes::{
 use pixpin_store::comandos::{CATALOGO, Comando, Enlaces};
 use pixpin_store::herramientas::SITIOS;
 use pixpin_store::{Catalogo, Idioma, Ubicacion};
-use crate::caja_texto::CajaLinea;
 use pixpin_ui::ajustes::{
     Control, Estado, Fila, Foco, Golpe, NAV_ANCHO, Parte, Recta, ancho_de_textos, borrar_busqueda,
     boton_restablecer_seccion, botones_del_pie, buscador, coincide, contenido, golpe_en,
@@ -178,6 +178,7 @@ enum Seccion {
     General,
     Captura,
     Pinear,
+    Tareas,
     Lienzo,
     Voz,
     Asistente,
@@ -188,10 +189,11 @@ enum Seccion {
     Avanzado,
 }
 
-const SECCIONES: [Seccion; 11] = [
+const SECCIONES: [Seccion; 12] = [
     Seccion::General,
     Seccion::Captura,
     Seccion::Pinear,
+    Seccion::Tareas,
     Seccion::Lienzo,
     Seccion::Voz,
     Seccion::Asistente,
@@ -208,6 +210,7 @@ impl Seccion {
             Seccion::General => "general",
             Seccion::Captura => "captura",
             Seccion::Pinear => "pinear",
+            Seccion::Tareas => "tareas",
             Seccion::Lienzo => "lienzo",
             Seccion::Voz => "voz",
             Seccion::Asistente => "asistente",
@@ -232,6 +235,7 @@ impl Seccion {
             Seccion::General => &mi::SETTINGS,
             Seccion::Captura => &mi::CROP,
             Seccion::Pinear => &mi::PUSH_PIN,
+            Seccion::Tareas => &mi::CHECK_BOX,
             Seccion::Lienzo => &mi::DRAW,
             Seccion::Voz => &mi::MIC,
             Seccion::Asistente => &ROBOT,
@@ -248,6 +252,7 @@ impl Seccion {
 /// accion hace. Anadir un ajuste es anadir una variante aqui, su fila en
 /// `filas_de_seccion` y sus brazos en `aplicar_*` y `restablecer`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::enum_variant_names)] // ClaveNube y BorrarClave dicen lo que son
 enum Clave {
     Grupo,
     Comando(Comando),
@@ -279,6 +284,10 @@ enum Clave {
     PalabrasDe(u8),
     /// «De fabrica»: todas las palabras como vienen.
     PalabrasFabrica,
+    // Tareas (18-oct-2026)
+    /// Las palabras de una urgencia de las tareas: 0 urgente, 1 muy urgente
+    /// (`[tareas]`).
+    PalabrasUrgencia(u8),
     // Lienzo
     ImanActivo,
     ImanEsquinas,
@@ -311,13 +320,16 @@ enum Clave {
     /// Ver lo dicho al microfono del asistente antes de enviarlo
     /// (`[asistente] revisar_lo_dicho`).
     AsistenteRevisarVoz,
-    /// Leer en voz alta cada respuesta (`[asistente] leer_respuestas`).
-    AsistenteLeerSiempre,
     /// La caja de la clave de un proveedor (indice en `Proveedor::TODOS`).
     /// No es un ajuste: la clave va cifrada a su fichero, nunca al TOML.
     ClaveNube(u8),
     /// Borrar la clave guardada de un proveedor.
     BorrarClave(u8),
+    /// La caja del ID de cliente de una conexion (indice en
+    /// `conexiones::SERVICIOS`). Va cifrado a su fichero, nunca al TOML.
+    ClienteConexion(u8),
+    /// Conectar o desconectar una conexion (Google Drive...).
+    Conexion(u8),
     /// Una automatizacion del asistente, por su posicion en la lista: su
     /// interruptor y su aspa (13-oct). No es un ajuste: vive en su JSON.
     Automatizacion(u16),
@@ -361,6 +373,8 @@ impl Clave {
                 | Clave::PalabrasFabrica
                 | Clave::ClaveNube(_)
                 | Clave::BorrarClave(_)
+                | Clave::ClienteConexion(_)
+                | Clave::Conexion(_)
                 | Clave::Automatizacion(_)
                 | Clave::CorrerAutomatizacion(_)
                 | Clave::SinAutomatizaciones
@@ -426,7 +440,10 @@ fn codigo_del_equipo(raiz: &std::path::Path) -> String {
 /// aspa; las «a mano», con «Correr ahora» debajo.
 fn filas_de_automatizaciones(cx: &Contexto) -> Vec<(Clave, Fila)> {
     let t = cx.t;
-    let mut v = vec![(Clave::Grupo, Fila::grupo(t.t("ajustes2-g-automatizaciones")))];
+    let mut v = vec![(
+        Clave::Grupo,
+        Fila::grupo(t.t("ajustes2-g-automatizaciones")),
+    )];
     if cx.automatizaciones.is_empty() {
         v.push((
             Clave::SinAutomatizaciones,
@@ -446,12 +463,19 @@ fn filas_de_automatizaciones(cx: &Contexto) -> Vec<(Clave, Fila)> {
         let (ayuda, control) = match (&r.rota, &r.otro_aparato) {
             (Some(m), _) => {
                 args.set("motivo", m.clone());
-                (t.t_args("ajustes2-automatizacion-rota", &args), Control::Nada)
+                (
+                    t.t_args("ajustes2-automatizacion-rota", &args),
+                    Control::Nada,
+                )
             }
             (None, Some(ap)) => {
                 args.set("aparato", ap.clone());
                 (
-                    format!("{} · {}", r.detalle, t.t_args("ajustes2-automatizacion-otro-aparato", &args)),
+                    format!(
+                        "{} · {}",
+                        r.detalle,
+                        t.t_args("ajustes2-automatizacion-otro-aparato", &args)
+                    ),
                     Control::Interruptor(r.activa),
                 )
             }
@@ -486,7 +510,13 @@ fn filas_de_automatizaciones(cx: &Contexto) -> Vec<(Clave, Fila)> {
 /// **Lo que se toca de una automatizacion** en la lista: encender o apagar
 /// (`Parte::Alternar`), borrarla preguntando (`Parte::Quitar`) o correrla
 /// (`Parte::Pulsar`). Devuelve si cambio la lista (hay que releerla).
-fn tocar_automatizacion(clave: Clave, parte: Parte, cx: &Contexto, ubicacion: &Ubicacion, hwnd: HWND) -> bool {
+fn tocar_automatizacion(
+    clave: Clave,
+    parte: Parte,
+    cx: &Contexto,
+    ubicacion: &Ubicacion,
+    hwnd: HWND,
+) -> bool {
     use crate::automatizaciones as au;
     let (Clave::Automatizacion(i) | Clave::CorrerAutomatizacion(i)) = clave else {
         return false;
@@ -499,13 +529,16 @@ fn tocar_automatizacion(clave: Clave, parte: Parte, cx: &Contexto, ubicacion: &U
     let aparato = codigo_del_equipo(raiz);
     let hecho = match (clave, parte) {
         (Clave::Automatizacion(_), Parte::Alternar) if r.rota.is_none() => {
-            au::cambiar(raiz, &aparato, ahora, |l| Ok(l.activar(&r.id, !r.activa, ahora)))
+            au::cambiar(raiz, &aparato, ahora, |l| {
+                Ok(l.activar(&r.id, !r.activa, ahora))
+            })
         }
         (Clave::Automatizacion(_), Parte::Quitar) => {
             let mut args = FluentArgs::new();
             args.set("nombre", r.nombre.clone());
             let pregunta = cx.t.t_args("ajustes2-automatizacion-borrar", &args);
-            if !pixpin_shell::dialogo::confirmar_destructivo(hwnd, "PixPin · Asistente", &pregunta) {
+            if !pixpin_shell::dialogo::confirmar_destructivo(hwnd, "PixPin · Asistente", &pregunta)
+            {
                 return false;
             }
             au::cambiar(raiz, &aparato, ahora, |l| Ok(l.borrar(&r.id)))
@@ -994,7 +1027,10 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                             Proveedor::Claude.nombre().to_string(),
                             Proveedor::DeepSeek.nombre().to_string(),
                         ],
-                        ia_nube::OPCIONES.iter().position(|e| *e == eleccion).unwrap_or(0),
+                        ia_nube::OPCIONES
+                            .iter()
+                            .position(|e| *e == eleccion)
+                            .unwrap_or(0),
                     ),
                 ),
                 // El asistente local del chat: el modelo que se baja y se
@@ -1061,7 +1097,9 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                             tt("ajustes2-docs-nube-si"),
                             tt("ajustes2-docs-nube-no"),
                         ],
-                        match crate::asistente::documentos::PermisoNube::de(&a.asistente.documentos_a_la_nube) {
+                        match crate::asistente::documentos::PermisoNube::de(
+                            &a.asistente.documentos_a_la_nube,
+                        ) {
                             crate::asistente::documentos::PermisoNube::Preguntar => 0,
                             crate::asistente::documentos::PermisoNube::Si => 1,
                             crate::asistente::documentos::PermisoNube::No => 2,
@@ -1078,13 +1116,6 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                     tt("ajustes2-asistente-revisar-voz"),
                     tt("ajustes2-ayuda-asistente-revisar-voz"),
                     Control::Interruptor(a.asistente.revisar_lo_dicho),
-                ),
-                op(
-                    a,
-                    Clave::AsistenteLeerSiempre,
-                    tt("ajustes2-asistente-leer"),
-                    tt("ajustes2-ayuda-asistente-leer"),
-                    Control::Interruptor(a.asistente.leer_respuestas),
                 ),
                 grupo(t, "ajustes2-g-claves"),
             ];
@@ -1108,6 +1139,38 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                         t.t_args("ajustes2-clave-borrar-de", &args),
                         tt("ajustes2-ayuda-clave-borrar"),
                         Control::Boton(tt("ajustes2-clave-borrar")),
+                    ));
+                }
+            }
+            // Conexiones (17-oct-2026): Google Drive y los que vengan, un
+            // par de filas por servicio con las mismas piezas que las claves.
+            v.push(grupo(t, "ajustes2-g-conexiones"));
+            for (i, s) in pixpin_ia::conexiones::SERVICIOS.iter().enumerate() {
+                use crate::asistente::conexiones as conex;
+                let mut args = FluentArgs::new();
+                args.set("servicio", s.nombre);
+                v.push(op(
+                    a,
+                    Clave::ClienteConexion(i as u8),
+                    t.t_args("ajustes2-conexion-cliente", &args),
+                    conex::estado_cliente(s, t),
+                    Control::Entrada {
+                        marcador: t.t("ajustes2-conexion-cliente-marcador"),
+                        boton: tt("ajustes2-conexion-guardar"),
+                    },
+                ));
+                if conex::hay_cliente(s) {
+                    let boton = if conex::conectado(s) || conex::conectando(s) {
+                        "ajustes2-conexion-desconectar"
+                    } else {
+                        "ajustes2-conexion-conectar"
+                    };
+                    v.push(op(
+                        a,
+                        Clave::Conexion(i as u8),
+                        t.t_args("ajustes2-conexion-de", &args),
+                        conex::estado(s, t),
+                        Control::Boton(tt(boton)),
                     ));
                 }
             }
@@ -1217,6 +1280,34 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                 tt("ajustes2-ayuda-palabras"),
                 Control::Boton(tt("ajustes2-palabras-volver")),
             ));
+            v
+        }
+        Seccion::Tareas => {
+            // Las palabras de cada urgencia (18-oct-2026): las mismas cajas
+            // que las palabras magicas, separadas por comas.
+            let mut v = vec![grupo(t, "ajustes2-g-urgencia")];
+            for (i, (clave, lista)) in [
+                ("ajustes2-urgente", &a.tareas.urgente),
+                ("ajustes2-muy-urgente", &a.tareas.muy_urgente),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                v.push(op(
+                    a,
+                    Clave::PalabrasUrgencia(i as u8),
+                    tt(clave),
+                    if lista.is_empty() {
+                        tt("ajustes2-urgencia-ninguna")
+                    } else {
+                        lista.join(", ")
+                    },
+                    Control::Entrada {
+                        marcador: tt("ajustes2-palabras-marcador"),
+                        boton: tt("ajustes2-palabras-cambiar"),
+                    },
+                ));
+            }
             v
         }
         Seccion::Apariencia => vec![
@@ -1407,9 +1498,10 @@ fn restablecer(clave: Clave, a: &mut Ajustes) {
         Clave::AsistenteMotor => a.asistente.motor = d.asistente.motor.clone(),
         Clave::AsistenteRespaldo => a.asistente.respaldo_local = d.asistente.respaldo_local,
         Clave::AsistenteMejorVista => a.asistente.mejor_vista = d.asistente.mejor_vista,
-        Clave::AsistenteDocsNube => a.asistente.documentos_a_la_nube = d.asistente.documentos_a_la_nube.clone(),
+        Clave::AsistenteDocsNube => {
+            a.asistente.documentos_a_la_nube = d.asistente.documentos_a_la_nube.clone()
+        }
         Clave::AsistenteRevisarVoz => a.asistente.revisar_lo_dicho = d.asistente.revisar_lo_dicho,
-        Clave::AsistenteLeerSiempre => a.asistente.leer_respuestas = d.asistente.leer_respuestas,
         Clave::Presencia => a.sincro.presencia = d.sincro.presencia,
         Clave::LoMioManda => a.sincro.lo_mio_manda = d.sincro.lo_mio_manda,
         Clave::AbrirCon => a.abrir_con = d.abrir_con,
@@ -1421,6 +1513,8 @@ fn restablecer(clave: Clave, a: &mut Ajustes) {
         Clave::Paneo => a.rendimiento.paneo_por_composicion = d.rendimiento.paneo_por_composicion,
         Clave::CorteMinimo => a.tinta.corte_minimo = d.tinta.corte_minimo,
         Clave::Beta => a.tinta.beta = d.tinta.beta,
+        Clave::PalabrasUrgencia(0) => a.tareas.urgente = d.tareas.urgente.clone(),
+        Clave::PalabrasUrgencia(_) => a.tareas.muy_urgente = d.tareas.muy_urgente.clone(),
         Clave::PalabrasDe(i) => {
             if let Some(app) = pixpin_pin::magia::MiniApp::por_indice(i) {
                 let de_fabrica =
@@ -1439,6 +1533,8 @@ fn restablecer(clave: Clave, a: &mut Ajustes) {
         | Clave::PalabrasFabrica
         | Clave::ClaveNube(_)
         | Clave::BorrarClave(_)
+        | Clave::ClienteConexion(_)
+        | Clave::Conexion(_)
         | Clave::Automatizacion(_)
         | Clave::CorrerAutomatizacion(_)
         | Clave::SinAutomatizaciones => {}
@@ -1486,6 +1582,20 @@ fn poner_palabras_escritas(a: &mut Ajustes, clave: Clave, escrito: &str) {
     {
         poner_palabras(a, app, &pixpin_pin::magia::partir_escrito(escrito));
     }
+    // Las de una urgencia: partidas igual, sin repetir y sin vacias.
+    if let Clave::PalabrasUrgencia(i) = clave {
+        let mut nuevas: Vec<String> = Vec::new();
+        for p in pixpin_pin::magia::partir_escrito(escrito) {
+            let p = p.trim().to_string();
+            if !p.is_empty() && !nuevas.iter().any(|x| x.to_lowercase() == p.to_lowercase()) {
+                nuevas.push(p);
+            }
+        }
+        match i {
+            0 => a.tareas.urgente = nuevas,
+            _ => a.tareas.muy_urgente = nuevas,
+        }
+    }
 }
 
 /// Lo que sale en la caja de una herramienta al ir a escribir: sus palabras
@@ -1499,6 +1609,8 @@ fn palabras_para_editar(a: &Ajustes, clave: Clave) -> String {
                     .join(", ")
             })
             .unwrap_or_default(),
+        Clave::PalabrasUrgencia(0) => a.tareas.urgente.join(", "),
+        Clave::PalabrasUrgencia(_) => a.tareas.muy_urgente.join(", "),
         _ => String::new(),
     }
 }
@@ -1567,7 +1679,6 @@ fn aplicar_interruptor(a: &mut Ajustes, clave: Clave) {
             }
         }
         Clave::AsistenteRevisarVoz => a.asistente.revisar_lo_dicho = !a.asistente.revisar_lo_dicho,
-        Clave::AsistenteLeerSiempre => a.asistente.leer_respuestas = !a.asistente.leer_respuestas,
         Clave::PdfAligerar => a.pdf.aligerar_al_entrar = !a.pdf.aligerar_al_entrar,
         Clave::Apilar => {
             // Cero apaga la pila; encenderla vuelve a su numero de fabrica
@@ -1790,19 +1901,53 @@ fn ruta_exe() -> Option<std::path::PathBuf> {
 /// Si la fila `i` es la caja de una clave de API (se pinta tapada, no se
 /// copia y se vacia al salir).
 fn es_clave(filas: &[(Clave, Fila)], i: usize) -> bool {
-    matches!(filas.get(i), Some((Clave::ClaveNube(_), _)))
+    matches!(
+        filas.get(i),
+        Some((Clave::ClaveNube(_) | Clave::ClienteConexion(_), _))
+    )
 }
 
 /// «Guardar y probar» la clave del proveedor `n`: lo escrito, o la guardada
 /// si no se escribio nada. Vuelve en seguida; la prueba va en su hilo.
 fn probar_clave(n: u8, escrito: &str, despertar: std::sync::Arc<dyn Fn() + Send + Sync>) {
-    let Some(p) = pixpin_ia::nube::Proveedor::TODOS.get(n as usize).copied() else { return };
+    let Some(p) = pixpin_ia::nube::Proveedor::TODOS.get(n as usize).copied() else {
+        return;
+    };
     let clave = if escrito.trim().is_empty() {
         pixpin_ia::nube::claves::leer(p).unwrap_or_default()
     } else {
         escrito.to_string()
     };
     crate::asistente::nube::guardar_y_probar(p, &clave, despertar);
+}
+
+/// Lo escrito en una caja tapada: la clave de un proveedor (guardar y
+/// probar) o el ID de cliente de una conexion (guardar).
+fn guardar_secreto(clave: Clave, escrito: &str, despertar: std::sync::Arc<dyn Fn() + Send + Sync>) {
+    match clave {
+        Clave::ClaveNube(n) => probar_clave(n, escrito, despertar),
+        Clave::ClienteConexion(n) => {
+            if let Some(s) = pixpin_ia::conexiones::SERVICIOS.get(n as usize) {
+                crate::asistente::conexiones::guardar_cliente(s, escrito, despertar);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Conectar (o desconectar, si ya lo esta o esta esperando al navegador).
+/// Vuelve en seguida: la espera va en su hilo.
+fn pulsar_conexion(clave: Clave, despertar: std::sync::Arc<dyn Fn() + Send + Sync>) {
+    use crate::asistente::conexiones as conex;
+    let Clave::Conexion(n) = clave else { return };
+    let Some(s) = pixpin_ia::conexiones::SERVICIOS.get(n as usize) else {
+        return;
+    };
+    if conex::conectado(s) || conex::conectando(s) {
+        conex::desconectar(s, despertar);
+    } else {
+        conex::conectar(s, despertar);
+    }
 }
 
 /// Lo que se hace al pulsar un `Control::Boton`.
@@ -2044,14 +2189,15 @@ fn abrir(
     let zona = contenido(ancho, alto);
     // La prueba de una clave acaba en otro hilo: cuando cambia esto, se
     // repinta su linea de estado.
-    let mut novedades_claves = crate::asistente::nube::novedades();
+    let mut novedades_claves =
+        crate::asistente::nube::novedades() + crate::asistente::conexiones::novedades();
     let hwnd_ventana = ventana.handle().0 as isize;
     let despertar_ventana: std::sync::Arc<dyn Fn() + Send + Sync> =
         std::sync::Arc::new(move || pixpin_shell::overlay::despertar(hwnd_ventana));
 
     loop {
         pixpin_shell::overlay::bombear_pendientes();
-        let n = crate::asistente::nube::novedades();
+        let n = crate::asistente::nube::novedades() + crate::asistente::conexiones::novedades();
         if n != novedades_claves {
             novedades_claves = n;
             version += 1;
@@ -2092,8 +2238,12 @@ fn abrir(
                     // y decide a donde va lo que se escriba.
                     estado.capturando = None;
                     let foco_antes = estado.foco;
-                    let es_palabras =
-                        |i: usize| matches!(filas.get(i), Some((Clave::PalabrasDe(_), _)));
+                    let es_palabras = |i: usize| {
+                        matches!(
+                            filas.get(i),
+                            Some((Clave::PalabrasDe(_) | Clave::PalabrasUrgencia(_), _))
+                        )
+                    };
                     // «Cambiar» en las palabras de una herramienta: la primera
                     // vez abre su caja con lo de ahora; con la caja abierta,
                     // guarda lo escrito (el Aceptar del dialogo del movil).
@@ -2124,14 +2274,15 @@ fn abrir(
                     // «Guardar y probar» una clave: con lo escrito en su
                     // caja, o la guardada si no se escribio nada.
                     if let Some(Golpe::Fila(i, Parte::Pulsar)) = golpe
-                        && let Some((Clave::ClaveNube(n), _)) = filas.get(i)
+                        && let Some((clave @ (Clave::ClaveNube(_) | Clave::ClienteConexion(_)), _)) =
+                            filas.get(i)
                     {
                         let escrito = if foco_antes == Foco::Entrada(i) {
                             std::mem::take(&mut estado.entrada)
                         } else {
                             String::new()
                         };
-                        probar_clave(*n, &escrito, despertar_ventana.clone());
+                        guardar_secreto(*clave, &escrito, despertar_ventana.clone());
                     }
                     if let Some(i) = guardar_palabras
                         && let Some((clave, _)) = filas.get(i).cloned()
@@ -2149,7 +2300,10 @@ fn abrir(
                             estado.entrada.clear();
                         }
                         if let Foco::Entrada(i) = estado.foco
-                            && let Some((clave @ Clave::PalabrasDe(_), _)) = filas.get(i)
+                            && let Some((
+                                clave @ (Clave::PalabrasDe(_) | Clave::PalabrasUrgencia(_)),
+                                _,
+                            )) = filas.get(i)
                         {
                             estado.entrada = palabras_para_editar(&copia.a, *clave);
                         }
@@ -2195,10 +2349,17 @@ fn abrir(
                                     Parte::Alternar | Parte::Quitar | Parte::Pulsar
                                         if matches!(
                                             clave,
-                                            Clave::Automatizacion(_) | Clave::CorrerAutomatizacion(_)
+                                            Clave::Automatizacion(_)
+                                                | Clave::CorrerAutomatizacion(_)
                                         ) =>
                                     {
-                                        if tocar_automatizacion(clave, parte, &cx, ubicacion, ventana.handle()) {
+                                        if tocar_automatizacion(
+                                            clave,
+                                            parte,
+                                            &cx,
+                                            ubicacion,
+                                            ventana.handle(),
+                                        ) {
                                             cx.automatizaciones = leer_automatizaciones(ubicacion);
                                         }
                                     }
@@ -2226,7 +2387,17 @@ fn abrir(
                                         });
                                     }
                                     // Ya resuelto arriba, con el foco.
-                                    Parte::Pulsar if matches!(clave, Clave::PalabrasDe(_) | Clave::ClaveNube(_)) => {}
+                                    Parte::Pulsar
+                                        if matches!(
+                                            clave,
+                                            Clave::PalabrasDe(_)
+                                                | Clave::PalabrasUrgencia(_)
+                                                | Clave::ClaveNube(_)
+                                                | Clave::ClienteConexion(_)
+                                        ) => {}
+                                    Parte::Pulsar if matches!(clave, Clave::Conexion(_)) => {
+                                        pulsar_conexion(clave, despertar_ventana.clone())
+                                    }
                                     Parte::Pulsar if clave == Clave::PalabrasFabrica => copia
                                         .cambiar(|a| {
                                             a.pinear = pixpin_store::ajustes::Pinear::default()
@@ -2260,7 +2431,9 @@ fn abrir(
                 EventoOverlay::Caracter(c) => {
                     // En la caja con el foco (la comun de la app).
                     let escrito = estado.capturando.is_none()
-                        && cajas.con_foco(estado.foco).is_some_and(|caja| caja.caracter(c));
+                        && cajas
+                            .con_foco(estado.foco)
+                            .is_some_and(|caja| caja.caracter(c));
                     if escrito {
                         if estado.foco == Foco::Buscador {
                             estado.desplazamiento = 0;
@@ -2272,8 +2445,9 @@ fn abrir(
                 // Las teclas de una caja de texto (flechas, Inicio/Fin,
                 // Retroceso y Supr con o sin Ctrl, Ctrl+A/C/X/V/Z/Y...) son de
                 // la caja con el foco; Escape e Intro siguen abajo.
-                EventoOverlay::Tecla { vk, shift, ctrl, .. }
-                    if estado.capturando.is_none()
+                EventoOverlay::Tecla {
+                    vk, shift, ctrl, ..
+                } if estado.capturando.is_none()
                         && estado.foco != Foco::Nada
                         && CajaLinea::es_suya(vk, shift, ctrl)
                         // De la caja de una clave no se copia ni se corta.
@@ -2333,8 +2507,13 @@ fn abrir(
                                 } else {
                                     // Escape en las palabras es Cancelar.
                                     if let Foco::Entrada(i) = estado.foco
-                                        && (matches!(filas.get(i), Some((Clave::PalabrasDe(_), _)))
-                                            || es_clave(&filas, i))
+                                        && (matches!(
+                                            filas.get(i),
+                                            Some((
+                                                Clave::PalabrasDe(_) | Clave::PalabrasUrgencia(_),
+                                                _
+                                            ))
+                                        ) || es_clave(&filas, i))
                                     {
                                         estado.entrada.clear();
                                     }
@@ -2345,8 +2524,8 @@ fn abrir(
                                 // Intro en una clave: guardar y probar.
                                 Foco::Entrada(i) if es_clave(&filas, i) => {
                                     let texto = std::mem::take(&mut estado.entrada);
-                                    if let Some((Clave::ClaveNube(n), _)) = filas.get(i) {
-                                        probar_clave(*n, &texto, despertar_ventana.clone());
+                                    if let Some((clave, _)) = filas.get(i) {
+                                        guardar_secreto(*clave, &texto, despertar_ventana.clone());
                                     }
                                     estado.foco = Foco::Nada;
                                 }
@@ -2360,11 +2539,18 @@ fn abrir(
                                 }
                                 // Intro guarda las palabras y cierra la caja.
                                 Foco::Entrada(i)
-                                    if matches!(filas.get(i), Some((Clave::PalabrasDe(_), _))) =>
+                                    if matches!(
+                                        filas.get(i),
+                                        Some((
+                                            Clave::PalabrasDe(_) | Clave::PalabrasUrgencia(_),
+                                            _
+                                        ))
+                                    ) =>
                                 {
                                     let texto = std::mem::take(&mut estado.entrada);
                                     if let Some((clave, _)) = filas.get(i).cloned() {
-                                        copia.cambiar(|a| poner_palabras_escritas(a, clave, &texto));
+                                        copia
+                                            .cambiar(|a| poner_palabras_escritas(a, clave, &texto));
                                     }
                                     estado.foco = Foco::Nada;
                                 }
@@ -2481,7 +2667,10 @@ impl Cajas {
     /// Lo que la logica de `pixpin-ui` cambio por su cuenta (vaciar el
     /// buscador, abrir las palabras de una herramienta) pasa a las cajas.
     fn traer(&mut self, e: &Estado) {
-        for (caja, texto) in [(&mut self.busqueda, &e.busqueda), (&mut self.entrada, &e.entrada)] {
+        for (caja, texto) in [
+            (&mut self.busqueda, &e.busqueda),
+            (&mut self.entrada, &e.entrada),
+        ] {
             if caja.texto() != texto.as_str() {
                 *caja = CajaLinea::nueva().sin_parpadeo().con_maximo(MAXIMO_CAJA);
                 caja.poner_texto(texto);
@@ -2787,7 +2976,13 @@ fn dibujar_columna(p: &Pintor, e: f32, v: &Vista, t: &Catalogo) {
         let (_, hn) = p.medir_texto("Ag", tam_nota);
         let y2 = y_nota + hn + 2.0 * e;
         p.circulo((x_nota + 4.0 * e, y2 + hn / 2.0), 3.5 * e, AZUL);
-        p.texto(&t.t("ajustes2-nota-punto"), x_nota + 12.0 * e, y2, tam_nota, TENUE);
+        p.texto(
+            &t.t("ajustes2-nota-punto"),
+            x_nota + 12.0 * e,
+            y2,
+            tam_nota,
+            TENUE,
+        );
     }
 
     if v.hay_deshacer {
@@ -3223,7 +3418,11 @@ fn dibujar_fila(
                 );
                 let rotulo = match &fila.control {
                     Control::Boton(s) => s.clone(),
-                    Control::Entrada { boton, .. } if matches!(clave, Clave::ClaveNube(_)) => boton.clone(),
+                    Control::Entrada { boton, .. }
+                        if matches!(clave, Clave::ClaveNube(_) | Clave::ClienteConexion(_)) =>
+                    {
+                        boton.clone()
+                    }
                     Control::Entrada { boton, .. } => format!("+ {boton}"),
                     _ => String::new(),
                 };
@@ -3280,11 +3479,15 @@ fn dibujar_fila(
                     ancho: (caja.ancho - 20.0 * e).max(1.0),
                     ..caja
                 };
-                if enfocada && matches!(clave, Clave::ClaveNube(_)) {
+                if enfocada && matches!(clave, Clave::ClaveNube(_) | Clave::ClienteConexion(_)) {
                     // Una clave se escribe tapada: puntos y la rayita al final
                     // (sin elegir trozos: se pega entera y se prueba).
                     let n = v.cajas.entrada.texto().chars().count();
-                    let tapado = if n == 0 { String::new() } else { "•".repeat(n.min(64)) };
+                    let tapado = if n == 0 {
+                        String::new()
+                    } else {
+                        "•".repeat(n.min(64))
+                    };
                     let (w, h) = p.medir_texto(if n == 0 { marcador } else { &tapado }, 13.0 * e);
                     p.con_recorte(hueco, |p| {
                         let y = caja.y + (caja.alto - h) / 2.0;
@@ -3294,7 +3497,15 @@ fn dibujar_fila(
                             p.texto(&tapado, hueco.x, y, 13.0 * e, TINTA);
                         }
                         let x = hueco.x + if n == 0 { 0.0 } else { w } + 1.0;
-                        p.rellenar(RectF { x, y, ancho: (1.5 * e).max(1.0), alto: h }, AZUL_CLARO);
+                        p.rellenar(
+                            RectF {
+                                x,
+                                y,
+                                ancho: (1.5 * e).max(1.0),
+                                alto: h,
+                            },
+                            AZUL_CLARO,
+                        );
                     });
                 } else if enfocada {
                     v.cajas.entrada.pintar(
@@ -3310,7 +3521,13 @@ fn dibujar_fila(
                 } else {
                     let (_, h) = p.medir_texto(marcador, 13.0 * e);
                     p.con_recorte(hueco, |p| {
-                        p.texto(marcador, hueco.x, caja.y + (caja.alto - h) / 2.0, 13.0 * e, TENUE)
+                        p.texto(
+                            marcador,
+                            hueco.x,
+                            caja.y + (caja.alto - h) / 2.0,
+                            13.0 * e,
+                            TENUE,
+                        )
                     });
                 }
             }
@@ -3651,6 +3868,46 @@ mod pruebas {
         assert!(filas_actuales(&estado, &a, &cx).is_empty());
     }
 
+    /// Ajustes → Tareas (18-oct-2026): las palabras de cada urgencia se
+    /// cambian en su caja, ponen el punto azul y vuelven a fabrica.
+    #[test]
+    fn las_palabras_de_cada_urgencia_se_cambian_y_vuelven_a_fabrica() {
+        let t = textos();
+        let cx = cx(&t);
+        let mut a = Ajustes::default();
+        let filas = filas_de_seccion(Seccion::Tareas, &a, &cx);
+        assert_eq!(filas.len(), 3, "el grupo y una fila por urgencia");
+        assert_eq!(filas[1].1.etiqueta, "Urgente");
+        assert_eq!(filas[2].1.etiqueta, "Muy urgente");
+        assert!(
+            filas[1].1.ayuda.contains("prioridad alta"),
+            "{}",
+            filas[1].1.ayuda
+        );
+        assert!(!filas[1].1.cambiado && !filas[2].1.cambiado);
+        assert!(palabras_para_editar(&a, Clave::PalabrasUrgencia(1)).contains("!!"));
+        poner_palabras_escritas(
+            &mut a,
+            Clave::PalabrasUrgencia(0),
+            "pronto, Pronto,, ya mismo\n",
+        );
+        assert_eq!(
+            a.tareas.urgente,
+            ["pronto", "ya mismo"],
+            "sin repetidas ni vacias"
+        );
+        let filas = filas_de_seccion(Seccion::Tareas, &a, &cx);
+        assert!(filas[1].1.cambiado);
+        assert!(!filas[2].1.cambiado, "caso negativo: muy urgente no cambio");
+        // Sin ninguna: valido («todo normal») y se dice.
+        poner_palabras_escritas(&mut a, Clave::PalabrasUrgencia(1), " ");
+        assert!(a.tareas.muy_urgente.is_empty());
+        let filas = filas_de_seccion(Seccion::Tareas, &a, &cx);
+        assert_eq!(filas[2].1.ayuda, t.t("ajustes2-urgencia-ninguna"));
+        restablecer_seccion(Seccion::Tareas, &mut a, &cx);
+        assert_eq!(a.tareas, pixpin_store::ajustes::Tareas::default());
+    }
+
     #[test]
     fn las_palabras_de_una_herramienta_se_cambian_y_vuelven_a_fabrica() {
         let t = textos();
@@ -3659,7 +3916,10 @@ mod pruebas {
         let filas = filas_de_seccion(Seccion::Pinear, &a, &cx);
         // Una fila por herramienta y la de fabrica, sin punto azul.
         assert_eq!(
-            filas.iter().filter(|(c, _)| matches!(c, Clave::PalabrasDe(_))).count(),
+            filas
+                .iter()
+                .filter(|(c, _)| matches!(c, Clave::PalabrasDe(_)))
+                .count(),
             pixpin_pin::magia::MiniApp::TODAS.len()
         );
         let (_, reloj) = &filas[1];
@@ -3669,10 +3929,16 @@ mod pruebas {
         assert!(palabras_para_editar(&a, Clave::PalabrasDe(0)).contains("time"));
         // Cambiar: punto azul, y lo guardado es el formato del movil.
         poner_palabras_escritas(&mut a, Clave::PalabrasDe(0), "Reloj, pomodoro");
-        assert_eq!(a.pinear.guardadas().map(|g| g.contains("reloj=TIMER")), Some(true));
+        assert_eq!(
+            a.pinear.guardadas().map(|g| g.contains("reloj=TIMER")),
+            Some(true)
+        );
         let filas = filas_de_seccion(Seccion::Pinear, &a, &cx);
         assert!(filas[1].1.cambiado);
-        assert!(!filas[2].1.cambiado, "caso negativo: el cronometro no cambio");
+        assert!(
+            !filas[2].1.cambiado,
+            "caso negativo: el cronometro no cambio"
+        );
         // Restablecer esa fila deja TODO de fabrica, no una copia.
         restablecer(Clave::PalabrasDe(0), &mut a);
         assert_eq!(a.pinear, pixpin_store::ajustes::Pinear::default());
@@ -3788,7 +4054,7 @@ mod pruebas {
             (
                 "atajos",
                 Estado {
-                    seccion: 6,
+                    seccion: 7,
                     capturando: Some(3),
                     ..Estado::default()
                 },
@@ -3797,7 +4063,7 @@ mod pruebas {
             (
                 "avanzado",
                 Estado {
-                    seccion: 10,
+                    seccion: 11,
                     ..Estado::default()
                 },
                 None,
@@ -3805,7 +4071,7 @@ mod pruebas {
             (
                 "apps",
                 Estado {
-                    seccion: 8,
+                    seccion: 9,
                     ..Estado::default()
                 },
                 None,
@@ -3813,7 +4079,7 @@ mod pruebas {
             (
                 "asistente",
                 Estado {
-                    seccion: 5,
+                    seccion: 6,
                     ..Estado::default()
                 },
                 None,
@@ -3835,9 +4101,7 @@ mod pruebas {
             if let Foco::Entrada(_) = estado.foco {
                 let i = filas
                     .iter()
-                    .position(|(c, _)| {
-                        *c == Clave::AnadirIgnorado || *c == Clave::PalabrasDe(0)
-                    })
+                    .position(|(c, _)| *c == Clave::AnadirIgnorado || *c == Clave::PalabrasDe(0))
                     .unwrap();
                 estado.foco = Foco::Entrada(i);
             }
@@ -3916,11 +4180,26 @@ mod pruebas {
         assert!(autos.iter().all(|(_, f)| f.quitar && !f.cambiado));
         assert_eq!(autos[0].1.control, Control::Interruptor(true));
         assert_eq!(autos[2].1.control, Control::Interruptor(false));
-        assert!(autos[1].1.ayuda.starts_with("lun, mar, mié, jue, vie a las 08:00"), "{}", autos[1].1.ayuda);
-        assert!(autos[4].1.ayuda.contains("corre en TEL9"), "{}", autos[4].1.ayuda);
+        assert!(
+            autos[1]
+                .1
+                .ayuda
+                .starts_with("lun, mar, mié, jue, vie a las 08:00"),
+            "{}",
+            autos[1].1.ayuda
+        );
+        assert!(
+            autos[4].1.ayuda.contains("corre en TEL9"),
+            "{}",
+            autos[4].1.ayuda
+        );
         // Caso negativo: la rota no se enciende, dice por que.
         assert_eq!(autos[5].1.control, Control::Nada);
-        assert!(autos[5].1.ayuda.starts_with("No se entiende"), "{}", autos[5].1.ayuda);
+        assert!(
+            autos[5].1.ayuda.starts_with("No se entiende"),
+            "{}",
+            autos[5].1.ayuda
+        );
         // Solo la «a mano» de aqui tiene «Correr ahora».
         let correr: Vec<_> = filas
             .iter()
@@ -3954,13 +4233,17 @@ mod pruebas {
             .unwrap_or_else(std::env::temp_dir);
         std::fs::create_dir_all(&dir).expect("carpeta");
         let mut estado = Estado {
-            seccion: SECCIONES.iter().position(|s| *s == Seccion::Asistente).unwrap(),
+            seccion: SECCIONES
+                .iter()
+                .position(|s| *s == Seccion::Asistente)
+                .unwrap(),
             desplazamiento: 9_999,
             ..Estado::default()
         };
         let filas = filas_actuales(&estado, &a, &cx);
         let solo: Vec<Fila> = filas.iter().map(|(_, f)| f.clone()).collect();
-        estado.desplazamiento = limitar_desplazamiento(estado.desplazamiento, &solo, contenido(ANCHO, ALTO));
+        estado.desplazamiento =
+            limitar_desplazamiento(estado.desplazamiento, &solo, contenido(ANCHO, ALTO));
         let mut cajas = Cajas::default();
         cajas.traer(&estado);
         let vista = Vista {
@@ -3972,9 +4255,16 @@ mod pruebas {
             resaltado: None,
             hay_deshacer: false,
         };
-        motor.dibujar(&destino.destino, |p| dibujar(p, 1.0, &vista, &t)).expect("pinta");
+        motor
+            .dibujar(&destino.destino, |p| dibujar(p, 1.0, &vista, &t))
+            .expect("pinta");
         let (w, h, pixeles) = destino.leer_rgba().expect("lee");
-        let png = pixpin_codec::codificar_png(&pixpin_codec::ImagenRgba { ancho: w, alto: h, pixeles }).expect("png");
+        let png = pixpin_codec::codificar_png(&pixpin_codec::ImagenRgba {
+            ancho: w,
+            alto: h,
+            pixeles,
+        })
+        .expect("png");
         std::fs::write(dir.join("ajustes2-automatizaciones.png"), png).expect("escribe");
     }
 }

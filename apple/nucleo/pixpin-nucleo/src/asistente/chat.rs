@@ -516,6 +516,7 @@ impl EnVivo {
                 self.estado = Some("💭 …".into());
             }
             Evento::Reintento { .. } => self.estado = Some("🔁 corrigiendo…".into()),
+            Evento::Tareas(_) => {}
         }
     }
 

@@ -60,6 +60,15 @@ mod pintar;
 
 pub(super) use pintar::{pintar, pintar_interruptor};
 
+/// Las partes del interruptor de la barra de arriba.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum Parte {
+    Chat,
+    Proyectos,
+    /// La galeria de las figuras guardadas (`figuras.rs`, 24-oct-2026).
+    Figuras,
+}
+
 /// Donde se recuerda la ultima vista: al lado del almacen y sin viajar,
 /// como `fondo-del-chat.txt`. Es de este equipo, no del proyecto.
 const FICHERO_VISTA: &str = "vista-del-chat.txt";
@@ -348,15 +357,16 @@ impl VistaProyectos {
         }
     }
 
-    /// Que mitad del interruptor hay bajo el punto: `Some(true)` Proyectos,
-    /// `Some(false)` Chat. Pulsar una mitad la elige, como un selector de
-    /// dos: pulsar «Chat» estando en el chat no cambia nada.
-    pub(super) fn interruptor_en(&self, l: Punto) -> Option<bool> {
+    /// Que parte del interruptor hay bajo el punto. Pulsar una la elige,
+    /// como un selector: pulsar «Chat» estando en el chat no cambia nada.
+    pub(super) fn interruptor_en(&self, l: Punto) -> Option<Parte> {
         let i = self.interruptor.get()?;
-        if i.proyectos.contiene(l) {
-            Some(true)
+        if i.figuras.contiene(l) {
+            Some(Parte::Figuras)
+        } else if i.proyectos.contiene(l) {
+            Some(Parte::Proyectos)
         } else if i.caja.contiene(l) {
-            Some(false)
+            Some(Parte::Chat)
         } else {
             None
         }
@@ -1106,7 +1116,13 @@ fn accion(v: &mut VistaProyectos, b: &mut Bucle, a: AccionBarra, id: &str) -> bo
             match super::crear_tabla(b.ubicacion, &mut a, b.identidad, b.textos) {
                 Ok(()) => {
                     let i = a.mensajes.len() - 1;
-                    crate::hoja_pin::abrir_editando(b.idioma, b.ubicacion, &a.ficha.id, &a.mensajes, i);
+                    crate::hoja_pin::abrir_editando(
+                        b.idioma,
+                        b.ubicacion,
+                        &a.ficha.id,
+                        &a.mensajes,
+                        i,
+                    );
                     b.devolver_abierto(a);
                 }
                 Err(e) => {
@@ -1149,12 +1165,13 @@ fn abrir_hoja(v: &mut VistaProyectos, b: &mut Bucle, id: &str, indice: usize) ->
     }
     if es_dibujo {
         let mensajes: Vec<_> = d.hojas.iter().map(|h| h.mensaje.clone()).collect();
-        // Modal: vuelve al cerrar el lienzo, con lo dibujado ya guardado.
-        super::abrir_hojas(b.ubicacion.raiz(), id, &mensajes, indice, b.lienzo);
+        // En su hilo (`lienzo_aparte`): al cerrarlo, el chat relee lo abierto.
+        let (raiz, proyecto, opciones) =
+            (b.ubicacion.raiz().to_path_buf(), id.to_string(), b.lienzo);
+        super::lienzo_aparte(super::clave_de_hoja(id, &mensajes, indice), move || {
+            super::abrir_hojas(&raiz, &proyecto, &mensajes, indice, opciones);
+        });
         v.olvidar(id);
-        if let Some(a) = b.abierto.as_mut().filter(|a| a.ficha.id == id) {
-            super::releer_lo_abierto(b.ubicacion, a);
-        }
         return true;
     }
     // Una foto, en SU lienzo como al tocar su burbuja (K11): la foto
@@ -1163,24 +1180,18 @@ fn abrir_hoja(v: &mut VistaProyectos, b: &mut Bucle, id: &str, indice: usize) ->
     // ensenaba la captura sin la tinta guardada en su lienzo.
     if m.clase == Some(Clase::Imagen) {
         let mut mensajes: Vec<_> = d.hojas.iter().map(|h| h.mensaje.clone()).collect();
-        if crate::foto_anotada::abrir_en_su_lienzo(
-            b.ubicacion.raiz(),
-            id,
-            &mut mensajes,
-            indice,
-            b.lienzo,
-        ) {
-            v.olvidar(id);
-            if let Some(a) = b.abierto.as_mut().filter(|a| a.ficha.id == id) {
-                super::releer_lo_abierto(b.ubicacion, a);
+        crate::foto_anotada::asegurar_lienzo(b.ubicacion.raiz(), id, &mut mensajes, indice);
+        let (raiz, proyecto, opciones) =
+            (b.ubicacion.raiz().to_path_buf(), id.to_string(), b.lienzo);
+        let plana = super::ruta_del_mensaje(&raiz, id, &m);
+        super::lienzo_aparte(super::clave_de_hoja(id, &mensajes, indice), move || {
+            if !crate::foto_anotada::abrir_si_tiene_lienzo(
+                &raiz, &proyecto, &mensajes, indice, opciones,
+            ) && let Some(ruta) = plana
+            {
+                super::abrir_foto_en_lienzo(&ruta, opciones);
             }
-            return true;
-        }
-    }
-    if m.clase == Some(Clase::Imagen)
-        && let Some(ruta) = super::ruta_del_mensaje(b.ubicacion.raiz(), id, &m)
-    {
-        super::abrir_foto_en_lienzo(&ruta, b.lienzo);
+        });
         v.olvidar(id);
         return true;
     }
@@ -1899,8 +1910,12 @@ mod pruebas {
             x: r.x + r.ancho as i32 / 2,
             y: r.y + r.alto as i32 / 2,
         };
-        assert_eq!(v.interruptor_en(centro(i.chat)), Some(false));
-        assert_eq!(v.interruptor_en(centro(i.proyectos)), Some(true));
+        assert_eq!(v.interruptor_en(centro(i.chat)), Some(Parte::Chat));
+        assert_eq!(
+            v.interruptor_en(centro(i.proyectos)),
+            Some(Parte::Proyectos)
+        );
+        assert_eq!(v.interruptor_en(centro(i.figuras)), Some(Parte::Figuras));
         assert_eq!(v.interruptor_en(Punto { x: 5, y: 5 }), None);
     }
 }

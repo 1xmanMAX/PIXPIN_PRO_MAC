@@ -64,6 +64,9 @@ impl CapturasDelAparato for CapturasDelPc {
                         cuando: caducidad_capturas::ms_de(e.cuando),
                         bytes: e.bytes as i64,
                         mime: pixpin_sincro::al_lienzo::mime_de(&nombre).to_string(),
+                        // Lo que la galeria ya leyo de ella: viaja con su
+                        // entrada para que el otro la encuentre al buscar.
+                        texto: galeria_capturas::texto_leido(&self.raiz, &e),
                         nombre,
                     }
                 })
@@ -96,7 +99,15 @@ impl CapturasDelAparato for CapturasDelPc {
                 f.set_modified(SystemTime::UNIX_EPOCH + Duration::from_millis(e.cuando as u64))?;
             }
             drop(f);
-            std::fs::rename(&tmp, carpeta.join(&e.nombre))?;
+            let destino = carpeta.join(&e.nombre);
+            std::fs::rename(&tmp, &destino)?;
+            // Con su texto, si lo trae: buscarla por lo que pone funciona
+            // ya, sin esperar a que la galeria la vuelva a leer.
+            if !e.texto.is_empty()
+                && let Err(err) = galeria_capturas::apuntar_texto(&self.raiz, &destino, &e.texto)
+            {
+                tracing::debug!(?err, "el texto de la captura no se pudo guardar");
+            }
             Ok(true)
         })();
         if !matches!(hecho, Ok(true)) {
@@ -109,14 +120,25 @@ impl CapturasDelAparato for CapturasDelPc {
         for n in nombres {
             let ruta = self.carpeta().join(n);
             match galeria_capturas::borrar(&self.raiz, &ruta) {
-                Ok(_) => tracing::info!(ruta = %ruta.display(), "captura quitada en otro aparato: a la papelera"),
-                Err(e) => tracing::warn!(?e, ruta = %ruta.display(), "no se pudo quitar la captura"),
+                Ok(_) => {
+                    tracing::info!(ruta = %ruta.display(), "captura quitada en otro aparato: a la papelera")
+                }
+                Err(e) => {
+                    tracing::warn!(?e, ruta = %ruta.display(), "no se pudo quitar la captura")
+                }
             }
         }
     }
 
     fn dias(&self) -> i64 {
         caducidad_capturas::dias()
+    }
+
+    fn apuntar_texto(&self, nombre: &str, texto: &str) {
+        let ruta = self.carpeta().join(nombre);
+        if let Err(e) = galeria_capturas::apuntar_texto(&self.raiz, &ruta, texto) {
+            tracing::debug!(?e, "el texto llegado de otro aparato no se pudo guardar");
+        }
     }
 
     fn caducidad(&self, ahora: i64) -> Caducidad {
@@ -168,7 +190,42 @@ mod pruebas {
         assert_eq!(l[0].mime, "image/png");
         assert!(c.abrir("PixPin_20261005_101500.png").is_some());
         let lista = galeria_capturas::listar(&galeria_capturas::carpeta_en(&raiz));
-        assert_eq!(caducidad_capturas::ms_de(lista[0].cuando), 1_791_000_000_000);
+        assert_eq!(
+            caducidad_capturas::ms_de(lista[0].cuando),
+            1_791_000_000_000
+        );
+        let _ = std::fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn una_captura_que_llega_con_su_texto_lo_deja_donde_busca_la_galeria() {
+        let raiz = temporal("texto");
+        let c = CapturasDelPc::nuevas(&raiz);
+        let e = Entrada {
+            texto: "Factura 123".into(),
+            ..Entrada::nueva("PixPin_20261005_101500.png", 1_791_000_000_000)
+        };
+        assert!(
+            c.guardar(&e, &mut |w| {
+                w.write_all(b"\x89PNG datos").unwrap();
+                Ok(true)
+            })
+            .unwrap()
+        );
+        // La galeria lo encuentra en su cache, y vuelve a viajar.
+        let l = c.listar().unwrap();
+        assert_eq!(l[0].texto, "Factura 123");
+        let lista = galeria_capturas::listar(&galeria_capturas::carpeta_en(&raiz));
+        assert_eq!(
+            galeria_capturas::texto_leido(&raiz, &lista[0]),
+            "Factura 123"
+        );
+        // Lo leido aqui no se pisa con lo que llegue despues.
+        c.apuntar_texto("PixPin_20261005_101500.png", "otro");
+        assert_eq!(c.listar().unwrap()[0].texto, "Factura 123");
+        // Ni se apunta texto de una captura que no esta.
+        c.apuntar_texto("no-esta.png", "nada");
+        assert_eq!(c.listar().unwrap().len(), 1);
         let _ = std::fs::remove_dir_all(&raiz);
     }
 
@@ -190,9 +247,9 @@ mod pruebas {
         assert_eq!(std::fs::read_dir(&carpeta).unwrap().count(), 0);
         // Y si falla la red a medias, igual.
         assert!(
-            c.guardar(&e, &mut |_| Err(pixpin_sincro::protocolo::ErrorSincro::Protocolo(
-                "cortado".into()
-            )))
+            c.guardar(&e, &mut |_| Err(
+                pixpin_sincro::protocolo::ErrorSincro::Protocolo("cortado".into())
+            ))
             .is_err()
         );
         assert_eq!(std::fs::read_dir(&carpeta).unwrap().count(), 0);
@@ -208,7 +265,12 @@ mod pruebas {
         std::fs::write(carpeta.join("a.png"), b"x").unwrap();
         c.tirar(&["a.png".to_string()]);
         assert!(!carpeta.join("a.png").exists());
-        assert!(raiz.join("papelera").join("capturas").join("a.png").exists());
+        assert!(
+            raiz.join("papelera")
+                .join("capturas")
+                .join("a.png")
+                .exists()
+        );
         c.cambiar_caducidad(7, &mut |r| {
             r.fijadas.insert("b.png".into(), 99);
         })

@@ -18,12 +18,7 @@ pub fn colocar(ancla: RectF, ancho: f32, alto: f32, limite: RectF, hueco: f32) -
     if y + alto > limite.y + limite.alto {
         y = (ancla.y - hueco - alto).max(limite.y);
     }
-    RectF {
-        x,
-        y,
-        ancho,
-        alto,
-    }
+    RectF { x, y, ancho, alto }
 }
 
 /// Pinta la pista de `texto` para `ancla`, dentro de `limite`.
@@ -36,7 +31,7 @@ pub fn pintar(p: &Pintor, ancla: RectF, texto: &str, limite: RectF, s: f32) {
     // Con aire contra el borde de la ventana: pegada al canto parece cortada.
     let caja = colocar(ancla, ancho, alto, encoger(limite, 8.0 * s), 6.0 * s);
     let radio = 8.0 * s;
-    p.rellenar_redondeado(encoger(caja, -1.0 * s), radio + 1.0 * s, blanco(0.12));
+    p.rellenar_redondeado(encoger(caja, -s), radio + 1.0 * s, blanco(0.12));
     p.rellenar_redondeado(caja, radio, negro(0.92));
     p.texto_linea(
         texto,

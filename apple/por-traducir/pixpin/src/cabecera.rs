@@ -94,7 +94,13 @@ pub struct Cabecera<'a, A> {
 /// Pinta la barra en lo alto de una ventana de ancho `w` y apunta sus zonas.
 /// Devuelve su alto. Llamar DESPUES de pintar el contenido, para que tape lo
 /// que se desplaza debajo y sus zonas ganen a las de el.
-pub fn pintar<A: Copy>(p: &Pintor, botones: &mut Botones<A>, w: f32, s: f32, c: &Cabecera<'_, A>) -> f32 {
+pub fn pintar<A: Copy>(
+    p: &Pintor,
+    botones: &mut Botones<A>,
+    w: f32,
+    s: f32,
+    c: &Cabecera<'_, A>,
+) -> f32 {
     pintar_con_segmentos(p, botones, w, s, c, &[])
 }
 
@@ -181,7 +187,8 @@ fn pintar_todo<A: Copy>(
     botones.zona(cerrar, c.cerrar);
     let mut x = cerrar.x;
     for b in c.botones.iter().rev() {
-        let ancho = crate::lecciones::ui::ancho_de_boton(p, b.icono.is_some(), b.rotulo, b.chapa, s);
+        let ancho =
+            crate::lecciones::ui::ancho_de_boton(p, b.icono.is_some(), b.rotulo, b.chapa, s);
         // Un boton solo de icono es cuadrado.
         let ancho = if b.rotulo.is_empty() { lado } else { ancho };
         x -= 10.0 * s + ancho;
@@ -200,7 +207,11 @@ fn pintar_todo<A: Copy>(
             };
             p.rellenar_redondeado(r, 10.0 * s, fondo);
             if let Some(i) = b.icono {
-                p.icono(i, encoger(r, 10.0 * s), if b.activo { Color::BLANCO } else { TEXTO });
+                p.icono(
+                    i,
+                    encoger(r, 10.0 * s),
+                    if b.activo { Color::BLANCO } else { TEXTO },
+                );
             }
             botones.zona(r, b.accion);
         } else {
@@ -247,7 +258,14 @@ fn pintar_todo<A: Copy>(
             if g.activo {
                 p.rellenar_redondeado(r, r.alto / 2.0, AZUL);
             } else if dentro(r, botones.raton) {
-                p.rellenar_redondeado(r, r.alto / 2.0, Color { a: 0.08, ..Color::BLANCO });
+                p.rellenar_redondeado(
+                    r,
+                    r.alto / 2.0,
+                    Color {
+                        a: 0.08,
+                        ..Color::BLANCO
+                    },
+                );
             }
             let (tw, th) = p.medir_texto(g.rotulo, tam);
             p.texto(
@@ -287,10 +305,21 @@ fn pintar_todo<A: Copy>(
             if g.activo {
                 p.rellenar_redondeado(r, r.alto / 2.0, hex(0x3A3A3C));
             } else if encima {
-                p.rellenar_redondeado(r, r.alto / 2.0, Color { a: 0.06, ..Color::BLANCO });
+                p.rellenar_redondeado(
+                    r,
+                    r.alto / 2.0,
+                    Color {
+                        a: 0.06,
+                        ..Color::BLANCO
+                    },
+                );
             }
             let li = 20.0 * s;
-            let tinta = if g.activo || encima { Color::BLANCO } else { GRIS };
+            let tinta = if g.activo || encima {
+                Color::BLANCO
+            } else {
+                GRIS
+            };
             p.icono(
                 g.icono,
                 RectF {
@@ -366,8 +395,9 @@ fn pintar_todo<A: Copy>(
     );
     let tx = caja_b.x + 36.0 * s;
     let tam = 14.0 * s;
-    let derecha = if bus.texto.is_empty() {
-        let cw = crate::lecciones::ui::ancho_de_chapa(p, "Ctrl F", s);
+    let cw = crate::lecciones::ui::ancho_de_chapa(p, "Ctrl F", s);
+    let (pw, _) = p.medir_texto(bus.pista, tam);
+    let derecha = if bus.texto.is_empty() && cabe_la_chapa(caja_b.ancho, pw, cw, s) {
         crate::lecciones::ui::chapa(
             p,
             "Ctrl F",
@@ -378,6 +408,8 @@ fn pintar_todo<A: Copy>(
             s,
         );
         cw + 20.0 * s
+    } else if bus.texto.is_empty() {
+        12.0 * s
     } else {
         let l = 32.0 * s;
         let xr = RectF {
@@ -403,7 +435,8 @@ fn pintar_todo<A: Copy>(
     let ty = caja_b.y + (lado - th) / 2.0;
     p.con_recorte(campo, |p| {
         if bus.texto.is_empty() {
-            p.texto(bus.pista, tx, ty, tam, GRIS);
+            // Si no cabe, en puntos suspensivos y no cortada a media letra.
+            p.texto_linea(bus.pista, tx, ty, tam, campo.ancho, GRIS);
         } else {
             p.texto(bus.texto, tx, ty, tam, TEXTO);
         }
@@ -434,5 +467,29 @@ fn encoger(r: RectF, m: f32) -> RectF {
         y: r.y + m,
         ancho: (r.ancho - 2.0 * m).max(0.0),
         alto: (r.alto - 2.0 * m).max(0.0),
+    }
+}
+
+/// Si la chapa «Ctrl F» cabe en el buscador de `ancho` junto a la pista
+/// entera (de `pista` de ancho, la chapa de `chapa`): a la izquierda la
+/// lupa y su aire (36), a la derecha la chapa y su aire (20). Si no, la
+/// chapa se quita y la pista se queda con el sitio.
+pub fn cabe_la_chapa(ancho: f32, pista: f32, chapa: f32, s: f32) -> bool {
+    36.0 * s + pista + chapa + 20.0 * s <= ancho
+}
+
+#[cfg(test)]
+mod pruebas_buscador {
+    use super::*;
+
+    #[test]
+    fn con_la_barra_llena_la_chapa_del_atajo_deja_sitio_a_la_pista() {
+        // «Buscar en el timeline…» mide unos 150 y la chapa unos 40.
+        assert!(cabe_la_chapa(260.0, 150.0, 40.0, 1.0));
+        // El timeline a 900 (cuatro pestanas): la caja de ~194 ya no da.
+        assert!(!cabe_la_chapa(194.0, 150.0, 40.0, 1.0));
+        // Con la escala, todo crece a la vez.
+        assert!(cabe_la_chapa(520.0, 300.0, 80.0, 2.0));
+        assert!(!cabe_la_chapa(400.0, 300.0, 80.0, 2.0));
     }
 }
