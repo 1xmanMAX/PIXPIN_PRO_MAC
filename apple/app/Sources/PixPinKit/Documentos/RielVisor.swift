@@ -14,7 +14,9 @@ struct IslaRiel: View {
     let imprimir: () -> Void
 
     /// Lo que ocupa a lo alto (para poner los puntos debajo).
-    static let alto: CGFloat = 3 * 28 + 2 * 2 + 2 * 3
+    /// Tres botones de 28, dos huecos de 2 y el margen de 3 arriba y abajo
+    /// (escrito ya sumado: el compilador de la CI no daba con el tipo a tiempo).
+    static let alto: CGFloat = 94
 
     var body: some View {
         VStack(spacing: 2) {

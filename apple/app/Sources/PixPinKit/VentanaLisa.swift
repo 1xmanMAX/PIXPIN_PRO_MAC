@@ -70,9 +70,13 @@ public enum VentanaLisa {
                 s.automaticallyAdjustsContentInsets = false
                 s.contentInsets = NSEdgeInsetsZero
             }
+            // `obscuredContentInsets` es del SDK de macOS 26 (Xcode 26); con
+            // un Xcode anterior (el de la CI) no existe y no hace falta.
+            #if compiler(>=6.2)
             if let w = v as? WKWebView {
                 if #available(macOS 26.0, *) { w.obscuredContentInsets = NSEdgeInsetsZero }
             }
+            #endif
             v.subviews.forEach(recorrer)
         }
         recorrer(raiz)
