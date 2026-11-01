@@ -57,7 +57,7 @@ pub trait Cartero {
 
 /// El cartero de verdad: `WM_COPYDATA` a la PixPin abierta.
 pub struct AlaApp {
-    /// `pixpinmax.exe`, para arrancarla si no esta.
+    /// `pindesk.exe`, para arrancarla si no esta.
     pub exe: Option<PathBuf>,
 }
 
@@ -133,8 +133,9 @@ pub struct Entorno {
 
 impl Entorno {
     /// El de verdad: la regla de `pixpin_store::rutas::resolver` (portable si
-    /// junto al exe hay un `pixpinmax.toml`, si no `%APPDATA%\PixPinMax`), o
-    /// la carpeta de `PIXPIN_PUENTE_EN_SECO` en las pruebas.
+    /// junto al exe hay un `pindesk.toml` o el `pixpinmax.toml` de antes, si
+    /// no `%APPDATA%\PinDesk` o el `PixPinMax` aun sin mover), o la carpeta de
+    /// `PIXPIN_PUENTE_EN_SECO` en las pruebas.
     pub fn del_equipo(dir_exe: Option<&Path>, en_seco: Option<PathBuf>) -> Option<Entorno> {
         let sello = format!(
             "{}-{}",
@@ -174,10 +175,14 @@ pub fn exe_de_pixpin(dir_exe: Option<&Path>) -> Option<PathBuf> {
 /// Las apps de /Applications que se prueban, en orden: `PinDesk.app` (el
 /// nombre de ahora) y la `PixPin.app` de antes, como Windows prueba
 /// `pindesk.exe` y luego `pixpinmax.exe`.
-pub const APPS_EN_APLICACIONES: [&str; 2] = ["/Applications/PinDesk.app", "/Applications/PixPin.app"];
+pub const APPS_EN_APLICACIONES: [&str; 2] =
+    ["/Applications/PinDesk.app", "/Applications/PixPin.app"];
 
 /// [`exe_de_pixpin`] con quien dice si una ruta existe (para las pruebas).
-pub fn exe_de_pixpin_con(dir_exe: Option<&Path>, existe: impl Fn(&Path) -> bool) -> Option<PathBuf> {
+pub fn exe_de_pixpin_con(
+    dir_exe: Option<&Path>,
+    existe: impl Fn(&Path) -> bool,
+) -> Option<PathBuf> {
     // Dentro de la app (`PinDesk.app/Contents/MacOS/pixpin-puente`, o la
     // `PixPin.app` de antes: cualquier `.app`) o en /Applications.
     let dentro = dir_exe

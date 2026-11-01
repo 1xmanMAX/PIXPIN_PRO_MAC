@@ -24,11 +24,11 @@
 pub mod documento;
 pub mod escribir;
 pub mod herramientas;
-pub mod leer;
 pub mod hora;
+pub mod leer;
 pub mod pantalla;
 pub mod protocolo;
 
 /// Lo que se dice en `serverInfo`.
-pub const NOMBRE: &str = "pixpin";
+pub const NOMBRE: &str = "pindesk";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

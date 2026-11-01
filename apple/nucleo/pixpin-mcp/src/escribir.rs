@@ -6,7 +6,7 @@
 //! hay un pedido propio, `herramienta` (`docs/protocolo-pedidos.md`):
 //!
 //! ```json
-//! {"pixpin":1, "accion":"herramienta", "nombre":"anadir_tarea",
+//! {"pindesk":1, "accion":"herramienta", "nombre":"anadir_tarea",
 //!  "args":{"texto":"pan","fecha":"mañana"},
 //!  "respuesta":"C:\\Users\\…\\Temp\\pixpin-mcp\\1234-1.json",
 //!  "preguntar":"¿…?", "origen":"Claude"}
@@ -166,7 +166,7 @@ fn recortar(t: &str, n: usize) -> String {
 /// El pedido `herramienta` para esa fila.
 pub fn pedido(a: &Accion, args: &Map<String, Value>, respuesta: &Path) -> Value {
     let mut p = json!({
-        "pixpin": 1,
+        "pindesk": 1,
         "accion": "herramienta",
         "nombre": a.herramienta,
         "args": args,

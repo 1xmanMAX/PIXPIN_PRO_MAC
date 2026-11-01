@@ -303,7 +303,6 @@ pub fn enviar(p: &Pedido, al_trozo: &mut dyn FnMut(&[u8]) -> Seguir) -> Result<b
     use std::io::{Read, Write};
     use std::net::{TcpStream, ToSocketAddrs};
 
-
     let d = partir(p.url).ok_or_else(|| Fallo::Red(format!("direccion no valida: {}", p.url)))?;
     if d.segura {
         return match TRANSPORTE.get() {
@@ -630,7 +629,6 @@ fn pedir_local(
     use std::io::{Read, Write};
     use std::net::{TcpStream, ToSocketAddrs};
 
-
     let red = |que: &str, e: std::io::Error| Fallo::Red(format!("{que}: {e}"));
     let direccion = (d.servidor.as_str(), d.puerto)
         .to_socket_addrs()
@@ -708,8 +706,7 @@ pub struct RespuestaWeb {
 /// Como se presenta PixPin a las paginas (el `AGENTE_WEB` de Windows, con
 /// el Mac): como un navegador que dice quien es.
 #[cfg(not(windows))]
-const AGENTE_WEB: &str =
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) PixPinMax/1.0 (asistente; lee la pagina para el usuario)";
+const AGENTE_WEB: &str = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) PixPinMax/1.0 (asistente; lee la pagina para el usuario)";
 
 /// La cabecera con el plazo en segundos para el transporte de la app (no
 /// sale a la red: Swift la usa de `timeoutInterval`).
@@ -750,10 +747,16 @@ fn bajar_por(
         return Err(Fallo::Red(format!("direccion no valida: {url}")));
     }
     let mut cab: Vec<(&'static str, String)> = cabeceras.to_vec();
-    if !cab.iter().any(|(k, _)| k.eq_ignore_ascii_case("user-agent")) {
+    if !cab
+        .iter()
+        .any(|(k, _)| k.eq_ignore_ascii_case("user-agent"))
+    {
         cab.push(("User-Agent", AGENTE_WEB.to_string()));
     }
-    cab.push((CABECERA_PLAZO, format!("{:.1}", plazo.as_secs_f64().max(1.0))));
+    cab.push((
+        CABECERA_PLAZO,
+        format!("{:.1}", plazo.as_secs_f64().max(1.0)),
+    ));
     let empezo = std::time::Instant::now();
     let mut estado: Option<(u32, Option<Duration>)> = None;
     let (mut tipo, mut ubicacion) = (None, None);
@@ -871,7 +874,9 @@ impl LectorHttp {
         if !self.en_cuerpo {
             let Some(fin) = self.pendiente.windows(4).position(|v| v == b"\r\n\r\n") else {
                 if self.pendiente.len() > 64 * 1024 {
-                    return Err(crate::ErrorIa::Protocolo("cabecera HTTP interminable".into()));
+                    return Err(crate::ErrorIa::Protocolo(
+                        "cabecera HTTP interminable".into(),
+                    ));
                 }
                 return Ok(Vec::new());
             };
@@ -920,7 +925,9 @@ impl LectorHttp {
             };
             let linea = String::from_utf8_lossy(&self.pendiente[..fin]).to_string();
             let tam = usize::from_str_radix(linea.split(';').next().unwrap_or("").trim(), 16)
-                .map_err(|_| crate::ErrorIa::Protocolo(format!("trozo HTTP ilegible: {linea:.40}")))?;
+                .map_err(|_| {
+                    crate::ErrorIa::Protocolo(format!("trozo HTTP ilegible: {linea:.40}"))
+                })?;
             self.pendiente.drain(..fin + 2);
             if tam == 0 {
                 self.terminado = true;
@@ -1012,7 +1019,11 @@ mod pruebas {
 
     #[cfg(not(windows))]
     impl Transporte for Pagina {
-        fn enviar(&self, _: &Pedido, _: &mut dyn FnMut(EventoHttp) -> Seguir) -> Result<(), String> {
+        fn enviar(
+            &self,
+            _: &Pedido,
+            _: &mut dyn FnMut(EventoHttp) -> Seguir,
+        ) -> Result<(), String> {
             Err("no".into())
         }
         fn bajar(
@@ -1021,7 +1032,10 @@ mod pruebas {
             cabeceras: &[(&'static str, String)],
             al_evento: &mut dyn FnMut(EventoHttp) -> Seguir,
         ) -> Result<(), String> {
-            *self.vistas.lock().unwrap() = cabeceras.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
+            *self.vistas.lock().unwrap() = cabeceras
+                .iter()
+                .map(|(k, v)| (k.to_string(), v.clone()))
+                .collect();
             al_evento(EventoHttp::Estado {
                 codigo: self.codigo,
                 esperar: None,
@@ -1042,7 +1056,12 @@ mod pruebas {
     }
 
     #[cfg(not(windows))]
-    fn pagina(codigo: u32, tipo: Option<&'static str>, ubicacion: Option<&'static str>, cuerpo: &'static str) -> Pagina {
+    fn pagina(
+        codigo: u32,
+        tipo: Option<&'static str>,
+        ubicacion: Option<&'static str>,
+        cuerpo: &'static str,
+    ) -> Pagina {
         Pagina {
             codigo,
             tipo,
@@ -1056,23 +1075,45 @@ mod pruebas {
     #[test]
     fn bajar_una_pagina_trae_su_tipo_y_no_sigue_redirecciones() {
         let plazo = Duration::from_secs(20);
-        let p = pagina(200, Some("text/html; charset=utf-8"), None, "<html>hola</html>");
+        let p = pagina(
+            200,
+            Some("text/html; charset=utf-8"),
+            None,
+            "<html>hola</html>",
+        );
         let r = bajar_por(&p, "https://ejemplo.org/", &[], 1024, plazo).unwrap();
         assert_eq!(r.codigo, 200);
         assert_eq!(r.tipo.as_deref(), Some("text/html; charset=utf-8"));
         assert_eq!(r.cuerpo, b"<html>hola</html>");
         let vistas = p.vistas.lock().unwrap().clone();
-        assert!(vistas.iter().any(|(k, v)| k == "User-Agent" && v.contains("PixPinMax")));
-        assert!(vistas.iter().any(|(k, v)| k == CABECERA_PLAZO && v == "20.0"));
+        assert!(
+            vistas
+                .iter()
+                .any(|(k, v)| k == "User-Agent" && v.contains("PixPinMax"))
+        );
+        assert!(
+            vistas
+                .iter()
+                .any(|(k, v)| k == CABECERA_PLAZO && v == "20.0")
+        );
         // Una redireccion vuelve con su `Location`, sin seguirla.
         let p = pagina(301, None, Some("http://192.168.1.1/"), "");
         let r = bajar_por(&p, "https://ejemplo.org/", &[], 1024, plazo).unwrap();
-        assert_eq!((r.codigo, r.ubicacion.as_deref()), (301, Some("http://192.168.1.1/")));
+        assert_eq!(
+            (r.codigo, r.ubicacion.as_deref()),
+            (301, Some("http://192.168.1.1/"))
+        );
         // Un 404 es un fallo HTTP; lo que pasa del limite, un error.
         let p = pagina(404, None, None, "no esta");
-        assert!(matches!(bajar_por(&p, "https://ejemplo.org/x", &[], 1024, plazo), Err(Fallo::Http { codigo: 404, .. })));
+        assert!(matches!(
+            bajar_por(&p, "https://ejemplo.org/x", &[], 1024, plazo),
+            Err(Fallo::Http { codigo: 404, .. })
+        ));
         let p = pagina(200, None, None, "muchos bytes de mas");
-        assert!(matches!(bajar_por(&p, "https://ejemplo.org/", &[], 8, plazo), Err(Fallo::Red(_))));
+        assert!(matches!(
+            bajar_por(&p, "https://ejemplo.org/", &[], 8, plazo),
+            Err(Fallo::Red(_))
+        ));
         assert!(bajar_por(&p, "file:///etc/passwd", &[], 8, plazo).is_err());
     }
 

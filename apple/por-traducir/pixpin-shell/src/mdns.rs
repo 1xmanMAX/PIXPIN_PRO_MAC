@@ -1,8 +1,13 @@
 //! Anunciar y buscar servicios DNS-SD por mDNS en la red local.
 //!
-//! El movil usa el `NsdManager` de Android: anuncia `_pixpin._tcp` con el
-//! nombre `PixPin <nombre>`, su puerto y un TXT (`g`, `id`, `l`, `n`), y
-//! busca ese mismo tipo. Para que el PC y el movil se vean sin que el usuario
+//! El movil usa el `NsdManager` de Android: anuncia `_pindesk._tcp` (antes de
+//! PinDesk, `_pixpin._tcp`) con el nombre `PinDesk <nombre>`, su puerto y un
+//! TXT (`g`, `id`, `l`, `n`), y busca ese mismo tipo.
+//!
+//! **Los dos nombres a la vez** mientras haya aparatos sin actualizar
+//! (docs/formato-pindesk.md): [`anunciar`] un `_pindesk…._tcp` lo anuncia
+//! tambien con su tipo de antes ([`tipo_de_antes`]) y [`buscar`] mira los
+//! dos, con el nuevo delante si un aparato sale en ambos. Para que el PC y el movil se vean sin que el usuario
 //! teclee direcciones, aqui se habla el mismo protocolo con la API nativa de
 //! Windows (`DnsServiceRegister`, `DnsServiceBrowse`, `DnsServiceResolve`).
 //! Se usa la del sistema y no un respondedor propio porque Windows ya tiene
@@ -53,7 +58,7 @@ const MAXIMO_ENTRADA_TXT: usize = 255;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Vecino {
     /// El nombre corto de la instancia, sin el tipo ni `.local`
-    /// (`"PixPin Max"`), igual que el `serviceName` de Android.
+    /// (`"PinDesk Casa"`), igual que el `serviceName` de Android.
     pub instancia: String,
     pub host: Ipv4Addr,
     pub puerto: u16,
@@ -93,7 +98,7 @@ pub enum ErrorMdns {
 // ---------------------------------------------------------------------------
 
 /// Deja el tipo como `_servicio._proto` en minusculas. Acepta la forma de
-/// Android (`"_pixpin._tcp."`) y la que ya lleva `.local`, porque las dos
+/// Android (`"_pindesk._tcp."`) y la que ya lleva `.local`, porque las dos
 /// aparecen en la practica y significan lo mismo.
 fn normalizar_tipo(tipo: &str) -> Result<String, ErrorMdns> {
     let rechazo = || ErrorMdns::TipoNoValido(tipo.to_owned());
@@ -119,7 +124,7 @@ fn normalizar_tipo(tipo: &str) -> Result<String, ErrorMdns> {
     Ok(t)
 }
 
-/// El nombre que se pide al buscar: `_pixpin._tcp.local`.
+/// El nombre que se pide al buscar: `_pindesk._tcp.local`.
 fn nombre_de_consulta(tipo: &str) -> String {
     format!("{tipo}.local")
 }
@@ -142,7 +147,7 @@ fn recortar_etiqueta(nombre: &str) -> &str {
     &nombre[..corte]
 }
 
-/// `<nombre>._pixpin._tcp.local`, con los puntos y barras del nombre
+/// `<nombre>._pindesk._tcp.local`, con los puntos y barras del nombre
 /// escapados (RFC 6763 §4.3): un punto sin escapar partiria la etiqueta y el
 /// nombre dejaria de ser una instancia del tipo.
 fn nombre_de_instancia(nombre: &str, tipo: &str) -> Result<String, ErrorMdns> {
@@ -160,7 +165,7 @@ fn nombre_de_instancia(nombre: &str, tipo: &str) -> Result<String, ErrorMdns> {
     Ok(format!("{escapado}.{}", nombre_de_consulta(tipo)))
 }
 
-/// De `PixPin Max._pixpin._tcp.local` a `PixPin Max`, deshaciendo los
+/// De `PinDesk Casa._pindesk._tcp.local` a `PinDesk Casa`, deshaciendo los
 /// escapes `\.`, `\\` y `\DDD`. `None` si el nombre no es de ese tipo.
 fn instancia_corta(completo: &str, tipo: &str) -> Option<String> {
     let completo = completo.trim_end_matches('.');
@@ -424,6 +429,81 @@ unsafe fn leer_instancia(instancia: *const DNS_SERVICE_INSTANCE) -> Resuelto {
 
 /// Mientras viva, el servicio esta anunciado; al soltarlo se retira.
 pub struct Anuncio {
+    _ahora: AnuncioUno,
+    /// El mismo con el tipo de antes de PinDesk, si se pudo anunciar.
+    _antes: Option<AnuncioUno>,
+}
+
+impl std::fmt::Debug for Anuncio {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Anuncio")
+            .field("antes", &self._antes.is_some())
+            .finish_non_exhaustive()
+    }
+}
+
+/// El tipo de antes de PinDesk de un tipo de ahora: `_pindesk._tcp` →
+/// `_pixpin._tcp`, `_pindeskenvio._tcp` → `_pixpinenvio._tcp`… `None` si no
+/// es uno de los nuestros. Puro, para probarlo sin red.
+pub fn tipo_de_antes(tipo: &str) -> Option<String> {
+    let t = normalizar_tipo(tipo).ok()?;
+    let resto = t.strip_prefix("_pindesk")?;
+    Some(format!("_pixpin{resto}"))
+}
+
+/// Junta lo encontrado con el tipo de ahora y con el de antes: un aparato que
+/// sale en los dos (la misma instancia) queda una vez, con lo del nuevo.
+fn juntar(ahora: Vec<Vecino>, antes: Vec<Vecino>) -> Vec<Vecino> {
+    sin_repetidos(ahora.into_iter().chain(antes).collect())
+}
+
+/// **Anuncia `nombre` como instancia de `tipo`** y, si es uno de los de
+/// PinDesk, tambien con su tipo de antes ([`tipo_de_antes`]), para que lo
+/// vean los aparatos sin actualizar. Si el de antes falla, se sigue con el
+/// nuevo solo (queda en el registro).
+pub fn anunciar(
+    tipo: &str,
+    nombre: &str,
+    puerto: u16,
+    datos: &[(&str, &str)],
+) -> Result<Anuncio, ErrorMdns> {
+    let ahora = anunciar_uno(tipo, nombre, puerto, datos)?;
+    let antes = tipo_de_antes(tipo).and_then(|viejo| {
+        anunciar_uno(&viejo, nombre, puerto, datos)
+            .map_err(
+                |e| tracing::warn!(%viejo, error = %e, "mdns: no se anuncio con el tipo de antes"),
+            )
+            .ok()
+    });
+    Ok(Anuncio {
+        _ahora: ahora,
+        _antes: antes,
+    })
+}
+
+/// **Busca `tipo` y, si es uno de los de PinDesk, tambien su tipo de antes**,
+/// a la vez (tarda lo mismo que una busqueda). Lo del nuevo va delante.
+pub fn buscar(tipo: &str, espera: Duration) -> Result<Vec<Vecino>, ErrorMdns> {
+    let Some(viejo) = tipo_de_antes(tipo) else {
+        return buscar_uno(tipo, espera);
+    };
+    let (ahora, antes) = std::thread::scope(|s| {
+        let antes = s.spawn(|| buscar_uno(&viejo, espera));
+        let ahora = buscar_uno(tipo, espera);
+        (ahora, antes.join().unwrap_or_else(|_| Ok(Vec::new())))
+    });
+    match (ahora, antes) {
+        (Ok(a), Ok(b)) => Ok(juntar(a, b)),
+        (Ok(a), Err(e)) | (Err(e), Ok(a)) => {
+            tracing::debug!(error = %e, "mdns: una de las dos busquedas fallo");
+            Ok(a)
+        }
+        (Err(e), Err(_)) => Err(e),
+    }
+}
+
+/// Un anuncio de un tipo.
+struct AnuncioUno {
     /// La peticion de registro; `DnsServiceDeRegister` pide la misma.
     peticion: Box<DNS_SERVICE_REGISTER_REQUEST>,
     instancia: *mut DNS_SERVICE_INSTANCE,
@@ -434,15 +514,9 @@ pub struct Anuncio {
 }
 
 // SAFETY: los punteros crudos son de Windows o nuestros y no dependen del
-// hilo: desregistrar y liberar desde otro hilo es valido, y `Anuncio` no se
-// comparte (no es `Sync`), solo se mueve.
-unsafe impl Send for Anuncio {}
-
-impl std::fmt::Debug for Anuncio {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Anuncio").finish_non_exhaustive()
-    }
-}
+// hilo: desregistrar y liberar desde otro hilo es valido, y `AnuncioUno` no
+// se comparte (no es `Sync`), solo se mueve.
+unsafe impl Send for AnuncioUno {}
 
 unsafe extern "system" fn al_registrar(
     estado: u32,
@@ -463,15 +537,15 @@ unsafe extern "system" fn al_registrar(
     buzon.anotar(Some(estado), false);
 }
 
-/// Anuncia `nombre` como instancia de `tipo` (`"_pixpin._tcp"`) en
+/// Anuncia `nombre` como instancia de `tipo` (`"_pindesk._tcp"`) en
 /// `puerto`, con `datos` en el TXT. Bloquea hasta que Windows confirma el
 /// anuncio (normalmente menos de un segundo, como mucho 5 s).
-pub fn anunciar(
+fn anunciar_uno(
     tipo: &str,
     nombre: &str,
     puerto: u16,
     datos: &[(&str, &str)],
-) -> Result<Anuncio, ErrorMdns> {
+) -> Result<AnuncioUno, ErrorMdns> {
     let tipo = normalizar_tipo(tipo)?;
     validar_datos(datos)?;
     let instancia = ancho(&nombre_de_instancia(nombre, &tipo)?);
@@ -559,7 +633,7 @@ pub fn anunciar(
             codigo,
         });
     }
-    let anuncio = Anuncio {
+    let anuncio = AnuncioUno {
         peticion,
         instancia: construida,
         contexto,
@@ -574,7 +648,7 @@ pub fn anunciar(
     Ok(anuncio)
 }
 
-impl Drop for Anuncio {
+impl Drop for AnuncioUno {
     fn drop(&mut self) {
         let antes = self
             .buzon
@@ -722,7 +796,7 @@ impl Resolucion {
 ///
 /// Tarda `espera` mas, como mucho, un segundo para terminar de resolver lo
 /// visto al final. Solo devuelve vecinos con direccion IPv4.
-pub fn buscar(tipo: &str, espera: Duration) -> Result<Vec<Vecino>, ErrorMdns> {
+fn buscar_uno(tipo: &str, espera: Duration) -> Result<Vec<Vecino>, ErrorMdns> {
     let tipo = normalizar_tipo(tipo)?;
     let consulta = ancho(&nombre_de_consulta(&tipo));
     let buzon = Buzon::<Vec<String>>::nuevo();
@@ -818,12 +892,58 @@ mod pruebas {
     use super::*;
 
     #[test]
-    fn el_tipo_de_android_con_punto_final_se_acepta() {
-        assert_eq!(normalizar_tipo("_pixpin._tcp.").unwrap(), "_pixpin._tcp");
-        assert_eq!(normalizar_tipo("_pixpin._tcp").unwrap(), "_pixpin._tcp");
+    fn los_tipos_de_pindesk_tienen_su_tipo_de_antes() {
         assert_eq!(
-            normalizar_tipo("_PixPin._TCP.local.").unwrap(),
-            "_pixpin._tcp"
+            tipo_de_antes("_pindesk._tcp.").as_deref(),
+            Some("_pixpin._tcp")
+        );
+        assert_eq!(
+            tipo_de_antes("_pindeskenvio._tcp").as_deref(),
+            Some("_pixpinenvio._tcp")
+        );
+        assert_eq!(
+            tipo_de_antes("_pindeskrecibe._tcp.").as_deref(),
+            Some("_pixpinrecibe._tcp")
+        );
+        assert_eq!(
+            tipo_de_antes("_pindeskchat._tcp.").as_deref(),
+            Some("_pixpinchat._tcp")
+        );
+        // Caso negativo: uno de antes u otro cualquiera no tiene otro tipo.
+        assert_eq!(tipo_de_antes("_pixpin._tcp."), None);
+        assert_eq!(tipo_de_antes("_http._tcp"), None);
+        assert_eq!(tipo_de_antes("no es un tipo"), None);
+    }
+
+    #[test]
+    fn un_aparato_que_sale_con_los_dos_tipos_queda_una_vez_con_lo_nuevo() {
+        let v = |instancia: &str, puerto: u16| Vecino {
+            instancia: instancia.into(),
+            host: Ipv4Addr::new(192, 168, 1, 5),
+            puerto,
+            datos: HashMap::new(),
+        };
+        let juntos = juntar(
+            vec![v("PinDesk Casa", 1)],
+            vec![v("pindesk casa", 2), v("PixPin Movil", 3)],
+        );
+        let puertos: Vec<u16> = juntos.iter().map(|x| x.puerto).collect();
+        assert_eq!(
+            puertos,
+            [1, 3],
+            "el del tipo nuevo delante; el viejo solo aparte"
+        );
+        // Caso negativo: sin nada nuevo quedan los de antes tal cual.
+        assert_eq!(juntar(vec![], vec![v("PixPin Movil", 3)]).len(), 1);
+    }
+
+    #[test]
+    fn el_tipo_de_android_con_punto_final_se_acepta() {
+        assert_eq!(normalizar_tipo("_pindesk._tcp.").unwrap(), "_pindesk._tcp");
+        assert_eq!(normalizar_tipo("_pindesk._tcp").unwrap(), "_pindesk._tcp");
+        assert_eq!(
+            normalizar_tipo("_PinDesk._TCP.local.").unwrap(),
+            "_pindesk._tcp"
         );
         assert_eq!(normalizar_tipo("_ab-1._udp").unwrap(), "_ab-1._udp");
     }
@@ -832,13 +952,13 @@ mod pruebas {
     fn un_tipo_mal_formado_se_rechaza() {
         for malo in [
             "",
-            "pixpin._tcp",
-            "_pixpin",
-            "_pixpin._sctp",
+            "pindesk._tcp",
+            "_pindesk",
+            "_pindesk._sctp",
             "_._tcp",
             "_un_nombre_de_mas_de_quince._tcp",
             "_pix pin._tcp",
-            "_pixpin._tcp.extra",
+            "_pindesk._tcp.extra",
         ] {
             assert!(
                 matches!(normalizar_tipo(malo), Err(ErrorMdns::TipoNoValido(_))),
@@ -849,19 +969,19 @@ mod pruebas {
 
     #[test]
     fn la_consulta_y_el_host_llevan_punto_local() {
-        assert_eq!(nombre_de_consulta("_pixpin._tcp"), "_pixpin._tcp.local");
+        assert_eq!(nombre_de_consulta("_pindesk._tcp"), "_pindesk._tcp.local");
         assert_eq!(nombre_de_host("MAXBOOK"), "MAXBOOK.local");
     }
 
     #[test]
     fn la_instancia_se_arma_con_el_tipo_y_escapa_puntos_y_barras() {
         assert_eq!(
-            nombre_de_instancia("PixPin Max", "_pixpin._tcp").unwrap(),
-            "PixPin Max._pixpin._tcp.local"
+            nombre_de_instancia("PinDesk Casa", "_pindesk._tcp").unwrap(),
+            "PinDesk Casa._pindesk._tcp.local"
         );
         assert_eq!(
-            nombre_de_instancia("PixPin v1.2\\b", "_pixpin._tcp").unwrap(),
-            r"PixPin v1\.2\\b._pixpin._tcp.local"
+            nombre_de_instancia("PinDesk v1.2\\b", "_pindesk._tcp").unwrap(),
+            r"PinDesk v1\.2\\b._pindesk._tcp.local"
         );
     }
 
@@ -869,7 +989,7 @@ mod pruebas {
     fn un_nombre_vacio_no_es_instancia() {
         for malo in ["", "   "] {
             assert!(matches!(
-                nombre_de_instancia(malo, "_pixpin._tcp"),
+                nombre_de_instancia(malo, "_pindesk._tcp"),
                 Err(ErrorMdns::NombreNoValido(_))
             ));
         }
@@ -886,23 +1006,23 @@ mod pruebas {
 
     #[test]
     fn la_instancia_completa_vuelve_a_su_nombre_corto() {
-        let t = "_pixpin._tcp";
+        let t = "_pindesk._tcp";
         assert_eq!(
-            instancia_corta("PixPin Max._pixpin._tcp.local", t).as_deref(),
-            Some("PixPin Max")
+            instancia_corta("PinDesk Casa._pindesk._tcp.local", t).as_deref(),
+            Some("PinDesk Casa")
         );
         assert_eq!(
-            instancia_corta("PixPin Max._pixpin._tcp.local.", t).as_deref(),
-            Some("PixPin Max"),
+            instancia_corta("PinDesk Casa._pindesk._tcp.local.", t).as_deref(),
+            Some("PinDesk Casa"),
             "con el punto final de la raiz"
         );
         assert_eq!(
-            instancia_corta(r"PixPin v1\.2\\b._PIXPIN._tcp.local", t).as_deref(),
-            Some(r"PixPin v1.2\b")
+            instancia_corta(r"PinDesk v1\.2\\b._PINDESK._tcp.local", t).as_deref(),
+            Some(r"PinDesk v1.2\b")
         );
         assert_eq!(
-            instancia_corta(r"PixPin\032Max._pixpin._tcp.local", t).as_deref(),
-            Some("PixPin Max"),
+            instancia_corta(r"PinDesk\032Casa._pindesk._tcp.local", t).as_deref(),
+            Some("PinDesk Casa"),
             "escape decimal"
         );
         // Ida y vuelta.
@@ -915,10 +1035,10 @@ mod pruebas {
 
     #[test]
     fn un_nombre_de_otro_tipo_no_es_instancia_nuestra() {
-        let t = "_pixpin._tcp";
+        let t = "_pindesk._tcp";
         assert_eq!(instancia_corta("Impresora._ipp._tcp.local", t), None);
-        assert_eq!(instancia_corta("_pixpin._tcp.local", t), None);
-        assert_eq!(instancia_corta("._pixpin._tcp.local", t), None);
+        assert_eq!(instancia_corta("_pindesk._tcp.local", t), None);
+        assert_eq!(instancia_corta("._pindesk._tcp.local", t), None);
         assert_eq!(instancia_corta("", t), None);
     }
 
@@ -972,12 +1092,15 @@ mod pruebas {
     #[test]
     fn la_misma_instancia_por_dos_tarjetas_queda_una_vez() {
         let v = sin_repetidos(vec![
-            vecino("PixPin Ana", 10),
-            vecino("PixPin Luis", 11),
-            vecino("pixpin ana", 12),
-            vecino("PixPin Ana", 13),
+            vecino("PinDesk Ana", 10),
+            vecino("PinDesk Luis", 11),
+            vecino("pindesk ana", 12),
+            vecino("PinDesk Ana", 13),
         ]);
-        assert_eq!(v, vec![vecino("PixPin Ana", 10), vecino("PixPin Luis", 11)]);
+        assert_eq!(
+            v,
+            vec![vecino("PinDesk Ana", 10), vecino("PinDesk Luis", 11)]
+        );
         assert!(sin_repetidos(Vec::new()).is_empty());
     }
 
@@ -993,7 +1116,7 @@ mod pruebas {
     #[test]
     #[ignore = "usa la red local"]
     fn un_anuncio_propio_aparece_al_buscar_y_se_retira() {
-        let nombre = format!("PixPin prueba.{}", std::process::id());
+        let nombre = format!("PinDesk prueba.{}", std::process::id());
         let datos = [
             ("g", "0123456789abcdef"),
             ("id", "prueba-id"),
@@ -1001,11 +1124,11 @@ mod pruebas {
             ("n", "Prueba"),
         ];
         let inicio = Instant::now();
-        let anuncio = anunciar("_pixpin._tcp", &nombre, 45_678, &datos).expect("anunciar");
+        let anuncio = anunciar("_pindesk._tcp", &nombre, 45_678, &datos).expect("anunciar");
         eprintln!("anunciado en {:?}", inicio.elapsed());
 
         let inicio = Instant::now();
-        let vecinos = buscar("_pixpin._tcp", Duration::from_secs(4)).expect("buscar");
+        let vecinos = buscar("_pindesk._tcp", Duration::from_secs(4)).expect("buscar");
         eprintln!("busqueda en {:?}: {vecinos:#?}", inicio.elapsed());
         let mio = vecinos
             .iter()

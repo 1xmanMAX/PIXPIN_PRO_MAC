@@ -1680,6 +1680,7 @@ dependencies = [
  "pixpin-motor2d",
  "pixpin-paginas",
  "pixpin-pdf",
+ "pixpin-sistema",
  "pixpin-voz",
  "roxmltree",
  "serde_json",
@@ -1899,6 +1900,7 @@ name = "pixpin-typesafe"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "pixpin-sistema",
  "serde",
  "serde_json",
  "sha2 0.10.9",

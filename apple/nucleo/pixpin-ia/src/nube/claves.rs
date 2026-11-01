@@ -7,7 +7,7 @@
 //!   (solo esta cuenta en este equipo la descifra; otra cuenta, otro PC o
 //!   una copia del disco no), con una entropia propia de PixPin para que otro
 //!   programa que use DPAPI sin ella no la saque por descuido.
-//! - Vive en su **fichero propio** en `%LOCALAPPDATA%\PixPinMax\claves`:
+//! - Vive en su **fichero propio** en `%LOCALAPPDATA%\PinDesk\claves`:
 //!   nunca en el TOML de ajustes (que el usuario abre, copia y comparte),
 //!   nunca en la carpeta de datos que se sincroniza o se exporta, y
 //!   `LOCALAPPDATA` no viaja con el perfil movil de Windows.
@@ -188,8 +188,7 @@ impl Llavero for Dpapi {
 /// `%LOCALAPPDATA%\PixPinMax\claves`.
 #[cfg(windows)]
 pub fn carpeta() -> Option<PathBuf> {
-    let local = std::env::var_os("LOCALAPPDATA")?;
-    Some(PathBuf::from(local).join("PixPinMax").join("claves"))
+    Some(pixpin_sistema::nombre::carpeta_local()?.join("claves"))
 }
 
 /// El fichero de la clave de un proveedor.
@@ -238,7 +237,7 @@ pub fn cifrar(claro: &[u8]) -> Result<Vec<u8>, String> {
     unsafe {
         CryptProtectData(
             &entrada,
-            w!("PixPin Max"),
+            w!("PinDesk"),
             Some(&entropia),
             None,
             None,

@@ -119,16 +119,16 @@ fn la_seleccion_va_a_tarea_nota_chat_leccion_voz_y_asistente() {
     };
     assert_eq!(
         con("tarea"),
-        json!({"pixpin":1,"accion":"anadir_tarea","texto":"Comprar yeso y arena — https://obra.pe/a"})
+        json!({"pindesk":1,"accion":"anadir_tarea","texto":"Comprar yeso y arena — https://obra.pe/a"})
     );
     assert_eq!(
         con("nota"),
-        json!({"pixpin":1,"accion":"nota_nueva",
+        json!({"pindesk":1,"accion":"nota_nueva",
                "texto":"Comprar   yeso\n y arena\n\n[Obra nueva](https://obra.pe/a)"})
     );
     assert_eq!(
         con("chat"),
-        json!({"pixpin":1,"accion":"chat","texto":"Comprar   yeso\n y arena\n\nObra nueva\nhttps://obra.pe/a"})
+        json!({"pindesk":1,"accion":"chat","texto":"Comprar   yeso\n y arena\n\nObra nueva\nhttps://obra.pe/a"})
     );
     assert_eq!(
         con("leccion")["texto"],
@@ -137,7 +137,7 @@ fn la_seleccion_va_a_tarea_nota_chat_leccion_voz_y_asistente() {
     assert_eq!(con("leccion")["accion"], "leccion_nueva");
     assert_eq!(
         con("leer"),
-        json!({"pixpin":1,"accion":"leer_en_voz","texto":"Comprar   yeso\n y arena","titulo":"Obra nueva"})
+        json!({"pindesk":1,"accion":"leer_en_voz","texto":"Comprar   yeso\n y arena","titulo":"Obra nueva"})
     );
     let a = con("asistente");
     assert_eq!(a["accion"], "asistente");
@@ -200,16 +200,16 @@ fn una_imagen_se_guarda_en_la_cache_y_se_pinea_va_al_chat_o_al_ocr() {
     assert!(plan.ficheros[0].1.starts_with(b"\x89PNG"));
     assert_eq!(
         pedido(&plan),
-        json!({"pixpin":1,"accion":"pinear","ruta":ruta})
+        json!({"pindesk":1,"accion":"pinear","ruta":ruta})
     );
     assert_eq!(
         pedido(&con("ocr")),
-        json!({"pixpin":1,"accion":"ocr","ruta":ruta})
+        json!({"pindesk":1,"accion":"ocr","ruta":ruta})
     );
     for accion in ["imagen_al_chat", "captura_pagina"] {
         assert_eq!(
             pedido(&con(accion)),
-            json!({"pixpin":1,"accion":"chat","texto":"P\nhttps://x.pe/p","imagenes":[ruta]})
+            json!({"pindesk":1,"accion":"chat","texto":"P\nhttps://x.pe/p","imagenes":[ruta]})
         );
     }
 }
@@ -258,7 +258,7 @@ fn la_pagina_va_al_chat_como_enlace_y_al_movil_como_pagina_html() {
     .unwrap();
     assert_eq!(
         pedido(&p),
-        json!({"pixpin":1,"accion":"chat","texto":"A\nhttps://a.pe"})
+        json!({"pindesk":1,"accion":"chat","texto":"A\nhttps://a.pe"})
     );
 
     let p = traducir(
@@ -273,7 +273,7 @@ fn la_pagina_va_al_chat_como_enlace_y_al_movil_como_pagina_html() {
     let ruta = c.join("nav-9").join("Planos «obra» nueva.html");
     assert_eq!(
         pedido(&p),
-        json!({"pixpin":1,"accion":"enviar_al_movil","aparato":"todos","archivos":[ruta]})
+        json!({"pindesk":1,"accion":"enviar_al_movil","aparato":"todos","archivos":[ruta]})
     );
     let html = String::from_utf8(p.ficheros[0].1.clone()).unwrap();
     assert!(
@@ -551,7 +551,10 @@ fn la_raiz_es_la_del_mac_y_la_app_la_de_su_paquete() {
     let nueva = PathBuf::from("/Applications/PinDesk.app");
     let vieja = PathBuf::from("/Applications/PixPin.app");
     assert_eq!(exe_de_pixpin_con(Some(&d), |_| true), Some(nueva.clone()));
-    assert_eq!(exe_de_pixpin_con(Some(&d), |p| p == vieja), Some(vieja.clone()));
+    assert_eq!(
+        exe_de_pixpin_con(Some(&d), |p| p == vieja),
+        Some(vieja.clone())
+    );
     // Sin ninguna, la de ahora (para el aviso de que falta).
     assert_eq!(exe_de_pixpin_con(Some(&d), |_| false), Some(nueva));
     assert_eq!(
