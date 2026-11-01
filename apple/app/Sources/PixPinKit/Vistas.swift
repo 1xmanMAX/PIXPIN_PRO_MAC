@@ -756,7 +756,7 @@ struct Burbuja: View {
             case "MINIAPP" where CarpetasDelChat.esCarpeta(mensaje):
                 BurbujaCarpeta(mensaje: mensaje, chat: chat, almacen: almacen)
             case "MINIAPP" where BurbujaTareas.esTareas(mensaje):
-                BurbujaTareas(mensaje: mensaje)
+                BurbujaTareas(mensaje: mensaje, chat: chat)
             case "MINIAPP" where BurbujaTabla.esTabla(mensaje):
                 BurbujaTabla(mensaje: mensaje, chat: chat, almacen: almacen)
             case "IMAGEN" where mensaje.ruta != nil:

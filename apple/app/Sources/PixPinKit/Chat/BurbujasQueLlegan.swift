@@ -479,6 +479,9 @@ struct PieDelMovil: View {
 /// ventana de Tareas en esa lista.
 struct BurbujaTareas: View {
     let mensaje: MensajeChat
+    /// El chat del mensaje: con el, la lista se abre por su clave
+    /// (`chat/mensaje`, como Windows `tareas::abrir_en`).
+    var chat = ""
     @Environment(\.escalaChat) private var escala
     @Environment(\.openWindow) private var abrirVentana
 
@@ -530,14 +533,19 @@ struct BurbujaTareas: View {
     }
 
     private func abrir() {
-        VentanaTareas.listaPedida = nombre
+        // La clave de la lista, no su nombre: la ventana la buscaba por su
+        // nombre y, como buscar solo miraba el texto de las tareas, se abria
+        // vacia.
+        let clave = chat.isEmpty ? mensaje.id : "\(chat)/\(mensaje.id)"
+        VentanaTareas.listaPedida = clave
         abrirVentana(id: IdVentana.tareas)
-        NotificationCenter.default.post(name: .pixpinAbrirListaTareas, object: nombre)
+        NotificationCenter.default.post(name: .pixpinAbrirListaTareas, object: clave)
     }
 }
 
 extension Notification.Name {
-    /// Abrir la ventana de Tareas en una lista (su nombre en `object`).
+    /// Abrir la ventana de Tareas en una lista (su clave `chat/mensaje` en
+    /// `object`).
     static let pixpinAbrirListaTareas = Notification.Name("PixPinAbrirListaTareas")
 }
 

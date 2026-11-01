@@ -36,6 +36,9 @@ use std::path::Path;
 mod cambiar;
 mod emoticonos;
 pub(crate) mod frase;
+// Lo que se ve en Tarjetas y Kanban: buscar, agrupar y el color de cada
+// lista, como Windows.
+pub mod tablero;
 
 use pixpin_proyecto::almacen::{self, Indice};
 use pixpin_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
