@@ -2,7 +2,7 @@
 //! los pines de herramienta del Mac.
 //!
 //! Como en [`crate::miniapps`], no hay formato nuevo: el documento es el de
-//! `pixpin_proyecto::mini::tiempos` (lineas `- clave: valor`, el mismo texto
+//! `pindesk_proyecto::mini::tiempos` (lineas `- clave: valor`, el mismo texto
 //! que escriben Windows y el movil) y cada toque es **documento entra,
 //! documento sale**. Lo que se ve y lo que hace cada boton copia el panel de
 //! Windows (`apps/pixpin/src/mini_panel.rs`: `de_cronometro`,
@@ -23,9 +23,9 @@
 //! tocarla) y [`Nucleo::avisos_miniapps`] los de todos los chats (lo de
 //! Windows al arrancar y tras sincronizar, `recordatorios::agenda_de`).
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{Clase, Mensaje};
-use pixpin_proyecto::mini::{self, tiempos};
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{Clase, Mensaje};
+use pindesk_proyecto::mini::{self, tiempos};
 
 use crate::{ErrorNucleo, Nucleo};
 

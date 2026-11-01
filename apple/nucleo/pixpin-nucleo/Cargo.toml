@@ -27,78 +27,78 @@ bindgen = ["uniffi/cli"]
 [dependencies]
 # El texto con tiempos de las notas de voz, el de Windows (`tiempos`): sus
 # partes puras compilan fuera de Windows.
-pixpin-voz = { path = "../../por-adaptar/pixpin-voz" }
-pixpin-motor2d = { version = "0.1.0", path = "../pixpin-motor2d" }
-pixpin-proyecto = { version = "0.1.0", path = "../pixpin-proyecto" }
-pixpin-sincro = { version = "0.1.0", path = "../pixpin-sincro" }
-pixpin-sistema = { version = "0.1.0", path = "../pixpin-sistema" }
+pindesk-voz = { path = "../../por-adaptar/pindesk-voz" }
+pindesk-motor2d = { version = "0.1.0", path = "../pindesk-motor2d" }
+pindesk-proyecto = { version = "0.1.0", path = "../pindesk-proyecto" }
+pindesk-sincro = { version = "0.1.0", path = "../pindesk-sincro" }
+pindesk-sistema = { version = "0.1.0", path = "../pindesk-sistema" }
 # Los ajustes en el mismo `pixpinmax.toml` que Windows (solo las claves que
 # valen en los dos sistemas), las lecciones aprendidas y el asistente
 # (herramientas en JSON para Foundation Models y el cliente de llama-server).
-pixpin-store = { version = "0.1.0", path = "../pixpin-store" }
-pixpin-lecciones = { version = "0.1.0", path = "../pixpin-lecciones" }
-pixpin-ia = { version = "0.1.0", path = "../pixpin-ia" }
+pindesk-store = { version = "0.1.0", path = "../pindesk-store" }
+pindesk-lecciones = { version = "0.1.0", path = "../pindesk-lecciones" }
+pindesk-ia = { version = "0.1.0", path = "../pindesk-ia" }
 # Lo que se entiende al escribir una tarea (#etiquetas, urgencia, hora).
-pixpin-frase = { path = "../pixpin-frase" }
+pindesk-frase = { path = "../pindesk-frase" }
 # El timeline (`momentos.jsonl`), el mismo crate que Windows.
-pixpin-timeline = { version = "0.1.0", path = "../pixpin-timeline" }
+pindesk-timeline = { version = "0.1.0", path = "../pindesk-timeline" }
 # Los planos DWG/DXF y los modelos 3D (IFC, Revit, Civil 3D) para el visor de
 # Metal: los mismos crates que el visor de Windows, sin su D3D11.
-pixpin-cad = { version = "0.1.0", path = "../pixpin-cad" }
-pixpin-bim = { version = "0.1.0", path = "../pixpin-bim" }
+pindesk-cad = { version = "0.1.0", path = "../pindesk-cad" }
+pindesk-bim = { version = "0.1.0", path = "../pindesk-bim" }
 # Medir una foto del chat (su lienzo propio, B9) y leer las de un croquis
-# 3D: el mismo crate que Windows (ya estaba en el arbol por `pixpin-ia`).
-pixpin-codec = { path = "../pixpin-codec" }
+# 3D: el mismo crate que Windows (ya estaba en el arbol por `pindesk-ia`).
+pindesk-codec = { path = "../pindesk-codec" }
 # Las tarjetas de Anki de una nota, una foto o una clase grabada y
 # AnkiConnect (127.0.0.1:8765): el mismo crate que Windows (2561be0).
-pixpin-anki = { version = "0.1.0", path = "../pixpin-anki" }
+pindesk-anki = { version = "0.1.0", path = "../pindesk-anki" }
 # Jev de TypeSafe (Windows e6ccca9, docs/jev.md de Windows): sus preguntas y
 # tablas de decision, el mismo crate. La red la pone Swift (URLSession) y la
 # clave va al Llavero del Mac (`jev.rs`).
-pixpin-typesafe = { version = "0.1.0", path = "../pixpin-typesafe" }
+pindesk-typesafe = { version = "0.1.0", path = "../pindesk-typesafe" }
 # La nota rica del chat: los bloques de su Markdown y el reparto del album
 # (`nota_rica`), el mismo crate que Windows (974d5ba). Puro.
-pixpin-ui = { version = "0.1.0", path = "../pixpin-ui" }
+pindesk-ui = { version = "0.1.0", path = "../pindesk-ui" }
 # Los rotulos con numero de buscar en todos los chats («Mensajes · N»): el
-# mismo Fluent de `pixpin-store` (ya estaba en el arbol).
+# mismo Fluent de `pindesk-store` (ya estaba en el arbol).
 fluent-bundle = "0.16.0"
-# Los rectangulos con que `pixpin_ui::info` coloca la ficha del chat (el foco).
-pixpin-geom = { version = "0.1.0", path = "../pixpin-geom" }
+# Los rectangulos con que `pindesk_ui::info` coloca la ficha del chat (el foco).
+pindesk-geom = { version = "0.1.0", path = "../pindesk-geom" }
 # La mezcla y el tratamiento del sonido (remuestreo con deriva, paso alto,
 # realce de la voz, limitador) del motor de audio de Windows (38204cb): lo
 # puro, para que una nota del Mac suene como una de Windows. Lo de WASAPI
 # solo se compila en Windows.
-pixpin-motor-audio = { version = "0.1.0", path = "../pixpin-motor-audio" }
+pindesk-motor-audio = { version = "0.1.0", path = "../pindesk-motor-audio" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"
 # NFC para el nombre de un fichero adjuntado (el Finder los da en NFD). Ya
-# estaba en el arbol (`pixpin-proyecto`).
+# estaba en el arbol (`pindesk-proyecto`).
 unicode-normalization = "0.1.25"
 # El azar del sistema para el nonce de cada conexion y el codigo de grupo
 # (SecRandomCopyBytes / getentropy en Apple). Ya estaba en el arbol.
 getrandom = "0.2"
 uniffi = "0.32"
 # Documentos (lector, notas, hojas, Office, aligerar PDF): los mismos crates
-# que Windows. `pixpin-docs` (lectura, Markdown vivo, formulas),
-# `pixpin-office` (Word y PowerPoint paginados como Office) y
+# que Windows. `pindesk-docs` (lectura, Markdown vivo, formulas),
+# `pindesk-office` (Word y PowerPoint paginados como Office) y
 # `pdfsqueeze-core` (aligerar), con `rayon` para darle su propio grupo de
 # hilos (ya en el arbol por pdfsqueeze) y `sha2` para la huella de lo ya
 # aligerado (`cache/pdf-aligerados.txt`, la de Windows).
-pixpin-docs = { version = "0.1.0", path = "../pixpin-docs" }
-pixpin-office = { version = "0.1.0", path = "../pixpin-office" }
+pindesk-docs = { version = "0.1.0", path = "../pindesk-docs" }
+pindesk-office = { version = "0.1.0", path = "../pindesk-office" }
 # La capa de texto de un PDF (buscar y anotar desde el asistente, E1): el
 # mismo lector que el de Windows, Rust puro.
-pixpin-pdf = { path = "../pixpin-pdf" }
+pindesk-pdf = { path = "../pindesk-pdf" }
 # Los graficos de un Excel (su ancla y sus valores en cache): el lector del
-# visor de hojas de Windows. Ya estaba en el arbol (`pixpin-ia`).
-pixpin-hojas = { path = "../pixpin-hojas" }
+# visor de hojas de Windows. Ya estaba en el arbol (`pindesk-ia`).
+pindesk-hojas = { path = "../pindesk-hojas" }
 pdfsqueeze-core = { workspace = true }
 rayon = "1"
 sha2 = "0.10"
 
 [dev-dependencies]
 # El «movil» de las pruebas: un Disco con la carpeta de Android.
-pixpin-sincro = { version = "0.1.0", path = "../pixpin-sincro", features = ["simulador"] }
+pindesk-sincro = { version = "0.1.0", path = "../pindesk-sincro", features = ["simulador"] }
 # Un `.docx` de prueba (el mismo zip que ya lleva el arbol).
 zip = { version = "2.2", default-features = false, features = ["deflate"] }

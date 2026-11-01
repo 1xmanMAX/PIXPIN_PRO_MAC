@@ -16,10 +16,10 @@
 
 #![forbid(unsafe_code)]
 
-use pixpin_ia::acciones::normalizar;
-use pixpin_ia::fechas::Momento;
+use pindesk_ia::acciones::normalizar;
+use pindesk_ia::fechas::Momento;
 
-/// Una caja en puntos (la `RectF` de `pixpin-render` de Windows).
+/// Una caja en puntos (la `RectF` de `pindesk-render` de Windows).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct RectF {
     pub x: f32,
@@ -462,7 +462,7 @@ pub fn reescribir(original: &str, s: &Semana) -> String {
 mod pruebas {
     use super::*;
     use crate::horario::{PLANTILLA, leer};
-    use pixpin_ia::fechas;
+    use pindesk_ia::fechas;
 
     fn ahora() -> Momento {
         Momento {

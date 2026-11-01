@@ -2,7 +2,7 @@
 //! `anotador_al_chat.rs` de Windows.
 //!
 //! No es un formato nuevo: es **una foto del chat con su lienzo**, lo mismo
-//! que deja el movil al anotar una foto (`pixpin_proyecto::lienzo_de_la_foto`):
+//! que deja el movil al anotar una foto (`pindesk_proyecto::lienzo_de_la_foto`):
 //!
 //! 1. la foto de lo que habia DEBAJO (sin la tinta ni las barras) entra en
 //!    «Mensajes guardados» como un mensaje IMAGEN corriente
@@ -29,9 +29,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use pixpin_motor2d::{Elemento, Escena, Figura, Punto2};
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{self, Mensaje};
+use pindesk_motor2d::{Elemento, Escena, Figura, Punto2};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{self, Mensaje};
 
 use crate::chats::{MensajeChat, validar_chat};
 use crate::editor::EditorLienzo;
@@ -112,7 +112,7 @@ pub fn a_pixeles(tinta: &[Elemento], origen: (f32, f32), escala: f32) -> Vec<Ele
             ..e.clone()
         })
         .collect();
-    pixpin_motor2d::estirar_bloque::escalar_desde(
+    pindesk_motor2d::estirar_bloque::escalar_desde(
         &sueltos,
         Punto2::nuevo(origen.0, origen.1),
         escala,
@@ -178,7 +178,7 @@ impl Nucleo {
         origen_y: f32,
         escala: f32,
     ) -> Result<PantallaAnotada, ErrorNucleo> {
-        let (ancho, alto) = pixpin_codec::imagen::medidas(Path::new(&foto)).map_err(argumento)?;
+        let (ancho, alto) = pindesk_codec::imagen::medidas(Path::new(&foto)).map_err(argumento)?;
         let tinta = a_pixeles(
             &tinta_de(&editor.tomar().escena),
             (origen_x, origen_y),
@@ -200,7 +200,7 @@ impl Nucleo {
             .as_deref()
             .map(|r| almacen::carpeta(raiz, &ficha.id).join(r))
             .ok_or_else(|| argumento("el mensaje de la foto no tiene fichero"))?;
-        let hecho = pixpin_proyecto::lienzo_de_la_foto::con_dibujo(
+        let hecho = pindesk_proyecto::lienzo_de_la_foto::con_dibujo(
             raiz,
             &ficha.id,
             &mensaje,
@@ -247,7 +247,7 @@ impl Nucleo {
             (origen_x, origen_y),
             escala,
         );
-        let n = pixpin_proyecto::lienzo_de_la_foto::cambiar_dibujo(
+        let n = pindesk_proyecto::lienzo_de_la_foto::cambiar_dibujo(
             self.ruta(),
             &guardada.chat,
             l,
@@ -261,7 +261,7 @@ impl Nucleo {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_proyecto::cuaderno::Clase;
+    use pindesk_proyecto::cuaderno::Clase;
 
     fn raiz(etiqueta: &str) -> std::path::PathBuf {
         let r = std::env::temp_dir().join(format!(
@@ -286,7 +286,7 @@ mod pruebas {
                 pixeles.extend_from_slice(&[c[0], c[1], c[2], 255]);
             }
         }
-        let png = pixpin_codec::imagen::codificar_png(&pixpin_codec::ImagenRgba {
+        let png = pindesk_codec::imagen::codificar_png(&pindesk_codec::ImagenRgba {
             ancho,
             alto,
             pixeles,
@@ -304,7 +304,7 @@ mod pruebas {
                 presiones: Vec::new(),
                 opciones: Some(Default::default()),
             },
-            trazo: pixpin_motor2d::ColorRgba::opaco(0.88, 0.19, 0.19),
+            trazo: pindesk_motor2d::ColorRgba::opaco(0.88, 0.19, 0.19),
             grosor: 2.0,
             ..Elemento::default()
         }
@@ -314,15 +314,15 @@ mod pruebas {
         Elemento {
             figura: Figura::Flecha {
                 puntos: vec![Punto2::nuevo(de.0, de.1), Punto2::nuevo(a.0, a.1)],
-                punta_inicio: pixpin_motor2d::formas::TipoPunta::Ninguna,
-                punta_fin: pixpin_motor2d::formas::TipoPunta::Flecha,
+                punta_inicio: pindesk_motor2d::formas::TipoPunta::Ninguna,
+                punta_fin: pindesk_motor2d::formas::TipoPunta::Flecha,
                 codos: false,
             },
             x: de.0,
             y: de.1,
             ancho: (a.0 - de.0).abs(),
             alto: (a.1 - de.1).abs(),
-            trazo: pixpin_motor2d::ColorRgba::opaco(0.88, 0.19, 0.19),
+            trazo: pindesk_motor2d::ColorRgba::opaco(0.88, 0.19, 0.19),
             grosor: 4.0,
             ..Elemento::default()
         }
@@ -349,8 +349,8 @@ mod pruebas {
     fn lo_guardado(n: &Nucleo, g: &PantallaAnotada) -> (Vec<Mensaje>, Vec<Elemento>) {
         let c = cuaderno::Cuaderno::leer_de(&almacen::carpeta(n.ruta(), &g.chat)).unwrap();
         let texto = std::fs::read_to_string(almacen::lienzo(n.ruta(), &g.chat, &g.lienzo)).unwrap();
-        let l = pixpin_motor2d::excalidraw::leer(&texto).unwrap();
-        let visibles = pixpin_motor2d::excalidraw::a_escena(&l)
+        let l = pindesk_motor2d::excalidraw::leer(&texto).unwrap();
+        let visibles = pindesk_motor2d::excalidraw::a_escena(&l)
             .visibles()
             .cloned()
             .collect();
@@ -381,7 +381,7 @@ mod pruebas {
         assert_eq!(g.mensaje.referencia.as_deref(), Some(g.lienzo.as_str()));
         // La foto es la de debajo tal cual (un PNG con sus medidas).
         let foto = almacen::carpeta(n.ruta(), &g.chat).join(mensajes[0].ruta.as_deref().unwrap());
-        assert_eq!(pixpin_codec::imagen::medidas(&foto).unwrap(), (64, 18));
+        assert_eq!(pindesk_codec::imagen::medidas(&foto).unwrap(), (64, 18));
         // La foto primero y bloqueada; la raya encima, editable y en sus
         // pixeles (la foto cabe entera: una unidad por pixel).
         assert_eq!(els.len(), 2);

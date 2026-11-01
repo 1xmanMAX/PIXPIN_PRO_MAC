@@ -16,15 +16,15 @@
 //!    `vieneDe` («Lienzo «Planta»» o «PDF «Plano» → página 3»).
 //!
 //! La marca con enlace en el origen la pone el editor
-//! ([`EditorLienzo::marcar_zona`], `pixpin_motor2d::zona::marcar`), en un
+//! ([`EditorLienzo::marcar_zona`], `pindesk_motor2d::zona::marcar`), en un
 //! paso de deshacer. Tocar su icono lleva al sublienzo
 //! ([`EditorLienzo::enlace_en`] y [`Nucleo::dibujo_del_enlace`]).
 
 use std::path::Path;
 
-use pixpin_motor2d::vector::Punto2;
-use pixpin_proyecto::cuaderno::{self, Mensaje};
-use pixpin_proyecto::{Hoja, Proyecto, almacen};
+use pindesk_motor2d::vector::Punto2;
+use pindesk_proyecto::cuaderno::{self, Mensaje};
+use pindesk_proyecto::{Hoja, Proyecto, almacen};
 use serde_json::{Value, json};
 
 use crate::editor::EditorLienzo;
@@ -53,7 +53,7 @@ pub struct EnlaceDelLienzo {
 /// El radio del icono de enlace en puntos de pantalla (lo pinta Swift).
 #[uniffi::export]
 pub fn radio_del_icono_de_enlace() -> f32 {
-    pixpin_motor2d::zona::RADIO_DEL_ICONO_DE_ENLACE
+    pindesk_motor2d::zona::RADIO_DEL_ICONO_DE_ENLACE
 }
 
 fn argumento(detalle: impl ToString) -> ErrorNucleo {
@@ -374,7 +374,7 @@ impl EditorLienzo {
         let caja = (x0.min(x1), y0.min(y1), x0.max(x1), y0.max(y1));
         {
             let mut st = self.tomar();
-            pixpin_motor2d::zona::marcar(&mut st.escena, caja, dibujo.trim());
+            pindesk_motor2d::zona::marcar(&mut st.escena, caja, dibujo.trim());
         }
         self.subir_cambios();
         self.subir_version();
@@ -386,7 +386,7 @@ impl EditorLienzo {
     /// cualquier aumento). `None` si no hay ninguno.
     pub fn enlace_en(&self, x: f32, y: f32, zoom: f32) -> Option<String> {
         let st = self.tomar();
-        pixpin_motor2d::zona::enlace_bajo_el_puntero(&st.escena.elementos, Punto2::nuevo(x, y), zoom)
+        pindesk_motor2d::zona::enlace_bajo_el_puntero(&st.escena.elementos, Punto2::nuevo(x, y), zoom)
             .map(str::to_string)
     }
 
@@ -398,7 +398,7 @@ impl EditorLienzo {
             .elementos
             .iter()
             .filter_map(|e| {
-                let c = pixpin_motor2d::zona::icono_de_enlace(e)?;
+                let c = pindesk_motor2d::zona::icono_de_enlace(e)?;
                 let dentro = c.x >= x0 - 40.0 && c.x <= x1 + 40.0 && c.y >= y0 - 40.0 && c.y <= y1 + 40.0;
                 dentro.then(|| EnlaceDelLienzo {
                     dibujo: e.enlace.clone().unwrap_or_default(),
@@ -413,7 +413,7 @@ impl EditorLienzo {
     /// cursor al dibujar y a cuantos pixeles de pantalla agarra.
     pub fn poner_iman(&self, activo: bool, esquinas: bool, medios: bool, centros: bool, radio_px: f32) {
         let mut st = self.tomar();
-        st.gesto.enganche = pixpin_motor2d::enganche::Ajustes {
+        st.gesto.enganche = pindesk_motor2d::enganche::Ajustes {
             activo,
             esquinas,
             medios,

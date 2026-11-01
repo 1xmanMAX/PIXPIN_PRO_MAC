@@ -3,7 +3,7 @@
 // Windows que tocan lo mismo, mas las de la parte que solo tiene el Mac.
 
 use super::*;
-use pixpin_proyecto::Hoja;
+use pindesk_proyecto::Hoja;
 use serde_json::{Value, json};
 
 fn mensaje(id: &str, clase: Clase) -> Mensaje {
@@ -483,12 +483,12 @@ fn asegurar_el_lienzo_de_una_foto_lo_crea_y_apunta_su_referencia() {
     );
     let png = raiz.join("proyectos/P/archivos/f.png");
     std::fs::create_dir_all(png.parent().unwrap()).unwrap();
-    let im = pixpin_codec::imagen::ImagenRgba {
+    let im = pindesk_codec::imagen::ImagenRgba {
         ancho: 4,
         alto: 2,
         pixeles: vec![200; 32],
     };
-    std::fs::write(&png, pixpin_codec::imagen::codificar_png(&im).unwrap()).unwrap();
+    std::fs::write(&png, pindesk_codec::imagen::codificar_png(&im).unwrap()).unwrap();
     let nucleo = Nucleo::abrir(raiz.display().to_string(), "Mac".into()).unwrap();
     let id = nucleo
         .asegurar_lienzo_de_foto("P".into(), "m1".into())

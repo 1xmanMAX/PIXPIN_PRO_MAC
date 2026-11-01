@@ -1,7 +1,7 @@
 //! **La maqueta del movil** (K16): donde cae cada bloque de un Word o un
 //! libro, con las cuentas de la pagina que ensena el `WebView` de Android.
 //! Es `visor/maqueta_movil.rs` y `visor/tablas.rs` de Windows, y el partir
-//! renglones de `pixpin_render::lectura`, sin ventana: lo que alli pregunta
+//! renglones de `pindesk_render::lectura`, sin ventana: lo que alli pregunta
 //! a DirectWrite (lo que avanza cada letra) aqui lo contesta Core Text desde
 //! Swift ([`super::MedidorReflujo`]).
 //!
@@ -29,16 +29,16 @@
 //! (como mucho 46 em, centrado) con su relleno, y el texto empieza en su
 //! caja de contenido.
 
-use pixpin_docs::documento::{
+use pindesk_docs::documento::{
     Alineacion as AlineaDoc, Bloque, Clase, Documento, MARCA_IMAGEN, Trozo, texto_y_tramos,
 };
-use pixpin_docs::lectura;
-use pixpin_docs::tabla::Celda;
+use pindesk_docs::lectura;
+use pindesk_docs::tabla::Celda;
 
 // ---------------------------------------------------------------------------
 // Lo que se coloca
 
-/// Negrita, cursiva o codigo de un tramo (`pixpin_render::EstiloTexto`).
+/// Negrita, cursiva o codigo de un tramo (`pindesk_render::EstiloTexto`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct EstiloTexto {
     pub(crate) negrita: bool,
@@ -170,7 +170,7 @@ pub(crate) struct Colocado {
 pub(crate) type Mide<'a> = dyn Fn(&str, f32, f32, &[Tramo], &Letra) -> Medida + 'a;
 
 // ---------------------------------------------------------------------------
-// Donde se puede partir (`pixpin_render::lectura`)
+// Donde se puede partir (`pindesk_render::lectura`)
 
 fn es_espacio(c: u16) -> bool {
     // El espacio duro (U+00A0) no parte: es el `&nbsp;` de un parrafo vacio.
@@ -346,8 +346,8 @@ pub(crate) enum Hoja {
 
 impl Hoja {
     pub(crate) fn de(nombre: &str) -> Hoja {
-        match pixpin_docs::formato_de(nombre) {
-            Some(pixpin_docs::Formato::Epub) => Hoja::Libro,
+        match pindesk_docs::formato_de(nombre) {
+            Some(pindesk_docs::Formato::Epub) => Hoja::Libro,
             _ => Hoja::Word,
         }
     }
@@ -714,7 +714,7 @@ pub(crate) fn colocar(
             Clase::Fila => {
                 let mut hasta = i + 1;
                 while hasta < doc.bloques.len()
-                    && pixpin_docs::tabla::misma_tabla(&doc.bloques[hasta - 1], &doc.bloques[hasta])
+                    && pindesk_docs::tabla::misma_tabla(&doc.bloques[hasta - 1], &doc.bloques[hasta])
                 {
                     hasta += 1;
                 }
@@ -974,7 +974,7 @@ pub(crate) fn medidas_de_imagen(d: &[u8]) -> Option<(u32, u32)> {
 /// dice y sin `imagen`. `n` es su numero en `doc.imagenes`.
 fn colocar_imagen(
     o: &mut Obra,
-    datos: Option<&pixpin_docs::documento::Imagen>,
+    datos: Option<&pindesk_docs::documento::Imagen>,
     i: usize,
     n: usize,
 ) {
@@ -1120,9 +1120,9 @@ fn tabla(o: &mut Obra, doc: &Documento, desde: usize, hasta: usize, imagen: &mut
     let cuerpo = o.cuerpo;
     let filas: Vec<Vec<Celda>> = doc.bloques[desde..hasta]
         .iter()
-        .map(pixpin_docs::tabla::celdas_de)
+        .map(pindesk_docs::tabla::celdas_de)
         .collect();
-    let n = pixpin_docs::tabla::columnas_de(&filas).max(1);
+    let n = pindesk_docs::tabla::columnas_de(&filas).max(1);
     // Cada parrafo con su imagen, si es una: las de las celdas tambien
     // estan en `doc.imagenes`, en orden, asi que se siguen contando aqui.
     let parrafos: Vec<Vec<Vec<ParrafoDeCelda>>> = filas

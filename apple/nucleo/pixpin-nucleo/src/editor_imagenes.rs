@@ -24,9 +24,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use pixpin_motor2d::elemento::{ColorRgba, Elemento, EstiloTrazo, Figura};
-use pixpin_motor2d::escena::Escena;
-use pixpin_motor2d::relleno::EstiloRelleno;
+use pindesk_motor2d::elemento::{ColorRgba, Elemento, EstiloTrazo, Figura};
+use pindesk_motor2d::escena::Escena;
+use pindesk_motor2d::relleno::EstiloRelleno;
 
 use crate::ErrorNucleo;
 use crate::editor::EditorLienzo;
@@ -227,8 +227,8 @@ impl EditorLienzo {
         medidas_png(&png).ok_or_else(|| ErrorNucleo::Argumento {
             detalle: "no es un PNG".into(),
         })?;
-        let corrido = pixpin_motor2d::zona::CORRIMIENTO_PX / zoom.max(0.0001);
-        let grupo = pixpin_motor2d::zona::grupo_nuevo(&self.tomar().escena);
+        let corrido = pindesk_motor2d::zona::CORRIMIENTO_PX / zoom.max(0.0001);
+        let grupo = pindesk_motor2d::zona::grupo_nuevo(&self.tomar().escena);
         self.meter_png(&png, |id_objeto| {
             let mut e = elemento_imagen(id_objeto, x0 + corrido, y0 + corrido, x1 - x0, y1 - y0);
             e.grupos.push(grupo.clone());
@@ -250,7 +250,7 @@ impl EditorLienzo {
         let st = &mut *guarda;
         let carpeta = st.temporal.get_or_insert_with(carpeta_temporal_nueva).clone();
         std::fs::create_dir_all(&carpeta)?;
-        let temporal = carpeta.join(pixpin_motor2d::enlace::id_de_texto(id_objeto));
+        let temporal = carpeta.join(pindesk_motor2d::enlace::id_de_texto(id_objeto));
         std::fs::write(&temporal, png)?;
         st.pegadas.retain(|p| p.id_objeto != id_objeto);
         st.pegadas.push(Pegada { id_objeto, temporal });
@@ -279,7 +279,7 @@ impl EditorLienzo {
             .get_or_insert_with(carpeta_temporal_nueva)
             .clone();
         std::fs::create_dir_all(&carpeta)?;
-        let temporal = carpeta.join(pixpin_motor2d::enlace::id_de_texto(id_objeto));
+        let temporal = carpeta.join(pindesk_motor2d::enlace::id_de_texto(id_objeto));
         std::fs::write(&temporal, png)?;
         st.gesto.cerrar_texto(&mut st.escena);
         let (e, a_la_mano) = figura(id_objeto);
@@ -292,7 +292,7 @@ impl EditorLienzo {
         });
         if a_la_mano {
             st.gesto
-                .tomar_herramienta(pixpin_motor2d::gesto::Herramienta::Mano);
+                .tomar_herramienta(pindesk_motor2d::gesto::Herramienta::Mano);
         }
         st.gesto.seleccion.poner_todos([id]);
         drop(guarda);

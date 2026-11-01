@@ -15,7 +15,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_proyecto::{almacen, cuaderno};
+use pindesk_proyecto::{almacen, cuaderno};
 use serde::{Deserialize, Serialize};
 
 use crate::{MensajeChat, Nucleo};

@@ -13,7 +13,7 @@
 
 use std::collections::HashMap;
 
-use pixpin_store::ajustes::{self, Suavizado};
+use pindesk_store::ajustes::{self, Suavizado};
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -39,7 +39,7 @@ pub struct AjustesOrganizar {
     pub tinta_corte_minimo: Option<f32>,
     pub tinta_beta: Option<f32>,
     /// Las herramientas apagadas en todos los sitios
-    /// (`pixpin_store::herramientas::NOMBRES`).
+    /// (`pindesk_store::herramientas::NOMBRES`).
     pub herramientas_apagadas: Vec<String>,
     /// Las apagadas en un sitio solo (`pantalla`, `pin`, `lienzo`, `lector`).
     pub herramientas_por_sitio: HashMap<String, Vec<String>>,
@@ -116,7 +116,7 @@ impl AjustesOrganizar {
         if let Some(s) = self
             .herramientas_por_sitio
             .keys()
-            .find(|s| !pixpin_store::herramientas::SITIOS.contains(&s.as_str()))
+            .find(|s| !pindesk_store::herramientas::SITIOS.contains(&s.as_str()))
         {
             return Err(fuera("sitio de las herramientas", s));
         }
@@ -185,7 +185,7 @@ impl Nucleo {
     }
 }
 
-/// Si la herramienta `nombre` (de `pixpin_store::herramientas::NOMBRES`)
+/// Si la herramienta `nombre` (de `pindesk_store::herramientas::NOMBRES`)
 /// sale en `sitio` con estos ajustes (`sitio` vacio: en todos).
 #[uniffi::export]
 pub fn herramienta_activa_en(ajustes: AjustesOrganizar, sitio: String, nombre: String) -> bool {
@@ -195,10 +195,10 @@ pub fn herramienta_activa_en(ajustes: AjustesOrganizar, sitio: String, nombre: S
 }
 
 /// Los nombres de las herramientas que se pueden apagar, en el orden de
-/// `pixpin_store::herramientas::NOMBRES`.
+/// `pindesk_store::herramientas::NOMBRES`.
 #[uniffi::export]
 pub fn nombres_de_herramientas() -> Vec<String> {
-    pixpin_store::herramientas::NOMBRES.iter().map(|s| s.to_string()).collect()
+    pindesk_store::herramientas::NOMBRES.iter().map(|s| s.to_string()).collect()
 }
 
 #[cfg(test)]

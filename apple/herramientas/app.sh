@@ -88,15 +88,16 @@ derechos_ad_hoc() {
 
 # Las bibliotecas y frameworks de Contents/Frameworks, firmados antes que
 # quien los carga.
-# El servidor MCP (`nucleo/pixpin-mcp`) va dentro de la app, junto al
+# El servidor MCP (`nucleo/pindesk-mcp`) va dentro de la app, junto al
 # ejecutable: Claude Desktop o Claude Code lo arrancan con la ruta
-# `/Applications/PinDesk.app/Contents/MacOS/pixpin-mcp` (docs/mcp.md).
+# `/Applications/PinDesk.app/Contents/MacOS/pindesk-mcp` (docs/mcp.md;
+# `pixpin-mcp` queda como enlace para las configuraciones de antes).
 # Universal y firmado ad hoc antes que la app.
-# Y el puente de la extension del navegador (`nucleo/pixpin-puente`, lo
+# Y el puente de la extension del navegador (`nucleo/pindesk-puente`, lo
 # registra `herramientas/registrar-navegador.sh`).
 meter_mcp() {
-    local app="$1" perfil="${PIXPIN_PERFIL_MCP:-ffi-rapido}"
-    for bin in pixpin-mcp pixpin-puente; do
+    local app="$1" perfil="${PINDESK_PERFIL_MCP:-${PIXPIN_PERFIL_MCP:-ffi-rapido}}"
+    for bin in pindesk-mcp pindesk-puente; do
         local piezas=()
         echo "==> $bin ($perfil, universal)"
         for t in aarch64-apple-darwin x86_64-apple-darwin; do
@@ -107,6 +108,9 @@ meter_mcp() {
         adelgazar "$app/Contents/MacOS/$bin"
         codesign --force --sign - --options runtime --timestamp=none "$app/Contents/MacOS/$bin"
     done
+    # Los nombres de antes, para quien ya los tiene en su configuracion.
+    ln -sf pindesk-mcp "$app/Contents/MacOS/pixpin-mcp"
+    ln -sf pindesk-puente "$app/Contents/MacOS/pixpin-puente"
 }
 
 firmar_frameworks() {

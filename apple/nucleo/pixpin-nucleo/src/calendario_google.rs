@@ -9,8 +9,8 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_ia::conexiones::calendario::{self, Evento, GOOGLE_CALENDAR};
-use pixpin_ia::conexiones::guardado;
+use pindesk_ia::conexiones::calendario::{self, Evento, GOOGLE_CALENDAR};
+use pindesk_ia::conexiones::guardado;
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -142,7 +142,7 @@ impl Nucleo {
             return Ok(false);
         }
         let mal = |detalle: String| ErrorNucleo::Asistente { detalle };
-        let cx = pixpin_ia::conexiones::Conexion::abrir(&GOOGLE_CALENDAR).map_err(mal)?;
+        let cx = pindesk_ia::conexiones::Conexion::abrir(&GOOGLE_CALENDAR).map_err(mal)?;
         let ahora = crate::ahora_ms();
         let eventos = calendario::eventos(&cx, ahora - ATRAS_MS, ahora + ADELANTE_MS).map_err(mal)?;
         let raiz = self.ruta();

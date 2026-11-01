@@ -9,13 +9,13 @@
 //! - las capturas viven en `<datos>/capturas/` con las mismas extensiones
 //!   (`png`, `jpg`, `jpeg`, `bmp`, `gif`, `webp`, `mp4`);
 //! - la caducidad es el registro `<datos>/capturas-caducidad.json`
-//!   (`pixpin_sincro::galeria::Caducidad`, el de Windows y Android): se crea
+//!   (`pindesk_sincro::galeria::Caducidad`, el de Windows y Android): se crea
 //!   la primera vez con `desde = ahora`, se escribe por un temporal
 //!   `capturas-caducidad.json.tmp` y uno que no se entiende se aparta como
 //!   `capturas-caducidad.json.roto-<ms>`;
-//! - cuando se va una captura lo dice `pixpin_sincro::galeria::se_va_el`
+//! - cuando se va una captura lo dice `pindesk_sincro::galeria::se_va_el`
 //!   (conservada, fecha acordada con el grupo, regla y prorroga), y «7 dias
-//!   mas» es `pixpin_sincro::galeria::prorrogar`;
+//!   mas» es `pindesk_sincro::galeria::prorrogar`;
 //! - **conservar** es mandarla a «Mensajes guardados» como una foto mas
 //!   (el mismo camino que adjuntar) y apuntarla en `conservadas`;
 //! - **borrar** la lleva a `<datos>/papelera/capturas/` (con la hora delante
@@ -48,7 +48,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use pixpin_sincro::galeria::{self as reglas, Caducidad};
+use pindesk_sincro::galeria::{self as reglas, Caducidad};
 
 use crate::{ErrorNucleo, MensajeChat, Nucleo};
 
@@ -265,7 +265,7 @@ pub fn dias_que_quedan(se_va: Option<i64>, ahora: i64, desfase_ms: i64) -> Optio
 
 /// **Las que ya tocan** (`caducidad_capturas::caducadas` de Windows): las
 /// de `lista` cuya fecha de irse (conservada, fijada con el grupo, regla y
-/// prorroga, por `pixpin_sincro::galeria::se_va_el`) ya llego en `ahora`.
+/// prorroga, por `pindesk_sincro::galeria::se_va_el`) ya llego en `ahora`.
 /// Con `dias` cero o menos no se va ninguna. Cada una con su fecha.
 pub(crate) fn caducadas<'a>(
     registro: &Caducidad,
@@ -673,7 +673,7 @@ fn entrada_de_fichero(ruta: &Path) -> Option<Entrada> {
 
 /// En minusculas y sin tildes, como `logica::plegar` de Windows.
 pub fn plegar(s: &str) -> String {
-    pixpin_timeline::buscar::normalizar(s)
+    pindesk_timeline::buscar::normalizar(s)
 }
 
 /// Si TODAS las palabras de la consulta (ya plegada) estan en alguno de los
@@ -687,7 +687,7 @@ pub fn encaja(consulta_plegada: &str, campos: &[&str]) -> bool {
 /// Lo que se busca de la fecha de una captura, plegado: «viernes 3 de
 /// octubre de 2026 3 oct», y «hoy» o «ayer» si toca.
 fn fecha_para_buscar(cuando: i64, ahora: i64, desfase_ms: i64) -> String {
-    use pixpin_timeline::dias::{self, Dia};
+    use pindesk_timeline::dias::{self, Dia};
     let d = Dia::de_instante(cuando, desfase_ms);
     let hoy = Dia::de_instante(ahora, desfase_ms);
     let cerca = match hoy.numero() - d.numero() {
@@ -699,7 +699,7 @@ fn fecha_para_buscar(cuando: i64, ahora: i64, desfase_ms: i64) -> String {
         "{} {} {}{cerca}",
         dias::nombre_del_dia(d, false),
         d.dia,
-        pixpin_timeline::estilo::mes_corto(d.mes, false)
+        pindesk_timeline::estilo::mes_corto(d.mes, false)
     ))
 }
 

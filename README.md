@@ -89,7 +89,7 @@ Windows; al abrirla sale la ventana de Proyectos.
 | [`apple/app/`](apple/app) | La app de Mac (SwiftPM) y sus 555 pruebas. |
 | [`apple/xcode/`](apple/xcode) | El proyecto de Xcode (XcodeGen) con las extensiones. |
 | [`apple/herramientas/`](apple/herramientas) | `xcframework.sh` (núcleo → xcframework), `app.sh` (monta y firma la app), `registrar-navegador.sh` (extensión del navegador) y `subir-release.sh` (sube la rama y la release). |
-| [`apple/extension-navegador/`](apple/extension-navegador) | La extensión de Chrome que habla con PinDesk por `pixpin-puente`. |
+| [`apple/extension-navegador/`](apple/extension-navegador) | La extensión de Chrome que habla con PinDesk por `pindesk-puente`. |
 | [`docs/releases/`](docs/releases) | Las notas de cada versión. |
 | [`apple/por-adaptar/`, `apple/por-traducir/`](apple) | Referencia de Windows aún sin pasar (no se compila aquí). |
 | [`docs/investigacion/`](docs/investigacion) | El plan: evaluación, herramientas de Apple, sincronización y fases. |

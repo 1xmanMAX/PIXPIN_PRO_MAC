@@ -6,10 +6,10 @@
 //! `motor/Scene.kt` y `motor/PaquetePixpin.kt` (main de 2026-09-26).
 
 use super::*;
-use pixpin_motor2d::elemento::{ColorRgba, Elemento as Pieza, Figura};
-use pixpin_motor2d::formas::TipoPunta;
-use pixpin_motor2d::vector::Punto2;
-use pixpin_proyecto::almacen::{Ficha, Indice};
+use pindesk_motor2d::elemento::{ColorRgba, Elemento as Pieza, Figura};
+use pindesk_motor2d::formas::TipoPunta;
+use pindesk_motor2d::vector::Punto2;
+use pindesk_proyecto::almacen::{Ficha, Indice};
 
 fn carpeta_temporal(etiqueta: &str) -> PathBuf {
     let d = std::env::temp_dir().join(format!(
@@ -226,7 +226,7 @@ fn como_lo_lee_el_movil(json: &str) -> Result<(), String> {
 /// Un lienzo del PC con de todo: texto, flecha, foto, dibujo a mano y lo
 /// propio de PixPin (foco y cota), escrito por el mismo motor que lo guarda.
 fn lienzo_del_pc() -> String {
-    let mut escena = pixpin_motor2d::Escena::nueva();
+    let mut escena = pindesk_motor2d::Escena::nueva();
     escena.anadir(Pieza {
         figura: Figura::Texto {
             texto: "Hola movil".into(),
@@ -284,12 +284,12 @@ fn lienzo_del_pc() -> String {
         alto: 0.0,
         ..Pieza::default()
     });
-    let lienzo = pixpin_motor2d::excalidraw::con_escena(
-        &pixpin_motor2d::excalidraw::Lienzo::vacio(),
+    let lienzo = pindesk_motor2d::excalidraw::con_escena(
+        &pindesk_motor2d::excalidraw::Lienzo::vacio(),
         &escena,
     );
     let mut v: Value =
-        serde_json::from_str(&pixpin_motor2d::excalidraw::escribir(&lienzo)).unwrap();
+        serde_json::from_str(&pindesk_motor2d::excalidraw::escribir(&lienzo)).unwrap();
     // La foto como la apunta el PC (`pdf_en_chat`, `fusionar_paginas`): su
     // `fileId` y una entrada de `files` con la ruta dentro del proyecto. Va
     // a mano porque asi la escriben ellos: el motor no la emite desde la
@@ -476,7 +476,7 @@ fn paquete_del_movil(hoja: &str, dibujo: &str, nombre: &str) -> (Elemento, Vec<u
     }))
     .unwrap();
     let mut p = Paquete::nuevo(
-        pixpin_proyecto::Manifiesto {
+        pindesk_proyecto::Manifiesto {
             aplicacion: "pixpin-android".into(),
             ..Default::default()
         },
@@ -546,9 +546,9 @@ fn un_lienzo_del_movil_crea_su_proyecto_y_se_abre_en_el_lienzo_del_pc() {
     let texto =
         std::fs::read_to_string(almacen::carpeta(&raiz, &fid).join(m[0].ruta.as_deref().unwrap()))
             .unwrap();
-    let l = pixpin_motor2d::excalidraw::leer(&texto).unwrap();
+    let l = pindesk_motor2d::excalidraw::leer(&texto).unwrap();
     assert_eq!(l.elementos().len(), 2);
-    let papel = pixpin_motor2d::excalidraw::fondo(&l);
+    let papel = pindesk_motor2d::excalidraw::fondo(&l);
     assert!(
         (papel.g - 0xf5 as f32 / 255.0).abs() < 0.01,
         "el papel del movil: {papel:?}"
@@ -655,7 +655,7 @@ fn un_lienzo_del_pc_vuelve_al_pc_y_se_abre_igual() {
         almacen::carpeta(&destino, &fid).join(m[0].ruta.as_deref().unwrap()),
     )
     .unwrap();
-    let l = pixpin_motor2d::excalidraw::leer(&texto).unwrap();
+    let l = pindesk_motor2d::excalidraw::leer(&texto).unwrap();
     assert_eq!(
         l.elementos().len(),
         6,
@@ -707,7 +707,7 @@ fn el_pixpin_de_compartir_un_lienzo_es_un_proyecto_nuevo_con_su_hoja_y_sus_fotos
     let d = p.proyecto.hojas[0].dibujo.clone().expect("la hoja es el lienzo");
     let s = std::str::from_utf8(p.entrada(&format!("lienzos/{d}.excalidraw")).expect("su lienzo")).unwrap();
     como_lo_lee_el_movil(s).unwrap();
-    assert!(pixpin_motor2d::excalidraw::leer(s).is_ok(), "se vuelve a leer aqui");
+    assert!(pindesk_motor2d::excalidraw::leer(s).is_ok(), "se vuelve a leer aqui");
     assert_eq!(p.entrada("imagenes/f7"), Some(PNG), "la foto va dentro");
     // Dos veces, dos proyectos distintos: al otro lado no se pisan.
     let otra = Paquete::desde_bytes(&pixpin_de_un_lienzo(&lienzo_del_pc(), "Viaje", &carpeta, 1).unwrap()).unwrap();

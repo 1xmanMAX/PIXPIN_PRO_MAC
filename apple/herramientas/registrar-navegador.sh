@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Registra el puente de la extension del navegador (`pixpin-puente`, dentro
+# Registra el puente de la extension del navegador (`pindesk-puente`, dentro
 # de PinDesk.app, o de la PixPin.app de antes) como «host» de mensajeria nativa de Chrome, Edge, Brave y
 # Chromium, solo para este usuario (el `registrar-navegador.ps1` de
 # Windows). La extension es `apple/extension-navegador` (la misma de
@@ -16,12 +16,14 @@ HOST=com.pixpinmax.puente
 ID=hcbhbfnjmdofjkdgeljognmjgppdiflo
 # PinDesk.app y, si no esta, la PixPin.app de antes (como Windows prueba
 # pindesk.exe y luego pixpinmax.exe). El HOST no cambia: lo lleva la extension.
-PUENTE="${PIXPIN_PUENTE:-}"
+PUENTE="${PINDESK_PUENTE:-${PIXPIN_PUENTE:-}}"
 if [ -z "$PUENTE" ]; then
-    PUENTE=/Applications/PinDesk.app/Contents/MacOS/pixpin-puente
-    if [ ! -x "$PUENTE" ] && [ -x /Applications/PixPin.app/Contents/MacOS/pixpin-puente ]; then
-        PUENTE=/Applications/PixPin.app/Contents/MacOS/pixpin-puente
-    fi
+    for p in /Applications/PinDesk.app/Contents/MacOS/pindesk-puente \
+             /Applications/PinDesk.app/Contents/MacOS/pixpin-puente \
+             /Applications/PixPin.app/Contents/MacOS/pixpin-puente; do
+        if [ -x "$p" ]; then PUENTE="$p"; break; fi
+    done
+    PUENTE="${PUENTE:-/Applications/PinDesk.app/Contents/MacOS/pindesk-puente}"
 fi
 CARPETAS=(
     "$HOME/Library/Application Support/Google/Chrome/NativeMessagingHosts"

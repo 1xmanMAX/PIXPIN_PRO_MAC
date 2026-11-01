@@ -5052,7 +5052,7 @@ public protocol HojaDeCalculoProtocol: AnyObject, Sendable {
     /**
      * **El libro como un `.xlsx`** (todas sus hojas, con la activa delante):
      * los valores ya calculados, el formato y los anchos
-     * (`pixpin_proyecto::tabla_xlsx`, el de Windows). Para compartir una
+     * (`pindesk_proyecto::tabla_xlsx`, el de Windows). Para compartir una
      * copia con lo editado.
      */
     func comoXlsx() throws  -> Data
@@ -5474,7 +5474,7 @@ open func tocada() -> Bool  {
     /**
      * **El libro como un `.xlsx`** (todas sus hojas, con la activa delante):
      * los valores ya calculados, el formato y los anchos
-     * (`pixpin_proyecto::tabla_xlsx`, el de Windows). Para compartir una
+     * (`pindesk_proyecto::tabla_xlsx`, el de Windows). Para compartir una
      * copia con lo editado.
      */
 open func comoXlsx()throws  -> Data  {
@@ -5551,7 +5551,7 @@ public func FfiConverterTypeHojaDeCalculo_lower(_ value: HojaDeCalculo) -> UInt6
 
 /**
  * **La puerta de una invitacion** (`invitacion::Puerta` de
- * `pixpin_sincro`, sin su hilo que sondea cada 100 ms: aqui `accept`
+ * `pindesk_sincro`, sin su hilo que sondea cada 100 ms: aqui `accept`
  * bloquea en un hilo de Swift y se despierta al cerrar). Atiende la
  * invitacion (`PXI1`) y, detras, la conversacion de persona (`PXC1`) con
  * la que el otro se trae el chat.
@@ -5590,7 +5590,7 @@ public protocol InvitacionProtocol: AnyObject, Sendable {
 }
 /**
  * **La puerta de una invitacion** (`invitacion::Puerta` de
- * `pixpin_sincro`, sin su hilo que sondea cada 100 ms: aqui `accept`
+ * `pindesk_sincro`, sin su hilo que sondea cada 100 ms: aqui `accept`
  * bloquea en un hilo de Swift y se despierta al cerrar). Atiende la
  * invitacion (`PXI1`) y, detras, la conversacion de persona (`PXC1`) con
  * la que el otro se trae el chat.
@@ -5869,7 +5869,7 @@ open class Lienzo: LienzoProtocol, @unchecked Sendable {
     
     /**
      * Un lienzo desde un fichero `.excalidraw`, `.pixpin2d` (el dibujo
-     * propio de PixPin, `pixpin_motor2d::formato`) o `.pixpin` (el de su
+     * propio de PixPin, `pindesk_motor2d::formato`) o `.pixpin` (el de su
      * primera hoja); se mira la extension. Lo usa tambien la vista previa
      * de Quick Look.
      */
@@ -9873,7 +9873,7 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     /**
      * Busca en el titulo y la descripcion de TODOS los momentos, sin
      * mayusculas ni tildes y con cada palabra en cualquier orden
-     * (`pixpin_timeline::buscar`), del mas nuevo al mas viejo.
+     * (`pindesk_timeline::buscar`), del mas nuevo al mas viejo.
      */
     func timelineBuscar(consulta: String, desfaseMs: Int64, cuantos: UInt32) throws  -> [MomentoTimeline]
     
@@ -9907,7 +9907,7 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     
     /**
      * **Exportar lo que se ve** (`exportar_lo_que_se_ve` de Windows): la
-     * pagina de linea de tiempo de `pixpin_timeline::html`, con las fotos
+     * pagina de linea de tiempo de `pindesk_timeline::html`, con las fotos
      * y los audios dentro. Swift la guarda como HTML o la imprime a PDF.
      * Sin nada que exportar, error de argumento.
      */
@@ -14485,7 +14485,7 @@ open func timelineBorrar(id: String)throws  -> String  {
     /**
      * Busca en el titulo y la descripcion de TODOS los momentos, sin
      * mayusculas ni tildes y con cada palabra en cualquier orden
-     * (`pixpin_timeline::buscar`), del mas nuevo al mas viejo.
+     * (`pindesk_timeline::buscar`), del mas nuevo al mas viejo.
      */
 open func timelineBuscar(consulta: String, desfaseMs: Int64, cuantos: UInt32)throws  -> [MomentoTimeline]  {
     return try  FfiConverterSequenceTypeMomentoTimeline.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -14565,7 +14565,7 @@ open func timelineEstado(desfaseMs: Int64)throws  -> [MesEstado]  {
     
     /**
      * **Exportar lo que se ve** (`exportar_lo_que_se_ve` de Windows): la
-     * pagina de linea de tiempo de `pixpin_timeline::html`, con las fotos
+     * pagina de linea de tiempo de `pindesk_timeline::html`, con las fotos
      * y los audios dentro. Swift la guarda como HTML o la imprime a PDF.
      * Sin nada que exportar, error de argumento.
      */
@@ -18823,7 +18823,7 @@ public struct AjustesOrganizar: Equatable, Hashable {
     public var tintaBeta: Float?
     /**
      * Las herramientas apagadas en todos los sitios
-     * (`pixpin_store::herramientas::NOMBRES`).
+     * (`pindesk_store::herramientas::NOMBRES`).
      */
     public var herramientasApagadas: [String]
     /**
@@ -18866,7 +18866,7 @@ public struct AjustesOrganizar: Equatable, Hashable {
          */tintaCorteMinimo: Float?, tintaBeta: Float?, 
         /**
          * Las herramientas apagadas en todos los sitios
-         * (`pixpin_store::herramientas::NOMBRES`).
+         * (`pindesk_store::herramientas::NOMBRES`).
          */herramientasApagadas: [String], 
         /**
          * Las apagadas en un sitio solo (`pantalla`, `pin`, `lienzo`, `lector`).
@@ -20843,7 +20843,7 @@ public func FfiConverterTypeCajaVistaTareas_lower(_ value: CajaVistaTareas) -> R
 
 
 /**
- * La camara del visor 3D (`pixpin_cad::orbita::Orbita`).
+ * La camara del visor 3D (`pindesk_cad::orbita::Orbita`).
  */
 public struct Camara3d: Equatable, Hashable {
     public var objetivo: Punto3d
@@ -24292,7 +24292,7 @@ public func FfiConverterTypeCopiaHoja_lower(_ value: CopiaHoja) -> RustBuffer {
 
 /**
  * Una cosa de una pestana: un mensaje entero o, en «Fotos», una foto de
- * una nota rica (`pixpin_ui::info::Cosa`).
+ * una nota rica (`pindesk_ui::info::Cosa`).
  */
 public struct CosaDeLaFicha: Equatable, Hashable {
     public var mensaje: MensajeChat
@@ -28072,7 +28072,7 @@ public func FfiConverterTypeFinChatIa_lower(_ value: FinChatIa) -> RustBuffer {
 
 
 /**
- * Un fondo de la paleta (`pixpin_ui::foto_del_chat::FONDOS`).
+ * Un fondo de la paleta (`pindesk_ui::foto_del_chat::FONDOS`).
  */
 public struct FondoDeLaFoto: Equatable, Hashable {
     public var arriba: UInt32
@@ -33298,7 +33298,7 @@ public func FfiConverterTypeMedidasDeBuscarEnChats_lower(_ value: MedidasDeBusca
 
 
 /**
- * Las medidas con que se pinta un mosaico (`pixpin_ui::funciones`).
+ * Las medidas con que se pinta un mosaico (`pindesk_ui::funciones`).
  */
 public struct MedidasDeFunciones: Equatable, Hashable {
     public var radio: Float
@@ -38018,7 +38018,7 @@ public func FfiConverterTypeRecordatorioMac_lower(_ value: RecordatorioMac) -> R
 
 /**
  * Que cuadrado de la foto preparada entra en el circulo
- * (`pixpin_ui::foto_del_chat::Recorte`).
+ * (`pindesk_ui::foto_del_chat::Recorte`).
  */
 public struct RecorteDeLaFoto: Equatable, Hashable {
     /**
@@ -38205,7 +38205,7 @@ public func FfiConverterTypeRecursoNota_lower(_ value: RecursoNota) -> RustBuffe
 
 
 /**
- * Donde va cada cosa de la pestana (`pixpin_ui::funciones::Rejilla`).
+ * Donde va cada cosa de la pestana (`pindesk_ui::funciones::Rejilla`).
  */
 public struct RejillaDeFunciones: Equatable, Hashable {
     /**
@@ -39900,7 +39900,7 @@ public func FfiConverterTypeRotulosDeBuscarEnChats_lower(_ value: RotulosDeBusca
 
 /**
  * Un trozo de lo reconocido y en que milisegundo del audio empieza (el
- * `Segmento` de `pixpin-voz`; Swift lo saca de `SFTranscriptionSegment`).
+ * `Segmento` de `pindesk-voz`; Swift lo saca de `SFTranscriptionSegment`).
  */
 public struct SegmentoVoz: Equatable, Hashable {
     public var desdeMs: Int64
@@ -41201,7 +41201,7 @@ public func FfiConverterTypeTextosDeFunciones_lower(_ value: TextosDeFunciones) 
 
 
 /**
- * Los textos de la hoja (`foto-chat-*` de `pixpin-store`).
+ * Los textos de la hoja (`foto-chat-*` de `pindesk-store`).
  */
 public struct TextosDeLaFoto: Equatable, Hashable {
     public var menu: String
@@ -44713,7 +44713,7 @@ public func FfiConverterTypeClaseDeResultado_lower(_ value: ClaseDeResultado) ->
 
 
 /**
- * Que es un bloque colocado (`pixpin_docs::documento::Clase`).
+ * Que es un bloque colocado (`pindesk_docs::documento::Clase`).
  */
 
 public enum ClaseReflujo: Equatable, Hashable {
@@ -44834,7 +44834,7 @@ public func FfiConverterTypeClaseReflujo_lower(_ value: ClaseReflujo) -> RustBuf
 
 
 /**
- * Con que se codifica (`pixpin_motor_video::Codificador`).
+ * Con que se codifica (`pindesk_motor_video::Codificador`).
  */
 
 public enum CodificadorVideo: Equatable, Hashable {
@@ -45679,7 +45679,7 @@ public func FfiConverterTypeDondeLlego_lower(_ value: DondeLlego) -> RustBuffer 
 
 
 /**
- * Como entra una diapositiva (`pixpin_office::pptx::pase::Efecto`). `dx` y
+ * Como entra una diapositiva (`pindesk_office::pptx::pase::Efecto`). `dx` y
  * `dy` valen -1, 0 o 1: hacia donde se mueve.
  */
 
@@ -47073,7 +47073,7 @@ public func FfiConverterTypeFuenteCapa_lower(_ value: FuenteCapa) -> RustBuffer 
 
 
 /**
- * Cada funcion de la rejilla (`pixpin_ui::funciones::Funcion`), en su orden.
+ * Cada funcion de la rejilla (`pindesk_ui::funciones::Funcion`), en su orden.
  */
 
 public enum FuncionDeLaLista: Equatable, Hashable {
@@ -47342,7 +47342,7 @@ public func FfiConverterTypeLineaEstilo_lower(_ value: LineaEstilo) -> RustBuffe
 
 
 /**
- * El color del puntito (`pixpin_ui::estado_ia::Luz`).
+ * El color del puntito (`pindesk_ui::estado_ia::Luz`).
  */
 
 public enum LuzIa: Equatable, Hashable {
@@ -48161,7 +48161,7 @@ public func FfiConverterTypePasoAuto_lower(_ value: PasoAuto) -> RustBuffer {
 
 
 /**
- * Con que calidad se graba (`pixpin_motor_video::Perfil`).
+ * Con que calidad se graba (`pindesk_motor_video::Perfil`).
  */
 
 public enum PerfilVideo: Equatable, Hashable {
@@ -56711,7 +56711,7 @@ fileprivate struct FfiConverterDictionaryStringSequenceString: FfiConverterRustB
     }
 }
 /**
- * Si la herramienta `nombre` (de `pixpin_store::herramientas::NOMBRES`)
+ * Si la herramienta `nombre` (de `pindesk_store::herramientas::NOMBRES`)
  * sale en `sitio` con estos ajustes (`sitio` vacio: en todos).
  */
 public func herramientaActivaEn(ajustes: AjustesOrganizar, sitio: String, nombre: String) -> Bool  {
@@ -56726,7 +56726,7 @@ public func herramientaActivaEn(ajustes: AjustesOrganizar, sitio: String, nombre
 }
 /**
  * Los nombres de las herramientas que se pueden apagar, en el orden de
- * `pixpin_store::herramientas::NOMBRES`.
+ * `pindesk_store::herramientas::NOMBRES`.
  */
 public func nombresDeHerramientas() -> [String]  {
     return try!  FfiConverterSequenceString.lift(try! rustCall() {
@@ -56865,7 +56865,7 @@ public func iaLienzoDe(elementos: String) -> String  {
 }
 /**
  * Una llamada del modelo, de cualquier motor (ver
- * `pixpin_ia::puente::llamar`): devuelve el objeto JSON con `ok`,
+ * `pindesk_ia::puente::llamar`): devuelve el objeto JSON con `ok`,
  * `elementos`, `argumentos`... o `para_el_modelo` si estaba mal.
  */
 public func iaLlamar(nombre: String, argumentos: String, origenX: Double, origenY: Double, semilla: UInt64) -> String  {
@@ -57245,7 +57245,7 @@ public func medidasDeBuscarEnChats() -> MedidasDeBuscarEnChats  {
 }
 /**
  * Los rotulos para `total` encontrados y `mas` por ensenar
- * (`chat-buscar-mensajes` y `chat-buscar-ver-mas` de `pixpin-store`).
+ * (`chat-buscar-mensajes` y `chat-buscar-ver-mas` de `pindesk-store`).
  */
 public func rotulosDeBuscarEnChats(locale: String, total: UInt64, mas: UInt64) -> RotulosDeBuscarEnChats  {
     return try!  FfiConverterTypeRotulosDeBuscarEnChats_lift(try! rustCall() {
@@ -57472,7 +57472,7 @@ public func textosDeCuaderno(titulo: String, paginas: [PaginaDeCarpeta]) -> Text
 }
 /**
  * **Un Markdown como Word** (`.docx`), por el mismo escritor de las notas
- * (`pixpin_notas::word::exportar` de Windows).
+ * (`pindesk_notas::word::exportar` de Windows).
  */
 public func wordDeMarkdown(titulo: String, markdown: String)throws  -> Data  {
     return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -57572,7 +57572,7 @@ public func grabacionWeb(g: GrabacionParaCompartir, base: String, carpeta: Strin
 /**
  * **Word**: el mismo Markdown por el escritor de `.docx` de las notas, con
  * las capturas dentro (`clase::word` de Windows, por
- * `pixpin_notas::word::exportar`).
+ * `pindesk_notas::word::exportar`).
  */
 public func grabacionWord(g: GrabacionParaCompartir, base: String, carpeta: String)throws  -> [String]  {
     return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -57783,7 +57783,7 @@ public func ladosDeLaColumna(lectura: LecturaReflujo, columna: Float) -> [Float]
 })
 }
 /**
- * **Las letras del movil**, incrustadas como en Windows (`pixpin-render`):
+ * **Las letras del movil**, incrustadas como en Windows (`pindesk-render`):
  * Noto Serif y Roboto (las «serif» y «sans-serif» de Android, rectas y
  * cursivas, normal y negrita) y Caveat (la letra a mano). Courier New ya
  * viene con el Mac. Ver `letras/LICENCIAS.txt`.
@@ -58435,7 +58435,7 @@ public func medidasDeFunciones() -> MedidasDeFunciones  {
 /**
  * **La rejilla en una columna de `ancho` x `alto` puntos** (la de la
  * lista): las mismas cuentas que Windows a escala 100, con el radio, los
- * lados y las letras de `pixpin_ui::funciones` (ver [`medidas_de_funciones`]).
+ * lados y las letras de `pindesk_ui::funciones` (ver [`medidas_de_funciones`]).
  */
 public func rejillaDeFunciones(ancho: UInt32, alto: UInt32) -> RejillaDeFunciones  {
     return try!  FfiConverterTypeRejillaDeFunciones_lift(try! rustCall() {
@@ -58449,7 +58449,7 @@ public func rejillaDeFunciones(ancho: UInt32, alto: UInt32) -> RejillaDeFuncione
 /**
  * **Una tecla en la rejilla** desde `elegida`, con `columnas` (las de la
  * rejilla que se ve): flechas, Inicio y Fin recorren sin dar la vuelta
- * (`pixpin_ui::funciones::mover`), Tab si da la vuelta, Intro o Espacio
+ * (`pindesk_ui::funciones::mover`), Tab si da la vuelta, Intro o Espacio
  * hacen el elegido (sin ninguno, eligen el primero) y Escape vuelve al chat.
  */
 public func teclaEnFunciones(elegida: UInt32?, tecla: TeclaDeFunciones, columnas: UInt32) -> RespuestaDeFunciones  {
@@ -60049,7 +60049,7 @@ public func cajaDeChip(xDia: Float, anchoDia: Float, y: Float, carril: UInt8, al
 }
 /**
  * **Las tareas con hora de la semana que se ve**, como chapitas
- * (`pixpin_ui::vista_tareas::chips_de_la_semana`): `horas` en ms locales,
+ * (`pindesk_ui::vista_tareas::chips_de_la_semana`): `horas` en ms locales,
  * `lunes` en dias desde 1970, `dias` las columnas, `desde`/`hasta` los
  * minutos de la rejilla y `paso` lo que junta dos en la misma hora.
  */
@@ -60178,10 +60178,10 @@ private let initializationResult: InitializationResult = {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_herramienta_activa_en() != 44427) {
+    if (uniffi_pixpin_nucleo_checksum_func_herramienta_activa_en() != 51091) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_nombres_de_herramientas() != 14542) {
+    if (uniffi_pixpin_nucleo_checksum_func_nombres_de_herramientas() != 47594) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_aligerar_pdf() != 20385) {
@@ -60214,7 +60214,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_ia_lienzo_de() != 19193) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_llamar() != 11425) {
+    if (uniffi_pixpin_nucleo_checksum_func_ia_llamar() != 19694) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ia_cancelar_conexion() != 11886) {
@@ -60304,7 +60304,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_medidas_de_buscar_en_chats() != 38305) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_rotulos_de_buscar_en_chats() != 9855) {
+    if (uniffi_pixpin_nucleo_checksum_func_rotulos_de_buscar_en_chats() != 25588) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_dentro_de_carpetas() != 63864) {
@@ -60358,7 +60358,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_textos_de_cuaderno() != 41013) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_word_de_markdown() != 34855) {
+    if (uniffi_pixpin_nucleo_checksum_func_word_de_markdown() != 49322) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_grabacion_anki() != 42499) {
@@ -60379,7 +60379,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_grabacion_web() != 13485) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_grabacion_word() != 30860) {
+    if (uniffi_pixpin_nucleo_checksum_func_grabacion_word() != 16471) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_capas_de_transicion() != 31797) {
@@ -60427,7 +60427,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_lados_de_la_columna() != 18613) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_letras_de_lectura() != 9799) {
+    if (uniffi_pixpin_nucleo_checksum_func_letras_de_lectura() != 7701) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_otro_espacio_de_lado() != 54935) {
@@ -60571,10 +60571,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_medidas_de_funciones() != 25492) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_rejilla_de_funciones() != 46971) {
+    if (uniffi_pixpin_nucleo_checksum_func_rejilla_de_funciones() != 44534) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_tecla_en_funciones() != 36405) {
+    if (uniffi_pixpin_nucleo_checksum_func_tecla_en_funciones() != 15526) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_textos_de_funciones() != 48151) {
@@ -60961,7 +60961,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_caja_de_chip() != 28465) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_chips_de_la_semana() != 13912) {
+    if (uniffi_pixpin_nucleo_checksum_func_chips_de_la_semana() != 64219) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_disponer_horario_de_tareas() != 21729) {
@@ -61828,7 +61828,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_borrar() != 35354) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_buscar() != 55306) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_buscar() != 61360) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_corregir() != 52321) {
@@ -61843,7 +61843,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_estado() != 49285) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_exportar() != 36693) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_exportar() != 10007) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_leccion() != 53140) {
@@ -62362,7 +62362,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_tocada() != 25435) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_como_xlsx() != 41241) {
+    if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_como_xlsx() != 2885) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_hojadecalculo_es_suelta() != 63253) {
@@ -62824,7 +62824,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_constructor_semanahorario_abrir() != 55314) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_fichero() != 2860) {
+    if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_fichero() != 39586) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_json() != 46678) {

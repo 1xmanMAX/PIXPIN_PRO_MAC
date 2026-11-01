@@ -5,9 +5,9 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use pixpin_motor2d::excalidraw;
-use pixpin_motor2d::gesto::{EventoGesto, Gesto, Herramienta};
-use pixpin_motor2d::vector::Punto2;
+use pindesk_motor2d::excalidraw;
+use pindesk_motor2d::gesto::{EventoGesto, Gesto, Herramienta};
+use pindesk_motor2d::vector::Punto2;
 use pixpin_nucleo::lienzo::decodificar;
 use pixpin_nucleo::{EditorLienzo, ErrorNucleo, FasePuntero, Nucleo};
 use serde_json::Value;
@@ -436,13 +436,13 @@ fn el_angulo_pone_su_letra_y_las_flechas_la_cambian() {
 /// el radio no, y caben mas) y la guarda sin perderla.
 #[test]
 fn la_nube_se_pinta_se_estira_por_su_asa_y_se_guarda_sin_perderse() {
-    use pixpin_motor2d::elemento::ColorRgba;
-    use pixpin_motor2d::nube_revision;
-    use pixpin_motor2d::pintado::Orden;
+    use pindesk_motor2d::elemento::ColorRgba;
+    use pindesk_motor2d::nube_revision;
+    use pindesk_motor2d::pintado::Orden;
 
     let t = Temporal::nueva("nube");
     let ruta = t.0.join("n.excalidraw").display().to_string();
-    let mut escena = pixpin_motor2d::Escena::nueva();
+    let mut escena = pindesk_motor2d::Escena::nueva();
     escena.anadir(nube_revision::nube(
         100.0,
         100.0,

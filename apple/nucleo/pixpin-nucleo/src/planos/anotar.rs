@@ -20,8 +20,8 @@
 
 use std::sync::Arc;
 
-use pixpin_cad::anotado::Encaje;
-use pixpin_sincro::anotado::MarcoDeLaHoja;
+use pindesk_cad::anotado::Encaje;
+use pindesk_sincro::anotado::MarcoDeLaHoja;
 
 use super::{EncajePlano, Plano, escribir_hoja};
 use crate::ErrorNucleo;

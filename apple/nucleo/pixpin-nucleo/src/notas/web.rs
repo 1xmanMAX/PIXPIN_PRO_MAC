@@ -32,9 +32,9 @@ use std::time::SystemTime;
 use serde::Deserialize;
 use serde_json::json;
 
-use pixpin_docs::md_comentarios::Quien;
-use pixpin_docs::{exportar_docx, md_vivo};
-use pixpin_proyecto::{almacen, cuaderno};
+use pindesk_docs::md_comentarios::Quien;
+use pindesk_docs::{exportar_docx, md_vivo};
+use pindesk_proyecto::{almacen, cuaderno};
 
 use super::comentarios::{self, Comentarista};
 use super::{DestinoNota, adjuntos, vista};
@@ -298,7 +298,7 @@ fn texto_limpio(s: &str) -> String {
         .join(" ")
 }
 
-/// El renglon de un mensaje del chat (`pixpin_notas::incrustados` de
+/// El renglon de un mensaje del chat (`pindesk_notas::incrustados` de
 /// Windows): su primera frase como texto del enlace y sus codigos en la
 /// direccion `pixpin:mensaje=<proyecto>/<mensaje>`.
 pub fn renglon_de_mensaje(texto: &str, proyecto: &str, mensaje: &str) -> String {
@@ -564,7 +564,7 @@ impl SesionNota {
             let sin = vista::olvidar(&contenido, &clave);
             vista::escribir(&sin, None, v)
         };
-        let _ = pixpin_sincro::disco::escribir_atomico(&ruta, nuevo.as_bytes());
+        let _ = pindesk_sincro::disco::escribir_atomico(&ruta, nuevo.as_bytes());
     }
 
     /// El primer mensaje para la pagina: el texto, el idioma y la vista.
@@ -597,7 +597,7 @@ impl SesionNota {
     fn guardar(&self, e: &mut Estado, texto: &str) -> Result<Option<MensajeChat>, ErrorNucleo> {
         match &e.destino {
             DestinoNota::Fichero { ruta } => {
-                pixpin_sincro::disco::escribir_atomico(Path::new(ruta), texto.as_bytes())?;
+                pindesk_sincro::disco::escribir_atomico(Path::new(ruta), texto.as_bytes())?;
                 Ok(None)
             }
             DestinoNota::Mensaje { chat, mensaje } => self
@@ -649,13 +649,13 @@ impl SesionNota {
             .find(|m| m.codigo_unico() == clave)?;
         if m.clase == Some(cuaderno::Clase::Voz)
             && let Some(r) = m.ruta.as_deref().filter(|r| !r.is_empty())
-            && let Some(real) = pixpin_proyecto::vista::ruta_real(&raiz, chat, r)
+            && let Some(real) = pindesk_proyecto::vista::ruta_real(&raiz, chat, r)
             && real.is_file()
         {
             let ruta = if r.starts_with("pixpin:files/") {
                 r.to_string()
             } else {
-                pixpin_proyecto::vista::portatil_de_ruta(&raiz, &real)
+                pindesk_proyecto::vista::portatil_de_ruta(&raiz, &real)
                     .unwrap_or_else(|| r.to_string())
             };
             let nombre = match texto_limpio(&m.nombre) {
@@ -997,7 +997,7 @@ impl SesionNota {
         let e = self.estado();
         let ruta = comentarios::ruta(&self.raiz(), &e.destino, &e.codigo);
         ruta.and_then(|r| std::fs::read_to_string(r).ok())
-            .and_then(|t| pixpin_docs::md_comentarios::leer(&t).ok())
+            .and_then(|t| pindesk_docs::md_comentarios::leer(&t).ok())
             .map(|c| c.abiertos())
             .unwrap_or(0)
     }

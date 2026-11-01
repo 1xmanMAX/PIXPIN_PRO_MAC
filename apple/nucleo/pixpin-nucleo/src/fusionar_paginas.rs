@@ -11,7 +11,7 @@
 //! marco con su rotulo y la foto de la pagina por cada una, las dos con
 //! candado), su mensaje `DIBUJO` y su hoja en `proyecto.json`.
 
-use pixpin_proyecto::{Hoja, Proyecto, almacen, vista};
+use pindesk_proyecto::{Hoja, Proyecto, almacen, vista};
 
 use crate::{ErrorNucleo, MensajeChat, Nucleo};
 

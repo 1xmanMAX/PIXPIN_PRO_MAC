@@ -2,44 +2,44 @@
 //!
 //! No se inventa nada: es lo que hace Windows, con los campos del movil.
 //!
-//! - El audio es un `.m4a` (MPEG-4 con AAC mono, como `pixpin-audio` y el
+//! - El audio es un `.m4a` (MPEG-4 con AAC mono, como `pindesk-audio` y el
 //!   `MediaRecorder` del movil) que graba Swift con AVFoundation. Aqui entra
 //!   con [`Nucleo::adjuntar_voz`]: se copia como cualquier adjunto
 //!   (`guardar_adjunto`, clase `VOZ`) con el nombre `voz_<hora>.m4a` de
 //!   Windows (`ventana_chat::nombre_de_la_voz`), y la misma linea lleva
 //!   `duracionMs` y `picos` (de 0 a 32767, como mucho 256: el contrato de
-//!   `pixpin_audio::picos`). Windows escribe la linea y luego la reescribe
+//!   `pindesk_audio::picos`). Windows escribe la linea y luego la reescribe
 //!   con eso; aqui se escribe una sola vez.
 //! - El texto lo saca Swift (`SFSpeechRecognizer` en el aparato) y lo
 //!   guarda [`Nucleo::poner_transcripcion`] igual que `voz::aplicar` de
 //!   Windows: `transcripcion` con el formato `[1:23] lo dicho` (lineas de
 //!   hasta 15 s separadas por un renglon en blanco,
-//!   `pixpin_voz::tiempos::con_tiempos`) y `estadoDelTexto` en `resto`.
+//!   `pindesk_voz::tiempos::con_tiempos`) y `estadoDelTexto` en `resto`.
 //!
-//! El texto con tiempos es el de `pixpin_voz::tiempos` de Windows (sus
+//! El texto con tiempos es el de `pindesk_voz::tiempos` de Windows (sus
 //! partes puras compilan fuera de Windows desde el 25-oct): el campo viaja
 //! por la sincronizacion y el movil lo lee para saltar al minuto.
 
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje};
 
 use crate::chats::validar_chat;
 use crate::{ErrorNucleo, MensajeChat, Nucleo};
 
 /// Cuanto abarca un parrafo del texto con tiempos, como mucho (15 s desde
 /// el 25-oct-2026, Windows 7df5532).
-pub const PARRAFO_MS: i64 = pixpin_voz::tiempos::PARRAFO_MS;
+pub const PARRAFO_MS: i64 = pindesk_voz::tiempos::PARRAFO_MS;
 
 /// Cuantos picos se guardan por nota, como mucho
-/// (`pixpin_audio::PICOS_GUARDADOS`, `Onda.kt:96`).
+/// (`pindesk_audio::PICOS_GUARDADOS`, `Onda.kt:96`).
 pub const PICOS_GUARDADOS: usize = 256;
 
 /// Lo mas alto que puede valer un pico: el de una muestra de 16 bits
-/// (`pixpin_audio::PICO_MAXIMO`).
+/// (`pindesk_audio::PICO_MAXIMO`).
 pub const PICO_MAXIMO: i32 = 32767;
 
 /// Un trozo de lo reconocido y en que milisegundo del audio empieza (el
-/// `Segmento` de `pixpin-voz`; Swift lo saca de `SFTranscriptionSegment`).
+/// `Segmento` de `pindesk-voz`; Swift lo saca de `SFTranscriptionSegment`).
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct SegmentoVoz {
     pub desde_ms: i64,
@@ -51,28 +51,28 @@ pub struct SegmentoVoz {
 }
 
 impl SegmentoVoz {
-    /// El `Segmento` de `pixpin_voz::tiempos`, el de Windows.
-    pub(crate) fn de_windows(&self) -> pixpin_voz::tiempos::Segmento {
-        pixpin_voz::tiempos::Segmento::entre(self.desde_ms, self.hasta_ms, self.texto.trim())
+    /// El `Segmento` de `pindesk_voz::tiempos`, el de Windows.
+    pub(crate) fn de_windows(&self) -> pindesk_voz::tiempos::Segmento {
+        pindesk_voz::tiempos::Segmento::entre(self.desde_ms, self.hasta_ms, self.texto.trim())
     }
 }
 
-/// `1:23`, `12:05`, `1:02:09` (`pixpin_voz::tiempos::marca_de_tiempo`).
+/// `1:23`, `12:05`, `1:02:09` (`pindesk_voz::tiempos::marca_de_tiempo`).
 pub fn marca_de_tiempo(ms: i64) -> String {
-    pixpin_voz::tiempos::marca_de_tiempo(ms)
+    pindesk_voz::tiempos::marca_de_tiempo(ms)
 }
 
 /// El texto con sus tiempos: los trozos juntados en lineas de hasta
 /// [`PARRAFO_MS`] (partiendo tras un punto, un silencio o una coma),
-/// separadas por un renglon en blanco. Es `pixpin_voz::tiempos::con_tiempos`
+/// separadas por un renglon en blanco. Es `pindesk_voz::tiempos::con_tiempos`
 /// de Windows con el prefijo vacio (una nota normal).
 pub fn con_tiempos(segmentos: &[SegmentoVoz]) -> String {
     let trozos: Vec<_> = segmentos.iter().map(SegmentoVoz::de_windows).collect();
-    pixpin_voz::tiempos::con_tiempos(&trozos, "")
+    pindesk_voz::tiempos::con_tiempos(&trozos, "")
 }
 
 /// La palabra de `estadoDelTexto` para un texto reconocido: `bien` si hay
-/// algo aprovechable y `mal` si no (`pixpin_voz::estado_de` sin avisos: el
+/// algo aprovechable y `mal` si no (`pindesk_voz::estado_de` sin avisos: el
 /// reconocedor de Apple no marca trozos sin entender).
 pub fn estado_de(segmentos: &[SegmentoVoz]) -> &'static str {
     if segmentos.iter().any(|s| !s.texto.trim().is_empty()) {
@@ -82,7 +82,7 @@ pub fn estado_de(segmentos: &[SegmentoVoz]) -> &'static str {
     }
 }
 
-/// Junta los picos de dos en dos promediando (`pixpin_audio::picos::a_mitad`).
+/// Junta los picos de dos en dos promediando (`pindesk_audio::picos::a_mitad`).
 fn a_mitad(picos: &[i32]) -> Vec<i32> {
     picos
         .chunks(2)
@@ -293,12 +293,12 @@ mod pruebas {
         // Ninguna linea abarca mas de 15 s.
         let ms: Vec<i64> = marcas
             .iter()
-            .filter_map(|l| pixpin_voz::tiempos::tiempo_de(l).map(|(m, _)| m))
+            .filter_map(|l| pindesk_voz::tiempos::tiempo_de(l).map(|(m, _)| m))
             .collect();
         assert!(ms.windows(2).all(|w| w[1] - w[0] <= PARRAFO_MS), "{ms:?}");
         // Es exactamente lo de Windows.
         let de_windows: Vec<_> = trozos.iter().map(SegmentoVoz::de_windows).collect();
-        assert_eq!(texto, pixpin_voz::tiempos::con_tiempos(&de_windows, ""));
+        assert_eq!(texto, pindesk_voz::tiempos::con_tiempos(&de_windows, ""));
     }
 
     #[test]

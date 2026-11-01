@@ -2,15 +2,15 @@
 //! `comentarios_web.rs` de Windows): en el fichero hermano
 //! `anot-<codigo>.comentarios.json`, junto a lo anotado del chat, que es lo
 //! que los hace viajar con la nota (Windows y Android leen el mismo). Las
-//! cuentas son las de `pixpin_docs::md_comentarios` (el ancla es una cita
+//! cuentas son las de `pindesk_docs::md_comentarios` (el ancla es una cita
 //! con su contexto; al cambiar el texto se vuelve a buscar; al guardar se
 //! junta con lo que haya llegado al disco). La pagina solo los pinta y pide
 //! cambios.
 
 use std::path::{Path, PathBuf};
 
-use pixpin_docs::md_comentarios::{self as mc, Comentarios, Quien};
-use pixpin_proyecto::comentarios_de_notas as sitio;
+use pindesk_docs::md_comentarios::{self as mc, Comentarios, Quien};
+use pindesk_proyecto::comentarios_de_notas as sitio;
 use serde_json::json;
 
 use super::DestinoNota;

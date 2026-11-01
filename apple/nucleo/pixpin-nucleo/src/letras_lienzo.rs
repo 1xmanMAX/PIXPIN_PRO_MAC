@@ -14,8 +14,8 @@
 
 use std::sync::OnceLock;
 
-use pixpin_motor2d::texto::EstiloDeTexto;
-use pixpin_office::{Letra, Medidor};
+use pindesk_motor2d::texto::EstiloDeTexto;
+use pindesk_office::{Letra, Medidor};
 
 use crate::office::{MedidorConCache, MedidorLetras};
 
@@ -26,7 +26,7 @@ static MEDIDOR: OnceLock<MedidorConCache> = OnceLock::new();
 #[uniffi::export]
 pub fn instalar_medidor_del_lienzo(medidor: Box<dyn MedidorLetras>) {
     if MEDIDOR.set(MedidorConCache::nuevo(medidor)).is_ok() {
-        pixpin_motor2d::texto::instalar_medidor(medir_para_el_motor);
+        pindesk_motor2d::texto::instalar_medidor(medir_para_el_motor);
     }
 }
 
@@ -50,7 +50,7 @@ fn medir_con(m: &dyn Medidor, texto: &str, tam: f32, familia: &str, estilo: Esti
         ancho = ancho.max(avances.iter().sum());
         renglones += 1;
     }
-    let paso = match pixpin_motor2d::texto::interlineado_de(familia) {
+    let paso = match pindesk_motor2d::texto::interlineado_de(familia) {
         Some(k) => k * tam,
         None => {
             let me = m.metricas(&letra);
@@ -72,7 +72,7 @@ mod pruebas {
 
     #[test]
     fn mide_por_renglones_con_el_interlineado_de_la_familia() {
-        let m = pixpin_office::MedidorFijo::default();
+        let m = pindesk_office::MedidorFijo::default();
         let (a1, h1) = medir_con(&m, "hola", 20.0, "Nunito", EstiloDeTexto::default()).unwrap();
         let (a2, h2) = medir_con(&m, "hola\nhola mundo", 20.0, "Nunito", EstiloDeTexto::default()).unwrap();
         assert!(a2 > a1);

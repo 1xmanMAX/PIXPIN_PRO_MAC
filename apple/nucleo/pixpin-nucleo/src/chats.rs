@@ -2,7 +2,7 @@
 //!
 //! Un chat es un proyecto de `proyectos/indice.json` y sus mensajes viven en
 //! `proyectos/<id>/guardados.jsonl`, una linea de JSON por mensaje
-//! (`pixpin_proyecto::cuaderno`). Aqui no se inventa nada de eso: se lee y se
+//! (`pindesk_proyecto::cuaderno`). Aqui no se inventa nada de eso: se lee y se
 //! escribe con las mismas funciones que el chat de Windows.
 //!
 //! # Como se lee una pagina sin leer el chat entero
@@ -26,8 +26,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::time::SystemTime;
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Mensaje, Sello};
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Mensaje, Sello};
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -168,7 +168,7 @@ impl From<&almacen::Ficha> for FichaChat {
             es_asistente: f.es_asistente(),
             archivado: f
                 .resto
-                .get(pixpin_proyecto::vista::MARCA_ARCHIVADO)
+                .get(pindesk_proyecto::vista::MARCA_ARCHIVADO)
                 .and_then(|v| v.as_bool())
                 == Some(true),
             foto: None,
@@ -221,7 +221,7 @@ impl From<Mensaje> for MensajeChat {
             miniapp: m.miniapp.clone(),
             // Una carpeta de paginas lleva su documento en el texto: lo que
             // se ensena de ella es su nombre, como en la lista de Windows.
-            resumen: if pixpin_proyecto::carpeta_de_paginas::es_carpeta(&m) {
+            resumen: if pindesk_proyecto::carpeta_de_paginas::es_carpeta(&m) {
                 m.nombre.clone()
             } else {
                 m.resumen()
@@ -576,7 +576,7 @@ impl Nucleo {
     /// pagina NO se borran: son hojas del proyecto y otras cosas pueden
     /// apuntar a ellas. Devuelve cuantos se quitaron. Bloqueante.
     pub fn borrar_mensajes(&self, chat: String, ids: Vec<String>) -> Result<u32, ErrorNucleo> {
-        use pixpin_proyecto::cuaderno::Clase;
+        use pindesk_proyecto::cuaderno::Clase;
         validar_chat(&chat)?;
         let raiz = self.ruta();
         let carpeta = almacen::carpeta(raiz, &chat);
@@ -594,7 +594,7 @@ impl Nucleo {
         }
         // Con la hora del reloj (UTC) y no la local: se compara con la del
         // movil.
-        pixpin_proyecto::vista::anotar_borrados(raiz, &chat, &quitados, crate::ahora_ms())?;
+        pindesk_proyecto::vista::anotar_borrados(raiz, &chat, &quitados, crate::ahora_ms())?;
         for m in &quitados {
             if !matches!(m.clase, Some(Clase::Archivo | Clase::Imagen | Clase::Voz)) {
                 continue;
@@ -676,10 +676,10 @@ pub fn hora_de_recordar(m: &Mensaje) -> Option<i64> {
 /// Si a `m` se le puede cambiar el nombre (`renombrar::se_puede`): un
 /// archivo con fichero o con hoja, que no sea una leccion ni del buzon.
 pub fn se_puede_renombrar(m: &Mensaje) -> bool {
-    use pixpin_proyecto::cuaderno::Clase;
+    use pindesk_proyecto::cuaderno::Clase;
     // Una carpeta de paginas no tiene fichero, pero su nombre es lo que la
     // distingue de las demas (26-oct-2026).
-    if pixpin_proyecto::carpeta_de_paginas::es_carpeta(m) {
+    if pindesk_proyecto::carpeta_de_paginas::es_carpeta(m) {
         return !m.en_buzon;
     }
     matches!(
@@ -693,7 +693,7 @@ pub fn se_puede_renombrar(m: &Mensaje) -> bool {
 /// Si a `m` se le puede poner descripcion (`descripcion::se_puede`): una
 /// foto o un archivo con su fichero, que no sea leccion ni del buzon.
 pub fn se_puede_describir(m: &Mensaje) -> bool {
-    use pixpin_proyecto::cuaderno::Clase;
+    use pindesk_proyecto::cuaderno::Clase;
     matches!(m.clase, Some(Clase::Imagen | Clase::Archivo))
         && !m.en_buzon
         && m.ruta.is_some()
@@ -735,7 +735,7 @@ fn extension(nombre: &str) -> Option<&str> {
 
 /// Aplica `cambio` a `m`. `false` si no cambia nada (no se reescribe).
 pub fn aplicar(m: &mut Mensaje, cambio: &CambioMensaje) -> bool {
-    use pixpin_proyecto::cuaderno::Clase;
+    use pindesk_proyecto::cuaderno::Clase;
     match cambio {
         CambioMensaje::Fijar { fijado } => {
             let antes = m.fijado;
@@ -761,7 +761,7 @@ pub fn aplicar(m: &mut Mensaje, cambio: &CambioMensaje) -> bool {
             // con su extension.
             // Una carpeta de paginas, como un lienzo: sin extension.
             let nuevo = if m.clase == Some(Clase::Dibujo)
-                || pixpin_proyecto::carpeta_de_paginas::es_carpeta(m)
+                || pindesk_proyecto::carpeta_de_paginas::es_carpeta(m)
             {
                 nombre.trim().chars().take(TOPE_DE_NOMBRE_LIENZO).collect()
             } else {
@@ -830,7 +830,7 @@ impl Nucleo {
         ids: Vec<String>,
         destino: String,
     ) -> Result<u32, ErrorNucleo> {
-        use pixpin_proyecto::cuaderno::Clase;
+        use pindesk_proyecto::cuaderno::Clase;
         validar_chat(&chat)?;
         validar_chat(&destino)?;
         let raiz = self.ruta();
@@ -862,7 +862,7 @@ impl Nucleo {
             copia.id = format!("{cuando}");
             copia.cuando = cuando;
             copia.numero = numero;
-            copia.uid = Some(pixpin_proyecto::codigos::nuevo());
+            copia.uid = Some(pindesk_proyecto::codigos::nuevo());
             copia.aparato = Some(aparato.clone());
             copia.letra = None;
             copia.origen = m.uid.clone().or_else(|| Some(m.id.clone()));

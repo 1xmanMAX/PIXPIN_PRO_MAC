@@ -3,7 +3,7 @@
 //! plano de cunetas?»), como Windows (`apps/pixpin/src/asistente/documentos.rs`).
 //!
 //! El indice y la busqueda (BM25, trozos con su origen, citas) son los de
-//! `pixpin_ia::documentos`. Aqui va lo del Mac:
+//! `pindesk_ia::documentos`. Aqui va lo del Mac:
 //!
 //! - **Que se indexa** ([`fuentes`]): de cada chat, sus mensajes (notas,
 //!   voz pasada a texto, listas, los nombres de los adjuntos), los PDF,
@@ -25,9 +25,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use pixpin_ia::documentos::{Abrir, Alcance, Firma, Fuente, Hallazgo, Indice, Lector, PeticionBusqueda, Tipo, Unidad, texto};
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{Clase, Cuaderno, Mensaje};
+use pindesk_ia::documentos::{Abrir, Alcance, Firma, Fuente, Hallazgo, Indice, Lector, PeticionBusqueda, Tipo, Unidad, texto};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{Clase, Cuaderno, Mensaje};
 
 use super::turno::AppIa;
 use crate::Nucleo;
@@ -43,7 +43,7 @@ const MARCA_HOJA: &str = "--- Hoja ";
 const SUFIJO_OCR: &str = " (texto).txt";
 
 fn tipo_de(nombre: &str) -> Option<Tipo> {
-    Some(match pixpin_docs::extension(nombre).as_str() {
+    Some(match pindesk_docs::extension(nombre).as_str() {
         "pdf" => Tipo::Pdf,
         "docx" | "docm" | "dotx" | "dotm" | "odt" => Tipo::Word,
         "xlsx" | "xlsm" | "ods" => Tipo::Excel,
@@ -108,14 +108,14 @@ pub fn fuentes(raiz: &Path) -> Vec<Fuente> {
             .iter()
             .filter(|m| m.clase == Some(Clase::Archivo) && !m.en_buzon)
             .filter_map(|m| {
-                let ruta = pixpin_proyecto::vista::ruta_real(raiz, &ficha.id, m.ruta.as_deref()?)?;
-                let nombre = if m.nombre.trim().is_empty() { pixpin_docs::nombre(&ruta) } else { m.nombre.trim().to_string() };
+                let ruta = pindesk_proyecto::vista::ruta_real(raiz, &ficha.id, m.ruta.as_deref()?)?;
+                let nombre = if m.nombre.trim().is_empty() { pindesk_docs::nombre(&ruta) } else { m.nombre.trim().to_string() };
                 Some((nombre, ruta))
             })
             .collect();
         let mut vistas = std::collections::HashSet::new();
         for (nombre, ruta) in &adjuntos {
-            let Some(mut tipo) = tipo_de(nombre).or_else(|| tipo_de(&pixpin_docs::nombre(ruta))) else { continue };
+            let Some(mut tipo) = tipo_de(nombre).or_else(|| tipo_de(&pindesk_docs::nombre(ruta))) else { continue };
             let Some(firma) = Firma::de(ruta) else { continue };
             if firma.bytes > MAX_BYTES || !vistas.insert(ruta.clone()) {
                 continue;
@@ -126,7 +126,7 @@ pub fn fuentes(raiz: &Path) -> Vec<Fuente> {
             if let Some(base_pdf) = nombre.strip_suffix(SUFIJO_OCR)
                 && let Some((pdf_nombre, pdf)) = adjuntos
                     .iter()
-                    .find(|(n, _)| pixpin_docs::extension(n) == "pdf" && pixpin_docs::sin_extension(n) == base_pdf)
+                    .find(|(n, _)| pindesk_docs::extension(n) == "pdf" && pindesk_docs::sin_extension(n) == base_pdf)
             {
                 tipo = Tipo::Pdf;
                 mostrado = pdf_nombre.clone();
@@ -138,7 +138,7 @@ pub fn fuentes(raiz: &Path) -> Vec<Fuente> {
         if let Ok(dir) = std::fs::read_dir(carpeta.join("notas")) {
             for e in dir.flatten() {
                 let ruta = e.path();
-                if tipo_de(&pixpin_docs::nombre(&ruta)) != Some(Tipo::Nota) || !vistas.insert(ruta.clone()) {
+                if tipo_de(&pindesk_docs::nombre(&ruta)) != Some(Tipo::Nota) || !vistas.insert(ruta.clone()) {
                     continue;
                 }
                 let Some(firma) = Firma::de(&ruta) else { continue };
@@ -146,7 +146,7 @@ pub fn fuentes(raiz: &Path) -> Vec<Fuente> {
                     .ok()
                     .and_then(|t| t.lines().map(|l| l.trim().trim_start_matches('#').trim().to_string()).find(|l| !l.is_empty()))
                     .map(|t| t.chars().take(80).collect::<String>())
-                    .unwrap_or_else(|| pixpin_docs::sin_extension(&pixpin_docs::nombre(&ruta)));
+                    .unwrap_or_else(|| pindesk_docs::sin_extension(&pindesk_docs::nombre(&ruta)));
                 v.push(base(
                     format!("f:{}", ruta.display()),
                     format!("Nota «{titulo}»"),
@@ -179,7 +179,7 @@ impl Lector for LectorDelMac {
         if !f.ruta.is_file() {
             return Err("el fichero ya no esta".into());
         }
-        let nombre = pixpin_docs::nombre(&f.ruta);
+        let nombre = pindesk_docs::nombre(&f.ruta);
         match tipo_de(&nombre) {
             Some(Tipo::Pdf) => self.leer_pdf(&f.ruta),
             Some(Tipo::Nota) | Some(Tipo::Texto) => leer_texto(&f.ruta),
@@ -277,7 +277,7 @@ fn leer_chat(f: &Fuente) -> Result<Vec<Unidad>, String> {
 /// por paginas.
 fn leer_texto(ruta: &Path) -> Result<Vec<Unidad>, String> {
     let bytes = std::fs::read(ruta).map_err(|e| format!("no se pudo leer: {e}"))?;
-    let texto = pixpin_docs::texto_de(&bytes);
+    let texto = pindesk_docs::texto_de(&bytes);
     if !texto.contains(MARCA_HOJA) {
         return Ok(vec![Unidad { texto, ..Default::default() }]);
     }
@@ -400,7 +400,7 @@ pub fn buscar(raiz: &Path, p: &PeticionBusqueda, lector: &LectorDelMac) -> (Vec<
         }
     };
     poner_al_dia(raiz, lector);
-    let r = con_indice(raiz, |ix| ix.buscar(&p.consulta, &alcance, pixpin_ia::documentos::herramienta::RESULTADOS));
+    let r = con_indice(raiz, |ix| ix.buscar(&p.consulta, &alcance, pindesk_ia::documentos::herramienta::RESULTADOS));
     (r, aviso)
 }
 

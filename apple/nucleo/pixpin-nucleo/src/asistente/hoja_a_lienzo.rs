@@ -1,9 +1,9 @@
 //! **`hoja_a_lienzo` en el Mac** (`asistente/hoja_a_lienzo.rs` de Windows):
 //! una foto o una pagina de PDF al lienzo del chat, zona a zona, con
-//! `pixpin_ia::hoja` (el mismo seccionado y el mismo montaje que Windows).
+//! `pindesk_ia::hoja` (el mismo seccionado y el mismo montaje que Windows).
 //!
 //! Lo que cambia en el Mac:
-//! - **Leer la hoja**: la foto la carga `pixpin-codec`; la pagina de un PDF
+//! - **Leer la hoja**: la foto la carga `pindesk-codec`; la pagina de un PDF
 //!   la pinta PDFKit (`AppIa::pintar_pagina`) y sus palabras salen de su
 //!   capa de texto o de Vision (`AppIa::palabras_de_imagen`).
 //! - **Una pasada, en orden**, sin el planificador ni la comparacion final
@@ -24,9 +24,9 @@ pub(crate) mod supervisor;
 
 use std::path::Path;
 
-use pixpin_ia::hoja::montaje::{self, Entrada, Hecho, Leido, Via};
-use pixpin_ia::hoja::{self, Caja, Mapa, Opciones, PalabraHoja, Seccionado, Tipo, comparar, imagen, vision};
-use pixpin_ia::motor::Motor;
+use pindesk_ia::hoja::montaje::{self, Entrada, Hecho, Leido, Via};
+use pindesk_ia::hoja::{self, Caja, Mapa, Opciones, PalabraHoja, Seccionado, Tipo, comparar, imagen, vision};
+use pindesk_ia::motor::Motor;
 
 use super::turno::AppIa;
 
@@ -54,8 +54,8 @@ fn es_pdf(ruta: &Path) -> bool {
 }
 
 /// Las palabras de unos pixeles por Vision.
-fn palabras_por_vision(app: &dyn AppIa, img: &pixpin_codec::ImagenRgba) -> Result<Vec<PalabraHoja>, String> {
-    let png = pixpin_codec::imagen::codificar_png(img).map_err(|e| format!("{e:?}"))?;
+fn palabras_por_vision(app: &dyn AppIa, img: &pindesk_codec::ImagenRgba) -> Result<Vec<PalabraHoja>, String> {
+    let png = pindesk_codec::imagen::codificar_png(img).map_err(|e| format!("{e:?}"))?;
     Ok(app
         .palabras_de_imagen(png)
         .into_iter()
@@ -65,7 +65,7 @@ fn palabras_por_vision(app: &dyn AppIa, img: &pixpin_codec::ImagenRgba) -> Resul
 
 /// Los trozos de la capa de texto del PDF (en puntos, `y` la linea base),
 /// partidos en palabras y en pixeles (Windows, `palabras_de_trozos`).
-pub fn palabras_de_trozos(trozos: &[pixpin_pdf::texto::TrozoDeTexto], esc: f64) -> Vec<PalabraHoja> {
+pub fn palabras_de_trozos(trozos: &[pindesk_pdf::texto::TrozoDeTexto], esc: f64) -> Vec<PalabraHoja> {
     let mut v = Vec::new();
     for t in trozos {
         let total = t.texto.chars().count().max(1) as f64;
@@ -89,12 +89,12 @@ pub fn palabras_de_trozos(trozos: &[pixpin_pdf::texto::TrozoDeTexto], esc: f64) 
 /// **Lee la hoja**: una foto, o la pagina `pagina` (desde 0) de un PDF.
 pub fn leer(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> Result<Pagina, String> {
     if es_imagen(ruta) {
-        let mut img = pixpin_codec::imagen::cargar(ruta).map_err(|e| format!("no se pudo abrir la imagen: {e}"))?;
+        let mut img = pindesk_codec::imagen::cargar(ruta).map_err(|e| format!("no se pudo abrir la imagen: {e}"))?;
         let mayor = img.ancho.max(img.alto);
         if mayor > LADO_MAXIMO {
             let k = LADO_MAXIMO as f64 / mayor as f64;
             let (w, h) = (((img.ancho as f64 * k) as u32).max(1), ((img.alto as f64 * k) as u32).max(1));
-            img = pixpin_codec::imagen::redimensionar(img, w, h).map_err(|e| format!("no se pudo reducir la imagen: {e:?}"))?;
+            img = pindesk_codec::imagen::redimensionar(img, w, h).map_err(|e| format!("no se pudo reducir la imagen: {e:?}"))?;
         }
         let palabras = palabras_por_vision(app, &img)?;
         return Ok(Pagina { rgba: img.pixeles, ancho: img.ancho, alto: img.alto, palabras });
@@ -108,10 +108,10 @@ pub fn leer(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> Result<Pagin
     let png = app.pintar_pagina(ruta.display().to_string(), p as u32, ANCHO_PAGINA).ok_or("no se pudo pintar la pagina")?;
     let tmp = std::env::temp_dir().join(format!("pixpin-hoja-{}-{}.png", std::process::id(), crate::ahora_ms()));
     std::fs::write(&tmp, &png).map_err(|e| e.to_string())?;
-    let img = pixpin_codec::imagen::cargar(&tmp).map_err(|e| format!("no se pudo leer la pagina pintada: {e}"));
+    let img = pindesk_codec::imagen::cargar(&tmp).map_err(|e| format!("no se pudo leer la pagina pintada: {e}"));
     let _ = std::fs::remove_file(&tmp);
     let img = img?;
-    let trozos = pixpin_pdf::texto::trozos_de_fichero(ruta).ok().and_then(|t| t.get(p).cloned()).unwrap_or_default();
+    let trozos = pindesk_pdf::texto::trozos_de_fichero(ruta).ok().and_then(|t| t.get(p).cloned()).unwrap_or_default();
     let palabras = if trozos.len() >= 4 && m.ancho > 0.0 {
         palabras_de_trozos(&trozos, img.ancho as f64 / m.ancho as f64)
     } else {
@@ -144,7 +144,7 @@ fn pregunta(z: &hoja::Zona, o: &Opciones, alto_letra: f64) -> Option<Pregunta> {
 fn png_del_recorte(p: &Pagina, c: &Caja) -> Result<Vec<u8>, String> {
     let (rgba, w, h) = imagen::recortar(&p.rgba, p.ancho, p.alto, &c.crecer(6.0));
     let (rgba, w, h) = montaje::reducir(&rgba, w, h, LADO_AL_MODELO);
-    pixpin_codec::imagen::codificar_png(&pixpin_codec::ImagenRgba { ancho: w, alto: h, pixeles: rgba }).map_err(|e| format!("{e:?}"))
+    pindesk_codec::imagen::codificar_png(&pindesk_codec::ImagenRgba { ancho: w, alto: h, pixeles: rgba }).map_err(|e| format!("{e:?}"))
 }
 
 fn preguntar(motor: &dyn Motor, png: Vec<u8>, q: Pregunta) -> Result<Option<Leido>, String> {
@@ -169,27 +169,27 @@ pub struct Pasada {
 pub type Pintor<'a> = &'a dyn Fn(&[Hecho], (f32, f32), u32) -> Option<(Vec<u8>, u32, u32)>;
 
 /// **Lo hecho, pintado** como queda en el lienzo: un PDF de la hoja a su
-/// medida (`pixpin_pdf`) que pinta PDFKit (Windows lo pinta su lector).
+/// medida (`pindesk_pdf`) que pinta PDFKit (Windows lo pinta su lector).
 pub fn pintar(app: &dyn AppIa, hechos: &[Hecho], tam: (f32, f32), ancho: u32) -> Option<(Vec<u8>, u32, u32)> {
     use std::collections::HashMap;
     let elementos: Vec<serde_json::Value> = hechos.iter().flat_map(|h| h.elementos.iter().cloned()).collect();
     let imagenes: HashMap<u64, &montaje::ImagenNueva> = hechos.iter().flat_map(|h| h.imagenes.iter()).map(|i| (i.id, i)).collect();
     let alto = ((ancho as f32 * tam.1 / tam.0.max(1.0)) as u32).max(1);
-    let mut escena = pixpin_motor2d::Escena::nueva();
+    let mut escena = pindesk_motor2d::Escena::nueva();
     if !elementos.is_empty() {
-        let l = pixpin_motor2d::excalidraw::leer(&pixpin_ia::lienzo::documento(elementos)).ok()?;
+        let l = pindesk_motor2d::excalidraw::leer(&pindesk_ia::lienzo::documento(elementos)).ok()?;
         for e in l.elementos() {
             escena.anadir(e);
         }
     }
-    let mut hojas = pixpin_motor2d::exportar::hojas(&escena, pixpin_motor2d::exportar::Alcance::Todo, &[], None);
+    let mut hojas = pindesk_motor2d::exportar::hojas(&escena, pindesk_motor2d::exportar::Alcance::Todo, &[], None);
     if hojas.is_empty() {
         return Some((vec![255; (ancho * alto * 4) as usize], ancho, alto));
     }
     hojas.truncate(1);
     hojas[0].caja = (0.0, 0.0, tam.0, tam.1);
-    let resolver = |id: u64| imagenes.get(&id).map(|i| pixpin_pdf::escribir::Pixeles { ancho: i.ancho, alto: i.alto, rgba: i.rgba.clone() });
-    let pdf = pixpin_pdf::escribir::de_hojas_a_medida(&hojas, &[tam], &resolver, None)?;
+    let resolver = |id: u64| imagenes.get(&id).map(|i| pindesk_pdf::escribir::Pixeles { ancho: i.ancho, alto: i.alto, rgba: i.rgba.clone() });
+    let pdf = pindesk_pdf::escribir::de_hojas_a_medida(&hojas, &[tam], &resolver, None)?;
     static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     let ruta = std::env::temp_dir().join(format!("pixpin-hoja-{}-{n}.pdf", std::process::id()));
@@ -199,7 +199,7 @@ pub fn pintar(app: &dyn AppIa, hechos: &[Hecho], tam: (f32, f32), ancho: u32) ->
     let png = png?;
     let tmp = std::env::temp_dir().join(format!("pixpin-hoja-{}-{n}.png", std::process::id()));
     std::fs::write(&tmp, png).ok()?;
-    let img = pixpin_codec::imagen::cargar(&tmp);
+    let img = pindesk_codec::imagen::cargar(&tmp);
     let _ = std::fs::remove_file(&tmp);
     let img = img.ok()?;
     Some((img.pixeles, img.ancho, img.alto))
@@ -388,11 +388,11 @@ pub fn documento_de(hechos: &[Hecho]) -> Result<(String, Vec<(u64, Vec<u8>)>), S
     }
     let mut fotos = Vec::new();
     for i in hechos.iter().flat_map(|h| h.imagenes.iter()) {
-        let png = pixpin_codec::imagen::codificar_png(&pixpin_codec::ImagenRgba { ancho: i.ancho, alto: i.alto, pixeles: i.rgba.clone() })
+        let png = pindesk_codec::imagen::codificar_png(&pindesk_codec::ImagenRgba { ancho: i.ancho, alto: i.alto, pixeles: i.rgba.clone() })
             .map_err(|e| format!("{e:?}"))?;
         fotos.push((i.id, png));
     }
-    Ok((pixpin_ia::lienzo::documento(elementos), fotos))
+    Ok((pindesk_ia::lienzo::documento(elementos), fotos))
 }
 
 /// Lo que se le cuenta al modelo.
@@ -440,7 +440,7 @@ mod pruebas {
         assert_eq!(pasada.preguntadas, 0);
         assert_eq!(vistos.last(), Some(&(pasada.hechos.len(), pasada.hechos.len())));
         let (doc, fotos) = documento_de(&pasada.hechos).unwrap();
-        let leido = pixpin_motor2d::excalidraw::leer(&doc).unwrap();
+        let leido = pindesk_motor2d::excalidraw::leer(&doc).unwrap();
         assert!(!leido.elementos().is_empty(), "el lienzo lo entiende");
         // Lo que no es texto sale como su foto recortada, con su PNG.
         let con_foto = pasada.hechos.iter().filter(|h| !h.imagenes.is_empty()).count();
@@ -486,11 +486,11 @@ mod pruebas_lienzo {
         let (r, referencia) = super::super::al_lienzo::en_el_chat(&n, &chat, None, &trabajo, None).unwrap();
         assert!(!r.ids.is_empty(), "{}", r.texto);
         let referencia = referencia.expect("el lienzo del chat");
-        let ruta = pixpin_proyecto::almacen::lienzo(n.ruta(), &chat, &referencia);
+        let ruta = pindesk_proyecto::almacen::lienzo(n.ruta(), &chat, &referencia);
         let texto = std::fs::read_to_string(&ruta).unwrap();
-        let clave = pixpin_motor2d::enlace::id_de_texto(imagenes[0].0);
+        let clave = pindesk_motor2d::enlace::id_de_texto(imagenes[0].0);
         assert!(texto.contains(&format!("imagenes/{clave}")), "la foto esta en `files`");
-        let foto = pixpin_proyecto::almacen::carpeta(n.ruta(), &chat).join("imagenes").join(&clave);
+        let foto = pindesk_proyecto::almacen::carpeta(n.ruta(), &chat).join("imagenes").join(&clave);
         assert!(foto.is_file(), "y su PNG en imagenes/");
         let _ = std::fs::remove_dir_all(&d);
     }

@@ -3,19 +3,19 @@
 //! parte del interruptor Chat · Funciones (antes «Figuras»), que cambia la
 //! columna de la lista por una rejilla de mosaicos grandes. Es
 //! `ventana_chat/funciones.rs` de Windows sin pintar nada, sobre
-//! `pixpin_ui::funciones`, que es el mismo crate: el orden, las claves, donde
+//! `pindesk_ui::funciones`, que es el mismo crate: el orden, las claves, donde
 //! cae cada mosaico y las flechas son los de Windows. Los textos salen del
-//! mismo catalogo (`funciones-*` de `pixpin-store`), y el icono y el color
+//! mismo catalogo (`funciones-*` de `pindesk-store`), y el icono y el color
 //! de cada mosaico son los de la tabla de `docs/ui-funciones-y-chats.md`.
 //!
 //! Swift pinta, apunta el raton y hace lo pulsado (`FuncionesDeLaLista`).
 
-use pixpin_geom::{Punto, Rect};
-use pixpin_store::ajustes::PreferenciaIdioma;
-use pixpin_store::idioma::{Catalogo, resolver_idioma};
-use pixpin_ui::funciones::{self as ui, Funcion, Paso};
+use pindesk_geom::{Punto, Rect};
+use pindesk_store::ajustes::PreferenciaIdioma;
+use pindesk_store::idioma::{Catalogo, resolver_idioma};
+use pindesk_ui::funciones::{self as ui, Funcion, Paso};
 
-/// Cada funcion de la rejilla (`pixpin_ui::funciones::Funcion`), en su orden.
+/// Cada funcion de la rejilla (`pindesk_ui::funciones::Funcion`), en su orden.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
 pub enum FuncionDeLaLista {
     Grabar,
@@ -130,7 +130,7 @@ impl From<Rect> for CajaDeMosaico {
     }
 }
 
-/// Donde va cada cosa de la pestana (`pixpin_ui::funciones::Rejilla`).
+/// Donde va cada cosa de la pestana (`pindesk_ui::funciones::Rejilla`).
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct RejillaDeFunciones {
     /// La franja del titulo (vacia si solo caben iconos).
@@ -147,7 +147,7 @@ pub struct RejillaDeFunciones {
 
 /// **La rejilla en una columna de `ancho` x `alto` puntos** (la de la
 /// lista): las mismas cuentas que Windows a escala 100, con el radio, los
-/// lados y las letras de `pixpin_ui::funciones` (ver [`medidas_de_funciones`]).
+/// lados y las letras de `pindesk_ui::funciones` (ver [`medidas_de_funciones`]).
 #[uniffi::export]
 pub fn rejilla_de_funciones(ancho: u32, alto: u32) -> RejillaDeFunciones {
     let zona = Rect {
@@ -196,7 +196,7 @@ pub fn funcion_en_el_punto(ancho: u32, alto: u32, x: i32, y: i32) -> Option<Func
     Funcion::TODAS.get(i as usize).map(|f| (*f).into())
 }
 
-/// Las medidas con que se pinta un mosaico (`pixpin_ui::funciones`).
+/// Las medidas con que se pinta un mosaico (`pindesk_ui::funciones`).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct MedidasDeFunciones {
     pub radio: f32,
@@ -248,7 +248,7 @@ pub struct RespuestaDeFunciones {
 
 /// **Una tecla en la rejilla** desde `elegida`, con `columnas` (las de la
 /// rejilla que se ve): flechas, Inicio y Fin recorren sin dar la vuelta
-/// (`pixpin_ui::funciones::mover`), Tab si da la vuelta, Intro o Espacio
+/// (`pindesk_ui::funciones::mover`), Tab si da la vuelta, Intro o Espacio
 /// hacen el elegido (sin ninguno, eligen el primero) y Escape vuelve al chat.
 #[uniffi::export]
 pub fn tecla_en_funciones(

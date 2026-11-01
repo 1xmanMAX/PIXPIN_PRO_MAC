@@ -5,15 +5,15 @@
 //! Nada nuevo en el formato: el nombre va al indice (`nombre`, `tocado`) y
 //! al `proyecto.json` si lo tiene, que es lo que viaja; el archivado va al
 //! `proyecto.json` si lo tiene o, si no, a la marca
-//! [`pixpin_proyecto::vista::MARCA_ARCHIVADO`] de su ficha. Subir `tocado`
+//! [`pindesk_proyecto::vista::MARCA_ARCHIVADO`] de su ficha. Subir `tocado`
 //! es lo que hace que la siguiente vuelta de sincronizar lo lleve, como en
 //! Windows.
 
 use std::path::Path;
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::{Paquete, Proyecto, vista};
-use pixpin_sincro::envio::{self, Elemento};
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::{Paquete, Proyecto, vista};
+use pindesk_sincro::envio::{self, Elemento};
 
 use crate::chats::{FichaChat, validar_chat};
 use crate::{ErrorNucleo, Nucleo};
@@ -378,7 +378,7 @@ mod pruebas {
         let proyecto = Proyecto {
             id: "p-movil".into(),
             nombre: nombre.into(),
-            hojas: vec![pixpin_proyecto::Hoja {
+            hojas: vec![pindesk_proyecto::Hoja {
                 id: "h1".into(),
                 nombre: "Plano".into(),
                 dibujo: Some("d1".into()),

@@ -22,9 +22,9 @@ use std::net::TcpStream;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use pixpin_proyecto::identidad::Identidad;
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::disco::Disco;
+use pindesk_proyecto::identidad::Identidad;
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::disco::Disco;
 
 use crate::{ErrorNucleo, InfoAparato, Nucleo};
 
@@ -197,7 +197,7 @@ fn escribir_direcciones(raiz: &Path, todas: &[DireccionRecordada]) -> std::io::R
     if let Some(carpeta) = fichero.parent() {
         std::fs::create_dir_all(carpeta)?;
     }
-    pixpin_sincro::disco::escribir_atomico(&fichero, texto.as_bytes())
+    pindesk_sincro::disco::escribir_atomico(&fichero, texto.as_bytes())
 }
 
 /// Quita la direccion recordada de `id`. Devuelve si estaba: si no, el
@@ -225,11 +225,11 @@ pub fn sondear(host: &str, puerto: u16) -> bool {
             return false;
         };
         let _ = s.set_read_timeout(Some(Duration::from_millis(1500)));
-        if s.write_all(pixpin_sincro::SONDA).is_err() {
+        if s.write_all(pindesk_sincro::SONDA).is_err() {
             return false;
         }
         let mut b = [0u8; 4];
-        s.read_exact(&mut b).is_ok() && &b == pixpin_sincro::SONDA_RESPUESTA
+        s.read_exact(&mut b).is_ok() && &b == pindesk_sincro::SONDA_RESPUESTA
     })
 }
 

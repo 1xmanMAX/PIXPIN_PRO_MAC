@@ -18,22 +18,22 @@
 //!   metidas en su minuto, con el minuto de cada fila para seguir el scroll.
 //! - **Los marcadores**: poner uno y quitar una senal, en el cuaderno (se
 //!   relee: el chat o el movil pudieron tocar la nota), con el formato de
-//!   `pixpin_proyecto::clase` (el mismo crate que Windows).
+//!   `pindesk_proyecto::clase` (el mismo crate que Windows).
 //! - **Las cuentas de la ventana** (`clase_*`): que toca en cada minuto, el
 //!   scroll que se sigue, la barra del tiempo y los saltos, por el puente.
 //! - **Acercar lo que se ve como en un lienzo** (Windows 8d7fe93 y fe0c9c4,
-//!   `encuadre_*`): `pixpin_ui::encuadre`, el mismo crate que Windows.
+//!   `encuadre_*`): `pindesk_ui::encuadre`, el mismo crate que Windows.
 //! - **Anotar el fotograma del video** ([`Nucleo::guardar_fotograma_de_clase`]):
 //!   se guarda como una captura mas de la clase, en su minuto
 //!   (`clase::poner_captura`), y se abre en su lienzo como cualquier foto.
 //! - **La carpeta de una grabacion** tambien se estudia
 //!   ([`clase_que_estudia`]): su nota, desde el principio.
 
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::carpeta_de_paginas::Carpeta;
-use pixpin_proyecto::clase::{self as puro, Fila, Marcador};
-use pixpin_proyecto::cuaderno::{self, Mensaje};
-use pixpin_ui::encuadre::{self, Encuadre};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::carpeta_de_paginas::Carpeta;
+use pindesk_proyecto::clase::{self as puro, Fila, Marcador};
+use pindesk_proyecto::cuaderno::{self, Mensaje};
+use pindesk_ui::encuadre::{self, Encuadre};
 
 use crate::chats::validar_chat;
 use crate::clase::{CAMPO_EN_GRABACION, CAMPO_GRABACION, CAMPO_VIDEO, capturas_de};
@@ -212,7 +212,7 @@ pub struct ClaseParaEstudiar {
 }
 
 /// El milisegundo de un `[1:23] texto` y el texto sin la marca
-/// (`pixpin_voz::tiempo_de` de Windows): `m:ss` o `h:mm:ss`, con dos cifras
+/// (`pindesk_voz::tiempo_de` de Windows): `m:ss` o `h:mm:ss`, con dos cifras
 /// exactas en los minutos y segundos de detras.
 fn tiempo_de(linea: &str) -> Option<(i64, &str)> {
     let resto = linea.trim_start().strip_prefix('[')?;
@@ -411,7 +411,7 @@ impl Nucleo {
                 Some(CapturaParaEstudiar {
                     ms,
                     ruta: ruta_de(m)?,
-                    lienzo: pixpin_proyecto::lienzo_de_la_foto::id_del_lienzo(m),
+                    lienzo: pindesk_proyecto::lienzo_de_la_foto::id_del_lienzo(m),
                     id,
                 })
             })
@@ -622,7 +622,7 @@ fn nombre_de_la_nota(voz: &Mensaje) -> String {
     }
 }
 
-// --- Acercar lo que se ve (`pixpin_ui::encuadre`) --------------------------------
+// --- Acercar lo que se ve (`pindesk_ui::encuadre`) --------------------------------
 
 /// **Como se ve la imagen en su caja**: el aumento (1 = encajada) y lo
 /// movida que esta desde el centro, en puntos de la vista.
@@ -1182,16 +1182,16 @@ mod pruebas {
         };
         let mut c = Carpeta::grabacion("v", 65_000);
         c.anadir_al_minuto("v", "", 0);
-        let m = pixpin_proyecto::carpeta_de_paginas::mensaje_de_grabacion("Clase", &c, &s);
+        let m = pindesk_proyecto::carpeta_de_paginas::mensaje_de_grabacion("Clase", &c, &s);
         assert_eq!(clase_que_estudia(&m), Some(("v".into(), 0)));
         // Caso negativo: sin nota (solo video y capturas), ni una de paginas.
-        let sin = pixpin_proyecto::carpeta_de_paginas::mensaje_de_grabacion(
+        let sin = pindesk_proyecto::carpeta_de_paginas::mensaje_de_grabacion(
             "Clase",
             &Carpeta::grabacion("", 0),
             &s,
         );
         assert_eq!(clase_que_estudia(&sin), None);
-        let normal = pixpin_proyecto::carpeta_de_paginas::mensaje_nuevo("Diario", &s);
+        let normal = pindesk_proyecto::carpeta_de_paginas::mensaje_nuevo("Diario", &s);
         assert_eq!(clase_que_estudia(&normal), None);
     }
 

@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use pixpin_nucleo::{Nucleo, TareaRecordada};
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{self, Mensaje, Sello};
-use pixpin_proyecto::mini;
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{self, Mensaje, Sello};
+use pindesk_proyecto::mini;
 
 struct Temporal(PathBuf);
 

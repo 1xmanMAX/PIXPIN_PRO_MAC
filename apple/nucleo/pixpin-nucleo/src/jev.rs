@@ -12,7 +12,7 @@
 //! - [`modelo`]: el modelo del asistente segun lo dificil del pedido.
 //! - [`estado_ia`]: los puntitos del estado de Claude, DeepSeek y Jev.
 //!
-//! Las preguntas y las tablas de decision viven en `pixpin_typesafe` (el
+//! Las preguntas y las tablas de decision viven en `pindesk_typesafe` (el
 //! mismo crate que Windows). Sin clave, sin el HTTPS de la app o con la
 //! funcion apagada, [`para`] da `None` y cada funcion hace lo de siempre.
 //!
@@ -38,11 +38,11 @@ use std::sync::mpsc::channel;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use pixpin_ia::nube::http::{self, Fallo};
-use pixpin_store::idioma::{Catalogo, resolver_idioma};
-use pixpin_store::{Ubicacion, ajustes};
-use pixpin_typesafe::transporte::{Contestado, Transporte};
-use pixpin_typesafe::{Cliente, claves};
+use pindesk_ia::nube::http::{self, Fallo};
+use pindesk_store::idioma::{Catalogo, resolver_idioma};
+use pindesk_store::{Ubicacion, ajustes};
+use pindesk_typesafe::transporte::{Contestado, Transporte};
+use pindesk_typesafe::{Cliente, claves};
 
 use crate::llavero::{LlaveroApp, SERVICIO};
 use crate::{ErrorNucleo, Nucleo};
@@ -90,7 +90,7 @@ impl Funcion {
 // La red: el HTTPS de la app
 
 /// **El transporte de Jev en el Mac**: el `pedir` del HTTPS de la app
-/// (`pixpin_ia::nube::http::pedir`, URLSession desde Swift), con su plazo.
+/// (`pindesk_ia::nube::http::pedir`, URLSession desde Swift), con su plazo.
 pub struct PorLaApp;
 
 /// Lo que contesto el HTTPS de la app, como lo quiere el cliente de Jev: un
@@ -224,7 +224,7 @@ pub fn jev_guardar_clave(clave: String) -> Result<(), ErrorNucleo> {
     let ll = crate::llavero::llavero_app().ok_or_else(sin_llavero)?;
     guardar_en(ll.as_ref(), &clave)?;
     olvidar_clave();
-    estado_ia::clave_cambiada(pixpin_ui::estado_ia::Servicio::Jev);
+    estado_ia::clave_cambiada(pindesk_ui::estado_ia::Servicio::Jev);
     Ok(())
 }
 
@@ -234,7 +234,7 @@ pub fn jev_borrar_clave() -> Result<(), ErrorNucleo> {
     let ll = crate::llavero::llavero_app().ok_or_else(sin_llavero)?;
     let r = ll.borrar(SERVICIO.into(), CUENTA.into());
     olvidar_clave();
-    estado_ia::clave_cambiada(pixpin_ui::estado_ia::Servicio::Jev);
+    estado_ia::clave_cambiada(pindesk_ui::estado_ia::Servicio::Jev);
     r
 }
 
@@ -256,7 +256,7 @@ pub fn jev_clave_enmascarada() -> Option<String> {
 #[uniffi::export]
 pub fn jev_probar_clave() -> Result<String, ErrorNucleo> {
     let clave = clave().ok_or_else(|| ErrorNucleo::Asistente {
-        detalle: pixpin_typesafe::Error::SinClave.to_string(),
+        detalle: pindesk_typesafe::Error::SinClave.to_string(),
     })?;
     if !http::hay_transporte() {
         return Err(ErrorNucleo::Asistente {
@@ -269,8 +269,8 @@ pub fn jev_probar_clave() -> Result<String, ErrorNucleo> {
     Ok(modelos
         .into_iter()
         .map(|m| m.name)
-        .find(|n| n == pixpin_typesafe::api::MODELO)
-        .unwrap_or_else(|| pixpin_typesafe::api::MODELO.to_string()))
+        .find(|n| n == pindesk_typesafe::api::MODELO)
+        .unwrap_or_else(|| pindesk_typesafe::api::MODELO.to_string()))
 }
 
 // ---------------------------------------------------------------------------
@@ -328,7 +328,7 @@ impl Nucleo {
 }
 
 // ---------------------------------------------------------------------------
-// Los textos (los de Windows, `pixpin-store/i18n`)
+// Los textos (los de Windows, `pindesk-store/i18n`)
 
 /// Un interruptor de Jev en Ajustes: su titulo y su explicacion.
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]

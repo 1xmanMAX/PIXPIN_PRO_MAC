@@ -1,5 +1,5 @@
 //! **Los planos DWG y DXF para Metal** (el visor de planos de Windows,
-//! `pixpin-cad`, sin su D3D11): el plano se lee una vez en Rust y cruza a
+//! `pindesk-cad`, sin su D3D11): el plano se lee una vez en Rust y cruza a
 //! Swift como **buferes planos de bytes**, uno por clase de cosa y por grupo,
 //! que Swift sube a la tarjeta tal cual (`MTLDevice.makeBuffer(bytes:)`) y
 //! dibuja con los sombreadores de Windows traducidos a MSL.
@@ -17,7 +17,7 @@
 //!
 //! Todo son palabras de 4 bytes en **little-endian** (el orden de los
 //! procesadores de Apple), una estructura detras de otra, con la misma
-//! disposicion que los `#[repr(C)]` de `pixpin_cad::modelo` (comprobada al
+//! disposicion que los `#[repr(C)]` de `pindesk_cad::modelo` (comprobada al
 //! compilar alli y en [`pruebas`]). En Swift basta
 //! `datos.withUnsafeBytes { device.makeBuffer(bytes: $0.baseAddress!, ...) }`:
 //!
@@ -60,14 +60,14 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use pixpin_cad::anotado::{Encaje, GRUPO_COTA, GRUPO_MARCO};
-use pixpin_cad::convertir::Grupo;
-use pixpin_cad::enganche::Enganches;
-use pixpin_cad::modelo::{Arco, Familia, Letra, Modelo, Trama, Tramo, Vertice, VerticeTrama};
-use pixpin_cad::regla::{Rayas, Tipo};
-use pixpin_motor2d::excalidraw;
-use pixpin_motor2d::{ColorRgba, Elemento, Escena, Figura, Punto2};
-use pixpin_sincro::anotado::MarcoDeLaHoja;
+use pindesk_cad::anotado::{Encaje, GRUPO_COTA, GRUPO_MARCO};
+use pindesk_cad::convertir::Grupo;
+use pindesk_cad::enganche::Enganches;
+use pindesk_cad::modelo::{Arco, Familia, Letra, Modelo, Trama, Tramo, Vertice, VerticeTrama};
+use pindesk_cad::regla::{Rayas, Tipo};
+use pindesk_motor2d::excalidraw;
+use pindesk_motor2d::{ColorRgba, Elemento, Escena, Figura, Punto2};
+use pindesk_sincro::anotado::MarcoDeLaHoja;
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -363,7 +363,7 @@ struct RutasCapa {
     hoja: PathBuf,
     /// La base del adjunto si el plano es de un chat (su editor escribe la
     /// `.hoja` tras la capa); `None` en la cache.
-    base: Option<pixpin_proyecto::anotado::Base>,
+    base: Option<pindesk_proyecto::anotado::Base>,
 }
 
 /// **Un plano DWG o DXF abierto**, listo para Metal. Se lee una vez
@@ -498,10 +498,10 @@ impl Plano {
             encendidos: Mutex::new(encendidos),
             referencia,
             caja_ref,
-            unidad_letra: pixpin_cad::anotado::unidad_de_la_capa(&medida),
-            unidad_antigua: pixpin_cad::anotado::unidad_antigua(&medida),
+            unidad_letra: pindesk_cad::anotado::unidad_de_la_capa(&medida),
+            unidad_antigua: pindesk_cad::anotado::unidad_antigua(&medida),
             unidades,
-            faltan: pixpin_cad::letras::las_que_faltan(
+            faltan: pindesk_cad::letras::las_que_faltan(
                 &sin_dibujar
                     .iter()
                     .map(|(t, n)| (t.clone(), *n))
@@ -510,7 +510,7 @@ impl Plano {
             // Las letras que faltan no son cosas sin dibujar: van aparte.
             sin_dibujar: sin_dibujar
                 .into_iter()
-                .filter(|(t, _)| !t.starts_with(pixpin_cad::letras::FUENTE_QUE_FALTA))
+                .filter(|(t, _)| !t.starts_with(pindesk_cad::letras::FUENTE_QUE_FALTA))
                 .collect(),
             rutas: rutas_de_la_capa(raiz, ruta),
             ruta: ruta.to_path_buf(),
@@ -771,7 +771,7 @@ impl Plano {
 
     /// Una medida del plano con sus decimales y su unidad (`12.346 m`).
     pub fn texto_de_medida(&self, distancia: f64) -> String {
-        pixpin_cad::enganche::medida(distancia, self.unidades)
+        pindesk_cad::enganche::medida(distancia, self.unidades)
     }
 
     /// **Las letras que el plano pide y no estan** (sus textos salen con
@@ -852,7 +852,7 @@ impl Plano {
         }
         escribir_hoja(&self.rutas.hoja, encaje.hoja(self.caja_ref))?;
         let nuevo = excalidraw::con_escena(&lienzo, &escena);
-        pixpin_sincro::disco::escribir_atomico(
+        pindesk_sincro::disco::escribir_atomico(
             &self.rutas.tinta,
             excalidraw::escribir(&nuevo).as_bytes(),
         )?;
@@ -896,7 +896,7 @@ impl Nucleo {
     /// Cuantas letras puso el usuario para los planos (`fuentes-shx`, el
     /// boton «Aa» de Windows y Android).
     pub fn letras_de_planos(&self) -> u32 {
-        pixpin_cad::letras::letras_en(&pixpin_cad::letras::carpeta_en(self.ruta())).len() as u32
+        pindesk_cad::letras::letras_en(&pindesk_cad::letras::carpeta_en(self.ruta())).len() as u32
     }
 
     /// **Añade letras para los planos** (SHX, TTF, OTF, TTC; lo demas no se
@@ -904,19 +904,19 @@ impl Nucleo {
     /// vuelve a leer con ellas al abrirlo otra vez. Dice cuantas copio.
     pub fn anadir_letras_de_planos(&self, rutas: Vec<String>) -> u32 {
         let rutas: Vec<PathBuf> = rutas.into_iter().map(PathBuf::from).collect();
-        pixpin_cad::letras::anadir(&pixpin_cad::letras::carpeta_en(self.ruta()), &rutas) as u32
+        pindesk_cad::letras::anadir(&pindesk_cad::letras::carpeta_en(self.ruta()), &rutas) as u32
     }
 
     /// Quita todas las letras del usuario. Dice cuantas quito.
     pub fn quitar_letras_de_planos(&self) -> u32 {
-        pixpin_cad::letras::quitar_todas(&pixpin_cad::letras::carpeta_en(self.ruta())) as u32
+        pindesk_cad::letras::quitar_todas(&pindesk_cad::letras::carpeta_en(self.ruta())) as u32
     }
 }
 
 /// Una medida con sus decimales y su unidad (`$INSUNITS`).
 #[uniffi::export]
 pub fn texto_de_medida(distancia: f64, unidades: u32) -> String {
-    pixpin_cad::enganche::medida(distancia, unidades)
+    pindesk_cad::enganche::medida(distancia, unidades)
 }
 
 // ------------------------------------------------------------- la capa
@@ -947,7 +947,7 @@ pub(crate) fn clave(ruta: &Path) -> Option<String> {
 /// Donde vive lo anotado sobre `plano`: si es un adjunto de un chat, en los
 /// ficheros de su mensaje (`anot-<uid>`, los que viajan); si no, en la cache.
 fn rutas_de_la_capa(raiz: &Path, plano: &Path) -> RutasCapa {
-    use pixpin_proyecto::anotado as an;
+    use pindesk_proyecto::anotado as an;
     if let Some(r) = an::raiz_de(plano)
         && let Some(b) = an::base_del_documento(&r, plano)
     {
@@ -967,14 +967,14 @@ fn rutas_de_la_capa(raiz: &Path, plano: &Path) -> RutasCapa {
 }
 
 fn leer_hoja(ruta: &Path) -> Option<[f64; 4]> {
-    let m = MarcoDeLaHoja::de_texto(&pixpin_proyecto::anotado::leer(ruta)?)?;
+    let m = MarcoDeLaHoja::de_texto(&pindesk_proyecto::anotado::leer(ruta)?)?;
     Some([m.x0 as f64, m.y0 as f64, m.x1 as f64, m.y1 as f64])
 }
 
 /// Escribe la `.hoja` solo si no dice ya lo mismo.
 fn escribir_hoja(ruta: &Path, h: [f64; 4]) -> std::io::Result<()> {
     let m = MarcoDeLaHoja::nuevo(h[0] as f32, h[1] as f32, h[2] as f32, h[3] as f32);
-    if let Some(ya) = pixpin_proyecto::anotado::leer(ruta).and_then(|t| MarcoDeLaHoja::de_texto(&t))
+    if let Some(ya) = pindesk_proyecto::anotado::leer(ruta).and_then(|t| MarcoDeLaHoja::de_texto(&t))
         && ya.casi_igual(&m)
     {
         return Ok(());
@@ -982,7 +982,7 @@ fn escribir_hoja(ruta: &Path, h: [f64; 4]) -> std::io::Result<()> {
     if let Some(d) = ruta.parent() {
         std::fs::create_dir_all(d)?;
     }
-    pixpin_proyecto::anotado::escribir(ruta, &m.a_texto())
+    pindesk_proyecto::anotado::escribir(ruta, &m.a_texto())
 }
 
 /// La capa del disco, si esta y se entiende.
@@ -1062,7 +1062,7 @@ fn elemento_de_cota(c: &[[f64; 2]], encaje: &Encaje) -> Elemento {
         figura: Figura::Linea { puntos },
         ..Default::default()
     };
-    e.extras.id_de_fichero = Some(pixpin_cad::anotado::huella(GRUPO_COTA, &numeros));
+    e.extras.id_de_fichero = Some(pindesk_cad::anotado::huella(GRUPO_COTA, &numeros));
     e
 }
 
@@ -1082,7 +1082,7 @@ fn elemento_de_marco(m: &[f64; 4], encaje: &Encaje) -> Elemento {
         },
         ..Default::default()
     };
-    e.extras.id_de_fichero = Some(pixpin_cad::anotado::huella(GRUPO_MARCO, m));
+    e.extras.id_de_fichero = Some(pindesk_cad::anotado::huella(GRUPO_MARCO, m));
     e
 }
 
@@ -1507,12 +1507,12 @@ pub(crate) mod pruebas {
         // Sin letras del usuario, el nombre no lleva huella.
         assert_eq!(cache::nombre_en_cache("abc", ""), "abc-l1.pxcad");
         let d = carpeta("huella");
-        let vacia = pixpin_cad::letras::huella(&d.join("fuentes-shx"));
+        let vacia = pindesk_cad::letras::huella(&d.join("fuentes-shx"));
         assert_eq!(cache::nombre_en_cache("abc", &vacia), "abc-l1.pxcad");
         std::fs::create_dir_all(d.join("fuentes-shx")).unwrap();
         std::fs::write(d.join("fuentes-shx").join("romans.shx"), b"x").unwrap();
         let con =
-            cache::nombre_en_cache("abc", &pixpin_cad::letras::huella(&d.join("fuentes-shx")));
+            cache::nombre_en_cache("abc", &pindesk_cad::letras::huella(&d.join("fuentes-shx")));
         assert_ne!(con, "abc-l1.pxcad");
         assert!(con.starts_with("abc-l1-") && con.ends_with(".pxcad"));
         let _ = std::fs::remove_dir_all(&d);
@@ -1555,7 +1555,7 @@ pub(crate) mod pruebas {
             .abrir_plano(d.join("planta.dxf").display().to_string())
             .unwrap();
         assert_eq!(q.resumen().grupos, p.resumen().grupos);
-        assert!(pixpin_cad::web::de_bytes(&std::fs::read(&g[0]).unwrap()).is_some());
+        assert!(pindesk_cad::web::de_bytes(&std::fs::read(&g[0]).unwrap()).is_some());
         // Ninguna letra pedida falta en el plano de prueba.
         assert!(q.letras_que_faltan().is_empty());
         let _ = std::fs::remove_dir_all(&d);

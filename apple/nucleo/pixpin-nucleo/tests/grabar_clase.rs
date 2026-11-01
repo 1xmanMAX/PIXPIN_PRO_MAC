@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use pixpin_nucleo::{CapturaClase, ClipClase, EnvioAnki, Nucleo};
-use pixpin_proyecto::{almacen, cuaderno};
+use pindesk_proyecto::{almacen, cuaderno};
 
 struct Temporal(PathBuf);
 
@@ -289,7 +289,7 @@ fn el_video_entra_detras_de_la_voz_enlazado_como_en_windows() {
     assert!(l["ruta"].is_null(), "una carpeta no lleva fichero");
     // La lee el mismo crate que Windows: es la carpeta de una grabacion,
     // con su nota, su video y una captura, sin adjuntos.
-    let doc = pixpin_proyecto::carpeta_de_paginas::Carpeta::de_mensaje(cm).unwrap();
+    let doc = pindesk_proyecto::carpeta_de_paginas::Carpeta::de_mensaje(cm).unwrap();
     assert!(doc.es_grabacion());
     assert_eq!(doc.capturas().map(|p| p.id.as_str()).collect::<Vec<_>>(), vec![foto.id.as_str()]);
     assert_eq!(doc.adjuntos().count(), 0);

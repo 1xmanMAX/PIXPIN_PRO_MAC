@@ -7,8 +7,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use pixpin_proyecto::importar_hojas;
-use pixpin_proyecto::tabla_xlsx::{HojaParaVer, a_xlsx};
+use pindesk_proyecto::importar_hojas;
+use pindesk_proyecto::tabla_xlsx::{HojaParaVer, a_xlsx};
 
 use super::editor::HojaEditable;
 use super::{HojaDeCalculo, Origen};
@@ -54,7 +54,7 @@ impl HojaDeCalculo {
 
     /// **El libro como un `.xlsx`** (todas sus hojas, con la activa delante):
     /// los valores ya calculados, el formato y los anchos
-    /// (`pixpin_proyecto::tabla_xlsx`, el de Windows). Para compartir una
+    /// (`pindesk_proyecto::tabla_xlsx`, el de Windows). Para compartir una
     /// copia con lo editado.
     pub fn como_xlsx(&self) -> Result<Vec<u8>, ErrorNucleo> {
         let g = self.tomar();
@@ -77,7 +77,7 @@ impl HojaDeCalculo {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_proyecto::tabla::{self, Tabla};
+    use pindesk_proyecto::tabla::{self, Tabla};
 
     fn nucleo(d: &std::path::Path) -> Arc<Nucleo> {
         std::fs::create_dir_all(d).unwrap();

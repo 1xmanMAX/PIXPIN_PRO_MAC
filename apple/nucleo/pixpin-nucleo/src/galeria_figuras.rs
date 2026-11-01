@@ -23,9 +23,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use pixpin_motor2d::biblioteca::{self, FiguraGuardada};
-use pixpin_motor2d::figuras_de_serie::{self as serie, Intervalo};
-use pixpin_motor2d::vector::Punto2;
+use pindesk_motor2d::biblioteca::{self, FiguraGuardada};
+use pindesk_motor2d::figuras_de_serie::{self as serie, Intervalo};
+use pindesk_motor2d::vector::Punto2;
 
 use crate::editor::EditorLienzo;
 use crate::editor_figuras::FiguraDeBiblioteca;
@@ -137,7 +137,7 @@ fn de_que_es(f: &FiguraGuardada) -> (&str, &str) {
 
 /// Sin tildes ni mayusculas, para buscar.
 fn plegar(s: &str) -> String {
-    pixpin_ia::acciones::normalizar(s)
+    pindesk_ia::acciones::normalizar(s)
 }
 
 /// **Las que se ven**: de la categoria `cat` (`None`, todas) y con todas las
@@ -224,7 +224,7 @@ fn intervalo_de(valores: &[ValorDeCampo]) -> Result<Option<Intervalo>, String> {
     let mes = match campos.get("mes") {
         None => None,
         Some(s) => Some(
-            pixpin_ia::figuras::mes_de(s)
+            pindesk_ia::figuras::mes_de(s)
                 .ok_or_else(|| format!("«{s}»: escribe el mes como 2026-11"))?,
         ),
     };
@@ -256,7 +256,7 @@ fn de_la_plantilla(clave: &str, valores: &[ValorDeCampo]) -> Vec<ValorDeCampo> {
 
 /// De que esta hecha una figura (`piezas_de` y `letras_de` de Windows).
 fn detalle_de(f: &FiguraGuardada) -> DetalleDeFigura {
-    use pixpin_motor2d::Figura as F;
+    use pindesk_motor2d::Figura as F;
     let mut p = DetalleDeFigura::default();
     let mut letras: Vec<(f32, f32, String)> = Vec::new();
     for e in f.elementos.iter().filter(|e| !e.borrado) {
@@ -297,8 +297,8 @@ fn ficha_de(f: &FiguraGuardada) -> FichaDeFigura {
 
 /// **La escena de un lienzo con la figura dentro**, desde el origen
 /// (`escena_con` de Windows: la del chat y la de las miniaturas).
-fn escena_con(f: &FiguraGuardada) -> pixpin_motor2d::Escena {
-    let mut escena = pixpin_motor2d::Escena::nueva();
+fn escena_con(f: &FiguraGuardada) -> pindesk_motor2d::Escena {
+    let mut escena = pindesk_motor2d::Escena::nueva();
     let (w, h) = f.tamano();
     biblioteca::estampar_en_escena(&mut escena, f, Punto2::nuevo(w / 2.0, h / 2.0));
     escena
@@ -308,7 +308,7 @@ fn escena_con(f: &FiguraGuardada) -> pixpin_motor2d::Escena {
 /// con cada trazo de al menos 0,9 puntos ya encogido (Windows: «encogida,
 /// una raya de 1 px de una hoja entera no llega a un pixel y la miniatura
 /// de un bloc saldria en blanco»).
-fn escena_de_miniatura(f: &FiguraGuardada, lado: u32) -> pixpin_motor2d::Escena {
+fn escena_de_miniatura(f: &FiguraGuardada, lado: u32) -> pindesk_motor2d::Escena {
     let mut escena = escena_con(f);
     if let Some((x0, y0, x1, y1)) = escena.caja() {
         let k = lado.max(1) as f32 / (x1 - x0).max(y1 - y0).max(1.0);
@@ -320,7 +320,7 @@ fn escena_de_miniatura(f: &FiguraGuardada, lado: u32) -> pixpin_motor2d::Escena 
 }
 
 /// El plano de una escena con la caja de lo que se ve en ella.
-fn plano_de(escena: &pixpin_motor2d::Escena) -> Option<LienzoPlano> {
+fn plano_de(escena: &pindesk_motor2d::Escena) -> Option<LienzoPlano> {
     let caja = escena.caja()?;
     Some(crate::lienzo::empaquetar(
         &crate::grafito_plano::ordenes_de_escena(escena),
@@ -557,7 +557,7 @@ impl EditorLienzo {
             return false;
         }
         st.gesto
-            .tomar_herramienta(pixpin_motor2d::gesto::Herramienta::Mano);
+            .tomar_herramienta(pindesk_motor2d::gesto::Herramienta::Mano);
         st.gesto.seleccion.poner_todos(ids);
         drop(guarda);
         self.subir_cambios();
@@ -573,7 +573,7 @@ impl EditorLienzo {
     /// un espacio («Planificación · Lista de tareas »), para que caiga en su
     /// categoria; si no, vacio (`guardar_seleccion` de Windows).
     pub fn nombre_propuesto_de_figura(&self) -> String {
-        let elegidas: Vec<pixpin_motor2d::Elemento> = {
+        let elegidas: Vec<pindesk_motor2d::Elemento> = {
             let st = self.tomar();
             st.escena
                 .visibles()
@@ -621,7 +621,7 @@ fn del_modo(figuras: &[FiguraGuardada], noche: bool) -> Vec<usize> {
 /// **Si los paneles de figuras van de noche**: `figuras_de_noche` de
 /// `estado.toml`, el mismo de Windows; sin tocar, de dia, como el movil.
 fn figuras_de_noche(nucleo: &Nucleo) -> bool {
-    pixpin_store::estado::cargar(&nucleo.ubicacion())
+    pindesk_store::estado::cargar(&nucleo.ubicacion())
         .figuras_de_noche
         .unwrap_or(false)
 }
@@ -714,9 +714,9 @@ impl GaleriaFiguras {
         self.noche
             .store(noche, std::sync::atomic::Ordering::Relaxed);
         let u = self.nucleo.ubicacion();
-        let mut e = pixpin_store::estado::cargar(&u);
+        let mut e = pindesk_store::estado::cargar(&u);
         e.figuras_de_noche = Some(noche);
-        let _ = pixpin_store::estado::guardar(&u, &e);
+        let _ = pindesk_store::estado::guardar(&u, &e);
     }
 
     /// **Las categorias de la izquierda** con su cuenta, en su orden: las
@@ -876,8 +876,8 @@ impl Nucleo {
         let nombre = de_que_es(&f).1.to_string();
         let m = self.crear_lienzo_con(chat.clone(), Some(nombre), |_| {})?;
         let dibujo = m.referencia.clone().unwrap_or_default();
-        let ruta = pixpin_proyecto::almacen::lienzo(self.ruta(), &chat, &dibujo);
-        use pixpin_motor2d::excalidraw;
+        let ruta = pindesk_proyecto::almacen::lienzo(self.ruta(), &chat, &dibujo);
+        use pindesk_motor2d::excalidraw;
         let lienzo = excalidraw::con_escena(&excalidraw::Lienzo::vacio(), &escena_con(&f));
         std::fs::write(&ruta, excalidraw::escribir(&lienzo))?;
         Ok(crate::MensajeChat::from(m))
@@ -900,13 +900,13 @@ impl Nucleo {
                 detalle: format!("nombre no valido: {dibujo:?}"),
             });
         }
-        let ruta = pixpin_proyecto::almacen::lienzo(self.ruta(), &chat, &dibujo);
+        let ruta = pindesk_proyecto::almacen::lienzo(self.ruta(), &chat, &dibujo);
         let texto = std::fs::read_to_string(&ruta)?;
-        let l = pixpin_motor2d::excalidraw::leer(&texto).map_err(|e| ErrorNucleo::Lienzo {
+        let l = pindesk_motor2d::excalidraw::leer(&texto).map_err(|e| ErrorNucleo::Lienzo {
             detalle: e.to_string(),
         })?;
-        let escena = pixpin_motor2d::excalidraw::a_escena(&l);
-        let piezas: Vec<pixpin_motor2d::Elemento> = escena.visibles().cloned().collect();
+        let escena = pindesk_motor2d::excalidraw::a_escena(&l);
+        let piezas: Vec<pindesk_motor2d::Elemento> = escena.visibles().cloned().collect();
         if piezas.is_empty() {
             return Ok(None);
         }

@@ -7,7 +7,7 @@
 //! cambia la clave) y la huella de las letras del usuario (`fuentes-shx`:
 //! con una letra nueva el plano se vuelve a leer con ella). El visor de Mac
 //! lee **por capas** (se encienden y apagan), asi que lo guardado es el
-//! plano por capas (`pixpin_cad::web::a_bytes`, lo mismo que guarda
+//! plano por capas (`pindesk_cad::web::a_bytes`, lo mismo que guarda
 //! Windows para exportar, `.pxcapas`), no el modelo entero de una pieza del
 //! `.pxcad` de Windows. Solo vive en este Mac: no viaja.
 //!
@@ -25,8 +25,8 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_cad::convertir::PlanoPorCapas;
-use pixpin_cad::letras;
+use pindesk_cad::convertir::PlanoPorCapas;
+use pindesk_cad::letras;
 
 /// Cuantos planos leidos se guardan (los mas recientes).
 pub(crate) const EN_CACHE: usize = 24;
@@ -96,7 +96,7 @@ fn escribir(destino: &Path, bytes: &[u8]) -> std::io::Result<()> {
 pub(crate) fn convertir(ruta: &Path, letras_del_usuario: &Path) -> Result<PlanoPorCapas, String> {
     letras::poner_carpeta(Some(letras_del_usuario.to_path_buf()));
     letras::sacar_lo_que_falta();
-    let mut p = pixpin_cad::convertir::convertir_fichero_por_capas(ruta)?;
+    let mut p = pindesk_cad::convertir::convertir_fichero_por_capas(ruta)?;
     let faltan = letras::sacar_lo_que_falta();
     if let Some(g) = p.grupos.first_mut() {
         for f in faltan {
@@ -115,7 +115,7 @@ pub(crate) fn leer_por_capas(raiz: &Path, ruta: &Path) -> Result<PlanoPorCapas, 
     let mias = letras::carpeta_en(raiz);
     let destino = c.join(nombre_en_cache(&clave, &letras::huella(&mias)));
     if let Ok(b) = std::fs::read(&destino)
-        && let Some(p) = pixpin_cad::web::de_bytes(&b)
+        && let Some(p) = pindesk_cad::web::de_bytes(&b)
     {
         tocar(&destino);
         return Ok(p);
@@ -123,7 +123,7 @@ pub(crate) fn leer_por_capas(raiz: &Path, ruta: &Path) -> Result<PlanoPorCapas, 
     let p = convertir(ruta, &mias)?;
     // Sin cache se sigue: solo tardara otra vez la proxima.
     if std::fs::create_dir_all(&c).is_ok()
-        && escribir(&destino, &pixpin_cad::web::a_bytes(&p)).is_ok()
+        && escribir(&destino, &pindesk_cad::web::a_bytes(&p)).is_ok()
     {
         podar(&c);
     }

@@ -1,5 +1,5 @@
 //! **Los modelos 3D para Metal**: IFC, Revit, LandXML de Civil 3D, ficheros
-//! de puntos y un DWG/DXF visto en 3D (`pixpin_bim::convertir_fichero`, lo
+//! de puntos y un DWG/DXF visto en 3D (`pindesk_bim::convertir_fichero`, lo
 //! mismo que lee el visor 3D de Windows). Cruza a Swift como en
 //! [`crate::planos`]: buferes de bytes en little-endian que Metal sube tal
 //! cual.
@@ -14,7 +14,7 @@
 //!
 //! Lo que se ve se filtra **rehaciendo solo los indices**
 //! ([`Modelo3dApple::visibles`], `Modelo3d::visibles`): los vertices se suben
-//! una vez. La camara es la de Windows ([`pixpin_cad::orbita::Orbita`]): sus
+//! una vez. La camara es la de Windows ([`pindesk_cad::orbita::Orbita`]): sus
 //! funciones van sueltas ([`camara_matriz`]...) y son baratas.
 //!
 //! Elegir lo que hay bajo el raton se hace aqui, en la CPU: un rayo de la
@@ -23,13 +23,13 @@
 //! ni leer un pixel de vuelta.
 //!
 //! El terreno de Civil 3D ya viene coloreado por cota y con sus curvas de
-//! nivel (`pixpin_bim::civil`): Metal solo pinta los colores que trae.
+//! nivel (`pindesk_bim::civil`): Metal solo pinta los colores que trae.
 
 use std::path::Path;
 use std::sync::Arc;
 
-use pixpin_cad::modelo3d::{Modelo3d, V3, tipo_legible};
-use pixpin_cad::orbita::Orbita;
+use pindesk_cad::modelo3d::{Modelo3d, V3, tipo_legible};
+use pindesk_cad::orbita::Orbita;
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -135,7 +135,7 @@ pub struct Eleccion3d {
     pub distancia: f64,
 }
 
-/// La camara del visor 3D (`pixpin_cad::orbita::Orbita`).
+/// La camara del visor 3D (`pindesk_cad::orbita::Orbita`).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct Camara3d {
     pub objetivo: Punto3d,
@@ -204,7 +204,7 @@ pub struct Modelo3dApple {
     croquis: Option<ExtrasCroquis>,
     /// Las vistas guardadas del croquis (las congeladas en el movil): con
     /// las teclas 1 a 9 (`Extras::vistas` de Windows). Vacio en un modelo.
-    vistas: Vec<pixpin_cad::croquis::Vista3D>,
+    vistas: Vec<pindesk_cad::croquis::Vista3D>,
 }
 
 /// Lo que se abre como modelo 3D o como plano (para el chat y el Finder).
@@ -230,9 +230,9 @@ pub fn clase_de_modelo(ruta: String) -> ClaseDeModelo {
         .unwrap_or_default();
     if matches!(ext.as_str(), "dwg" | "dxf") {
         ClaseDeModelo::Plano
-    } else if pixpin_bim::se_abre(&ext)
-        || (ext == "landxml" && pixpin_bim::civil::es_landxml(ruta))
-        || pixpin_bim::es_de_civil(ruta)
+    } else if pindesk_bim::se_abre(&ext)
+        || (ext == "landxml" && pindesk_bim::civil::es_landxml(ruta))
+        || pindesk_bim::es_de_civil(ruta)
     {
         ClaseDeModelo::Modelo3d
     } else {
@@ -303,7 +303,7 @@ impl Modelo3dApple {
         } else {
             1.0
         };
-        Some(camara(pixpin_cad::croquis::orbita_de(
+        Some(camara(pindesk_cad::croquis::orbita_de(
             v,
             self.m.origen,
             ancho,
@@ -649,9 +649,9 @@ fn leer_modelo(ruta: &Path) -> Result<Modelo3d, ErrorNucleo> {
     // Un `.landxml`: `convertir_fichero` solo mira la extension `xml`.
     let m = if ext == "landxml" {
         let t = std::fs::read(ruta)?;
-        pixpin_bim::civil::de_landxml(&String::from_utf8_lossy(&t))
+        pindesk_bim::civil::de_landxml(&String::from_utf8_lossy(&t))
     } else {
-        pixpin_bim::convertir_fichero(ruta)
+        pindesk_bim::convertir_fichero(ruta)
     }
     .map_err(|e| ErrorNucleo::Argumento { detalle: e })?;
     if m.vacio() {
@@ -752,8 +752,8 @@ pub struct ExtrasCroquis {
 }
 
 /// Lo que hace falta de un croquis leido para el visor.
-pub fn extras_de(c: &pixpin_cad::croquis::Croquis, origen: [f64; 3]) -> ExtrasCroquis {
-    use pixpin_cad::croquis::{Camara3D, malla};
+pub fn extras_de(c: &pindesk_cad::croquis::Croquis, origen: [f64; 3]) -> ExtrasCroquis {
+    use pindesk_cad::croquis::{Camara3D, malla};
     let fabrica = Camara3D::default();
     ExtrasCroquis {
         fondo: malla::fondo_propio(c).map(|[r, g, b, a]| Color3d { r, g, b, a }),
@@ -772,7 +772,7 @@ pub fn fichero_del_croquis(raiz: &Path, chat: &str, id: &str) -> Option<std::pat
     if id.is_empty() || id.contains(['/', '\\', '\0']) || id.contains("..") {
         return None;
     }
-    pixpin_proyecto::vista::ruta_real(
+    pindesk_proyecto::vista::ruta_real(
         raiz,
         chat,
         &format!("pixpin:files/croquis3d/{id}.croquis.gz"),
@@ -783,11 +783,11 @@ pub fn fichero_del_croquis(raiz: &Path, chat: &str, id: &str) -> Option<std::pat
 /// **Lee un croquis y lo pasa a triangulos**. Sus fotos (`pixpin:files/…`)
 /// se buscan como las de cualquier mensaje de `chat`.
 pub fn modelo_de_croquis(raiz: &Path, chat: &str, bytes: &[u8]) -> Result<Modelo3dApple, String> {
-    use pixpin_cad::croquis::{self, malla};
+    use pindesk_cad::croquis::{self, malla};
     let c = croquis::leer(bytes)?;
     let fotos = |r: &str| -> Option<malla::Foto> {
-        let ruta = pixpin_proyecto::vista::ruta_real(raiz, chat, r)?;
-        let im = pixpin_codec::imagen::cargar(&ruta).ok()?;
+        let ruta = pindesk_proyecto::vista::ruta_real(raiz, chat, r)?;
+        let im = pindesk_codec::imagen::cargar(&ruta).ok()?;
         Some(malla::Foto {
             ancho: im.ancho,
             alto: im.alto,
@@ -864,12 +864,12 @@ impl Nucleo {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_cad::modelo3d::Constructor3d;
+    use pindesk_cad::modelo3d::Constructor3d;
 
     fn puntos() -> Arc<Modelo3dApple> {
         let texto =
             "1,100,200,10,A\n2,100,210,11,B\n3,110,200,12,C\n4,110,210,10,D\n5,105,205,15,E\n";
-        Modelo3dApple::de_modelo(pixpin_bim::civil::de_puntos(texto, "PNEZD.csv").unwrap())
+        Modelo3dApple::de_modelo(pindesk_bim::civil::de_puntos(texto, "PNEZD.csv").unwrap())
     }
 
     #[test]
@@ -994,7 +994,7 @@ mod pruebas {
         let a = c.elemento("IfcWall", "Muro 1");
         let b = c.elemento("IfcSlab", "Losa");
         c.niveles(
-            vec![pixpin_cad::modelo3d::Nivel {
+            vec![pindesk_cad::modelo3d::Nivel {
                 nombre: "1ER PISO".into(),
                 cota: 0.0,
                 clave: String::new(),

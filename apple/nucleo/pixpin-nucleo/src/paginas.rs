@@ -31,7 +31,7 @@
 
 use std::path::Path;
 
-use pixpin_proyecto::{Proyecto, almacen, cuaderno};
+use pindesk_proyecto::{Proyecto, almacen, cuaderno};
 
 use crate::chats::{hora_unica, validar_chat};
 use crate::{ErrorNucleo, MensajeChat, Nucleo};
@@ -196,7 +196,7 @@ impl Nucleo {
         let e = elegibles(&p).into_iter().find(|e| e.hoja == hoja)?;
         match plan(&e, desde == hacia)? {
             Plan::PaginaPintada { pagina } => Some(PaginaPorPintar {
-                pdf: pixpin_proyecto::vista::documento_del_proyecto(self.ruta(), &desde)?.display().to_string(),
+                pdf: pindesk_proyecto::vista::documento_del_proyecto(self.ruta(), &desde)?.display().to_string(),
                 pagina,
             }),
             _ => None,
@@ -304,7 +304,7 @@ fn rutas_de_fotos(texto: &str) -> Vec<String> {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_proyecto::Hoja;
+    use pindesk_proyecto::Hoja;
 
     fn hoja(id: &str, pagina: Option<u32>, dibujo: Option<&str>, nota: Option<&str>) -> Hoja {
         Hoja {
@@ -379,7 +379,7 @@ mod pruebas {
 
     #[test]
     fn un_lienzo_de_otro_proyecto_se_copia_con_sus_fotos_y_con_id_nuevo() {
-        let raiz = std::env::temp_dir().join(format!("pixpin-paginas-{}", std::process::id()));
+        let raiz = std::env::temp_dir().join(format!("pindesk-paginas-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&raiz);
         let desde = almacen::carpeta(&raiz, "p1");
         std::fs::create_dir_all(desde.join("lienzos")).unwrap();
@@ -431,7 +431,7 @@ mod pruebas {
 
     #[test]
     fn una_pagina_del_mismo_proyecto_apunta_a_su_pdf_y_a_su_dibujo() {
-        let raiz = std::env::temp_dir().join(format!("pixpin-paginas-m-{}", std::process::id()));
+        let raiz = std::env::temp_dir().join(format!("pindesk-paginas-m-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&raiz);
         let carpeta = almacen::carpeta(&raiz, "p1");
         std::fs::create_dir_all(&carpeta).unwrap();

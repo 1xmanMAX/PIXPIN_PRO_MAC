@@ -7,8 +7,8 @@
 
 use std::path::Path;
 
-use pixpin_ia::fechas::Momento;
-use pixpin_proyecto::almacen;
+use pindesk_ia::fechas::Momento;
+use pindesk_proyecto::almacen;
 
 use crate::tareas::{ListaTareas, frase};
 use crate::{ErrorNucleo, Nucleo};
@@ -72,7 +72,7 @@ impl Nucleo {
         desfase_ms: i64,
     ) -> Result<ListaTareas, ErrorNucleo> {
         let nombre = asignatura.trim();
-        if nombre.is_empty() || (pixpin_proyecto::mini::saneado(&texto).is_empty() && imagenes.is_empty()) {
+        if nombre.is_empty() || (pindesk_proyecto::mini::saneado(&texto).is_empty() && imagenes.is_empty()) {
             return Err(ErrorNucleo::Argumento { detalle: "falta la asignatura o la tarea".into() });
         }
         let aparato = self.identidad()?.yo.codigo();
@@ -94,7 +94,7 @@ impl Nucleo {
         let aparato = self.identidad()?.yo.codigo();
         let ficha = asegurar_ficha(self.ruta(), &aparato)?;
         let m = self.lista_o_nueva(&ficha, nombre)?;
-        let hoy = pixpin_proyecto::mini::Fecha::de_ms_locales(crate::ahora_ms() + desfase_ms);
+        let hoy = pindesk_proyecto::mini::Fecha::de_ms_locales(crate::ahora_ms() + desfase_ms);
         Ok(self.lista_de(&ficha, &m, hoy))
     }
 

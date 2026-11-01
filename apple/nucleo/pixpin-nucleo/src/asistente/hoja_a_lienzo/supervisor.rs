@@ -11,8 +11,8 @@
 //! formulas en `$...$` y su negrita), o que se ponga el recorte. La zona se
 //! rehace con eso. Una sola vuelta, todas a la vez.
 
-use pixpin_ia::hoja::{Caja, Tipo, imagen, montaje, vision};
-use pixpin_ia::motor::Motor;
+use pindesk_ia::hoja::{Caja, Tipo, imagen, montaje, vision};
+use pindesk_ia::motor::Motor;
 use serde_json::Value;
 
 /// Cuantas zonas mira como mucho (las que peor se parecen).
@@ -87,7 +87,7 @@ pub fn lado_a_lado(original: (&[u8], u32, u32), nuestro: (&[u8], u32, u32)) -> O
         }
     }
     let (px, w, h) = montaje::reducir(&px, w, h, 1400);
-    pixpin_codec::imagen::codificar_png(&pixpin_codec::ImagenRgba { ancho: w, alto: h, pixeles: px }).ok()
+    pindesk_codec::imagen::codificar_png(&pindesk_codec::ImagenRgba { ancho: w, alto: h, pixeles: px }).ok()
 }
 
 /// Pregunta por una zona (con su recorte original y el nuestro).
@@ -172,7 +172,7 @@ fn sin_tilde(c: char) -> char {
 pub fn limpio(r: &[String]) -> Vec<String> {
     r.iter()
         .map(|l| {
-            let n = pixpin_motor2d::texto_rico::sin_barras_dobles(l.trim());
+            let n = pindesk_motor2d::texto_rico::sin_barras_dobles(l.trim());
             vision::leer_rico(&n).unwrap_or(n)
         })
         .collect()

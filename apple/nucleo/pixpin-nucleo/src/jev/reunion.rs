@@ -1,9 +1,9 @@
 //! **Lo importante de una clase o reunion** al acabar de pasarla a texto
 //! (Windows 4c14408, `apps/pixpin/src/jev/reunion.rs`): cada renglon de la
 //! transcripcion va a Jev con sus vecinos y el titulo
-//! (`pixpin_typesafe::reunion`); lo hallado se escribe en la nota de voz,
+//! (`pindesk_typesafe::reunion`); lo hallado se escribe en la nota de voz,
 //! `resto["importantes"]` y `resto["importantesDe"]`
-//! (`pixpin_proyecto::clase`, el mismo formato que Windows y el movil).
+//! (`pindesk_proyecto::clase`, el mismo formato que Windows y el movil).
 //! «Estudiar la clase» lo ensena con sus chapitas y su filtro; las tareas
 //! se pueden apuntar en Tareas ([`Nucleo::jev_importantes_a_tareas`]).
 //!
@@ -13,10 +13,10 @@
 use std::collections::{BTreeSet, HashSet};
 use std::sync::Mutex;
 
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::clase::{self, Importante, TipoImportante};
-use pixpin_proyecto::cuaderno::{self, Mensaje};
-use pixpin_typesafe::reunion::{self as jr, Renglon};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::clase::{self, Importante, TipoImportante};
+use pindesk_proyecto::cuaderno::{self, Mensaje};
+use pindesk_typesafe::reunion::{self as jr, Renglon};
 
 use super::Funcion;
 use crate::chats::validar_chat;
@@ -99,9 +99,9 @@ pub fn texto_de_tarea(dicho: &str, clase: &str, ms: i64) -> String {
     };
     format!(
         "{corto} {} 🎙 {} ⏱ {}",
-        pixpin_frase::tarea::NOTA,
+        pindesk_frase::tarea::NOTA,
         clase.trim(),
-        pixpin_voz::tiempos::marca_de_tiempo(ms)
+        pindesk_voz::tiempos::marca_de_tiempo(ms)
     )
 }
 

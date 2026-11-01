@@ -3,7 +3,7 @@
 //!
 //! **No hay una segunda copia de las tareas.** Cada lista es un mensaje
 //! `MINIAPP` con `miniapp = "tareas"` (la mini-app del movil,
-//! `pixpin_proyecto::mini`) y aqui solo se lee y se reescribe ese mensaje con
+//! `pindesk_proyecto::mini`) y aqui solo se lee y se reescribe ese mensaje con
 //! las mismas funciones que Windows:
 //!
 //! - leer: `mini::leer_tareas`, `mini::partir` (la fecha de creacion,
@@ -40,9 +40,9 @@ pub(crate) mod frase;
 // lista, como Windows.
 pub mod tablero;
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
-use pixpin_proyecto::mini;
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
+use pindesk_proyecto::mini;
 
 use crate::chats::{hora_unica, validar_chat};
 use crate::{ErrorNucleo, Nucleo};
@@ -474,7 +474,7 @@ impl Nucleo {
         // Lo reconocido al escribir (Windows, 17-oct): prioridad, #etiquetas
         // y la hora de recordar salen del titulo y van como marcas.
         // Las palabras de cada urgencia, las de Ajustes (`[tareas]`).
-        if let Ok(a) = pixpin_store::ajustes::cargar(&self.ubicacion()) {
+        if let Ok(a) = pindesk_store::ajustes::cargar(&self.ubicacion()) {
             frase::fijar(a.tareas.palabras());
         }
         let entendida = frase::leer(&texto, frase::ahora(desfase_ms));
@@ -509,7 +509,7 @@ impl Nucleo {
                 detalle: "tarea vacia".into(),
             });
         }
-        if let Ok(a) = pixpin_store::ajustes::cargar(&self.ubicacion()) {
+        if let Ok(a) = pindesk_store::ajustes::cargar(&self.ubicacion()) {
             frase::fijar(a.tareas.palabras());
         }
         let entendida = frase::leer(&texto, frase::ahora(desfase_ms));
@@ -598,10 +598,10 @@ impl Nucleo {
     pub(crate) fn lista_o_nueva(&self, ficha: &almacen::Ficha, nombre_lista: &str) -> Result<Mensaje, ErrorNucleo> {
         let carpeta = almacen::carpeta(self.ruta(), &ficha.id);
         let fichero = carpeta.join("guardados.jsonl");
-        let buscada = pixpin_ia::acciones::normalizar(nombre_lista.trim());
+        let buscada = pindesk_ia::acciones::normalizar(nombre_lista.trim());
         let inbox = listas_del_cuaderno(&fichero)?
             .into_iter()
-            .find(|m| !m.en_buzon && pixpin_ia::acciones::normalizar(nombre_de_lista(m).trim()) == buscada);
+            .find(|m| !m.en_buzon && pindesk_ia::acciones::normalizar(nombre_de_lista(m).trim()) == buscada);
         Ok(match inbox {
             Some(m) => m,
             None => {
@@ -727,10 +727,10 @@ fn guardar_imagen_de_tarea(raiz: &Path, proyecto: &str, origen: &Path) -> Result
         .find(|n| !carpeta.join(n).exists())
         .ok_or_else(|| ErrorNucleo::Argumento { detalle: "demasiadas imagenes a la vez".into() })?;
     std::fs::copy(origen, carpeta.join(&nombre))?;
-    let chat = pixpin_proyecto::vista::chat_de_ficha(raiz, proyecto).unwrap_or_else(|| proyecto.to_string());
+    let chat = pindesk_proyecto::vista::chat_de_ficha(raiz, proyecto).unwrap_or_else(|| proyecto.to_string());
     Ok(format!(
         "{}{}",
-        pixpin_sincro::disco::PORTATIL,
-        pixpin_proyecto::vista::virtual_de(&chat, &format!("archivos/{nombre}"))
+        pindesk_sincro::disco::PORTATIL,
+        pindesk_proyecto::vista::virtual_de(&chat, &format!("archivos/{nombre}"))
     ))
 }

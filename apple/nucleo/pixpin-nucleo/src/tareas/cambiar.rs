@@ -8,7 +8,7 @@
 //! reescribe el documento de la mini-app `tareas` con `mini`, que es lo que
 //! viaja al movil al sincronizar.
 
-use pixpin_proyecto::{cuaderno, mini};
+use pindesk_proyecto::{cuaderno, mini};
 
 use super::{es_lista, frase};
 use crate::{ErrorNucleo, Nucleo};

@@ -24,10 +24,10 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime};
 
-use pixpin_motor2d::{Elemento, Figura};
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje};
-use pixpin_proyecto::{Hoja, Proyecto, vista};
+use pindesk_motor2d::{Elemento, Figura};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje};
+use pindesk_proyecto::{Hoja, Proyecto, vista};
 
 use crate::chats::validar_chat;
 use crate::lienzo::CajaLienzo;
@@ -337,7 +337,7 @@ pub fn asegurar_dibujo(raiz: &Path, proyecto: &str, m: &Mensaje, ahora: i64) -> 
         }
         std::fs::create_dir_all(ruta.parent()?).ok()?;
         let vacio =
-            pixpin_motor2d::excalidraw::escribir(&pixpin_motor2d::excalidraw::Lienzo::vacio());
+            pindesk_motor2d::excalidraw::escribir(&pindesk_motor2d::excalidraw::Lienzo::vacio());
         std::fs::write(&ruta, vacio).ok()
     };
     if let Some(d) = hoja.dibujo.clone() {
@@ -451,7 +451,7 @@ fn la_foto(visibles: &[&Elemento]) -> Option<usize> {
 pub fn foto_anotada(raiz: &Path, proyecto: &str, id: &str) -> Option<FotoAnotada> {
     let ruta = almacen::lienzo(raiz, proyecto, id);
     let texto = std::fs::read_to_string(&ruta).ok()?;
-    let lienzo = pixpin_motor2d::excalidraw::leer(&texto).ok()?;
+    let lienzo = pindesk_motor2d::excalidraw::leer(&texto).ok()?;
     let elementos = lienzo.elementos();
     let visibles: Vec<&Elemento> = elementos.iter().filter(|e| !e.borrado).collect();
     let foto = la_foto(&visibles);
@@ -572,10 +572,10 @@ impl Nucleo {
             .ok_or(ErrorNucleo::NoExiste {
                 que: format!("la foto de {id}"),
             })?;
-        let medidas = pixpin_codec::imagen::medidas(&foto).map_err(|e| ErrorNucleo::Argumento {
+        let medidas = pindesk_codec::imagen::medidas(&foto).map_err(|e| ErrorNucleo::Argumento {
             detalle: e.to_string(),
         })?;
-        let hecho = pixpin_proyecto::lienzo_de_la_foto::asegurar(
+        let hecho = pindesk_proyecto::lienzo_de_la_foto::asegurar(
             raiz,
             &chat,
             &m,

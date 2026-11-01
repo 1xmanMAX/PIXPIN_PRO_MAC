@@ -297,7 +297,7 @@ fn los_comentarios_viajan_en_su_fichero_hermano() {
     assert_eq!(s.abiertos(), 1);
     // Donde lo buscan Windows y el movil: `anot-<codigo>.comentarios.json`.
     let codigo = mensaje_de(&d, &chat.id, &m.id).unwrap().codigo_unico();
-    let f = pixpin_proyecto::comentarios_de_notas::de_la_nota(&d, &chat.id, &codigo).unwrap();
+    let f = pindesk_proyecto::comentarios_de_notas::de_la_nota(&d, &chat.id, &codigo).unwrap();
     assert!(f.is_file(), "{}", f.display());
     assert!(f.display().to_string().ends_with(".comentarios.json"));
     let _ = std::fs::remove_dir_all(&d);

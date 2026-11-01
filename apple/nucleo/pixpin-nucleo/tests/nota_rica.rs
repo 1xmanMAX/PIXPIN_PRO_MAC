@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use pixpin_nucleo::Nucleo;
 use pixpin_nucleo::nota_rica::{BloqueDeNota, ClaseDeBloque};
-use pixpin_proyecto::almacen;
+use pindesk_proyecto::almacen;
 
 struct Temporal(PathBuf);
 
@@ -35,7 +35,7 @@ impl Drop for Temporal {
 
 /// Un PNG de `ancho` x `alto`.
 fn png(ancho: u32, alto: u32) -> Vec<u8> {
-    pixpin_codec::imagen::codificar_png(&pixpin_codec::imagen::ImagenRgba {
+    pindesk_codec::imagen::codificar_png(&pindesk_codec::imagen::ImagenRgba {
         ancho,
         alto,
         pixeles: vec![200; (ancho * alto * 4) as usize],

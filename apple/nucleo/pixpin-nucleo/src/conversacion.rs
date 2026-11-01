@@ -3,7 +3,7 @@
 //! persona a la izquierda con su nombre encima de su tanda, y la chapa de
 //! compartido en la lista. Es `compartidos_ui::en_el_chat` y
 //! `ventana_chat::lados_del_chat_compartido` de Windows sin la ventana, sobre
-//! `pixpin_ui::conversacion` y `pixpin_ui::historial::colocar`, que son los
+//! `pindesk_ui::conversacion` y `pindesk_ui::historial::colocar`, que son los
 //! mismos crates: quien es quien sale de los mismos campos (el `aparato` de
 //! cada mensaje, los aparatos de mi grupo y la lista de `compartidos.json`).
 //!
@@ -15,12 +15,12 @@
 
 use std::collections::HashSet;
 
-use pixpin_geom::Rect;
-use pixpin_proyecto::cuaderno::Mensaje;
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::compartidos::{self, ChatCompartido, CompartidosEnDisco, Persona};
-use pixpin_ui::conversacion::{self as cv, Lados, Quien};
-use pixpin_ui::historial;
+use pindesk_geom::Rect;
+use pindesk_proyecto::cuaderno::Mensaje;
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::compartidos::{self, ChatCompartido, CompartidosEnDisco, Persona};
+use pindesk_ui::conversacion::{self as cv, Lados, Quien};
+use pindesk_ui::historial;
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -87,7 +87,7 @@ pub struct ChatNuevo {
 pub(crate) fn aparato_corto(m: &Mensaje) -> Option<String> {
     let a = m.aparato.as_deref()?.trim();
     if a.chars().count() > 6 {
-        Some(pixpin_proyecto::codigos::de_aparato(a))
+        Some(pindesk_proyecto::codigos::de_aparato(a))
     } else {
         Some(a.to_string())
     }
@@ -101,7 +101,7 @@ pub(crate) fn aparato_corto(m: &Mensaje) -> Option<String> {
 pub(crate) fn en_el_chat(c: &ChatCompartido, mios: &HashSet<String>) -> (u32, Lados) {
     let codigos_mios = mios
         .iter()
-        .map(|id| pixpin_sincro::grupo::codigo_de_aparato(id))
+        .map(|id| pindesk_sincro::grupo::codigo_de_aparato(id))
         .chain(
             c.personas
                 .iter()
@@ -248,7 +248,7 @@ impl Nucleo {
         if lista.is_empty() {
             return Ok(None);
         }
-        let chat = pixpin_proyecto::vista::chat_de_ficha(self.ruta(), &ficha).unwrap_or(ficha);
+        let chat = pindesk_proyecto::vista::chat_de_ficha(self.ruta(), &ficha).unwrap_or(ficha);
         let Some(c) = lista.iter().find(|c| c.chat == chat) else {
             return Ok(None);
         };
@@ -286,7 +286,7 @@ mod pruebas {
         compartidos::Yo {
             id: id.into(),
             nombre: nombre.into(),
-            codigo: pixpin_sincro::grupo::codigo_de_aparato(id),
+            codigo: pindesk_sincro::grupo::codigo_de_aparato(id),
             llaves: compartidos::Llaves::nuevas(),
         }
     }
@@ -390,7 +390,7 @@ mod pruebas {
         };
         assert_eq!(
             aparato_corto(&m),
-            Some(pixpin_proyecto::codigos::de_aparato(
+            Some(pindesk_proyecto::codigos::de_aparato(
                 "un-id-de-aparato-largo"
             ))
         );

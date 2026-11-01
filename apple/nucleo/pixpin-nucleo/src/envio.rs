@@ -2,7 +2,7 @@
 //! Windows y Android:
 //!
 //! 1. **«Enviar a…» un aparato del grupo** (`suelto`,
-//!    `pixpin_sincro::al_lienzo`): por el canal cifrado del grupo y el puerto
+//!    `pindesk_sincro::al_lienzo`): por el canal cifrado del grupo y el puerto
 //!    de siempre, sin codigos. Lo que llega va **a lo que el otro tenga
 //!    delante**: el chat abierto recibe cualquier cosa, un lienzo solo fotos
 //!    (y si no es foto, se niega antes de que viaje un byte) y, sin nada
@@ -35,11 +35,11 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering}
 use std::sync::{Arc, Mutex, mpsc};
 use std::time::Duration;
 
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::al_lienzo::{self, Conexion, Donde, ErrorAlLienzo, Llegada, Recibe, Suelto};
-use pixpin_sincro::disco::Disco;
-use pixpin_sincro::envio::{self, Elemento, Emisor, Final, Receptor, Remitente};
-use pixpin_sincro::mensajes::Hola;
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::al_lienzo::{self, Conexion, Donde, ErrorAlLienzo, Llegada, Recibe, Suelto};
+use pindesk_sincro::disco::Disco;
+use pindesk_sincro::envio::{self, Elemento, Emisor, Final, Receptor, Remitente};
+use pindesk_sincro::mensajes::Hola;
 
 use crate::red::{conectar, nonce};
 use crate::sincro::{AnuncioBonjour, ParTxt};
@@ -698,7 +698,7 @@ fn de_proyecto(
     carpeta: &Path,
     ahora: i64,
 ) -> Result<(Elemento, PathBuf), ErrorNucleo> {
-    if pixpin_proyecto::almacen::Indice::leer(raiz)
+    if pindesk_proyecto::almacen::Indice::leer(raiz)
         .buscar(id)
         .is_none()
     {
@@ -706,8 +706,8 @@ fn de_proyecto(
             que: format!("el proyecto {id}"),
         });
     }
-    let bytes = pixpin_proyecto::almacen::empaquetar(raiz, id, ahora)?;
-    let p = pixpin_proyecto::Paquete::desde_bytes(&bytes).map_err(|e| ErrorNucleo::Disco {
+    let bytes = pindesk_proyecto::almacen::empaquetar(raiz, id, ahora)?;
+    let p = pindesk_proyecto::Paquete::desde_bytes(&bytes).map_err(|e| ErrorNucleo::Disco {
         detalle: e.to_string(),
     })?;
     let pr = &p.proyecto;

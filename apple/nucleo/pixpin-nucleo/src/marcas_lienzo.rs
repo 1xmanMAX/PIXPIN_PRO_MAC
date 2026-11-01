@@ -1,7 +1,7 @@
 //! **Los marcadores del lienzo con su vista**, para Swift: lo que en Windows
 //! hace `apps/pixpin/src/ventana_editor/marcas.rs` (el `Marcador`) sin lo
 //! de pintar ni lo de Win32. Las cuentas son las de siempre, en
-//! `pixpin_motor2d::marcas` (el orden, la linea que se guarda, la
+//! `pindesk_motor2d::marcas` (el orden, la linea que se guarda, la
 //! [`VistaDeMarca`], el [`Vuelo`]); aqui queda donde se guarda cada cosa y
 //! el estado de la ventana: la lista, las vistas y el viaje de la camara.
 //!
@@ -29,10 +29,10 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use pixpin_motor2d::camara::Camara;
-use pixpin_motor2d::marcas::{self, EMOJIS, Marca, VistaDeMarca, Vuelo};
-use pixpin_motor2d::vector::Punto2;
-use pixpin_proyecto::anotado as an;
+use pindesk_motor2d::camara::Camara;
+use pindesk_motor2d::marcas::{self, EMOJIS, Marca, VistaDeMarca, Vuelo};
+use pindesk_motor2d::vector::Punto2;
+use pindesk_proyecto::anotado as an;
 
 /// Por debajo de la barra: la marca sin vista a la que se va queda a esto
 /// del borde de abajo de la barra (`AIRE_BAJO_LA_BARRA` de Windows).

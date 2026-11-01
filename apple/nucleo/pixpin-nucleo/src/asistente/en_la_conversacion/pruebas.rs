@@ -6,8 +6,8 @@
 
 use std::sync::Mutex;
 
-use pixpin_ia::motor::{MotorGuionado, Respuesta};
-use pixpin_proyecto::cuaderno::Clase;
+use pindesk_ia::motor::{MotorGuionado, Respuesta};
+use pindesk_proyecto::cuaderno::Clase;
 use serde_json::Value;
 
 use super::*;
@@ -103,7 +103,7 @@ fn lienzos(n: &Nucleo, chat: &str) -> Vec<Nota> {
 
 fn elementos(n: &Nucleo, chat: &str, m: &Nota) -> usize {
     let ruta = almacen::lienzo(n.ruta(), chat, m.referencia.as_deref().unwrap());
-    pixpin_motor2d::excalidraw::leer(&std::fs::read_to_string(ruta).unwrap())
+    pindesk_motor2d::excalidraw::leer(&std::fs::read_to_string(ruta).unwrap())
         .unwrap()
         .elementos()
         .len()
@@ -279,13 +279,13 @@ fn el_texto_leido_queda_en_el_chat_como_nota_y_como_txt() {
 }
 
 fn png_de_prueba(d: &Path, nombre: &str, lado: u32) -> PathBuf {
-    let img = pixpin_codec::ImagenRgba {
+    let img = pindesk_codec::ImagenRgba {
         ancho: lado,
         alto: lado,
         pixeles: vec![120; (lado * lado * 4) as usize],
     };
     let r = d.join(nombre);
-    std::fs::write(&r, pixpin_codec::imagen::codificar_png(&img).unwrap()).unwrap();
+    std::fs::write(&r, pindesk_codec::imagen::codificar_png(&img).unwrap()).unwrap();
     r
 }
 
@@ -397,8 +397,8 @@ fn editar_lo_dibujado_en_el_lienzo_del_chat() {
 
 fn elementos_vivos(n: &Nucleo, chat: &str, m: &Nota) -> usize {
     let ruta = almacen::lienzo(n.ruta(), chat, m.referencia.as_deref().unwrap());
-    let l = pixpin_motor2d::excalidraw::leer(&std::fs::read_to_string(ruta).unwrap()).unwrap();
-    pixpin_motor2d::excalidraw::a_escena(&l).cuantos_visibles()
+    let l = pindesk_motor2d::excalidraw::leer(&std::fs::read_to_string(ruta).unwrap()).unwrap();
+    pindesk_motor2d::excalidraw::a_escena(&l).cuantos_visibles()
 }
 
 #[test]
@@ -463,7 +463,7 @@ fn lo_pensado_se_guarda_con_la_respuesta_y_la_hoja_pasa_al_turno_siguiente() {
     assert!(p.entiendo.contains("Kennedy"));
     // El sincronizador lo reconoce como lo anotado de esa nota.
     let nombre = ruta.file_name().unwrap().to_string_lossy().to_string();
-    assert_eq!(pixpin_sincro::anotado::uid_del_nombre(&nombre), Some(nota.codigo_unico().as_str()));
+    assert_eq!(pindesk_sincro::anotado::uid_del_nombre(&nombre), Some(nota.codigo_unico().as_str()));
 
     // Turno siguiente: la vuelta de planear lee la hoja.
     let m = n.escribir_nota(chat.clone(), "¿a que hora era?".into(), None).unwrap();
@@ -519,7 +519,7 @@ fn apple_intelligence_escribe_su_respuesta_y_su_dibujo() {
     let chat = n.chat_asistente().unwrap().id;
     let m = n.escribir_nota(chat.clone(), "dibuja un circulo".into(), None).unwrap();
     let inicio = n.ia_al_enviar(chat.clone(), m.id).unwrap().unwrap();
-    let doc = pixpin_ia::lienzo::documento(vec![serde_json::json!({
+    let doc = pindesk_ia::lienzo::documento(vec![serde_json::json!({
         "id": "a", "type": "ellipse", "x": 0.0, "y": 0.0, "width": 50.0, "height": 50.0,
         "strokeColor": "#1e1e1e", "version": 1, "isDeleted": false
     })]);
@@ -557,7 +557,7 @@ fn con_ojos_revisar_lleva_la_vista_y_ver_lienzo_la_pinta_swift() {
     assert_eq!(vistas.len(), 2, "la del principio y la de ver_lienzo");
     assert!(vistas[0].rotulos.iter().any(|r| r.etiqueta && r.texto.starts_with('#')));
     let pedidas = motor.recibido.lock().unwrap();
-    let pedido = pedidas[2].mensajes.iter().rev().find(|m| m.rol == pixpin_ia::motor::Rol::Usuario).unwrap();
+    let pedido = pedidas[2].mensajes.iter().rev().find(|m| m.rol == pindesk_ia::motor::Rol::Usuario).unwrap();
     assert!(pedido.tiene_imagen(), "la vista del lienzo va con el pedido");
     assert!(pedido.texto_entero().contains("vista del lienzo"), "{}", pedido.texto_entero());
     drop(vistas);
@@ -637,14 +637,14 @@ fn una_plantilla_se_pone_y_se_rehace_en_su_sitio_desde_el_chat() {
     let l = lienzos(&n, &chat);
     assert_eq!(l.len(), 1);
     let ruta = almacen::lienzo(n.ruta(), &chat, l[0].referencia.as_deref().unwrap());
-    let leido = pixpin_motor2d::excalidraw::leer(&std::fs::read_to_string(ruta).unwrap()).unwrap();
-    let escena = pixpin_motor2d::excalidraw::a_escena(&leido);
+    let leido = pindesk_motor2d::excalidraw::leer(&std::fs::read_to_string(ruta).unwrap()).unwrap();
+    let escena = pindesk_motor2d::excalidraw::a_escena(&leido);
     let vivos: Vec<_> = escena.visibles().cloned().collect();
-    assert_eq!(pixpin_motor2d::figuras_de_serie::cual_es(&vivos).as_deref(), Some("cronograma"));
+    assert_eq!(pindesk_motor2d::figuras_de_serie::cual_es(&vivos).as_deref(), Some("cronograma"));
     let textos: Vec<String> = vivos
         .iter()
         .filter_map(|e| match &e.figura {
-            pixpin_motor2d::Figura::Texto { texto, .. } => Some(texto.trim().to_string()),
+            pindesk_motor2d::Figura::Texto { texto, .. } => Some(texto.trim().to_string()),
             _ => None,
         })
         .collect();
@@ -772,10 +772,10 @@ fn la_memoria_de_largo_plazo_va_con_la_nube() {
     encender_memoria(false);
     let pedida = motor.recibido.lock().unwrap()[0].clone();
     assert!(pedida.mensajes[0].texto_entero().contains("prefiere respuestas cortas"));
-    assert!(pedida.herramientas.iter().any(|h| h.nombre == pixpin_ia::memoria::NOMBRE));
+    assert!(pedida.herramientas.iter().any(|h| h.nombre == pindesk_ia::memoria::NOMBRE));
     // Caso negativo: el local no la ve.
     let pedida = local.recibido.lock().unwrap()[0].clone();
     assert!(!pedida.mensajes[0].texto_entero().contains("prefiere respuestas cortas"));
-    assert!(!pedida.herramientas.iter().any(|h| h.nombre == pixpin_ia::memoria::NOMBRE));
+    assert!(!pedida.herramientas.iter().any(|h| h.nombre == pindesk_ia::memoria::NOMBRE));
     let _ = std::fs::remove_dir_all(d);
 }

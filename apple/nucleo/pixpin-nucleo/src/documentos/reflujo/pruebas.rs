@@ -4,8 +4,8 @@
 
 use super::*;
 use crate::editor::FasePuntero;
-use pixpin_proyecto::almacen::{self, Ficha, Indice};
-use pixpin_proyecto::cuaderno::{self, Clase as ClaseMensaje, Mensaje, Sello};
+use pindesk_proyecto::almacen::{self, Ficha, Indice};
+use pindesk_proyecto::cuaderno::{self, Clase as ClaseMensaje, Mensaje, Sello};
 
 fn raiz(etiqueta: &str) -> PathBuf {
     let r = std::env::temp_dir().join(format!(

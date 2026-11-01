@@ -22,8 +22,8 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Mutex;
 
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno;
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno;
 use serde::{Deserialize, Serialize};
 
 use super::chat as ia_chat;

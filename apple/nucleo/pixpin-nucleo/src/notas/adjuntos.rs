@@ -15,7 +15,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_proyecto::{almacen, vista};
+use pindesk_proyecto::{almacen, vista};
 
 use super::DestinoNota;
 
@@ -122,7 +122,7 @@ pub fn adjuntar_bytes(
         nombre
     });
     let (copia, ruta) = sitio(raiz, destino, &format!("{ahora}-{nombre}"))?;
-    pixpin_sincro::disco::escribir_atomico(&copia, bytes)?;
+    pindesk_sincro::disco::escribir_atomico(&copia, bytes)?;
     Ok(ruta)
 }
 
@@ -139,7 +139,7 @@ mod pruebas {
 
     fn carpeta(nombre: &str) -> Carpeta {
         let d =
-            std::env::temp_dir().join(format!("pixpin-notas-adj-{nombre}-{}", std::process::id()));
+            std::env::temp_dir().join(format!("pindesk-notas-adj-{nombre}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         Carpeta(d)

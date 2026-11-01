@@ -4,8 +4,8 @@
 //! de Swift las cambia, y se vuelve a dibujar en el mismo sitio y grupo,
 //! con la letra y el color que ya tenia y sus figuras encajadas en su celda.
 
-use pixpin_motor2d::elemento::Elemento;
-use pixpin_motor2d::tabla_dibujada::{Celda, leer};
+use pindesk_motor2d::elemento::Elemento;
+use pindesk_motor2d::tabla_dibujada::{Celda, leer};
 
 use crate::editor::EditorLienzo;
 

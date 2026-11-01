@@ -1,7 +1,7 @@
 //! **Los ojos del asistente: el lienzo pintado para el modelo** (E1; el
 //! `asistente/ojos.rs` de Windows).
 //!
-//! Lo pide `ver_lienzo` y la revision del turno (`pixpin_ia::ojos`). Quien
+//! Lo pide `ver_lienzo` y la revision del turno (`pindesk_ia::ojos`). Quien
 //! tiene la escena (un lienzo abierto o uno leido del disco) solo **copia**
 //! lo que cae en la zona ([`copiar`]); aqui se empaqueta como el
 //! [`LienzoPlano`] de siempre, con la rejilla numerada en las coordenadas del
@@ -9,11 +9,11 @@
 //! Swift con **el mismo pintor del lienzo** (`PintorLienzo`, lo que ve el
 //! usuario en el editor) en un bitmap sin ventana ([`super::turno::AppIa::pintar_vista`]).
 
-use pixpin_ia::edicion::Contexto;
-use pixpin_ia::ojos::{self, Mirada, Vista};
-use pixpin_motor2d::Escena;
-use pixpin_motor2d::elemento::Figura;
-use pixpin_motor2d::pintado;
+use pindesk_ia::edicion::Contexto;
+use pindesk_ia::ojos::{self, Mirada, Vista};
+use pindesk_motor2d::Escena;
+use pindesk_motor2d::elemento::Figura;
+use pindesk_motor2d::pintado;
 
 use crate::lienzo::{ImagenDelLienzo, LienzoPlano, empaquetar};
 
@@ -196,7 +196,7 @@ mod pruebas {
     use super::*;
 
     fn escena_con(n: usize) -> Escena {
-        let doc = pixpin_ia::lienzo::documento(
+        let doc = pindesk_ia::lienzo::documento(
             (0..n)
                 .map(|i| {
                     serde_json::json!({"id": format!("e{i}"), "type": "rectangle", "x": i as f64 * 300.0, "y": 0.0,
@@ -204,7 +204,7 @@ mod pruebas {
                 })
                 .collect(),
         );
-        pixpin_motor2d::excalidraw::a_escena(&pixpin_motor2d::excalidraw::leer(&doc).unwrap())
+        pindesk_motor2d::excalidraw::a_escena(&pindesk_motor2d::excalidraw::leer(&doc).unwrap())
     }
 
     #[test]
@@ -224,7 +224,7 @@ mod pruebas {
         let vista = vista(&v, (0.0, 0.0), true, vec![1, 2, 3], 5);
         assert!(vista.texto.starts_with(ojos::MARCA), "{}", vista.texto);
         // Una caja que solo toca el primero: solo el.
-        let m = Mirada::de(pixpin_ia::ojos::Zona::Caja([0.0, 0.0, 120.0, 90.0]));
+        let m = Mirada::de(pindesk_ia::ojos::Zona::Caja([0.0, 0.0, 120.0, 90.0]));
         let enc = encargo_de(&escena, &m, &ctx, |_| None).unwrap();
         assert_eq!(enc.escena.elementos.len(), 1);
         // Sin marcas, ni rejilla ni etiquetas.

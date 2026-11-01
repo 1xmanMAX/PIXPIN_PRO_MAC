@@ -4,7 +4,7 @@
 //! seguidas, en album (filas de dos o tres), como un mensaje de Telegram.
 //! El formato no cambia (ver `docs/nota-rica-del-chat.md` de Windows).
 //!
-//! Los bloques y el reparto del album son los de `pixpin_ui::nota_rica`, el
+//! Los bloques y el reparto del album son los de `pindesk_ui::nota_rica`, el
 //! mismo crate que Windows: asi el Mac ensena exactamente lo mismo. Aqui se
 //! les pone lo que solo sabe este aparato —el fichero de cada foto (la misma
 //! resolucion que los adjuntos, [`Nucleo::ruta_absoluta`]) y su proporcion
@@ -24,8 +24,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
-use pixpin_proyecto::{almacen, vista};
-use pixpin_ui::nota_rica as nr;
+use pindesk_proyecto::{almacen, vista};
+use pindesk_ui::nota_rica as nr;
 
 use crate::chats::{hora_unica, validar_chat};
 use crate::{ErrorNucleo, Nucleo};
@@ -311,7 +311,7 @@ fn sabido(ruta: &Path) -> Sabido {
         Some(a) if a.fecha == fecha => a.medida,
         _ if fecha.is_none() => None,
         // Solo la cabecera: lo que mide, girado segun su EXIF.
-        _ => pixpin_codec::imagen::medidas(ruta).ok(),
+        _ => pindesk_codec::imagen::medidas(ruta).ok(),
     };
     let s = Sabido {
         visto: ahora,
@@ -422,7 +422,7 @@ impl Nucleo {
             hora_unica(),
             crate::notas::adjuntos::nombre_limpio(&nombre)
         );
-        pixpin_sincro::disco::escribir_atomico(&carpeta.join(&fichero), &datos)?;
+        pindesk_sincro::disco::escribir_atomico(&carpeta.join(&fichero), &datos)?;
         let ya = nr::imagenes(&nr::bloques(&escrito)).count();
         Ok(nr::renglon_de_foto(&fichero, ya + orden as usize + 1))
     }

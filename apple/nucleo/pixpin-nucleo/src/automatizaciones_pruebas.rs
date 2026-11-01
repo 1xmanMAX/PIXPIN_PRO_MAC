@@ -7,8 +7,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use pixpin_ia::acciones::AccionApp;
-use pixpin_proyecto::{almacen, cuaderno};
+use pindesk_ia::acciones::AccionApp;
+use pindesk_proyecto::{almacen, cuaderno};
 use serde_json::{Value, json};
 
 use super::*;
@@ -323,7 +323,7 @@ fn guardar_crea_el_fichero_y_un_solo_mensaje_que_lo_hace_viajar() {
     assert_eq!(senal[0].clase, Some(cuaderno::Clase::Archivo));
     assert!(cuaderno::es_de_sistema(senal[0]), "no sale como burbuja");
     // La ruta portatil cae en el fichero de verdad (asi viaja).
-    let real = pixpin_proyecto::vista::ruta_real(&raiz, &asistente, RUTA_PORTATIL).unwrap();
+    let real = pindesk_proyecto::vista::ruta_real(&raiz, &asistente, RUTA_PORTATIL).unwrap();
     assert_eq!(real, fichero_en(&carpeta));
     // Apagar y borrar.
     cambiar(&raiz, "PC01", 9, |l| Ok(l.activar("auto-1", false, 9))).unwrap();

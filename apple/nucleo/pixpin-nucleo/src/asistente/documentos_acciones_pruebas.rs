@@ -127,7 +127,7 @@ fn abrir_por_su_nombre_busca_entre_los_adjuntos_de_los_chats_y_lo_pide_a_la_app(
 #[test]
 fn la_rejilla_de_la_foto_manda_y_el_excel_lleva_sus_fondos_y_anchos() {
     let leida = TablaLeida { filas: vec![vec!["a".into(), "b".into()]], combinadas: Vec::new() };
-    let mut m = pixpin_ia::tabla_aspecto::Medida {
+    let mut m = pindesk_ia::tabla_aspecto::Medida {
         columnas: vec![0.0, 100.0, 300.0],
         filas: vec![0.0, 20.0],
         fondos: vec![vec![Some([255, 0, 0]), None]],

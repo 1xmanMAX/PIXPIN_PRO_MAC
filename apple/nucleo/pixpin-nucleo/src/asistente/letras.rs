@@ -1,5 +1,5 @@
 //! **Las letras para maquetar Word y PowerPoint fuera del lector** (el
-//! asistente, E1): el mismo `pixpin-office` y las mismas letras de Core Text
+//! asistente, E1): el mismo `pindesk-office` y las mismas letras de Core Text
 //! que el lector (`office.rs`), para que lo que el asistente busca o anota
 //! caiga en el mismo sitio que se ve.
 //!
@@ -10,7 +10,7 @@
 use std::path::Path;
 use std::sync::{Mutex, OnceLock};
 
-use pixpin_office::{Documento, Medidor, MedidorFijo, Pagina};
+use pindesk_office::{Documento, Medidor, MedidorFijo, Pagina};
 
 use crate::office::{MedidorConCache, MedidorLetras};
 

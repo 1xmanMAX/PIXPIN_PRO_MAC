@@ -7,7 +7,7 @@
 //!
 //! Es `ventana_chat/buscar_en_chats.rs` de Windows sin pintar ni hilo: lo
 //! puro (aplanar, buscar con tope y cuenta, el trozo) es
-//! `pixpin_ui::buscar_en_chats`, el mismo crate. Aqui, **el indice**: los
+//! `pindesk_ui::buscar_en_chats`, el mismo crate. Aqui, **el indice**: los
 //! mensajes de todos los chats ya aplanados, hecho la primera vez que se
 //! busca y despues solo releyendo el `guardados.jsonl` del chat que cambio
 //! (por su fecha y su tamano). Swift lo llama desde una `Task` de fondo
@@ -20,11 +20,11 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use fluent_bundle::FluentArgs;
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{self, Mensaje};
-use pixpin_store::ajustes::PreferenciaIdioma;
-use pixpin_store::idioma::{Catalogo, resolver_idioma};
-use pixpin_ui::buscar_en_chats as b;
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{self, Mensaje};
+use pindesk_store::ajustes::PreferenciaIdioma;
+use pindesk_store::idioma::{Catalogo, resolver_idioma};
+use pindesk_ui::buscar_en_chats as b;
 
 use crate::Nucleo;
 
@@ -87,7 +87,7 @@ pub fn medidas_de_buscar_en_chats() -> MedidasDeBuscarEnChats {
         espera_ms: b::ESPERA_MS as u32,
         cabecera: b::CABECERA_SECCION,
         ver_mas: b::VER_MAS,
-        fila: pixpin_ui::chat::FILA,
+        fila: pindesk_ui::chat::FILA,
     }
 }
 
@@ -98,8 +98,8 @@ pub fn medidas_de_buscar_en_chats() -> MedidasDeBuscarEnChats {
 pub fn chat_pasa_el_filtro(nombre: String, resumen: String, aguja: String) -> bool {
     let a = aguja.trim();
     a.is_empty()
-        || pixpin_ui::resaltado::hay_coincidencia(&nombre, a)
-        || pixpin_ui::resaltado::hay_coincidencia(&resumen, a)
+        || pindesk_ui::resaltado::hay_coincidencia(&nombre, a)
+        || pindesk_ui::resaltado::hay_coincidencia(&resumen, a)
 }
 
 /// Los rotulos de la seccion: «Mensajes · N» y «Ver N más».
@@ -110,7 +110,7 @@ pub struct RotulosDeBuscarEnChats {
 }
 
 /// Los rotulos para `total` encontrados y `mas` por ensenar
-/// (`chat-buscar-mensajes` y `chat-buscar-ver-mas` de `pixpin-store`).
+/// (`chat-buscar-mensajes` y `chat-buscar-ver-mas` de `pindesk-store`).
 #[uniffi::export]
 pub fn rotulos_de_buscar_en_chats(locale: String, total: u64, mas: u64) -> RotulosDeBuscarEnChats {
     let t = Catalogo::nuevo(resolver_idioma(&locale, PreferenciaIdioma::Sistema));
@@ -156,7 +156,7 @@ pub fn se_ve_en_el_chat(m: &Mensaje) -> bool {
     let de_leccion = crate::lecciones::es_leccion(m)
         || m.responde_a
             .as_deref()
-            .is_some_and(|r| r.starts_with(pixpin_lecciones::leccion::PREFIJO));
+            .is_some_and(|r| r.starts_with(pindesk_lecciones::leccion::PREFIJO));
     !solo_galeria && !de_leccion && !cuaderno::es_de_sistema(m)
 }
 

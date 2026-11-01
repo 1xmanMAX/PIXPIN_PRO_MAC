@@ -4,7 +4,7 @@
 //! El usuario (en Windows): «ahora quiero que la funcion de Horario aparezca
 //! en la ventana de Tareas; de alli quita la vista de Lista, deja Tarjetas y
 //! Kanban y anade Horario». Las cuentas son las de Windows
-//! (`pixpin_ui::vista_tareas`, el mismo crate): aqui solo se pasan a tipos
+//! (`pindesk_ui::vista_tareas`, el mismo crate): aqui solo se pasan a tipos
 //! que UniFFI entiende.
 //!
 //! - [`VistaTareas`]: las tres vistas, su palabra (la «lista» y las «por
@@ -15,9 +15,9 @@
 //! - [`lunes_a_la_vista`], [`chips_de_la_semana`] y [`caja_de_chip`]: las
 //!   tareas con hora (`⏰`) de la semana, como chapitas en su dia.
 
-use pixpin_geom::Rect;
-use pixpin_ia::fechas;
-use pixpin_ui::vista_tareas as vt;
+use pindesk_geom::Rect;
+use pindesk_ia::fechas;
+use pindesk_ui::vista_tareas as vt;
 
 /// Como se ensenan las tareas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
@@ -193,7 +193,7 @@ pub struct ChipSemana {
 }
 
 /// **Las tareas con hora de la semana que se ve**, como chapitas
-/// (`pixpin_ui::vista_tareas::chips_de_la_semana`): `horas` en ms locales,
+/// (`pindesk_ui::vista_tareas::chips_de_la_semana`): `horas` en ms locales,
 /// `lunes` en dias desde 1970, `dias` las columnas, `desde`/`hasta` los
 /// minutos de la rejilla y `paso` lo que junta dos en la misma hora.
 #[uniffi::export]

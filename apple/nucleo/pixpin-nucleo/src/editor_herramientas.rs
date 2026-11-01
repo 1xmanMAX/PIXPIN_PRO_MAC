@@ -13,11 +13,11 @@
 //! ([`ManoHerramientas::zona_pedida`]) y la foto la hace quien pinta
 //! (Swift), que la devuelve con `EditorLienzo::poner_copia_de_zona`.
 
-use pixpin_motor2d::elemento::{Elemento, Figura};
-use pixpin_motor2d::escena::Escena;
-use pixpin_motor2d::gesto::{Gesto, Herramienta};
-use pixpin_motor2d::lupa_elemento as lupa;
-use pixpin_motor2d::vector::Punto2;
+use pindesk_motor2d::elemento::{Elemento, Figura};
+use pindesk_motor2d::escena::Escena;
+use pindesk_motor2d::gesto::{Gesto, Herramienta};
+use pindesk_motor2d::lupa_elemento as lupa;
+use pindesk_motor2d::vector::Punto2;
 
 use crate::editor::FasePuntero;
 
@@ -214,7 +214,7 @@ impl ManoHerramientas {
             // **La bolita** (`Tool.BOLITA` del movil): mientras se arrastra,
             // lo que toca entra o sale de la seleccion, una vez por barrido.
             Herramienta::Bolita => {
-                let radio = pixpin_motor2d::bolita::RADIO_DE_LA_BOLITA / zoom;
+                let radio = pindesk_motor2d::bolita::RADIO_DE_LA_BOLITA / zoom;
                 match fase {
                     FasePuntero::Pulsar => {
                         gesto.bolita.empezar();
@@ -241,20 +241,20 @@ impl ManoHerramientas {
                 if fase != FasePuntero::Pulsar {
                     return Atendido::si(false);
                 }
-                let Some(id) = pixpin_motor2d::impacto::elemento_en(&escena.elementos, p) else {
+                let Some(id) = pindesk_motor2d::impacto::elemento_en(&escena.elementos, p) else {
                     return Atendido::si(false);
                 };
                 match &gesto.estilo_tomado {
                     None => {
                         if let Some(e) = escena.buscar(id) {
-                            gesto.estilo_tomado = Some(pixpin_motor2d::estilo::copiar(e));
+                            gesto.estilo_tomado = Some(pindesk_motor2d::estilo::copiar(e));
                         }
                         Atendido::si(true)
                     }
                     Some(copiado) => {
-                        let mut uno = pixpin_motor2d::seleccion::Seleccion::nueva();
+                        let mut uno = pindesk_motor2d::seleccion::Seleccion::nueva();
                         uno.poner(id);
-                        let hecho = pixpin_motor2d::estilo::pegar_a(escena, &uno, copiado) > 0;
+                        let hecho = pindesk_motor2d::estilo::pegar_a(escena, &uno, copiado) > 0;
                         Atendido::cambio(hecho)
                     }
                 }
@@ -303,9 +303,9 @@ impl ManoHerramientas {
             // como en el movil: la lleva la mano de siempre hasta soltar.
             Herramienta::Zona => match fase {
                 FasePuntero::Pulsar => {
-                    let copia = pixpin_motor2d::impacto::elemento_en(&escena.elementos, p)
+                    let copia = pindesk_motor2d::impacto::elemento_en(&escena.elementos, p)
                         .and_then(|id| escena.buscar(id))
-                        .is_some_and(pixpin_motor2d::zona::es_copia);
+                        .is_some_and(pindesk_motor2d::zona::es_copia);
                     if copia {
                         self.zona_moviendo = true;
                         gesto.herramienta = Herramienta::Mano;
@@ -325,8 +325,8 @@ impl ManoHerramientas {
                 },
                 FasePuntero::Soltar => match gesto.zona.take() {
                     Some((a, b)) => {
-                        if pixpin_motor2d::zona::cuenta(a, b, zoom) {
-                            self.zona_pedida = Some(pixpin_motor2d::zona::caja(a, b));
+                        if pindesk_motor2d::zona::cuenta(a, b, zoom) {
+                            self.zona_pedida = Some(pindesk_motor2d::zona::caja(a, b));
                         }
                         Atendido::si(true)
                     }
@@ -555,7 +555,7 @@ mod pruebas {
     #[test]
     fn el_cuentagotas_toma_de_la_primera_y_pega_en_las_siguientes() {
         let mut escena = Escena::nueva();
-        let rojo = pixpin_motor2d::elemento::ColorRgba::opaco(1.0, 0.0, 0.0);
+        let rojo = pindesk_motor2d::elemento::ColorRgba::opaco(1.0, 0.0, 0.0);
         let a = escena.anadir(Elemento {
             figura: Figura::Rectangulo,
             ancho: 50.0,

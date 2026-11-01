@@ -1,8 +1,8 @@
 //! Sincronizar con otro aparato del grupo (Windows, Android u otro Apple).
 //!
-//! Es el mismo protocolo y el mismo codigo que Windows (`pixpin_sincro`:
+//! Es el mismo protocolo y el mismo codigo que Windows (`pindesk_sincro`:
 //! `Sesion` dirige, `Respondedor` contesta) sobre el mismo almacen
-//! (`pixpin_proyecto::vista::DiscoPc`). Aqui solo se pone el transporte: un
+//! (`pindesk_proyecto::vista::DiscoPc`). Aqui solo se pone el transporte: un
 //! `TcpStream` de la biblioteca estandar, que en Mac y en iOS va sobre los
 //! sockets BSD del sistema, con IPv4 e IPv6 ([`crate::red`]).
 //!
@@ -32,9 +32,9 @@
 //! sobre la misma `Escucha`: `accept` es seguro desde varios hilos y cada uno
 //! atiende la conexion que le toca. Asi una sonda no espera a que acabe una
 //! vuelta. Lo que escribe en los chats sigue siendo de uno en uno:
-//! `pixpin_sincro::protocolo::ocupar` deja una sola vuelta por carpeta de
+//! `pindesk_sincro::protocolo::ocupar` deja una sola vuelta por carpeta de
 //! datos (la segunda oye «ocupado», como en Windows) y cada cuaderno se
-//! escribe con el cerrojo de `pixpin_proyecto::cuaderno`.
+//! escribe con el cerrojo de `pindesk_proyecto::cuaderno`.
 //!
 //! # Descubrir a los demas
 //!
@@ -51,12 +51,12 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::disco::{Disco, Identidad};
-use pixpin_sincro::mensajes::Aparato;
-use pixpin_sincro::protocolo::{Hecho, Respondedor, Sesion};
-use pixpin_sincro::{codigo, grupo, vuelta};
-use pixpin_store::ajustes;
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::disco::{Disco, Identidad};
+use pindesk_sincro::mensajes::Aparato;
+use pindesk_sincro::protocolo::{Hecho, Respondedor, Sesion};
+use pindesk_sincro::{codigo, grupo, vuelta};
+use pindesk_store::ajustes;
 
 use crate::envio::{ArchivoLlegado, RecibeAlFrente};
 use crate::galeria_sincro::CapturasDelMac;
@@ -222,7 +222,7 @@ pub(crate) fn azar_menor_que(n: usize) -> Result<usize, ErrorNucleo> {
 }
 
 /// Un corte en el saludo es lo que hace quien no descifra: otro codigo.
-pub(crate) fn explicar(e: pixpin_sincro::protocolo::ErrorSincro, host: &str) -> ErrorNucleo {
+pub(crate) fn explicar(e: pindesk_sincro::protocolo::ErrorSincro, host: &str) -> ErrorNucleo {
     if e.es_corte() {
         ErrorNucleo::Sincro {
             detalle: format!("{host} no aceptó la conexión: ¿tiene el mismo código de grupo?"),
@@ -258,14 +258,14 @@ pub fn codigo_valido(codigo: String) -> bool {
 /// `_pixpin._tcp` (como lo piden `NWBrowser` y `DNSServiceRegister`).
 #[uniffi::export]
 pub fn tipo_de_servicio() -> String {
-    pixpin_sincro::SERVICIO.trim_end_matches('.').to_string()
+    pindesk_sincro::SERVICIO.trim_end_matches('.').to_string()
 }
 
 /// El puerto que se intenta primero al escuchar (47474). Si esta tomado se
 /// escucha en otro cualquiera ([`Nucleo::escuchar`] con 0) y se anuncia ese.
 #[uniffi::export]
 pub fn puerto_preferido() -> u16 {
-    pixpin_sincro::PUERTO
+    pindesk_sincro::PUERTO
 }
 
 /// Una entrada del TXT de Bonjour, en el orden en que se anuncia.
@@ -373,7 +373,7 @@ impl Nucleo {
             return Ok(Some(a));
         }
         let i = self.identidad()?;
-        let cd = pixpin_sincro::compartidos::CompartidosEnDisco::nuevo(self.ruta());
+        let cd = pindesk_sincro::compartidos::CompartidosEnDisco::nuevo(self.ruta());
         if !cd.hay_alguno(&i.yo.id) {
             return Ok(None);
         }
@@ -492,7 +492,7 @@ impl Nucleo {
     ) -> Result<ResumenSincro, ErrorNucleo> {
         let chats: std::collections::BTreeSet<String> = fichas
             .iter()
-            .filter_map(|f| pixpin_proyecto::vista::chat_de_ficha(self.ruta(), f))
+            .filter_map(|f| pindesk_proyecto::vista::chat_de_ficha(self.ruta(), f))
             .collect();
         if chats.is_empty() {
             return Err(ErrorNucleo::Argumento {
@@ -508,7 +508,7 @@ impl Nucleo {
     /// traerlo entero otra vez. «Mensajes guardados» no se borra. Devuelve
     /// si se quito.
     pub fn borrar_proyecto(&self, ficha: String) -> Result<bool, ErrorNucleo> {
-        let (quitados, _sin_mover) = pixpin_proyecto::almacen::borrar_proyectos(
+        let (quitados, _sin_mover) = pindesk_proyecto::almacen::borrar_proyectos(
             self.ruta(),
             std::slice::from_ref(&ficha),
             crate::ahora_ms(),
@@ -575,7 +575,7 @@ impl Nucleo {
             .map(|a| a.sincro.lo_mio_manda)
             .unwrap_or(false)
         {
-            s.quien_manda(pixpin_sincro::mezcla::Mando::LoMioManda);
+            s.quien_manda(pindesk_sincro::mezcla::Mando::LoMioManda);
         }
         let otro = s.otro.clone();
         let mut hecho = Hecho::default();
@@ -831,9 +831,9 @@ fn atender(
     // Corto para los cuatro primeros y la sonda.
     flujo.set_read_timeout(Some(Duration::from_secs(5)))?;
     let (n, cuatro) = mirar_cuatro(&flujo)?;
-    if n == 4 && &cuatro == pixpin_sincro::SONDA {
+    if n == 4 && &cuatro == pindesk_sincro::SONDA {
         flujo.read_exact(&mut [0u8; 4])?;
-        flujo.write_all(pixpin_sincro::SONDA_RESPUESTA)?;
+        flujo.write_all(pindesk_sincro::SONDA_RESPUESTA)?;
         return Ok(Atendido::Sonda);
     }
     // Las sondas no cuentan (duran un instante); lo demas, si.
@@ -871,7 +871,7 @@ fn atender_saludo(
     // Un archivo suelto de otro aparato: al chat o lienzo que este delante.
     let fabrica = |_otro: &Aparato| {
         Box::new(RecibeAlFrente::nuevo(nucleo, &yo, &llegadas))
-            as Box<dyn pixpin_sincro::al_lienzo::Recibe + '_>
+            as Box<dyn pindesk_sincro::al_lienzo::Recibe + '_>
     };
     let al_saludar = |otro: &Aparato, _: u32| *quien.borrow_mut() = Some(otro.clone());
     let estado = |_: &str| {};
@@ -886,7 +886,7 @@ fn atender_saludo(
     // **Quien llama dice con los cuatro primeros bytes** si es del grupo
     // (`PXS1`) o una persona de un chat compartido (`PXC1`): a esa solo se
     // le deja tocar los chats que compartimos (la valla).
-    let persona = n == 4 && &cuatro == pixpin_sincro::canal::MAGIA_DE_PERSONA;
+    let persona = n == 4 && &cuatro == pindesk_sincro::canal::MAGIA_DE_PERSONA;
     if persona {
         r.atender_persona(flujo, nonce()?)?;
     } else {

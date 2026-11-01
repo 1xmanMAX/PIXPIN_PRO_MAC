@@ -1,5 +1,5 @@
 //! **Los textos de la interfaz Swift**, de los mismos catalogos que Windows
-//! (`pixpin-store/i18n/<etiqueta>/main.ftl`, los catorce idiomas de
+//! (`pindesk-store/i18n/<etiqueta>/main.ftl`, los catorce idiomas de
 //! `Idioma::TODOS`): una sola fuente de verdad. Swift pide cada texto por su
 //! clave (`ajustes-idioma`, `chat-enviar`…) y Fluent hace los plurales de
 //! cada lengua (`[few]` en ruso, `[two]` en arabe…).
@@ -15,9 +15,9 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use fluent_bundle::{FluentArgs, FluentValue};
-use pixpin_store::ajustes::{self, PreferenciaIdioma};
-use pixpin_store::idioma::{Catalogo, Idioma, resolver_idioma};
-use pixpin_store::rutas::Ubicacion;
+use pindesk_store::ajustes::{self, PreferenciaIdioma};
+use pindesk_store::idioma::{Catalogo, Idioma, resolver_idioma};
+use pindesk_store::rutas::Ubicacion;
 
 use crate::ajustes::{idioma_de, texto_idioma};
 

@@ -4,7 +4,7 @@
 //!
 //! - **El orden y el nombre de los formatos** ([`orden_de_formatos_compartidos`],
 //!   [`nombre_de_formato_compartido`]): `ClaseDeFormato` y
-//!   `FORMATOS_EN_ORDEN` de `pixpin_ui::hoja_compartir` de Windows (el
+//!   `FORMATOS_EN_ORDEN` de `pindesk_ui::hoja_compartir` de Windows (el
 //!   `FormatosDeCompartir.Clase` del movil). Quien abre la hoja solo dice
 //!   **que** formatos hay, por su id; el orden (Imagen PNG, Imagen JPG,
 //!   Dibujo SVG, PDF, Pagina web (HTML), Word, Markdown, Texto, Tabla (CSV),
@@ -18,15 +18,15 @@
 //!   paginas ([`textos_de_cuaderno`], [`word_de_markdown`]).
 //!
 //! Los nombres son los del catalogo de Windows en español
-//! (`crates/pixpin-store/i18n/es-ES/main.ftl`, `compartir-png`...): la app
+//! (`crates/pindesk-store/i18n/es-ES/main.ftl`, `compartir-png`...): la app
 //! del Mac habla español y el catalogo de este nucleo es anterior a esos
 //! rotulos.
 
 use std::collections::HashSet;
 
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
-use pixpin_proyecto::cuaderno::{self, Mensaje};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
+use pindesk_proyecto::cuaderno::{self, Mensaje};
 
 use crate::carpetas::PaginaDeCarpeta;
 use crate::chats::validar_chat;
@@ -254,14 +254,14 @@ pub fn textos_de_cuaderno(
 }
 
 /// **Un Markdown como Word** (`.docx`), por el mismo escritor de las notas
-/// (`pixpin_notas::word::exportar` de Windows).
+/// (`pindesk_notas::word::exportar` de Windows).
 #[uniffi::export]
 pub fn word_de_markdown(titulo: String, markdown: String) -> Result<Vec<u8>, ErrorNucleo> {
     let sin_fotos = |_: &str| None;
-    pixpin_docs::exportar_docx::exportar(&pixpin_docs::exportar_docx::Nota {
+    pindesk_docs::exportar_docx::exportar(&pindesk_docs::exportar_docx::Nota {
         markdown: &markdown,
         titulo: &titulo,
-        letra: pixpin_docs::exportar_docx::Letra::default(),
+        letra: pindesk_docs::exportar_docx::Letra::default(),
         comentarios: None,
         imagen: &sin_fotos,
         autor: "",

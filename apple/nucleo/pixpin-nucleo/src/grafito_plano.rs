@@ -1,5 +1,5 @@
 //! **El grafito como en Windows y el movil**: su mapa de casillas
-//! (`pixpin_motor2d::tinta::grafito`), no una raya lisa. Va en el bufer
+//! (`pindesk_motor2d::tinta::grafito`), no una raya lisa. Va en el bufer
 //! plano como una orden de imagen con un id que tiene el bit alto puesto
 //! (`BIT`, el 61: el 63 y el 62 son del mosaico y la lupa): quien pinta pide sus pixeles con [`mapa_de_grafito`] una vez por
 //! mapa (el id cambia cuando el mapa cambia).
@@ -7,10 +7,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
 
-use pixpin_motor2d::escena::Escena;
-use pixpin_motor2d::pintado::{self, Orden};
-use pixpin_motor2d::tinta::grafito;
-use pixpin_motor2d::Elemento;
+use pindesk_motor2d::escena::Escena;
+use pindesk_motor2d::pintado::{self, Orden};
+use pindesk_motor2d::tinta::grafito;
+use pindesk_motor2d::Elemento;
 
 /// El bit que dice «esto es un mapa de grafito» en el id de una imagen.
 pub const BIT: u64 = 1 << 61;

@@ -115,7 +115,7 @@ pub mod lienzo;
 pub mod lienzo_suelto;
 // Medir el texto del lienzo con las letras de verdad (iPad, 25-oct).
 pub mod letras_lienzo;
-// Las palabras magicas de Pinear (iPad, 25-oct; `pixpin_pin::magia`).
+// Las palabras magicas de Pinear (iPad, 25-oct; `pindesk_pin::magia`).
 pub mod magia;
 // Fusionar paginas del PDF del proyecto en un lienzo (iPad, 25-oct).
 pub mod fusionar_paginas;
@@ -262,8 +262,8 @@ impl From<std::io::Error> for ErrorNucleo {
     }
 }
 
-impl From<pixpin_sincro::protocolo::ErrorSincro> for ErrorNucleo {
-    fn from(e: pixpin_sincro::protocolo::ErrorSincro) -> Self {
+impl From<pindesk_sincro::protocolo::ErrorSincro> for ErrorNucleo {
+    fn from(e: pindesk_sincro::protocolo::ErrorSincro) -> Self {
         ErrorNucleo::Sincro {
             detalle: e.to_string(),
         }
@@ -317,7 +317,7 @@ impl Nucleo {
     pub fn abrir(raiz: String, nombre_del_aparato: String) -> Result<Arc<Nucleo>, ErrorNucleo> {
         let raiz = PathBuf::from(raiz);
         std::fs::create_dir_all(&raiz)?;
-        pixpin_proyecto::identidad::Identidad::leer_o_crear(&raiz, &nombre_del_aparato)?;
+        pindesk_proyecto::identidad::Identidad::leer_o_crear(&raiz, &nombre_del_aparato)?;
         Ok(Arc::new(Nucleo {
             raiz,
             nombre: nombre_del_aparato,
@@ -369,8 +369,8 @@ impl Nucleo {
         &self.raiz
     }
 
-    pub(crate) fn identidad(&self) -> Result<pixpin_proyecto::identidad::Identidad, ErrorNucleo> {
-        Ok(pixpin_proyecto::identidad::Identidad::leer_o_crear(
+    pub(crate) fn identidad(&self) -> Result<pindesk_proyecto::identidad::Identidad, ErrorNucleo> {
+        Ok(pindesk_proyecto::identidad::Identidad::leer_o_crear(
             &self.raiz,
             &self.nombre,
         )?)
@@ -394,5 +394,5 @@ impl Nucleo {
 
 /// La hora de ahora en milisegundos desde 1970, como la de todo el formato.
 pub(crate) fn ahora_ms() -> i64 {
-    pixpin_sistema::entorno::ahora_utc_ms()
+    pindesk_sistema::entorno::ahora_utc_ms()
 }

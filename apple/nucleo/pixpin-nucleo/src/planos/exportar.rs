@@ -3,7 +3,7 @@
 //!
 //! - **HTML**: la pagina que se mueve y acerca como el visor, con las capas
 //!   que se encienden y apagan, los grosores, las imagenes, las cotas, los
-//!   marcos y lo anotado con el motor del lienzo (`pixpin_cad::web`, la
+//!   marcos y lo anotado con el motor del lienzo (`pindesk_cad::web`, la
 //!   misma pagina que Windows). El plano por capas sale de la cache
 //!   ([`super::cache`]): ya se leyo al abrirlo.
 //! - **DXF** (de un DWG): lo escribe `opencadcodec` (`leer::a_dxf`).
@@ -14,7 +14,7 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_cad::anotado::{GRUPO_COTA, GRUPO_MARCO};
+use pindesk_cad::anotado::{GRUPO_COTA, GRUPO_MARCO};
 
 use super::{AnotadoPlano, Plano, PuntoPlano, cache, leer_escena};
 use crate::ErrorNucleo;
@@ -29,9 +29,9 @@ fn es_dwg(ruta: &Path) -> bool {
 /// Windows).
 fn imagenes(
     plano: &Path,
-    lista: &[pixpin_cad::convertir::ImagenDelPlano],
+    lista: &[pindesk_cad::convertir::ImagenDelPlano],
     origen: [f64; 2],
-) -> Vec<pixpin_cad::web::ImagenWeb> {
+) -> Vec<pindesk_cad::web::ImagenWeb> {
     let carpeta = plano.parent().unwrap_or(Path::new("."));
     lista
         .iter()
@@ -52,12 +52,12 @@ fn imagenes(
                 "jpg" | "jpeg" => ("image/jpeg", std::fs::read(&ruta).ok()?),
                 _ => (
                     "image/png",
-                    pixpin_codec::imagen::codificar_png(&pixpin_codec::imagen::cargar(&ruta).ok()?)
+                    pindesk_codec::imagen::codificar_png(&pindesk_codec::imagen::cargar(&ruta).ok()?)
                         .ok()?,
                 ),
             };
             let rel = |p: [f64; 2]| [p[0] - origen[0], p[1] - origen[1]];
-            Some(pixpin_cad::web::ImagenWeb {
+            Some(pindesk_cad::web::ImagenWeb {
                 capa: i.capa.clone(),
                 mime,
                 bytes,
@@ -80,7 +80,7 @@ impl Plano {
 
     /// Lo anotado con el lapiz (sin cotas ni marcos, que van aparte) como
     /// SVG del motor, con su encaje respecto a `referencia`.
-    fn anotado_en_svg(&self) -> Option<pixpin_cad::web::Anotado> {
+    fn anotado_en_svg(&self) -> Option<pindesk_cad::web::Anotado> {
         let (_, mut escena) = leer_escena(&self.rutas.tinta)?;
         escena.elementos.retain(|e| {
             !e.borrado && !e.grupos.iter().any(|g| g == GRUPO_COTA || g == GRUPO_MARCO)
@@ -88,17 +88,17 @@ impl Plano {
         if escena.elementos.is_empty() {
             return None;
         }
-        let hoja = pixpin_motor2d::exportar::hojas(
+        let hoja = pindesk_motor2d::exportar::hojas(
             &escena,
-            pixpin_motor2d::exportar::Alcance::Todo,
+            pindesk_motor2d::exportar::Alcance::Todo,
             &[],
             None,
         )
         .into_iter()
         .next()?;
-        let svg = pixpin_motor2d::exportar_svg::svg(
+        let svg = pindesk_motor2d::exportar_svg::svg(
             &hoja,
-            pixpin_motor2d::exportar_svg::OpcionesSvg {
+            pindesk_motor2d::exportar_svg::OpcionesSvg {
                 fondo: None,
                 marcos: false,
             },
@@ -106,7 +106,7 @@ impl Plano {
         );
         let c = hoja.caja;
         let e = self.encaje_del_fichero();
-        Some(pixpin_cad::web::Anotado {
+        Some(pindesk_cad::web::Anotado {
             svg,
             caja: [c.0 as f64, c.1 as f64, c.2 as f64, c.3 as f64],
             u: e.u,
@@ -139,7 +139,7 @@ impl Plano {
         let rel = |p: &PuntoPlano| [p.x - r[0], p.y - r[1]];
         let resumen = self.resumen();
         let u = resumen.caja_util;
-        let o = pixpin_cad::web::OpcionesWeb {
+        let o = pindesk_cad::web::OpcionesWeb {
             titulo: self.titulo(),
             origen: r,
             vista: [u.x0 - r[0], u.y0 - r[1], u.x1 - r[0], u.y1 - r[1]],
@@ -167,7 +167,7 @@ impl Plano {
             claro,
             textos: None,
         };
-        Ok(pixpin_cad::web::pagina(&p.grupos, &o))
+        Ok(pindesk_cad::web::pagina(&p.grupos, &o))
     }
 
     /// Si el plano es un DWG (se ofrece «DXF» al exportar).
@@ -183,7 +183,7 @@ impl Plano {
                 detalle: "el plano ya es un DXF".into(),
             });
         }
-        pixpin_cad::leer::a_dxf(&self.ruta, Path::new(&salida))
+        pindesk_cad::leer::a_dxf(&self.ruta, Path::new(&salida))
             .map_err(|detalle| ErrorNucleo::Argumento { detalle })
     }
 
@@ -198,7 +198,7 @@ mod pruebas {
     use super::super::pruebas::abrir;
     use super::super::{CajaPlano, CotaPlano};
     use super::*;
-    use pixpin_motor2d::{ColorRgba, Elemento, Figura, Punto2, excalidraw};
+    use pindesk_motor2d::{ColorRgba, Elemento, Figura, Punto2, excalidraw};
 
     /// La cota y el marco de las pruebas de Windows: lo ancho de abajo y el
     /// plano entero.
@@ -217,7 +217,7 @@ mod pruebas {
 
     /// Una raya roja gorda en la capa, como la deja el motor.
     fn anotar_con_el_lapiz(p: &Plano) {
-        let mut escena = pixpin_motor2d::Escena::nueva();
+        let mut escena = pindesk_motor2d::Escena::nueva();
         escena.anadir(Elemento {
             x: 0.0,
             y: 0.0,
@@ -299,11 +299,11 @@ mod pruebas {
         );
         // El DXF del plano se vuelve a leer (la prueba de Windows).
         let r = d.join("copia.dxf");
-        pixpin_cad::leer::a_dxf(&p.ruta, &r).unwrap();
-        let (m, _) = pixpin_cad::convertir::convertir_fichero(&r).unwrap();
+        pindesk_cad::leer::a_dxf(&p.ruta, &r).unwrap();
+        let (m, _) = pindesk_cad::convertir::convertir_fichero(&r).unwrap();
         assert!(!m.vacio());
         // Caso negativo: un destino donde no se puede escribir.
-        assert!(pixpin_cad::leer::a_dxf(&p.ruta, &d.join("no-existe").join("x.dxf")).is_err());
+        assert!(pindesk_cad::leer::a_dxf(&p.ruta, &d.join("no-existe").join("x.dxf")).is_err());
         assert!(es_dwg(Path::new("/a/Planta.DWG")) && !es_dwg(Path::new("/a/planta.dxf")));
         let _ = std::fs::remove_dir_all(&d);
     }

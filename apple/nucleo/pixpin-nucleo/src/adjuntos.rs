@@ -25,9 +25,9 @@
 use std::path::{Component, Path};
 use std::sync::Arc;
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Mensaje, Sello};
-use pixpin_proyecto::vista;
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Mensaje, Sello};
+use pindesk_proyecto::vista;
 
 use crate::chats::{hora_unica, validar_chat};
 use crate::lienzo::{ImagenDelLienzo, Lienzo};
@@ -63,7 +63,7 @@ impl Nucleo {
         // como `pixpin:files/…/imagenes/<id>`: el fichero sigue en
         // `imagenes/<id>` del chat (sin esto, un recuadro gris).
         let nombre = std::path::Path::new(ruta).file_name()?;
-        let aqui = pixpin_proyecto::almacen::carpeta(self.ruta(), chat).join("imagenes").join(nombre);
+        let aqui = pindesk_proyecto::almacen::carpeta(self.ruta(), chat).join("imagenes").join(nombre);
         Some(if aqui.is_file() { aqui } else { r })
     }
 }

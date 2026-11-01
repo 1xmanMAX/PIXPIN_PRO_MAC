@@ -1,5 +1,5 @@
 //! **Los ajustes que valen en los dos sistemas**, en el mismo
-//! `pixpinmax.toml` que Windows (`pixpin_store::ajustes`), en la raiz de la
+//! `pixpinmax.toml` que Windows (`pindesk_store::ajustes`), en la raiz de la
 //! carpeta de datos.
 //!
 //! Cruzan las claves que significan lo mismo en Mac y en Windows (las de la
@@ -20,8 +20,8 @@
 //! fichero que hay no se entiende, **no se guarda** (se dice): reescribirlo
 //! con los valores de fabrica le borraria al usuario todo lo de Windows.
 
-use pixpin_store::ajustes::{FormatoColor, ModoDeIdiomas, PreferenciaIdioma};
-use pixpin_store::{Ubicacion, ajustes};
+use pindesk_store::ajustes::{FormatoColor, ModoDeIdiomas, PreferenciaIdioma};
+use pindesk_store::{Ubicacion, ajustes};
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -333,7 +333,7 @@ mod pruebas {
         };
         n.guardar_ajustes(nuevos.clone()).unwrap();
         assert_eq!(n.ajustes().unwrap(), nuevos);
-        // Lo escrito es lo que lee Windows (`pixpin_store::ajustes`).
+        // Lo escrito es lo que lee Windows (`pindesk_store::ajustes`).
         let texto = std::fs::read_to_string(d.join("pixpinmax.toml")).unwrap();
         for linea in [
             "idioma = \"en\"",

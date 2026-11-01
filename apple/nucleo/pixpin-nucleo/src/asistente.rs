@@ -26,7 +26,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use pixpin_ia::agente;
+use pindesk_ia::agente;
 use serde_json::Value;
 
 pub mod al_lienzo;
@@ -181,18 +181,18 @@ pub fn ia_instrucciones() -> String {
 /// Todas las herramientas, como la lista `tools` de OpenAI (JSON).
 #[uniffi::export]
 pub fn ia_catalogo() -> String {
-    pixpin_ia::puente::catalogo()
+    pindesk_ia::puente::catalogo()
 }
 
 /// Las pocas herramientas que vienen a cuento para `pedido` (JSON, lista
 /// `tools` de OpenAI): un modelo pequeno se pierde con el catalogo entero.
 #[uniffi::export]
 pub fn ia_catalogo_para(pedido: String, con_imagen: bool) -> String {
-    pixpin_ia::puente::catalogo_para(&pedido, con_imagen)
+    pindesk_ia::puente::catalogo_para(&pedido, con_imagen)
 }
 
 /// Una llamada del modelo, de cualquier motor (ver
-/// `pixpin_ia::puente::llamar`): devuelve el objeto JSON con `ok`,
+/// `pindesk_ia::puente::llamar`): devuelve el objeto JSON con `ok`,
 /// `elementos`, `argumentos`... o `para_el_modelo` si estaba mal.
 #[uniffi::export]
 pub fn ia_llamar(
@@ -202,7 +202,7 @@ pub fn ia_llamar(
     origen_y: f64,
     semilla: u64,
 ) -> String {
-    pixpin_ia::puente::llamar(&nombre, &argumentos, (origen_x, origen_y), semilla)
+    pindesk_ia::puente::llamar(&nombre, &argumentos, (origen_x, origen_y), semilla)
 }
 
 /// Un `.excalidraw` entero con los `elementos` (texto JSON de una lista,
@@ -214,13 +214,13 @@ pub fn ia_lienzo_de(elementos: String) -> String {
         Ok(Value::Array(v)) => v,
         _ => Vec::new(),
     };
-    pixpin_ia::lienzo::documento(lista)
+    pindesk_ia::lienzo::documento(lista)
 }
 
 #[cfg(test)]
 pub(crate) mod pruebas {
     use super::*;
-    use pixpin_ia::herramientas;
+    use pindesk_ia::herramientas;
 
     #[test]
     fn el_catalogo_y_la_llamada_cruzan_como_texto_json() {
@@ -244,8 +244,8 @@ pub(crate) mod pruebas {
                 .is_array()
         );
         let doc = ia_lienzo_de(r["elementos"].to_string());
-        assert!(pixpin_motor2d::excalidraw::leer(&doc).is_ok());
-        assert!(pixpin_motor2d::excalidraw::leer(&ia_lienzo_de("roto".into())).is_ok());
+        assert!(pindesk_motor2d::excalidraw::leer(&doc).is_ok());
+        assert!(pindesk_motor2d::excalidraw::leer(&ia_lienzo_de("roto".into())).is_ok());
     }
 
     #[test]

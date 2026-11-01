@@ -5,9 +5,9 @@
 //! Todo sobre la escena: vale igual para el lienzo abierto que para uno
 //! cerrado ([`super::en_el_chat`]).
 
-use pixpin_motor2d::Escena;
-use pixpin_motor2d::biblioteca::FiguraGuardada;
-use pixpin_motor2d::elemento::Elemento;
+use pindesk_motor2d::Escena;
+use pindesk_motor2d::biblioteca::FiguraGuardada;
+use pindesk_motor2d::elemento::Elemento;
 
 use super::{Respuesta, caja};
 
@@ -30,10 +30,10 @@ pub fn poner_plantilla(
     escena: &mut Escena,
     elegidos: &[u64],
     nombre: Option<&str>,
-    intervalo: &pixpin_motor2d::figuras_de_serie::Intervalo,
+    intervalo: &pindesk_motor2d::figuras_de_serie::Intervalo,
     centro: Option<(f32, f32)>,
 ) -> Result<Respuesta, String> {
-    use pixpin_motor2d::figuras_de_serie as serie;
+    use pindesk_motor2d::figuras_de_serie as serie;
     let mut elegidas: Vec<Elemento> = escena
         .visibles()
         .filter(|e| elegidos.contains(&e.id))
@@ -57,7 +57,7 @@ pub fn poner_plantilla(
     if la_elegida.is_none() {
         let pedida = nombre.and_then(|n| {
             let catalogo = serie::catalogo();
-            pixpin_ia::figuras::buscar(&catalogo, n)
+            pindesk_ia::figuras::buscar(&catalogo, n)
                 .and_then(serie::clave_de)
                 .map(str::to_string)
         });
@@ -71,7 +71,7 @@ pub fn poner_plantilla(
     let clave = match nombre {
         Some(n) => {
             let catalogo = serie::catalogo();
-            let f = pixpin_ia::figuras::buscar(&catalogo, n).ok_or_else(|| {
+            let f = pindesk_ia::figuras::buscar(&catalogo, n).ok_or_else(|| {
                 format!(
                     "no hay ninguna plantilla llamada «{n}»; se alargan: {}",
                     serie::las_que_se_alargan()
@@ -118,7 +118,7 @@ pub fn poner_plantilla(
         completo = iv;
         &completo
     } else if intervalo.noche.is_none() && nombrada_de_noche {
-        completo = pixpin_motor2d::figuras_de_serie::Intervalo {
+        completo = pindesk_motor2d::figuras_de_serie::Intervalo {
             noche: Some(true),
             ..intervalo.clone()
         };
@@ -204,7 +204,7 @@ pub(crate) fn tramo_actual(piezas: &[Elemento]) -> Actual {
     let textos: Vec<&str> = piezas
         .iter()
         .filter_map(|e| match &e.figura {
-            pixpin_motor2d::Figura::Texto { texto, .. } => Some(texto.trim()),
+            pindesk_motor2d::Figura::Texto { texto, .. } => Some(texto.trim()),
             _ => None,
         })
         .collect();
@@ -240,8 +240,8 @@ pub(crate) fn tramo_actual(piezas: &[Elemento]) -> Actual {
     Actual {
         filas: mejor,
         semanas,
-        mes: pixpin_motor2d::figuras_de_serie::mes_de_la_hoja(piezas),
-        noche: pixpin_motor2d::figuras_de_serie::es_de_noche(piezas),
+        mes: pindesk_motor2d::figuras_de_serie::mes_de_la_hoja(piezas),
+        noche: pindesk_motor2d::figuras_de_serie::es_de_noche(piezas),
     }
 }
 
@@ -255,7 +255,7 @@ pub(crate) fn plantilla_en_la_escena(
     clave: Option<&str>,
     cualquiera: bool,
 ) -> Option<(String, Vec<Elemento>)> {
-    use pixpin_motor2d::figuras_de_serie as serie;
+    use pindesk_motor2d::figuras_de_serie as serie;
     let mut grupos: Vec<(String, Vec<Elemento>)> = Vec::new();
     for e in escena.visibles() {
         let Some(g) = e.grupos.last() else {
@@ -287,7 +287,7 @@ pub(crate) fn plantilla_en_la_escena(
         .filter(|c| (cualquiera || serie::se_alarga(c)) && clave.is_none_or(|k| k == c))?;
     let hojas: Vec<&Elemento> = vivos
         .iter()
-        .filter(|e| matches!(e.figura, pixpin_motor2d::Figura::Rectangulo))
+        .filter(|e| matches!(e.figura, pindesk_motor2d::Figura::Rectangulo))
         .filter(|r| {
             let caja = r.caja();
             let dentro: Vec<Elemento> = vivos
@@ -335,7 +335,7 @@ fn ahora_tiene(piezas: &[Elemento]) -> String {
         let Some(n) = e
             .grupos
             .iter()
-            .find_map(|g| pixpin_motor2d::biblioteca::nombre_de_parte(g))
+            .find_map(|g| pindesk_motor2d::biblioteca::nombre_de_parte(g))
         else {
             continue;
         };
@@ -368,7 +368,7 @@ const MAX_GUIAS: usize = 2;
 /// cambiar (`figuras_de_serie::guia_de`), para que el modelo la entienda
 /// sin tener que pedirla. Vacio si no hay ninguna.
 pub fn guias_del_lienzo(escena: &Escena) -> String {
-    use pixpin_motor2d::figuras_de_serie as serie;
+    use pindesk_motor2d::figuras_de_serie as serie;
     let mut grupos: Vec<(String, Vec<Elemento>)> = Vec::new();
     for e in escena.visibles() {
         let Some(g) = e.grupos.last() else {
@@ -400,7 +400,7 @@ pub fn guias_del_lienzo(escena: &Escena) -> String {
 /// elegir, la unica plantilla que hay. Error en palabras si no hay ninguna
 /// o no se personaliza.
 pub fn secciones_de_la_plantilla(escena: &Escena, elegidos: &[u64]) -> Result<String, String> {
-    use pixpin_motor2d::figuras_de_serie as serie;
+    use pindesk_motor2d::figuras_de_serie as serie;
     let elegidas: Vec<Elemento> = escena
         .visibles()
         .filter(|e| elegidos.contains(&e.id))
@@ -446,8 +446,8 @@ fn colocar_hojas(escena: &mut Escena, hojas: &[FiguraGuardada], (x0, y0): (f32, 
         let (w, h) = f.tamano();
         let primero = escena.siguiente_id.max(1);
         let grupo = format!("g{primero}");
-        let centro = pixpin_motor2d::vector::Punto2::nuevo(x + w / 2.0, y0 + h / 2.0);
-        for e in pixpin_motor2d::biblioteca::estampar(f, centro, primero, &grupo) {
+        let centro = pindesk_motor2d::vector::Punto2::nuevo(x + w / 2.0, y0 + h / 2.0);
+        for e in pindesk_motor2d::biblioteca::estampar(f, centro, primero, &grupo) {
             ids.push(escena.anadir(e));
         }
         x += w + ENTRE_HOJAS;
@@ -476,8 +476,8 @@ pub fn colocar_hojas_en_medio(
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_motor2d::biblioteca;
-    use pixpin_motor2d::figuras_de_serie::{self as serie, Intervalo};
+    use pindesk_motor2d::biblioteca;
+    use pindesk_motor2d::figuras_de_serie::{self as serie, Intervalo};
 
     /// Un lienzo con la lista de tareas de serie estampada y elegida.
     fn con_la_lista() -> (Escena, Vec<u64>) {
@@ -489,7 +489,7 @@ mod pruebas {
         let ids = biblioteca::estampar_en_escena(
             &mut escena,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(500.0, 600.0),
+            pindesk_motor2d::vector::Punto2::nuevo(500.0, 600.0),
         );
         (escena, ids)
     }
@@ -535,7 +535,7 @@ mod pruebas {
     /// rehace en su sitio con sus secciones, y Ctrl+Z lo devuelve.
     #[test]
     fn el_mensual_se_personaliza_en_su_sitio() {
-        use pixpin_motor2d::figuras_de_serie::{AnchoSeccion, SeccionPedida};
+        use pindesk_motor2d::figuras_de_serie::{AnchoSeccion, SeccionPedida};
         let mut escena = Escena::nueva();
         let f = serie::catalogo()
             .into_iter()
@@ -544,7 +544,7 @@ mod pruebas {
         let ids = biblioteca::estampar_en_escena(
             &mut escena,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(200.0, 100.0),
+            pindesk_motor2d::vector::Punto2::nuevo(200.0, 100.0),
         );
         let caja_vieja = caja(&escena.visibles().cloned().collect::<Vec<_>>()).unwrap();
         // Primero se leen sus secciones; el resumen ya trae su guia.
@@ -577,7 +577,7 @@ mod pruebas {
         let textos: Vec<&str> = nuevas
             .iter()
             .filter_map(|e| match &e.figura {
-                pixpin_motor2d::elemento::Figura::Texto { texto, .. } => Some(texto.as_str()),
+                pindesk_motor2d::elemento::Figura::Texto { texto, .. } => Some(texto.as_str()),
                 _ => None,
             })
             .collect();
@@ -605,7 +605,7 @@ mod pruebas {
     /// que alargar: personalizar el semanal no debe pedir numeros.
     #[test]
     fn el_semanal_cambia_habitos_por_un_espacio_libre() {
-        use pixpin_motor2d::figuras_de_serie::{SeccionPedida, TipoSeccion};
+        use pindesk_motor2d::figuras_de_serie::{SeccionPedida, TipoSeccion};
         let mut escena = Escena::nueva();
         let f = serie::catalogo()
             .into_iter()
@@ -614,7 +614,7 @@ mod pruebas {
         biblioteca::estampar_en_escena(
             &mut escena,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(300.0, 400.0),
+            pindesk_motor2d::vector::Punto2::nuevo(300.0, 400.0),
         );
         let titulo = |t: &str| SeccionPedida {
             titulo: t.into(),
@@ -638,7 +638,7 @@ mod pruebas {
         let textos: Vec<String> = escena
             .visibles()
             .filter_map(|e| match &e.figura {
-                pixpin_motor2d::elemento::Figura::Texto { texto, .. } => Some(texto.clone()),
+                pindesk_motor2d::elemento::Figura::Texto { texto, .. } => Some(texto.clone()),
                 _ => None,
             })
             .collect();
@@ -668,7 +668,7 @@ mod pruebas {
         let ids = biblioteca::estampar_en_escena(
             &mut escena,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(500.0, 600.0),
+            pindesk_motor2d::vector::Punto2::nuevo(500.0, 600.0),
         );
         let caja_vieja = caja(&escena.visibles().cloned().collect::<Vec<_>>()).unwrap();
         let iv = Intervalo {
@@ -700,7 +700,7 @@ mod pruebas {
             biblioteca::estampar_en_escena(
                 &mut dos,
                 &f,
-                pixpin_motor2d::vector::Punto2::nuevo(x, 0.0),
+                pindesk_motor2d::vector::Punto2::nuevo(x, 0.0),
             );
         }
         // «Redúcelo a 10 semanas» deja las 30 actividades que tenia.
@@ -708,7 +708,7 @@ mod pruebas {
         biblioteca::estampar_en_escena(
             &mut e2,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(0.0, 0.0),
+            pindesk_motor2d::vector::Punto2::nuevo(0.0, 0.0),
         );
         let iv30 = Intervalo {
             desde: Some(1),
@@ -741,7 +741,7 @@ mod pruebas {
         let ids = biblioteca::estampar_en_escena(
             &mut suelta,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(0.0, 0.0),
+            pindesk_motor2d::vector::Punto2::nuevo(0.0, 0.0),
         );
         for id in &ids {
             if let Some(x) = suelta.buscar_mut(*id) {

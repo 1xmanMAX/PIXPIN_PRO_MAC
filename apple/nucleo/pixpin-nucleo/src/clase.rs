@@ -38,10 +38,10 @@
 //! minuto que suena al otro) sale de [`Nucleo::capturas_de_la_clase`] y
 //! [`captura_de_la_clase_en`].
 
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
-use pixpin_proyecto::cuaderno::{self, Mensaje, Sello};
-use pixpin_proyecto::presencial;
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
+use pindesk_proyecto::cuaderno::{self, Mensaje, Sello};
+use pindesk_proyecto::presencial;
 
 use crate::chats::validar_chat;
 use crate::voz::{acotar_picos, marca_de_tiempo};
@@ -137,7 +137,7 @@ pub fn capturas_de(m: &Mensaje) -> Vec<(i64, String)> {
 /// La captura que toca en `posicion_ms`: la ultima hecha antes (o en ese
 /// mismo momento). Antes de la primera, la primera: algo hay que ensenar.
 pub fn captura_en(tiempos: &[i64], posicion_ms: i64) -> Option<usize> {
-    pixpin_proyecto::clase::ultimo_antes(tiempos, posicion_ms)
+    pindesk_proyecto::clase::ultimo_antes(tiempos, posicion_ms)
 }
 
 /// **La captura del minuto que suena** entre las de una clase (`tiempos`,

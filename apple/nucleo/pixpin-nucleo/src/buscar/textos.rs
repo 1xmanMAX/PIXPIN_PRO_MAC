@@ -40,7 +40,7 @@ const TOPE_EN_MEMORIA: usize = 400;
 pub enum Lector {
     /// Swift, con PDFKit.
     Pdf,
-    /// `pixpin_docs::abrir` (Word, EPUB, HTML, Markdown, texto).
+    /// `pindesk_docs::abrir` (Word, EPUB, HTML, Markdown, texto).
     Docs,
     /// Las partes de texto de un ZIP de Office u OpenDocument.
     Zip,
@@ -48,7 +48,7 @@ pub enum Lector {
 
 /// Si el fichero es un documento cuyo texto se busca, y quien lo lee.
 pub fn lector_de(nombre: &str) -> Option<Lector> {
-    let ext = pixpin_docs::extension(nombre);
+    let ext = pindesk_docs::extension(nombre);
     match ext.as_str() {
         "pdf" => Some(Lector::Pdf),
         "docx" | "docm" | "dotx" | "epub" | "html" | "htm" | "xhtml" | "md" | "markdown"
@@ -137,15 +137,15 @@ pub fn guardar(raiz: &Path, fichero: &Path, texto: &str) -> std::io::Result<()> 
 /// **Lee el texto** de un documento que Rust sabe leer. `None` si no es de
 /// esos o no se pudo abrir (se apunta vacio igual: no se reintenta).
 pub fn extraer(fichero: &Path) -> Option<String> {
-    let nombre = pixpin_docs::nombre(fichero);
+    let nombre = pindesk_docs::nombre(fichero);
     match lector_de(&nombre)? {
         Lector::Pdf => None,
         Lector::Docs => {
-            let d = pixpin_docs::abrir(fichero).ok()?;
+            let d = pindesk_docs::abrir(fichero).ok()?;
             let mut s = String::new();
             for b in &d.bloques {
                 let t = b.texto();
-                if t.trim().is_empty() || t == pixpin_docs::documento::MARCA_IMAGEN {
+                if t.trim().is_empty() || t == pindesk_docs::documento::MARCA_IMAGEN {
                     continue;
                 }
                 s.push_str(t.trim());
@@ -163,7 +163,7 @@ pub fn extraer(fichero: &Path) -> Option<String> {
 /// Las partes con texto de un PowerPoint, un Excel o un OpenDocument, sin
 /// las etiquetas.
 fn texto_de_zip(fichero: &Path) -> Option<String> {
-    let mut p = pixpin_docs::Paquete::abrir(fichero).ok()?;
+    let mut p = pindesk_docs::Paquete::abrir(fichero).ok()?;
     let mut partes: Vec<String> = p
         .nombres()
         .into_iter()

@@ -1,7 +1,7 @@
 //! **La mezcla del motor de audio para el Mac** (Windows 38204cb y 06f842c,
 //! y lo de c599d81, 4260e0d y d314af3): el microfono y el sonido del Mac
 //! pasan por la misma mezcla y el mismo tratamiento que en Windows
-//! (`pixpin-motor-audio`), para que una nota de voz o una clase suenen igual
+//! (`pindesk-motor-audio`), para que una nota de voz o una clase suenen igual
 //! en los dos.
 //!
 //! Lo que es de cada sistema se queda en Swift: el microfono con
@@ -14,9 +14,9 @@
 //!   [`MezclaDeAudio::empujar`]. Se baja a los canales de la salida con el
 //!   `Conversor` de Windows.
 //! - **El Mac empuja como Android** (d314af3): cada fuente es un [aparato
-//!   empujado](pixpin_motor_audio::empuje). Swift empuja sin esperar a nadie
+//!   empujado](pindesk_motor_audio::empuje). Swift empuja sin esperar a nadie
 //!   (un anillo sin cerrojos con la mezcla); en cada vuelta la mezcla recoge
-//!   lo empujado y su [toma](pixpin_motor_audio::toma) lo **coloca por su
+//!   lo empujado y su [toma](pindesk_motor_audio::toma) lo **coloca por su
 //!   fecha**: el silencio que falte si una fuente se callo, lo que sobre
 //!   recortado, y silencio al paso del reloj mientras una fuente no manda
 //!   nada (el Mac no manda nada mientras no suena). La linea de tiempo no se
@@ -27,7 +27,7 @@
 //!   polifasico, **medida fina** (el anillo de cada fuente va sellado con
 //!   hasta cuando llega y la mezcla le da al nucleo la hora) y con el
 //!   enganche rapido de los primeros 30 s (c599d81); el microfono lleva paso
-//!   alto de 80 Hz y realce de la voz (lo de `pixpin-audio::Grabadora`); todo
+//!   alto de 80 Hz y realce de la voz (lo de `pindesk-audio::Grabadora`); todo
 //!   pasa por el limitador.
 //! - **Un salto del reloj** (el Mac se durmio con la tapa cerrada, o el
 //!   proceso estuvo congelado mas de 2 s) es una pausa, no una hora de
@@ -46,17 +46,17 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 
-use pixpin_motor_audio::MUESTREOS;
-use pixpin_motor_audio::anillo;
-use pixpin_motor_audio::empuje::{self, Empujado, Empujador};
-use pixpin_motor_audio::formato::{self, Conversor, Formato, Muestra};
-use pixpin_motor_audio::medidas::Medidor;
-use pixpin_motor_audio::nucleo::{Compartido, Entrada, Nucleo, Papel, Tratamiento};
-use pixpin_motor_audio::plataforma::Aparato;
-use pixpin_motor_audio::reloj::{
+use pindesk_motor_audio::MUESTREOS;
+use pindesk_motor_audio::anillo;
+use pindesk_motor_audio::empuje::{self, Empujado, Empujador};
+use pindesk_motor_audio::formato::{self, Conversor, Formato, Muestra};
+use pindesk_motor_audio::medidas::Medidor;
+use pindesk_motor_audio::nucleo::{Compartido, Entrada, Nucleo, Papel, Tratamiento};
+use pindesk_motor_audio::plataforma::Aparato;
+use pindesk_motor_audio::reloj::{
     CIEN_NS_POR_SEGUNDO, UMBRAL_HUECO_MICROFONO, avance_de_mezcla, duracion_de, marcos_en,
 };
-use pixpin_motor_audio::toma::Toma;
+use pindesk_motor_audio::toma::Toma;
 
 use crate::ErrorNucleo;
 

@@ -12,9 +12,9 @@
 
 use std::path::PathBuf;
 
-use pixpin_ia::agente::{Evento, Final};
-use pixpin_ia::herramientas::{AYUDA, CALCAR, DIBUJAR, GRAFICA, OCR};
-use pixpin_proyecto::cuaderno::{Clase, Mensaje as Nota};
+use pindesk_ia::agente::{Evento, Final};
+use pindesk_ia::herramientas::{AYUDA, CALCAR, DIBUJAR, GRAFICA, OCR};
+use pindesk_proyecto::cuaderno::{Clase, Mensaje as Nota};
 
 use super::turno::AdjuntoIa;
 
@@ -297,15 +297,15 @@ pub const FUENTES_DE_LA_RESPUESTA: &str = "fuentesIa";
 
 /// Lo que se apunta en la respuesta al acabar: las citas que el modelo
 /// nombro (o la primera, si no nombro ninguna). `None` si no busco nada.
-pub fn fuentes_para_la_nota(citas: &[pixpin_ia::documentos::Cita], respuesta: &str) -> Option<serde_json::Value> {
+pub fn fuentes_para_la_nota(citas: &[pindesk_ia::documentos::Cita], respuesta: &str) -> Option<serde_json::Value> {
     if citas.is_empty() {
         return None;
     }
-    let c = pixpin_ia::documentos::Citas { lista: citas.to_vec(), desfase_ms: None };
+    let c = pindesk_ia::documentos::Citas { lista: citas.to_vec(), desfase_ms: None };
     let citadas: Vec<serde_json::Value> = c
         .citadas(respuesta)
         .into_iter()
-        .map(pixpin_ia::documentos::herramienta::cita_a_json)
+        .map(pindesk_ia::documentos::herramienta::cita_a_json)
         .collect();
     Some(serde_json::Value::Array(citadas))
 }
@@ -457,12 +457,12 @@ pub struct EnVivo {
     /// Cuanto penso, al acabar de pensar.
     pub segundos: Option<f32>,
     /// La peticion mejorada.
-    pub plan: Option<pixpin_ia::pensar::Plan>,
+    pub plan: Option<pindesk_ia::pensar::Plan>,
     /// El turno empezo con el contexto renovado.
     pub reiniciado: bool,
     /// El plan del jefe o la lista de pasos del turno y como va cada tarea
-    /// (`pixpin_ia::orquesta`, `pixpin_ia::pasos`).
-    pub tareas: Vec<pixpin_ia::orquesta::TareaVisible>,
+    /// (`pindesk_ia::orquesta`, `pindesk_ia::pasos`).
+    pub tareas: Vec<pindesk_ia::orquesta::TareaVisible>,
 }
 
 /// Como acabo una pregunta de confirmar.
@@ -480,7 +480,7 @@ pub const CADUCA_LA_PREGUNTA: std::time::Duration = std::time::Duration::from_se
 /// Lo que se ensena mientras se usa cada herramienta.
 pub fn rotulo_de(nombre: &str) -> String {
     // La hoja al lienzo cuenta sus zonas: `hoja_a_lienzo:3/9`.
-    if let Some(resto) = nombre.strip_prefix(pixpin_ia::hoja::NOMBRE) {
+    if let Some(resto) = nombre.strip_prefix(pindesk_ia::hoja::NOMBRE) {
         return match resto.strip_prefix(':') {
             Some(cuenta) => format!("📄 pasando la hoja al lienzo… {cuenta} zonas"),
             None => "📄 pasando la hoja al lienzo…".to_string(),
@@ -494,12 +494,12 @@ pub fn rotulo_de(nombre: &str) -> String {
         DIBUJAR => "✏️ dibujando en el lienzo…",
         GRAFICA => "📊 haciendo la gráfica…",
         OCR => "🔎 leyendo el documento…",
-        pixpin_ia::ojos::NOMBRE => "👀 mirando el lienzo…",
-        pixpin_ia::contexto::BUSCAR_HISTORIAL => "🗂️ buscando en la conversación…",
+        pindesk_ia::ojos::NOMBRE => "👀 mirando el lienzo…",
+        pindesk_ia::contexto::BUSCAR_HISTORIAL => "🗂️ buscando en la conversación…",
         CALCAR => "🖼️ calcando la imagen…",
         AYUDA => "📖 mirando la ayuda…",
-        pixpin_ia::nube::claude::BUSCAR_EN_LA_WEB => "🌐 buscando en la web…",
-        pixpin_ia::nube::claude::LEER_LA_WEB => "🌐 leyendo la página…",
+        pindesk_ia::nube::claude::BUSCAR_EN_LA_WEB => "🌐 buscando en la web…",
+        pindesk_ia::nube::claude::LEER_LA_WEB => "🌐 leyendo la página…",
         _ => "⚙️ trabajando…",
     }
     .to_string()
@@ -547,7 +547,7 @@ impl EnVivo {
     /// **El plan del jefe** (o la lista de pasos) como lista que se va
     /// marcando, encima de la respuesta: «📋 Plan» y una linea por tarea.
     pub fn plan_visible(&self) -> String {
-        use pixpin_ia::orquesta::EstadoTarea as E;
+        use pindesk_ia::orquesta::EstadoTarea as E;
         if self.tareas.is_empty() {
             return String::new();
         }
@@ -619,7 +619,7 @@ impl EnVivo {
         self.pensando = false;
         // Un `</think>` suelto que se colo en el texto (ver `pensar::Separador`).
         if self.texto.contains("</think>") {
-            let (pensado, texto) = pixpin_ia::pensar::separar(&self.texto);
+            let (pensado, texto) = pindesk_ia::pensar::separar(&self.texto);
             if self.pensamiento.trim().is_empty() {
                 self.pensamiento = pensado;
             }
@@ -674,9 +674,9 @@ mod pruebas {
     //! ni ventana ni modelo.
 
     use super::*;
-    use pixpin_ia::agente::Final;
-    use pixpin_ia::pensar::Plan;
-    use pixpin_proyecto::cuaderno::Mensaje as Nota;
+    use pindesk_ia::agente::Final;
+    use pindesk_ia::pensar::Plan;
+    use pindesk_proyecto::cuaderno::Mensaje as Nota;
 
     #[test]
     fn la_mencion_se_reconoce_y_se_quita() {

@@ -3,7 +3,7 @@
 //! (`por-traducir/pixpin/src/lecciones/almacen.rs`, `LeccionesStore.kt`):
 //!
 //! - El archivo es `proyectos/<chat>/android/guardados/lecciones/<id>.leccion`
-//!   (el JSON de `pixpin_lecciones::Leccion`, campo a campo el del movil).
+//!   (el JSON de `pindesk_lecciones::Leccion`, campo a campo el del movil).
 //! - Un mensaje de clase `ARCHIVO` con id `lec-<id>`, nombre «💡 titulo», el
 //!   resumen legible en su texto y la ruta portatil
 //!   `pixpin:files/guardados/lecciones/<id>.leccion` lo senala. Por omision
@@ -24,11 +24,11 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use pixpin_lecciones::leccion::{EXTENSION, Nota, PREFIJO, Repaso, nuevo_id};
-use pixpin_lecciones::{Indice as IndiceLeccion, Leccion, buscador, etiquetador};
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
-use pixpin_proyecto::vista;
+use pindesk_lecciones::leccion::{EXTENSION, Nota, PREFIJO, Repaso, nuevo_id};
+use pindesk_lecciones::{Indice as IndiceLeccion, Leccion, buscador, etiquetador};
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
+use pindesk_proyecto::vista;
 
 use crate::chats::{hora_unica, validar_chat};
 use crate::{ErrorNucleo, Nucleo};
@@ -176,10 +176,10 @@ pub fn texto_para_leccion(m: &Mensaje) -> Option<String> {
 /// Lo escrito repartido en los campos de la ficha (`Estado::poner` de la
 /// ficha de Windows): las `#etiquetas` aparte y el resto por sus marcas
 /// («porque», «la proxima vez»...).
-pub fn repartir_para_leccion(dicho: &str) -> (pixpin_lecciones::dictado::Campos, Vec<String>) {
+pub fn repartir_para_leccion(dicho: &str) -> (pindesk_lecciones::dictado::Campos, Vec<String>) {
     let etiquetas = etiquetador::escritas(dicho);
     let limpio = etiquetador::sin_etiquetas(dicho);
-    let mut c = pixpin_lecciones::dictado::repartir(&limpio);
+    let mut c = pindesk_lecciones::dictado::repartir(&limpio);
     if c.proxima == c.titulo {
         c.proxima = String::new();
     }
@@ -253,7 +253,7 @@ pub(crate) fn es_leccion(m: &Mensaje) -> bool {
     m.clase == Some(Clase::Archivo)
         && m.ruta
             .as_deref()
-            .is_some_and(pixpin_lecciones::leccion::es_ruta_de_leccion)
+            .is_some_and(pindesk_lecciones::leccion::es_ruta_de_leccion)
 }
 
 /// La ruta con que el mensaje nombra la leccion `id`.
