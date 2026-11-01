@@ -124,15 +124,25 @@ pub struct Manifiesto {
     pub resto: serde_json::Map<String, serde_json::Value>,
 }
 
+/// **La marca para el Android de antes** (iPad, 1-nov-2026): su
+/// `PaquetePixpin.abrir` da `null` si el `manifest.json` no lleva el texto
+/// `"pixpin"` (`esPixpin`), y con [`FORMATO`] ya no lo lleva. Como el emoji
+/// del lienzo (`{"pindesk":"emoji","pixpin":"emoji"}`,
+/// docs/formato-pindesk.md), se escriben los dos: `formato: "pindesk"` y
+/// `"pixpin": 1`. Se quita cuando todos los aparatos lean el nuevo.
+pub const MARCA_VIEJA: &str = "pixpin";
+
 impl Default for Manifiesto {
     fn default() -> Self {
+        let mut resto = serde_json::Map::new();
+        resto.insert(MARCA_VIEJA.into(), serde_json::Value::from(1));
         Self {
             formato: FORMATO.into(),
             version: 1,
             aplicacion: APLICACION.into(),
             escrito: 0,
             proyecto: String::new(),
-            resto: serde_json::Map::new(),
+            resto,
         }
     }
 }
@@ -495,6 +505,20 @@ mod pruebas {
             zip.finish().unwrap();
         }
         salida
+    }
+
+    #[test]
+    fn el_manifiesto_nuevo_lo_abre_tambien_el_android_de_antes() {
+        let p = Paquete::nuevo(Manifiesto::default(), Proyecto::default());
+        let bytes = p.a_bytes().unwrap();
+        let leido = Paquete::desde_bytes(&bytes).unwrap();
+        let texto = String::from_utf8_lossy(leido.entrada("manifest.json").unwrap()).into_owned();
+        // Lo que mira `PaquetePixpin.abrir` de Android: el texto "pixpin".
+        assert!(texto.contains("\"pixpin\""), "{texto}");
+        assert_eq!(leido.manifiesto.formato, FORMATO);
+        // Caso negativo: la marca no se cuela en los campos que se leen.
+        assert_eq!(leido.manifiesto.aplicacion, APLICACION);
+        assert_eq!(leido.manifiesto.resto.get(MARCA_VIEJA), Some(&serde_json::Value::from(1)));
     }
 
     #[test]

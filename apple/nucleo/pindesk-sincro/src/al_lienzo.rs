@@ -301,6 +301,12 @@ fn leer<F: Read + Write, T: for<'a> Deserialize<'a>>(c: &mut Canal<F>) -> Result
     Ok(serde_json::from_slice(&datos)?)
 }
 
+/// Si `datos` es un «ocupado» y nada mas (`{"error":"…"}`).
+fn es_el_ocupado_suelto(datos: &[u8]) -> bool {
+    serde_json::from_slice::<serde_json::Value>(datos)
+        .is_ok_and(|v| v == serde_json::json!({ "error": OCUPADO }))
+}
+
 /// Un error del otro, con su tipo cuando lo tiene.
 pub(crate) fn error_remoto(e: String) -> ErrorAlLienzo {
     if e == OCUPADO {
@@ -326,6 +332,9 @@ pub struct Conexion<F: Read + Write> {
     /// Lo que dijo saber hacer en su `hola` (ver [`crate::CAPACIDADES`]).
     pub capacidades: Vec<String>,
     despedida: bool,
+    /// Aun no se ha leido ninguna respuesta tras el `hola`
+    /// ([`Conexion::leer_respuesta`]).
+    primera: bool,
 }
 
 impl<F: Read + Write> Conexion<F> {
@@ -365,6 +374,7 @@ impl<F: Read + Write> Conexion<F> {
             puerto_del_otro: hola.puerto,
             capacidades: hola.capacidades,
             despedida: false,
+            primera: true,
         })
     }
 
@@ -404,7 +414,7 @@ impl<F: Read + Write> Conexion<F> {
                 ..p
             },
         )?;
-        let vale: Contestacion = leer(&mut self.canal)?;
+        let vale: Contestacion = self.leer_respuesta()?;
         if let Some(e) = vale.error {
             return Err(error_remoto(e));
         }
@@ -416,16 +426,47 @@ impl<F: Read + Write> Conexion<F> {
         };
         if sale.mandar(&mut self.canal, &mut |_| {})?.is_none() {
             // La cola ya dijo «saltado»: el otro lo tira y contesta.
-            let _ = leer::<_, Contestacion>(&mut self.canal);
+            let _ = self.leer_respuesta::<Contestacion>();
             return Err(ErrorAlLienzo::Protocolo(
                 "El archivo cambió mientras se mandaba".into(),
             ));
         }
-        let mut listo: Contestacion = leer(&mut self.canal)?;
+        let mut listo: Contestacion = self.leer_respuesta()?;
         if let Some(e) = listo.error.take() {
             return Err(error_remoto(e));
         }
         Ok(listo)
+    }
+
+    /// **La siguiente respuesta, sin el «ocupado» suelto del PC que graba**
+    /// (iPad 1-nov-2026, `ConexionDeCamara.recibir` de Android): el PC que
+    /// graba se da por ocupado y, tras el `hola`, manda **por su cuenta** un
+    /// [`OCUPADO`] (`contestar_ocupado`) antes de atender la camara y los
+    /// sueltos como siempre. Si la primera respuesta es ese «ocupado» a
+    /// secas, no es la de lo pedido: se salta. Solo con quien dice
+    /// [`crate::camara::CAPACIDAD`] (todos esos lo mandan asi); con un
+    /// aparato de antes, que contesta «ocupado» a cada peticion, como
+    /// siempre.
+    pub(crate) fn leer_respuesta<T: for<'a> Deserialize<'a>>(
+        &mut self,
+    ) -> Result<T, ErrorAlLienzo> {
+        loop {
+            let (tipo, datos) = self.canal.recibir()?;
+            if tipo != Tipo::Json {
+                return Err(ErrorAlLienzo::Protocolo("Se esperaba una respuesta".into()));
+            }
+            let primera = std::mem::replace(&mut self.primera, false);
+            if primera
+                && self
+                    .capacidades
+                    .iter()
+                    .any(|c| c == crate::camara::CAPACIDAD)
+                && es_el_ocupado_suelto(&datos)
+            {
+                continue;
+            }
+            return Ok(serde_json::from_slice(&datos)?);
+        }
     }
 
     /// Se despide (`adios`). Si la conexion ya se rompio, no pasa nada.
@@ -439,7 +480,7 @@ impl<F: Read + Write> Conexion<F> {
         }
         self.despedida = true;
         if enviar(&mut self.canal, &Peticion::de("adios")).is_ok() {
-            let _ = leer::<_, Respuesta>(&mut self.canal);
+            let _ = self.leer_respuesta::<Respuesta>();
         }
     }
 }

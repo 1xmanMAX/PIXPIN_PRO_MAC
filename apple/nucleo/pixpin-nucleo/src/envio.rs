@@ -140,6 +140,8 @@ pub(crate) struct RecibeAlFrente<'a> {
     /// Este aparato, para el «solo acepta fotos».
     yo: &'a str,
     llegadas: &'a std::cell::RefCell<Vec<ArchivoLlegado>>,
+    /// La camara (`camara_remota`): el aviso del PC que graba.
+    camara: crate::camara_del_pc::CamaraDeEsteAparato,
 }
 
 impl<'a> RecibeAlFrente<'a> {
@@ -152,6 +154,7 @@ impl<'a> RecibeAlFrente<'a> {
             nucleo,
             yo,
             llegadas,
+            camara: crate::camara_del_pc::CamaraDeEsteAparato,
         }
     }
 
@@ -166,6 +169,10 @@ impl<'a> RecibeAlFrente<'a> {
 }
 
 impl Recibe for RecibeAlFrente<'_> {
+    fn camara(&mut self) -> Option<&mut dyn pindesk_sincro::camara::Camara> {
+        Some(&mut self.camara)
+    }
+
     fn aceptar(&mut self, p: &Suelto) -> Result<(), String> {
         decidir(&self.nucleo.al_frente(), p.es_imagen())
             .map(|_| ())

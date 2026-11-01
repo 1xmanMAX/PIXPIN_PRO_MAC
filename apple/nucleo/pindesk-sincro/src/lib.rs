@@ -104,6 +104,10 @@ pub const CAPACIDADES: [&str; 2] = [DIARIO, REANUDAR];
 /// solo lo puede decir quien de verdad las atiende
 /// ([`al_lienzo::Recibe::camara`]).
 pub const CAPACIDADES_CON_CAMARA: [&str; 3] = [DIARIO, REANUDAR, camara::CAPACIDAD];
+/// **Lo que dice el iPad/iPhone en su `hola`** (1-nov-2026): que sabe
+/// hacer de camara de la grabacion del PC (`camara_remota`, el aviso del PC
+/// y los `suelto` con `destino: "grabacion"`).
+pub const CAPACIDADES_DEL_IPAD: [&str; 1] = [camara::CAPACIDAD];
 /// Desde aqui, un archivo se reanuda en vez de volver a mandarse entero.
 pub const REANUDAR_DESDE: i64 = 1 << 20;
 

@@ -78,7 +78,8 @@ impl SemanaHorario {
     /// asignaturas), como `Panel::guardar` de Windows.
     fn escribir(&self, s: &Semana) -> Result<(), ErrorNucleo> {
         let ruta = self.nucleo.fichero_del_horario()?;
-        let original = std::fs::read_to_string(&ruta).unwrap_or_else(|_| super::PLANTILLA.to_string());
+        let original =
+            std::fs::read_to_string(&ruta).unwrap_or_else(|_| super::PLANTILLA.to_string());
         let nuevo = semana::reescribir(&original, s);
         if nuevo != original {
             let tmp = format!("{ruta}.parte");
@@ -98,14 +99,22 @@ impl SemanaHorario {
         let texto = std::fs::read_to_string(&ruta)?;
         let h = super::leer(&texto, Momento::de_ms_locales(crate::ahora_ms()));
         let s = Semana::de_horario(&h);
-        Ok(Arc::new(SemanaHorario { nucleo, semana: Mutex::new(s.clone()), guardada: Mutex::new((s, None)) }))
+        Ok(Arc::new(SemanaHorario {
+            nucleo,
+            semana: Mutex::new(s.clone()),
+            guardada: Mutex::new((s, None)),
+        }))
     }
 
     pub fn asignaturas(&self) -> Vec<AsignaturaHorario> {
         let s = self.tomar();
         s.asignaturas
             .iter()
-            .map(|a| AsignaturaHorario { nombre: a.nombre.clone(), aula: a.aula.clone(), color: s.color_de(&a.nombre) })
+            .map(|a| AsignaturaHorario {
+                nombre: a.nombre.clone(),
+                aula: a.aula.clone(),
+                color: s.color_de(&a.nombre),
+            })
             .collect()
     }
 
@@ -134,8 +143,14 @@ impl SemanaHorario {
     pub fn anadir_asignatura_escrita(&self, escrito: String) -> AsignaturaAnadida {
         let mut s = self.tomar();
         match s.anadir_asignatura(&escrito) {
-            Ok(Some(i)) => AsignaturaAnadida::Nueva { indice: i as u32, nombre: s.asignaturas[i].nombre.clone() },
-            Err(i) => AsignaturaAnadida::Repetida { indice: i as u32, nombre: s.asignaturas[i].nombre.clone() },
+            Ok(Some(i)) => AsignaturaAnadida::Nueva {
+                indice: i as u32,
+                nombre: s.asignaturas[i].nombre.clone(),
+            },
+            Err(i) => AsignaturaAnadida::Repetida {
+                indice: i as u32,
+                nombre: s.asignaturas[i].nombre.clone(),
+            },
             Ok(None) => AsignaturaAnadida::Nada,
         }
     }
@@ -150,7 +165,8 @@ impl SemanaHorario {
 
     /// Suelta la asignatura `asignatura` en el dia y minuto: un bloque nuevo.
     pub fn soltar(&self, asignatura: u32, dia: u8, minuto: u32) {
-        self.tomar().soltar(asignatura as usize, dia, semana::redondear_abajo(minuto));
+        self.tomar()
+            .soltar(asignatura as usize, dia, semana::redondear_abajo(minuto));
     }
 
     pub fn mover(&self, i: u32, dia: u8, inicio: i64) {
@@ -183,7 +199,10 @@ impl SemanaHorario {
         let Some(b) = s.bloques.get_mut(i as usize) else {
             return;
         };
-        b.aula = ficha.aula.map(|a| a.trim().to_string()).filter(|a| !a.is_empty());
+        b.aula = ficha
+            .aula
+            .map(|a| a.trim().to_string())
+            .filter(|a| !a.is_empty());
         b.notas = ficha
             .notas
             .iter()
@@ -264,21 +283,35 @@ mod pruebas {
         s.guardar().unwrap();
         let texto = std::fs::read_to_string(n.fichero_del_horario().unwrap()).unwrap();
         assert!(texto.contains("Geometría"), "{texto}");
-        assert!(texto.contains("# Horario de clases"), "lo del usuario se queda");
+        assert!(
+            texto.contains("# Horario de clases"),
+            "lo del usuario se queda"
+        );
         assert!(!n.avisos_del_horario(0).is_empty(), "y ya avisa");
         // La ficha de una clase: aula, notas y aviso, y vuelven al leer.
         s.poner_ficha_de_clase(
             1,
-            FichaDeClase { aula: Some(" B-3 ".into()), notas: vec!["llevar la escuadra\n\n".into()], antelacion: Some(5000) },
+            FichaDeClase {
+                aula: Some(" B-3 ".into()),
+                notas: vec!["llevar la escuadra\n\n".into()],
+                antelacion: Some(5000),
+            },
         );
         assert_eq!(
             s.ficha_de_clase(1),
-            Some(FichaDeClase { aula: Some("B-3".into()), notas: vec!["llevar la escuadra".into()], antelacion: Some(24 * 60) })
+            Some(FichaDeClase {
+                aula: Some("B-3".into()),
+                notas: vec!["llevar la escuadra".into()],
+                antelacion: Some(24 * 60)
+            })
         );
         assert_eq!(s.ficha_de_clase(99), None);
         s.guardar().unwrap();
         let otra = SemanaHorario::abrir(n.clone()).unwrap();
-        assert_eq!(otra.ficha_de_clase(1).unwrap().notas, ["llevar la escuadra"]);
+        assert_eq!(
+            otra.ficha_de_clase(1).unwrap().notas,
+            ["llevar la escuadra"]
+        );
         assert!(otra.antelacion_del_horario() > 0);
         // Borrar un bloque.
         s.borrar(0);
@@ -316,24 +349,37 @@ Asignatura Geometría @A-12
         let ruta = n.fichero_del_horario().unwrap();
         let s = SemanaHorario::abrir(n.clone()).unwrap();
         assert!(!s.puede_deshacer(), "recien abierto, nada que deshacer");
-        assert_eq!(s.anadir_asignatura_escrita("   ".into()), AsignaturaAnadida::Nada);
+        assert_eq!(
+            s.anadir_asignatura_escrita("   ".into()),
+            AsignaturaAnadida::Nada
+        );
         assert_eq!(
             s.anadir_asignatura_escrita("Geometría @A-12".into()),
-            AsignaturaAnadida::Nueva { indice: 0, nombre: "Geometría".into() }
+            AsignaturaAnadida::Nueva {
+                indice: 0,
+                nombre: "Geometría".into()
+            }
         );
         s.guardar().unwrap();
         assert_eq!(std::fs::read_to_string(&ruta).unwrap(), COMO_WINDOWS);
         // Repetida (sin tildes ni mayusculas): no se anade otra.
         assert_eq!(
             s.anadir_asignatura_escrita("GEOMETRIA".into()),
-            AsignaturaAnadida::Repetida { indice: 0, nombre: "Geometría".into() }
+            AsignaturaAnadida::Repetida {
+                indice: 0,
+                nombre: "Geometría".into()
+            }
         );
         assert_eq!(s.asignaturas().len(), 1);
         // Y lo que lee el horario de ahi es la asignatura con su aula.
         let leido = SemanaHorario::abrir(n.clone()).unwrap();
         assert_eq!(
             leido.asignaturas(),
-            [AsignaturaHorario { nombre: "Geometría".into(), aula: Some("A-12".into()), color: s.asignaturas()[0].color }]
+            [AsignaturaHorario {
+                nombre: "Geometría".into(),
+                aula: Some("A-12".into()),
+                color: s.asignaturas()[0].color
+            }]
         );
         // Dos clases: el lunes y el miercoles de 8 a 9, en una linea.
         s.soltar(0, 0, 8 * 60);
@@ -353,7 +399,11 @@ Asignatura Geometría @A-12
         // Quitar la asignatura la quita del fichero (sus tareas siguen).
         s.borrar_asignatura(0);
         s.guardar().unwrap();
-        assert!(!std::fs::read_to_string(&ruta).unwrap().contains("Asignatura Geometría"));
+        assert!(
+            !std::fs::read_to_string(&ruta)
+                .unwrap()
+                .contains("Asignatura Geometría")
+        );
         let _ = std::fs::remove_dir_all(&d);
     }
 }

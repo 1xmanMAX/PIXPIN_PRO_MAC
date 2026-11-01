@@ -519,6 +519,10 @@ impl<D: Disco + ?Sized> Respondedor<'_, D> {
     /// graba y deja que el PC le mande capturas): se le pasa a quien atiende
     /// ([`crate::camara::Camara::anuncio_ajeno`]) con el desfase de su reloj
     /// medido de una vez (su `reloj` menos el de aqui), y se contesta igual.
+    ///
+    /// **El aviso del PC** (iPad, 1-nov-2026, `alAvisoDeCamara` de Android):
+    /// lo que llega se le pasa tambien entero, como anuncio, a quien atiende
+    /// ([`crate::camara::Camara::aviso`]) con la hora de aqui al llegar.
     fn atender_camara<F: Read + Write>(
         &self,
         canal: &mut Canal<F>,
@@ -528,6 +532,7 @@ impl<D: Disco + ?Sized> Respondedor<'_, D> {
         let mut quien = self.suelto.map(|fabrica| fabrica(otro));
         let ahora = (self.ahora)();
         let pregunta: Option<crate::camara::Pregunta> = serde_json::from_slice(cruda).ok();
+        let aviso: Option<crate::camara::Anuncio> = serde_json::from_slice(cruda).ok();
         let anuncio = match quien.as_mut().and_then(|q| q.camara()) {
             Some(c) => {
                 if let Some(p) = pregunta
@@ -537,11 +542,15 @@ impl<D: Disco + ?Sized> Respondedor<'_, D> {
                     let desfase = if suyo > 0 { suyo - ahora } else { 0 };
                     c.anuncio_ajeno(otro, &a, desfase);
                 }
-                crate::camara::Anuncio {
+                let mio = crate::camara::Anuncio {
                     t: crate::camara::PETICION.into(),
                     reloj: ahora,
                     ..c.anuncio().unwrap_or_else(crate::camara::Anuncio::nada)
+                };
+                if let Some(a) = aviso.filter(|a| a.error.is_none()) {
+                    c.aviso(otro, &a, ahora);
                 }
+                mio
             }
             None => crate::camara::Anuncio {
                 error: Some(format!("No sé qué es «{}»", crate::camara::PETICION)),
@@ -549,6 +558,21 @@ impl<D: Disco + ?Sized> Respondedor<'_, D> {
             },
         };
         enviar(canal, &anuncio)
+    }
+
+    /// Lo que dice este aparato en su `hola` al contestar: `capacidades`
+    /// (las del protocolo, como el Mac) y la camara ([`crate::CAPACIDADES_DEL_IPAD`])
+    /// solo si hay quien atienda los sueltos ([`Respondedor::suelto`]).
+    fn mis_capacidades<'a>(&self, capacidades: &[&'a str]) -> Vec<&'a str> {
+        let mut todas = capacidades.to_vec();
+        if self.suelto.is_some() {
+            for c in crate::CAPACIDADES_DEL_IPAD {
+                if !todas.contains(&c) {
+                    todas.push(c);
+                }
+            }
+        }
+        todas
     }
 
     pub fn atender<F: Read + Write>(&self, flujo: F, nonce: [u8; 32]) -> Resultado<()> {
@@ -630,7 +654,13 @@ impl<D: Disco + ?Sized> Respondedor<'_, D> {
             })?;
             enviar(
                 &mut canal,
-                &respuesta_hola(&actual, juntos, ahora, self.mi_puerto, capacidades),
+                &respuesta_hola(
+                    &actual,
+                    juntos,
+                    ahora,
+                    self.mi_puerto,
+                    &self.mis_capacidades(capacidades),
+                ),
             )?;
             d.avisar(disco::Cambio::Identidad);
             (self.estado)(&format!(
@@ -648,7 +678,13 @@ impl<D: Disco + ?Sized> Respondedor<'_, D> {
             otro = hola.yo.clone();
             enviar(
                 &mut canal,
-                &respuesta_hola(&actual, juntos, ahora, self.mi_puerto, capacidades),
+                &respuesta_hola(
+                    &actual,
+                    juntos,
+                    ahora,
+                    self.mi_puerto,
+                    &self.mis_capacidades(capacidades),
+                ),
             )?;
         }
         (self.al_saludar)(&otro, hola.puerto);

@@ -61,6 +61,8 @@ pub mod asistente;
 pub mod automatizaciones;
 pub mod burbujas;
 pub mod buscar;
+/// El iPhone/iPad como camara de la reunion que graba el PC (1-nov-2026).
+pub mod camara_del_pc;
 pub mod chats;
 /// Grabar una clase o una reunion: lo que se guarda en el chat (Windows edd0ffa).
 pub mod clase;

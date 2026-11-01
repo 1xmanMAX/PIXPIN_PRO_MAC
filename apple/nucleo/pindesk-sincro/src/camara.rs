@@ -483,6 +483,12 @@ pub trait Camara {
     /// vez, sin la vuelta). Sin hacer nada, como un aparato de antes.
     fn anuncio_ajeno(&mut self, _de: &crate::mensajes::Aparato, _anuncio: &Anuncio, _desfase: i64) {
     }
+    /// **Lo que llego en una `camara_remota`, leido como anuncio** (iPad,
+    /// 1-nov-2026, el `alAvisoDeCamara` de Android): el PC avisa al movil al
+    /// empezar, pausar, seguir, acabar o apagar la camara. `llego_en`: la
+    /// hora de aqui al llegar (la que se le contesta). Una pregunta sola
+    /// llega como un anuncio sin `grabacion`. Sin hacer nada, como antes.
+    fn aviso(&mut self, _de: &crate::mensajes::Aparato, _anuncio: &Anuncio, _llego_en: i64) {}
 }
 
 // ------------------------------------------------------------ el movil
@@ -510,16 +516,6 @@ fn enviar<F: Read + Write, T: Serialize>(
 ) -> Result<(), ErrorAlLienzo> {
     c.mandar(Tipo::Json, &serde_json::to_vec(cosa)?)?;
     Ok(())
-}
-
-fn leer<F: Read + Write, T: for<'a> Deserialize<'a>>(
-    c: &mut crate::canal::Canal<F>,
-) -> Result<T, ErrorAlLienzo> {
-    let (tipo, datos) = c.recibir()?;
-    if tipo != Tipo::Json {
-        return Err(ErrorAlLienzo::Protocolo("Se esperaba una respuesta".into()));
-    }
-    Ok(serde_json::from_slice(&datos)?)
 }
 
 impl<F: Read + Write> Conexion<F> {
@@ -552,7 +548,7 @@ impl<F: Read + Write> Conexion<F> {
                 }),
             },
         )?;
-        let r: Anuncio = leer(&mut self.canal)?;
+        let r: Anuncio = self.leer_respuesta()?;
         let t2 = ahora();
         if let Some(e) = r.error.clone() {
             return Err(crate::al_lienzo::error_remoto(e));
@@ -580,7 +576,7 @@ impl<F: Read + Write> Conexion<F> {
                 ..Anuncio::nada()
             },
         )?;
-        let r: Anuncio = leer(&mut self.canal)?;
+        let r: Anuncio = self.leer_respuesta()?;
         let t2 = ahora();
         if let Some(e) = r.error.clone() {
             return Err(crate::al_lienzo::error_remoto(e));
@@ -610,7 +606,7 @@ impl<F: Read + Write> Conexion<F> {
                 ..anuncio.clone()
             },
         )?;
-        let r: Anuncio = leer(&mut self.canal)?;
+        let r: Anuncio = self.leer_respuesta()?;
         let t2 = ahora();
         if let Some(e) = r.error {
             return Err(crate::al_lienzo::error_remoto(e));
@@ -958,5 +954,214 @@ mod pruebas {
         let leido: Anuncio =
             serde_json::from_str(r#"{"t":"camara_remota","grabacion":"g1","nuevo":1}"#).unwrap();
         assert_eq!(leido.grabacion, "g1");
+    }
+
+    // ------------------------------------------------ iPad (1-nov-2026)
+
+    /// Un PC de mentira por TCP que **graba**: dice `camara1`, se da por
+    /// ocupado tras el `hola` (el «ocupado» suelto de `contestar_ocupado`) y
+    /// atiende `camara_remota` y los sueltos de la camara con el `responder`
+    /// de verdad.
+    struct PcQueGraba {
+        fotos: std::sync::Arc<std::sync::Mutex<Vec<(Suelto, usize)>>>,
+    }
+
+    impl Camara for PcQueGraba {
+        fn anuncio(&mut self) -> Option<Anuncio> {
+            None
+        }
+        fn aceptar_foto(&mut self, p: &Suelto) -> Result<(), String> {
+            if p.grabacion == "g-1" {
+                Ok(())
+            } else {
+                Err("Esa grabación ya no está en el PC".into())
+            }
+        }
+        fn guardar_foto(&mut self, p: &Suelto, fichero: &Path) -> Result<i64, String> {
+            let n = std::fs::metadata(fichero).map_err(|e| e.to_string())?.len() as usize;
+            self.fotos.lock().unwrap().push((p.clone(), n));
+            Ok(p.ms.unwrap_or(0))
+        }
+    }
+
+    struct RecibeDelPc {
+        camara: PcQueGraba,
+    }
+
+    impl crate::al_lienzo::Recibe for RecibeDelPc {
+        fn aceptar(&mut self, _p: &Suelto) -> Result<(), String> {
+            Err("no".into())
+        }
+        fn guardar(&mut self, _p: &Suelto, _f: &Path) -> Result<crate::al_lienzo::Llegada, String> {
+            Err("no".into())
+        }
+        fn camara(&mut self) -> Option<&mut dyn Camara> {
+            Some(&mut self.camara)
+        }
+    }
+
+    const CODIGO_PC: &str = "K7Q2M9XMPA";
+    /// El reloj del PC va 7 s por delante del de aqui.
+    const ADELANTO_DEL_PC: i64 = 7_000;
+
+    fn ahora_aqui() -> i64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as i64
+    }
+
+    fn pc_que_graba(
+        fotos: std::sync::Arc<std::sync::Mutex<Vec<(Suelto, usize)>>>,
+    ) -> (u16, std::thread::JoinHandle<()>) {
+        use crate::canal::Canal;
+        use crate::mensajes::{Aparato, Hola, OCUPADO, Peticion, Respuesta};
+        let l = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let puerto = l.local_addr().unwrap().port();
+        let hilo = std::thread::spawn(move || {
+            let (flujo, _) = l.accept().unwrap();
+            let clave = crate::codigo::clave_de_grupo(CODIGO_PC);
+            let mut c = Canal::saludar(flujo, &clave, [9; 32], false).unwrap();
+            let manda = |c: &mut Canal<std::net::TcpStream>, v: &dyn erased::Json| {
+                c.mandar(Tipo::Json, &v.json()).unwrap();
+            };
+            let (_, datos) = c.recibir().unwrap();
+            let hola: Peticion = serde_json::from_slice(&datos).unwrap();
+            assert_eq!(hola.hola.unwrap().capacidades, [CAPACIDAD]);
+            manda(
+                &mut c,
+                &Respuesta {
+                    hola: Some(Hola {
+                        yo: Aparato {
+                            id: "pc".into(),
+                            nombre: "PORTATIL".into(),
+                            ..Default::default()
+                        },
+                        puerto: 47474,
+                        capacidades: vec![CAPACIDAD.into()],
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+            );
+            // Grabando: se da por ocupado, por su cuenta.
+            manda(
+                &mut c,
+                &Respuesta {
+                    error: Some(OCUPADO.into()),
+                    ..Default::default()
+                },
+            );
+            let mut quien = RecibeDelPc {
+                camara: PcQueGraba { fotos },
+            };
+            let carpeta =
+                std::env::temp_dir().join(format!("pindesk-camara-pc-{}", std::process::id()));
+            loop {
+                let Ok((_, datos)) = c.recibir() else { return };
+                let v: serde_json::Value = serde_json::from_slice(&datos).unwrap();
+                match v["t"].as_str().unwrap_or_default() {
+                    PETICION => manda(
+                        &mut c,
+                        &Anuncio {
+                            grabacion: "g-1".into(),
+                            titulo: "Clase".into(),
+                            activa: true,
+                            ms_actual: 754_000,
+                            reloj: ahora_aqui() + ADELANTO_DEL_PC,
+                            ..Anuncio::nada()
+                        },
+                    ),
+                    "suelto" => {
+                        let p: Suelto = serde_json::from_value(v).unwrap();
+                        crate::al_lienzo::responder(&mut c, &p, &carpeta, &mut quien).unwrap();
+                    }
+                    "adios" => {
+                        manda(&mut c, &Respuesta::default());
+                        return;
+                    }
+                    otro => panic!("no se esperaba «{otro}»"),
+                }
+            }
+        });
+        (puerto, hilo)
+    }
+
+    /// Para mandar cualquier cosa que se serialice por el mismo cierre.
+    mod erased {
+        pub trait Json {
+            fn json(&self) -> Vec<u8>;
+        }
+        impl<T: serde::Serialize> Json for T {
+            fn json(&self) -> Vec<u8> {
+                serde_json::to_vec(self).unwrap()
+            }
+        }
+    }
+
+    #[test]
+    fn el_ipad_pregunta_al_pc_que_graba_y_le_manda_fotos_con_su_minuto() {
+        let fotos = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let (puerto, hilo) = pc_que_graba(fotos.clone());
+        let flujo = std::net::TcpStream::connect(("127.0.0.1", puerto)).unwrap();
+        let mut c = Conexion::abrir(
+            flujo,
+            CODIGO_PC,
+            [1; 32],
+            crate::mensajes::Hola {
+                capacidades: vec![CAPACIDAD.into()],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert!(c.sabe_de_camara());
+        // El «ocupado» suelto del PC que graba no es la respuesta.
+        let (a, adelanto) = c.preguntar_camara(&ahora_aqui).unwrap();
+        assert!(a.grabando());
+        assert_eq!(a.titulo, "Clase");
+        // Aqui va 7 s por detras del PC (con el margen de la vuelta).
+        assert!((adelanto + ADELANTO_DEL_PC).abs() < 1_000, "{adelanto}");
+        let dir = std::env::temp_dir().join(format!("pindesk-camara-ipad-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("IMG_0001.jpg");
+        let mut jpeg = vec![0xFF, 0xD8, 0xFF, 0xE0];
+        jpeg.extend(std::iter::repeat_n(7u8, 5000));
+        std::fs::write(&f, &jpeg).unwrap();
+        let foto = FotoDeCamara {
+            grabacion: "g-1".into(),
+            ms: Some(754_500),
+            tomada_en: ahora_aqui(),
+            reloj: adelanto,
+            clave: "toma-1".into(),
+            ..Default::default()
+        };
+        assert_eq!(c.mandar_foto(&f, "IMG_0001.jpg", &foto).unwrap(), 754_500);
+        // Caso negativo: otra grabacion se niega antes del «vale» y la
+        // conexion sigue sana.
+        let mala = FotoDeCamara {
+            grabacion: "g-vieja".into(),
+            ..foto.clone()
+        };
+        let e = c.mandar_foto(&f, "IMG_0001.jpg", &mala).unwrap_err();
+        assert!(e.to_string().contains("ya no está en el PC"), "{e}");
+        assert_eq!(
+            c.mandar_foto(
+                &f,
+                "IMG_0002.jpg",
+                &FotoDeCamara {
+                    ms: Some(1),
+                    ..foto
+                }
+            )
+            .unwrap(),
+            1
+        );
+        c.adios();
+        hilo.join().unwrap();
+        let llegadas = fotos.lock().unwrap();
+        assert_eq!(llegadas.len(), 2);
+        assert_eq!(llegadas[0].1, jpeg.len());
+        assert_eq!(llegadas[0].0.clave, "toma-1");
+        assert_eq!(llegadas[0].0.destino, DESTINO);
     }
 }
