@@ -25,12 +25,22 @@ extension ChatAbierto {
         let nucleo = almacen.nucleo
         let chat = self.chat
         let id = m.id
+        // Jev pregunta por el HTTPS de la app, con la clave del Llavero.
+        LlaveroDelSistema.instalar()
+        TransporteHttps.instalar()
         Task {
-            let hecho = await Task.detached(priority: .userInitiated) { () -> Result<EnvioAnki, Error> in
-                Result { try nucleo.enviarAAnki(chat: chat, mensaje: id, preguntaDeLaClase: Lengua.t("anki-pregunta-clase")) }
+            // Con Jev, de una clase solo las que valen la pena (Windows
+            // 6f70a41); lo que dejo fuera va al final del aviso.
+            let hecho = await Task.detached(priority: .userInitiated) { () -> Result<EnvioAnkiConJev, Error> in
+                Result { try nucleo.enviarAAnkiConJev(chat: chat, mensaje: id, preguntaDeLaClase: Lengua.t("anki-pregunta-clase")) }
             }.value
             switch hecho {
-            case let .success(r): avisar(ChatAbierto.textoDeAnki(r))
+            case let .success(r):
+                var texto = ChatAbierto.textoDeAnki(r.envio)
+                if r.quitadas > 0 {
+                    texto += " · " + textoJevAnkiQuitadas(locale: JevTextos.idioma, n: UInt64(r.quitadas))
+                }
+                avisar(texto)
             case .failure: avisar(Lengua.t("chat-no-se-pudo"))
             }
         }

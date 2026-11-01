@@ -31,6 +31,9 @@ public final class TransporteHttps: TransporteApp, @unchecked Sendable {
     private static let cerrojo = NSLock()
     nonisolated(unsafe) private static var instalado = false
 
+    /// La cabecera con el plazo en segundos que pone el nucleo (Jev).
+    static let cabeceraPlazo = "X-PixPin-Plazo"
+
     /// Instala el HTTPS en el nucleo (una vez por proceso; las demas no
     /// hacen nada). Lo llama el asistente y «Probar» antes de usar la nube.
     public static func instalar() {
@@ -76,6 +79,12 @@ public final class TransporteHttps: TransporteApp, @unchecked Sendable {
         var pedido = URLRequest(url: destino)
         pedido.httpMethod = metodo
         for c in cabeceras {
+            // El plazo de la peticion (Jev: unos segundos), que no sale a
+            // la red (`jev::CABECERA_PLAZO` del nucleo).
+            if c.nombre == TransporteHttps.cabeceraPlazo {
+                if let s = Double(c.valor), s > 0 { pedido.timeoutInterval = s }
+                continue
+            }
             pedido.setValue(c.valor, forHTTPHeaderField: c.nombre)
         }
         if !cuerpo.isEmpty { pedido.httpBody = cuerpo }
@@ -90,11 +99,53 @@ public final class TransporteHttps: TransporteApp, @unchecked Sendable {
         return delegado.error
     }
 
+    /// **Un GET a una pagina de internet** (la web del asistente con
+    /// DeepSeek, `nube::http::bajar_web`, como el de WinHTTP de Windows):
+    /// sin cookies ni credenciales y **sin seguir redirecciones** (la 3xx
+    /// vuelve a Rust con su `Location`, que la comprueba antes de seguirla).
+    /// El `Content-Type` va a Rust antes que los datos. Una pagina `http://`
+    /// la puede parar la seguridad de transporte del Mac (ATS): sale el error.
+    public func bajarWeb(url: String, cabeceras: [CabeceraHttp], receptor: ReceptorHttp) -> String? {
+        guard let destino = URL(string: url), destino.scheme == "https" || destino.scheme == "http" else {
+            return "dirección no válida"
+        }
+        var pedido = URLRequest(url: destino)
+        pedido.httpMethod = "GET"
+        pedido.httpShouldHandleCookies = false
+        pedido.timeoutInterval = 20
+        for c in cabeceras {
+            if c.nombre == TransporteHttps.cabeceraPlazo {
+                if let s = Double(c.valor), s > 0 { pedido.timeoutInterval = min(s, 20) }
+                continue
+            }
+            pedido.setValue(c.valor, forHTTPHeaderField: c.nombre)
+        }
+        let configuracion = URLSessionConfiguration.ephemeral
+        configuracion.httpCookieStorage = nil
+        configuracion.httpShouldSetCookies = false
+        configuracion.urlCredentialStorage = nil
+        configuracion.urlCache = nil
+        configuracion.waitsForConnectivity = false
+        configuracion.timeoutIntervalForResource = 120
+        let delegado = Delegado(receptor: receptor)
+        delegado.sinRedirecciones = true
+        let cola = OperationQueue()
+        cola.maxConcurrentOperationCount = 1
+        cola.qualityOfService = .utility
+        let sesion = URLSession(configuration: configuracion, delegate: delegado, delegateQueue: cola)
+        sesion.dataTask(with: pedido).resume()
+        delegado.hecho.wait()
+        sesion.finishTasksAndInvalidate()
+        return delegado.error
+    }
+
     /// Pasa la respuesta a Rust mientras llega.
     final class Delegado: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         let receptor: ReceptorHttp
         let hecho = DispatchSemaphore(value: 0)
         var error: String?
+        /// La web: una redireccion no se sigue, vuelve tal cual a Rust.
+        var sinRedirecciones = false
         private var cortado = false
 
         init(receptor: ReceptorHttp) {
@@ -109,7 +160,27 @@ public final class TransporteHttps: TransporteApp, @unchecked Sendable {
             if let donde = http?.value(forHTTPHeaderField: "Location") {
                 receptor.ubicacion(valor: donde)
             }
+            if let tipo = http?.value(forHTTPHeaderField: "Content-Type") {
+                receptor.tipo(valor: tipo)
+            }
             completionHandler(.allow)
+        }
+
+        func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                        newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+            completionHandler(sinRedirecciones ? nil : request)
+        }
+
+        /// En la web, ni las credenciales del Mac ni las de nadie: lo que
+        /// pide iniciar sesion vuelve con su 401.
+        func urlSession(_ session: URLSession, task: URLSessionTask, didReceive challenge: URLAuthenticationChallenge,
+                        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+            let metodo = challenge.protectionSpace.authenticationMethod
+            if sinRedirecciones && metodo != NSURLAuthenticationMethodServerTrust {
+                completionHandler(.rejectProtectionSpace, nil)
+            } else {
+                completionHandler(.performDefaultHandling, nil)
+            }
         }
 
         func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {

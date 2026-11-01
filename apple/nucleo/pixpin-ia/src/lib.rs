@@ -66,7 +66,8 @@
 //! - **La nube** (Claude, DeepSeek): en Windows por WinHTTP
 //!   ([`nube::http`]); fuera, el HTTPS lo pone Swift (URLSession). Ningun
 //!   TLS propio en el ejecutable. La web de PixPin para DeepSeek
-//!   (`nube::http::bajar_web`) aun no baja nada fuera de Windows.
+//!   (`nube::http::bajar_web`) va fuera de Windows por el mismo transporte
+//!   de la app (`Transporte::bajar`), sin seguir redirecciones.
 //! - **Las claves**: DPAPI en Windows; en Apple el Llavero, que Swift
 //!   instala con [`nube::claves::instalar_llavero`].
 //!

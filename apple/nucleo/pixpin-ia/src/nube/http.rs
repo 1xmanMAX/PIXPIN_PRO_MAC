@@ -408,6 +408,9 @@ pub enum EventoHttp<'a> {
     /// La cabecera `Location` (la subida reanudable de Drive), si la hay;
     /// llega despues de `Estado` y antes de los datos.
     Ubicacion(&'a str),
+    /// La cabecera `Content-Type`, si la hay ([`bajar_web`]); llega despues
+    /// de `Estado` y antes de los datos.
+    Tipo(&'a str),
 }
 
 /// **El HTTPS de la app** (fuera de Windows): en Apple, URLSession desde
@@ -433,6 +436,17 @@ pub trait Transporte: Send + Sync {
         _al_evento: &mut dyn FnMut(EventoHttp) -> Seguir,
     ) -> Result<(), String> {
         Err("este transporte solo sabe mandar el POST del asistente".into())
+    }
+    /// **Un GET a una pagina de internet** ([`bajar_web`]): sin cookies ni
+    /// credenciales y **sin seguir redirecciones** (una 3xx vuelve con su
+    /// `Location`), contando tambien el `Content-Type`.
+    fn bajar(
+        &self,
+        _url: &str,
+        _cabeceras: &[(&'static str, String)],
+        _al_evento: &mut dyn FnMut(EventoHttp) -> Seguir,
+    ) -> Result<(), String> {
+        Err("este transporte aun no sabe bajar paginas web".into())
     }
 }
 
@@ -471,7 +485,7 @@ fn por_transporte(
             estado = Some((codigo, esperar));
             Seguir::Si
         }
-        EventoHttp::Ubicacion(_) => Seguir::Si,
+        EventoHttp::Ubicacion(_) | EventoHttp::Tipo(_) => Seguir::Si,
         EventoHttp::Datos(b) => match estado {
             Some((c, _)) if (200..300).contains(&c) => {
                 if b.is_empty() || al_trozo(b) == Seguir::Si {
@@ -550,6 +564,7 @@ pub fn pedir(
             ubicacion = Some(u.to_string());
             Seguir::Si
         }
+        EventoHttp::Tipo(_) => Seguir::Si,
         EventoHttp::Datos(b) => {
             todo.extend_from_slice(b);
             if todo.len() > limite {
@@ -690,24 +705,116 @@ pub struct RespuestaWeb {
     pub ubicacion: Option<String>,
 }
 
+/// Como se presenta PixPin a las paginas (el `AGENTE_WEB` de Windows, con
+/// el Mac): como un navegador que dice quien es.
+#[cfg(not(windows))]
+const AGENTE_WEB: &str =
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) PixPinMax/1.0 (asistente; lee la pagina para el usuario)";
+
+/// La cabecera con el plazo en segundos para el transporte de la app (no
+/// sale a la red: Swift la usa de `timeoutInterval`).
+#[cfg(not(windows))]
+pub const CABECERA_PLAZO: &str = "X-PixPin-Plazo";
+
 /// **Un GET a una pagina cualquiera de internet** (el asistente con
-/// DeepSeek que lee la web, `crate::web`). En Windows va por WinHTTP sin
-/// cookies ni credenciales y **sin seguir redirecciones** (quien llama
-/// comprueba cada una con `pixpin_paginas::direccion`). Fuera de Windows el
-/// HTTPS lo hace la app y su transporte aun no sabe pedir sin seguir las
-/// redirecciones: seguirlas a ciegas dejaria que una pagina mandara al
-/// asistente a la red local. Hasta que lo sepa, no se baja nada (con
-/// Claude la web la hace su API: `nube::claude::herramientas_web`).
+/// DeepSeek que lee la web, `crate::web`), como el de WinHTTP de Windows:
+/// sin cookies ni credenciales y **sin seguir redirecciones** (una 3xx
+/// vuelve con su `ubicacion`: quien llama comprueba cada una con
+/// `pixpin_paginas::direccion`), con un `plazo` para la respuesta entera;
+/// mas de `limite` bytes, error. Un codigo que no es 2xx ni 3xx es
+/// [`Fallo::Http`]. Fuera de Windows va por el transporte de la app
+/// ([`Transporte::bajar`], URLSession en el Mac). Bloquea.
 #[cfg(not(windows))]
 pub fn bajar_web(
     url: &str,
-    _cabeceras: &[(&'static str, String)],
-    _limite: usize,
-    _plazo: Duration,
+    cabeceras: &[(&'static str, String)],
+    limite: usize,
+    plazo: Duration,
 ) -> Result<RespuestaWeb, Fallo> {
-    Err(Fallo::Red(format!(
-        "en el Mac el asistente con DeepSeek aun no lee paginas web ({url}); con Claude si"
-    )))
+    let t = TRANSPORTE.get().ok_or_else(|| {
+        Fallo::Red("en este sistema el HTTPS lo hace la app (en Apple, URLSession desde Swift), no el nucleo".into())
+    })?;
+    bajar_por(t.as_ref(), url, cabeceras, limite, plazo)
+}
+
+/// [`bajar_web`] por un transporte dado.
+#[cfg(not(windows))]
+fn bajar_por(
+    t: &dyn Transporte,
+    url: &str,
+    cabeceras: &[(&'static str, String)],
+    limite: usize,
+    plazo: Duration,
+) -> Result<RespuestaWeb, Fallo> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(Fallo::Red(format!("direccion no valida: {url}")));
+    }
+    let mut cab: Vec<(&'static str, String)> = cabeceras.to_vec();
+    if !cab.iter().any(|(k, _)| k.eq_ignore_ascii_case("user-agent")) {
+        cab.push(("User-Agent", AGENTE_WEB.to_string()));
+    }
+    cab.push((CABECERA_PLAZO, format!("{:.1}", plazo.as_secs_f64().max(1.0))));
+    let empezo = std::time::Instant::now();
+    let mut estado: Option<(u32, Option<Duration>)> = None;
+    let (mut tipo, mut ubicacion) = (None, None);
+    let mut todo = Vec::new();
+    let (mut grande, mut tarde) = (false, false);
+    let r = t.bajar(url, &cab, &mut |e| match e {
+        EventoHttp::Estado { codigo, esperar } => {
+            estado = Some((codigo, esperar));
+            Seguir::Si
+        }
+        EventoHttp::Tipo(v) => {
+            tipo = Some(v.to_string());
+            Seguir::Si
+        }
+        EventoHttp::Ubicacion(v) => {
+            ubicacion = Some(v.to_string());
+            Seguir::Si
+        }
+        EventoHttp::Datos(b) => {
+            todo.extend_from_slice(b);
+            if todo.len() > limite {
+                grande = true;
+                Seguir::Parar
+            } else if empezo.elapsed() > plazo {
+                tarde = true;
+                Seguir::Parar
+            } else {
+                Seguir::Si
+            }
+        }
+    });
+    if tarde {
+        return Err(Fallo::Red(format!(
+            "la pagina tarda demasiado (mas de {} s)",
+            plazo.as_secs()
+        )));
+    }
+    if grande {
+        return Err(Fallo::Red(format!(
+            "la pagina pasa de {} MB",
+            (limite / (1024 * 1024)).max(1)
+        )));
+    }
+    match (estado, r) {
+        (Some((codigo, _)), _) if (200..400).contains(&codigo) => Ok(RespuestaWeb {
+            codigo,
+            cuerpo: todo,
+            tipo,
+            ubicacion,
+        }),
+        (Some((codigo, esperar)), _) => {
+            todo.truncate(64 * 1024);
+            Err(Fallo::Http {
+                codigo,
+                cuerpo: String::from_utf8_lossy(&todo).into_owned(),
+                esperar,
+            })
+        }
+        (None, Err(e)) => Err(Fallo::Red(e)),
+        (None, Ok(())) => Err(Fallo::Red("el servidor no contesto".into())),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -890,6 +997,83 @@ mod pruebas {
             }
             Ok(())
         }
+    }
+
+    /// Una pagina de mentira para [`bajar_por`]: su codigo, su tipo, su
+    /// `Location` y su cuerpo; apunta las cabeceras que le llegaron.
+    #[cfg(not(windows))]
+    struct Pagina {
+        codigo: u32,
+        tipo: Option<&'static str>,
+        ubicacion: Option<&'static str>,
+        cuerpo: &'static str,
+        vistas: std::sync::Mutex<Vec<(String, String)>>,
+    }
+
+    #[cfg(not(windows))]
+    impl Transporte for Pagina {
+        fn enviar(&self, _: &Pedido, _: &mut dyn FnMut(EventoHttp) -> Seguir) -> Result<(), String> {
+            Err("no".into())
+        }
+        fn bajar(
+            &self,
+            _url: &str,
+            cabeceras: &[(&'static str, String)],
+            al_evento: &mut dyn FnMut(EventoHttp) -> Seguir,
+        ) -> Result<(), String> {
+            *self.vistas.lock().unwrap() = cabeceras.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
+            al_evento(EventoHttp::Estado {
+                codigo: self.codigo,
+                esperar: None,
+            });
+            if let Some(t) = self.tipo {
+                al_evento(EventoHttp::Tipo(t));
+            }
+            if let Some(u) = self.ubicacion {
+                al_evento(EventoHttp::Ubicacion(u));
+            }
+            for trozo in self.cuerpo.as_bytes().chunks(4) {
+                if al_evento(EventoHttp::Datos(trozo)) == Seguir::Parar {
+                    break;
+                }
+            }
+            Ok(())
+        }
+    }
+
+    #[cfg(not(windows))]
+    fn pagina(codigo: u32, tipo: Option<&'static str>, ubicacion: Option<&'static str>, cuerpo: &'static str) -> Pagina {
+        Pagina {
+            codigo,
+            tipo,
+            ubicacion,
+            cuerpo,
+            vistas: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn bajar_una_pagina_trae_su_tipo_y_no_sigue_redirecciones() {
+        let plazo = Duration::from_secs(20);
+        let p = pagina(200, Some("text/html; charset=utf-8"), None, "<html>hola</html>");
+        let r = bajar_por(&p, "https://ejemplo.org/", &[], 1024, plazo).unwrap();
+        assert_eq!(r.codigo, 200);
+        assert_eq!(r.tipo.as_deref(), Some("text/html; charset=utf-8"));
+        assert_eq!(r.cuerpo, b"<html>hola</html>");
+        let vistas = p.vistas.lock().unwrap().clone();
+        assert!(vistas.iter().any(|(k, v)| k == "User-Agent" && v.contains("PixPinMax")));
+        assert!(vistas.iter().any(|(k, v)| k == CABECERA_PLAZO && v == "20.0"));
+        // Una redireccion vuelve con su `Location`, sin seguirla.
+        let p = pagina(301, None, Some("http://192.168.1.1/"), "");
+        let r = bajar_por(&p, "https://ejemplo.org/", &[], 1024, plazo).unwrap();
+        assert_eq!((r.codigo, r.ubicacion.as_deref()), (301, Some("http://192.168.1.1/")));
+        // Un 404 es un fallo HTTP; lo que pasa del limite, un error.
+        let p = pagina(404, None, None, "no esta");
+        assert!(matches!(bajar_por(&p, "https://ejemplo.org/x", &[], 1024, plazo), Err(Fallo::Http { codigo: 404, .. })));
+        let p = pagina(200, None, None, "muchos bytes de mas");
+        assert!(matches!(bajar_por(&p, "https://ejemplo.org/", &[], 8, plazo), Err(Fallo::Red(_))));
+        assert!(bajar_por(&p, "file:///etc/passwd", &[], 8, plazo).is_err());
     }
 
     #[cfg(not(windows))]

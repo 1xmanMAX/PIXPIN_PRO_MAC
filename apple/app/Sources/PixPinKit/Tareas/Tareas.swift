@@ -72,6 +72,8 @@ public enum GrupoDeTareas: Int, CaseIterable, Identifiable, Comparable {
 @MainActor
 public final class ModeloTareas: ObservableObject {
     @Published public private(set) var listas: [ListaTareas] = []
+    /// Ya hay una relectura esperando a Jev (`releerTrasJev`).
+    private var esperandoAJev = false
     @Published public private(set) var error: String?
     @Published public private(set) var cargado = false
     /// Lo ultimo borrado, para «Deshacer» (⌘Z).
@@ -259,8 +261,9 @@ public final class ModeloTareas: ObservableObject {
         let nucleo = self.nucleo
         let desfase = desfaseLocalMs()
         do {
+            // Con la prioridad de Jev (sin clave, como siempre).
             listas = try await Task.detached(priority: .userInitiated) {
-                try nucleo.tareas(desfaseMs: desfase)
+                try nucleo.tareasConJev(desfaseMs: desfase)
             }.value
             reagrupar()
             error = nil
@@ -268,6 +271,20 @@ public final class ModeloTareas: ObservableObject {
             self.error = "\(error)"
         }
         cargado = true
+        releerTrasJev()
+    }
+
+    /// Mientras Jev mira la prioridad de las tareas (en el nucleo, en su
+    /// hilo), se relee cada poco para ensenar lo que llega.
+    private func releerTrasJev() {
+        guard jevPreguntandoTareas(), !esperandoAJev else { return }
+        esperandoAJev = true
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard let self else { return }
+            self.esperandoAJev = false
+            await self.cargar()
+        }
     }
 
     /// Pone una tarea como hecha o pendiente en su mensaje. Si la lista
@@ -1047,6 +1064,11 @@ struct FilaTarea: View {
     /// La urgencia y las #etiquetas, en chapitas aparte (Windows, 18-oct);
     /// pulsar una busca lo suyo.
     @ViewBuilder private func chapitas(_ m: MarcasTarea) -> some View {
+        // La prioridad de Jev va la primera, con su chispa, si el usuario
+        // no marco la suya (Windows fa4ca12: lo suyo manda).
+        if m.urgencia == nil, let j = t.tarea.chapitaDeJev {
+            ChapitaTarea(texto: j.texto, clase: .jev(j.color), sobreFoto: sobreFoto)
+        }
         if let u = m.urgencia {
             ChapitaTarea(texto: u == "muy_urgente" ? "Muy urgente" : "Urgente",
                          clase: u == "muy_urgente" ? .muyUrgente : .urgente, sobreFoto: sobreFoto)
@@ -1084,7 +1106,7 @@ struct FilaTarea: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .onTapGesture(count: 2) { empezar() }
             }
-            if m.urgencia != nil || !m.etiquetas.isEmpty {
+            if m.urgencia != nil || !m.etiquetas.isEmpty || t.tarea.chapitaDeJev != nil {
                 HStack(spacing: 4) { chapitas(m) }
             }
             HStack(spacing: 6) {
@@ -1256,7 +1278,8 @@ struct ColumnaKanban: View {
 /// Una chapita de una tarea (su urgencia o una etiqueta), con los colores
 /// de `chapitas.rs` de Windows sobre la ventana oscura o sobre una foto.
 struct ChapitaTarea: View {
-    enum Clase { case muyUrgente, urgente, etiqueta }
+    /// `jev`: la prioridad de Jev con su color (mas suave que las marcas).
+    enum Clase { case muyUrgente, urgente, etiqueta, jev(UInt32) }
 
     let texto: String
     let clase: Clase
@@ -1269,6 +1292,8 @@ struct ChapitaTarea: View {
         case (.urgente, false): return Color(hex: 0xE8A33D, alfa: 0.22)
         case (.etiqueta, true): return Color.black.opacity(0.55)
         case (.etiqueta, false): return Color.white.opacity(0.08)
+        case (.jev, true): return Color.black.opacity(0.6)
+        case let (.jev(c), false): return Color(hex: c, alfa: 0.16)
         }
     }
 
@@ -1278,6 +1303,7 @@ struct ChapitaTarea: View {
         case (.urgente, _): return Color(hex: 0xE8A33D)
         case (.etiqueta, true): return Color.white
         case (.etiqueta, false): return Color(hex: 0x9CC4F0)
+        case let (.jev(c), _): return Color(hex: c)
         }
     }
 

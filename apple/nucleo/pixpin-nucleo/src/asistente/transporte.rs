@@ -63,6 +63,13 @@ pub trait TransporteApp: Send + Sync {
         cuerpo: Vec<u8>,
         receptor: Arc<ReceptorHttp>,
     ) -> Option<String>;
+
+    /// **Un GET a una pagina de internet** (la web del asistente con
+    /// DeepSeek, `nube::http::bajar_web`): sin cookies ni credenciales y
+    /// **sin seguir redirecciones** (la 3xx vuelve tal cual, con su
+    /// `Location` a [`ReceptorHttp::ubicacion`]); el `Content-Type` va a
+    /// [`ReceptorHttp::tipo`], ambos tras `estado` y antes de los datos.
+    fn bajar_web(&self, url: String, cabeceras: Vec<CabeceraHttp>, receptor: Arc<ReceptorHttp>) -> Option<String>;
 }
 
 /// Lo que va llegando, de Swift al hilo del turno.
@@ -70,6 +77,7 @@ enum Llegada {
     Estado { codigo: u32, esperar: Option<Duration> },
     Datos(Vec<u8>),
     Ubicacion(String),
+    Tipo(String),
     Fin(Option<String>),
 }
 
@@ -95,6 +103,11 @@ impl ReceptorHttp {
     /// La cabecera `Location` de la respuesta (si la hay), tras `estado`.
     pub fn ubicacion(&self, valor: String) {
         self.mandar(Llegada::Ubicacion(valor));
+    }
+
+    /// La cabecera `Content-Type` de la respuesta (si la hay), tras `estado`.
+    pub fn tipo(&self, valor: String) {
+        self.mandar(Llegada::Tipo(valor));
     }
 
     pub fn datos(&self, trozo: Vec<u8>) -> bool {
@@ -188,6 +201,33 @@ impl Transporte for Adaptador {
         }
         leer(&receptor, &rx, al_evento)
     }
+
+    fn bajar(
+        &self,
+        url: &str,
+        cabeceras: &[(&'static str, String)],
+        al_evento: &mut dyn FnMut(EventoHttp) -> Seguir,
+    ) -> Result<(), String> {
+        let (receptor, rx) = ReceptorHttp::nuevo();
+        let cabeceras = cabeceras
+            .iter()
+            .map(|(k, v)| CabeceraHttp {
+                nombre: (*k).to_string(),
+                valor: v.clone(),
+            })
+            .collect();
+        let (app, url, r) = (self.app.clone(), url.to_string(), receptor.clone());
+        let lanzado = std::thread::Builder::new()
+            .name("web-https".into())
+            .spawn(move || {
+                let error = app.bajar_web(url, cabeceras, r.clone());
+                r.cerrar(error);
+            });
+        if let Err(e) = lanzado {
+            return Err(format!("no se pudo lanzar la peticion: {e}"));
+        }
+        leer(&receptor, &rx, al_evento)
+    }
 }
 
 /// Lee lo que llega hasta el final (o hasta que `al_evento` pide parar: se
@@ -209,6 +249,9 @@ fn leer(
             }
             Ok(Llegada::Ubicacion(u)) if !parado => {
                 let _ = al_evento(EventoHttp::Ubicacion(&u));
+            }
+            Ok(Llegada::Tipo(t)) if !parado => {
+                let _ = al_evento(EventoHttp::Tipo(&t));
             }
             Ok(Llegada::Datos(b)) if !parado => {
                 if al_evento(EventoHttp::Datos(&b)) == Seguir::Parar {
@@ -278,6 +321,32 @@ mod pruebas {
             r.datos(cuerpo);
             None
         }
+
+        fn bajar_web(&self, url: String, cabeceras: Vec<CabeceraHttp>, r: Arc<ReceptorHttp>) -> Option<String> {
+            assert!(url.starts_with("https://"));
+            assert!(cabeceras.iter().any(|c| c.nombre == "User-Agent"));
+            r.estado(301, -1.0);
+            r.tipo("text/html".into());
+            r.ubicacion("https://otra/".into());
+            r.datos(b"<a>".to_vec());
+            None
+        }
+    }
+
+    #[test]
+    fn bajar_web_trae_el_tipo_y_la_redireccion_sin_seguirla() {
+        let (t, _) = falso(200, vec![], None);
+        let mut oido = Vec::new();
+        let r = Transporte::bajar(&t, "https://ejemplo.org/", &[("User-Agent", "x".into())], &mut |e| {
+            oido.push(match e {
+                EventoHttp::Estado { codigo, .. } => codigo.to_string(),
+                EventoHttp::Ubicacion(u) | EventoHttp::Tipo(u) => u.to_string(),
+                EventoHttp::Datos(b) => String::from_utf8_lossy(b).into_owned(),
+            });
+            Seguir::Si
+        });
+        assert_eq!(r, Ok(()));
+        assert_eq!(oido, ["301", "text/html", "https://otra/", "<a>"]);
     }
 
     #[test]
@@ -293,7 +362,7 @@ mod pruebas {
             &mut |e| {
                 oido.push(match e {
                     EventoHttp::Estado { codigo, .. } => codigo.to_string(),
-                    EventoHttp::Ubicacion(u) => u.to_string(),
+                    EventoHttp::Ubicacion(u) | EventoHttp::Tipo(u) => u.to_string(),
                     EventoHttp::Datos(b) => String::from_utf8_lossy(b).into_owned(),
                 });
                 Seguir::Si
@@ -330,7 +399,7 @@ mod pruebas {
             oido.push(match e {
                 EventoHttp::Estado { codigo, esperar } => format!("{codigo}:{esperar:?}"),
                 EventoHttp::Datos(b) => String::from_utf8_lossy(b).into_owned(),
-                EventoHttp::Ubicacion(u) => u.to_string(),
+                EventoHttp::Ubicacion(u) | EventoHttp::Tipo(u) => u.to_string(),
             });
             Seguir::Si
         });

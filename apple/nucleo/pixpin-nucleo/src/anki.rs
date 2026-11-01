@@ -152,6 +152,22 @@ pub fn tarjetas_de(
     pregunta_de_la_clase: &str,
     imagen: impl Fn(&Mensaje) -> Option<Imagen>,
 ) -> Vec<Tarjeta> {
+    tarjetas_con(m, mensajes, proyecto, pregunta_de_la_clase, imagen, |_, _, _| None).0
+}
+
+/// Como [`tarjetas_de`], y de una clase solo las que `valer` deja (Jev,
+/// Windows 6f70a41): recibe el titulo, lo dicho con su minuto y el minuto de
+/// cada captura, y dice cual queda (`None`: todas). Devuelve tambien
+/// cuantas dejo fuera.
+pub fn tarjetas_con(
+    m: &Mensaje,
+    mensajes: &[Mensaje],
+    proyecto: &str,
+    pregunta_de_la_clase: &str,
+    imagen: impl Fn(&Mensaje) -> Option<Imagen>,
+    valer: impl Fn(&str, &[(i64, String)], &[i64]) -> Option<Vec<bool>>,
+) -> (Vec<Tarjeta>, usize) {
+    let mut quitadas = 0;
     let mut v = match m.clase {
         Some(Clase::Voz) => {
             let dichos: Vec<(i64, String)> = m
@@ -164,14 +180,25 @@ pub fn tarjetas_de(
                 .into_iter()
                 .filter_map(|(ms, t)| Some((ms?, sin_marcas(&t))))
                 .collect();
-            let capturas: Vec<(i64, Imagen)> = crate::clase::capturas_de(m)
+            let mut capturas: Vec<(i64, Imagen)> = crate::clase::capturas_de(m)
                 .into_iter()
                 .filter_map(|(ms, id)| {
                     let c = mensajes.iter().find(|c| c.id == id)?;
                     Some((ms, imagen(c)?))
                 })
                 .collect();
-            tarjetas::de_la_clase(&titulo_de_audio(m), pregunta_de_la_clase, &dichos, capturas)
+            // En el orden de `de_la_clase` (por minuto, estable).
+            capturas.sort_by_key(|(ms, _)| *ms);
+            let tiempos: Vec<i64> = capturas.iter().map(|(ms, _)| *ms).collect();
+            let titulo = titulo_de_audio(m);
+            let todas = tarjetas::de_la_clase(&titulo, pregunta_de_la_clase, &dichos, capturas);
+            match valer(&titulo, &dichos, &tiempos) {
+                Some(quedan) if quedan.len() == todas.len() => {
+                    quitadas = quedan.iter().filter(|q| !**q).count();
+                    tarjetas::quedarse_con(todas, &quedan)
+                }
+                _ => todas,
+            }
         }
         Some(Clase::Imagen) => imagen(m)
             .map(|i| vec![tarjetas::de_la_foto(i, &m.texto, &m.nombre)])
@@ -182,7 +209,34 @@ pub fn tarjetas_de(
     for t in &mut v {
         t.etiquetas = etiquetas.clone();
     }
-    v
+    (v, quitadas)
+}
+
+/// **Que tarjetas de la clase valen la pena**, segun Jev: lo dicho en el
+/// tramo de cada captura, valorado de 0 a 3 y si dice que entra en el
+/// examen; `pixpin_typesafe::anki::elegir` decide. `None`: sin Jev, o fallo
+/// (se mandan todas).
+fn valer_la_pena(raiz: &Path, titulo: &str, dichos: &[(i64, String)], tiempos: &[i64]) -> Option<Vec<bool>> {
+    let cliente = crate::jev::para(raiz, crate::jev::Funcion::Anki)?;
+    let tramos: Vec<pixpin_typesafe::anki::Tramo> = tarjetas::lo_dicho_por_captura(dichos, tiempos)
+        .into_iter()
+        .zip(tiempos)
+        .map(|(dicho, ms)| pixpin_typesafe::anki::Tramo {
+            minuto: pixpin_voz::tiempos::marca_de_tiempo(*ms),
+            dicho,
+        })
+        .collect();
+    pixpin_typesafe::anki::valorar(&cliente, titulo, &tramos, 4)
+        .ok()
+        .map(|senales| pixpin_typesafe::anki::elegir(&senales))
+}
+
+/// Como acabo «Enviar a Anki» y cuantas capturas de la clase dejo fuera Jev
+/// (`anki-jev-quitadas`, que va detras del aviso).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct EnvioAnkiConJev {
+    pub envio: EnvioAnki,
+    pub quitadas: u32,
 }
 
 /// Sin Anki abierto: el fichero para importar en `<raiz>/anki/`, y las
@@ -239,6 +293,18 @@ impl Nucleo {
         mensaje: String,
         pregunta_de_la_clase: String,
     ) -> Result<EnvioAnki, ErrorNucleo> {
+        Ok(self.enviar_a_anki_con_jev(chat, mensaje, pregunta_de_la_clase)?.envio)
+    }
+
+    /// **Manda a Anki** como [`Nucleo::enviar_a_anki`] y dice cuantas
+    /// capturas de una clase dejo fuera Jev (`anki-jev-quitadas`; sin clave,
+    /// ninguna: van todas). Bloqueante (Jev tarda unos segundos por clase).
+    pub fn enviar_a_anki_con_jev(
+        &self,
+        chat: String,
+        mensaje: String,
+        pregunta_de_la_clase: String,
+    ) -> Result<EnvioAnkiConJev, ErrorNucleo> {
         validar_chat(&chat)?;
         let raiz = self.ruta();
         let proyecto = Indice::leer_si_esta(raiz)?
@@ -266,13 +332,19 @@ impl Nucleo {
                 bytes,
             })
         };
-        let tarjetas = tarjetas_de(m, &c.mensajes, &proyecto, &pregunta_de_la_clase, leer);
+        let (tarjetas, quitadas) = tarjetas_con(m, &c.mensajes, &proyecto, &pregunta_de_la_clase, leer, |t, d, ms| {
+            valer_la_pena(raiz, t, d, ms)
+        });
+        let quitadas = quitadas as u32;
         if tarjetas.is_empty() {
-            return Ok(EnvioAnki::Nada);
+            return Ok(EnvioAnkiConJev {
+                envio: EnvioAnki::Nada,
+                quitadas,
+            });
         }
         let mazo = mazo_de(&proyecto);
         let n = tarjetas.len() as u32;
-        Ok(match pixpin_anki::conectar::anadir(&mazo, &tarjetas) {
+        let envio = match pixpin_anki::conectar::anadir(&mazo, &tarjetas) {
             Ok(0) => EnvioAnki::YaEstaban { n, mazo },
             Ok(hechas) => EnvioAnki::Hecho {
                 n: hechas as u32,
@@ -290,7 +362,8 @@ impl Nucleo {
             Err(e) => EnvioAnki::Fallo {
                 motivo: e.to_string(),
             },
-        })
+        };
+        Ok(EnvioAnkiConJev { envio, quitadas })
     }
 }
 
@@ -364,6 +437,17 @@ mod pruebas {
             ..Mensaje::default()
         };
         assert!(tarjetas_de(&sola, &[], "x", "?", imagen).is_empty());
+        // Con Jev (Windows 6f70a41): solo las que valen la pena, y se cuenta
+        // cuantas quedaron fuera; si no contesta, todas.
+        let (t, fuera) = tarjetas_con(&voz, &todos, "Física 1", "?", imagen, |titulo, dichos, ms| {
+            assert_eq!(titulo, "Clase 24-10 18h05");
+            assert_eq!(dichos.len(), 3);
+            assert_eq!(ms, [9_000, 25_000]);
+            Some(vec![false, true])
+        });
+        assert_eq!((t.len(), fuera), (1, 1));
+        assert!(t[0].frente.contains("pixpin-b.png"));
+        assert_eq!(tarjetas_con(&voz, &todos, "x", "?", imagen, |_, _, _| None), (tarjetas_de(&voz, &todos, "x", "?", imagen), 0));
         // Y una nota sin preguntas tampoco.
         assert!(!anki_hay_tarjetas_en_nota("un parrafo suelto".into()));
         assert!(anki_hay_tarjetas_en_nota("capital :: Lima".into()));

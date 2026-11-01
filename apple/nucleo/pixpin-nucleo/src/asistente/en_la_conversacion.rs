@@ -893,6 +893,12 @@ pub fn ia_turno_en_chat(
     };
     let motor = super::turno::motor_del_turno(&ajustes, &pregunta);
     let pensar = pixpin_ia::complejidad::decidir(ajustes.pensar, &pregunta);
+    // Con Jev, el rapido o el fuerte segun el pedido (Windows e51da39); la
+    // pastilla del chat lo dice.
+    let motor = motor.map(|(m, nombre)| {
+        let p = super::turno::eleccion_con(&ajustes.motor, |p| pixpin_ia::nube::claves::leer(p).is_some());
+        (crate::jev::modelo::segun_jev(nucleo.ruta(), &chat, m, p, pensar, &pregunta, &[]), nombre)
+    });
     let preparado = motor.map(|(motor, nombre)| {
         let entorno = Entorno {
             nombre,

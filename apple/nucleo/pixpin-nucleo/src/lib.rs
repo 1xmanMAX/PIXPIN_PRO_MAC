@@ -107,6 +107,9 @@ pub mod funciones;
 pub mod galeria;
 pub mod galeria_sincro;
 pub mod hojas;
+// Jev de TypeSafe (Windows 28-oct-2026): la clave, sus interruptores y lo
+// que pregunta cada funcion.
+pub mod jev;
 pub mod lecciones;
 pub mod lienzo;
 pub mod lienzo_suelto;
