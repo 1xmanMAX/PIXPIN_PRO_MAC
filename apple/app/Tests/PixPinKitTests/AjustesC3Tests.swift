@@ -1,6 +1,6 @@
 // La pantalla de Ajustes como la de Windows (C3): las filas, el buscador,
 // el punto azul, «Restablecer», «Deshacer» y que todo acabe en el mismo
-// `pixpinmax.toml` que lee Windows.
+// `pindesk.toml` que lee Windows (antes `pixpinmax.toml`).
 
 import Foundation
 import PixPinCore
@@ -54,7 +54,7 @@ final class AjustesC3Tests: XCTestCase {
         XCTAssertEqual(leido.retardoCapturaS, 5)
         XCTAssertEqual(leido.formatoColor, "hsl")
         XCTAssertTrue(leido.sincroLoMioManda)
-        let texto = try String(contentsOf: dir.appendingPathComponent("pixpinmax.toml"), encoding: .utf8)
+        let texto = try String(contentsOf: dir.appendingPathComponent("pindesk.toml"), encoding: .utf8)
         XCTAssertTrue(texto.contains("retardo_captura_s = 5"))
         XCTAssertTrue(texto.contains("formato_color = \"hsl\""))
 
