@@ -270,10 +270,10 @@ struct Disco {
 /// y el pintado desde el principal, guardar desde uno de fondo.
 #[derive(uniffi::Object)]
 pub struct EditorLienzo {
-    ruta: PathBuf,
+    pub(crate) ruta: PathBuf,
     /// Contra que carpeta van las rutas relativas de `files`
     /// (`imagenes/<fileId>`): la del chat, o la del fichero suelto.
-    carpeta: PathBuf,
+    pub(crate) carpeta: PathBuf,
     /// El lienzo tal como se abrio: contra el se guarda siempre.
     abierto: excalidraw::Lienzo,
     imagenes: Vec<ImagenDelLienzo>,
@@ -1698,6 +1698,27 @@ impl Nucleo {
     ) -> Result<crate::MensajeChat, ErrorNucleo> {
         self.crear_lienzo_con(chat, nombre, |_| {})
             .map(crate::MensajeChat::from)
+    }
+
+    /// **Un lienzo nuevo en un chat con `json` dentro** (un `.excalidraw`
+    /// entero, el que dibuja el asistente): un mensaje `DIBUJO` con su
+    /// `lienzos/<codigo>.excalidraw`, lo mismo que [`Nucleo::crear_lienzo`],
+    /// para que se edite y viaje como cualquier lienzo del chat (no como un
+    /// `.excalidraw` suelto adjunto). Lo que no es un lienzo no crea nada.
+    pub fn crear_lienzo_con_dibujo(
+        &self,
+        chat: String,
+        nombre: Option<String>,
+        json: String,
+    ) -> Result<crate::MensajeChat, ErrorNucleo> {
+        let leido = excalidraw::leer(&json).map_err(|e| ErrorNucleo::Lienzo {
+            detalle: e.to_string(),
+        })?;
+        let m = self.crear_lienzo_con(chat.clone(), nombre, |_| {})?;
+        let dibujo = m.referencia.clone().unwrap_or_default();
+        let ruta = pixpin_proyecto::almacen::lienzo(self.ruta(), &chat, &dibujo);
+        escribir_seguro(&ruta, &excalidraw::escribir(&leido))?;
+        Ok(crate::MensajeChat::from(m))
     }
 }
 

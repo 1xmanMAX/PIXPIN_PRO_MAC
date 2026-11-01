@@ -337,6 +337,13 @@ public final class HacerPedidos {
             avisar("No existe «\(url.path)».")
             return false
         }
+        // Un `.pixpin` no es un fichero que pinear: es un proyecto entero, y
+        // entra en la lista de proyectos, que es donde se busca (Windows,
+        // `abrir_ficheros`). Lo editable que se comparte es este.
+        if url.pathExtension.lowercased() == "pixpin" {
+            Task { await abrirProyecto(url) }
+            return true
+        }
         if VentanasDePlano.compartidas.abrirSiEsSuyo(url) { return true }
         if let tipo = UTType(filenameExtension: url.pathExtension.lowercased()), tipo.conforms(to: .audio) {
             ReproductorFlotante.compartido.abrir([Pista(id: url.path, url: url, titulo: url.lastPathComponent)])
@@ -346,6 +353,24 @@ public final class HacerPedidos {
         if GestorPines.compartido.pinear(fichero: url) { return true }
         avisar("PixPin no sabe abrir «\(url.lastPathComponent)».")
         return false
+    }
+
+    /// **Un `.pixpin` de fuera, a la lista de proyectos**
+    /// (`importar_paquete` de Windows): pone al dia el mismo proyecto si ya
+    /// esta (con su copia de antes) o entra como uno nuevo, y se abre.
+    private func abrirProyecto(_ url: URL) async {
+        guard let almacen else { return avisar("No se pudo abrir la carpeta de datos de PixPin.") }
+        let nucleo = almacen.nucleo
+        let ruta = url.path
+        do {
+            let ficha = try await Task.detached(priority: .userInitiated) {
+                try nucleo.importarProyecto(ruta: ruta, comoNuevo: false)
+            }.value
+            await almacen.cargarChats()
+            abrirChat(ficha.id)
+        } catch {
+            avisar("No se pudo abrir «\(url.lastPathComponent)»: \(error.localizedDescription)")
+        }
     }
 
     /// Un mensaje por su id: la pagina donde esta, cargada.

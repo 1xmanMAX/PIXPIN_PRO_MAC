@@ -689,3 +689,37 @@ fn los_puntos_raros_y_las_palabras_que_no_existen_alla_se_arreglan_o_se_quitan()
     assert!(escena_para_el_movil("[]", &|_, _| None).is_err());
     assert!(escena_para_el_movil("{\"type\":\"excalidraw\"}", &|_, _| None).is_err());
 }
+
+/// «Compartir» de un lienzo (Windows, 20-oct-2026): lo editable es el
+/// `.pixpin` con el lienzo como la hoja de un proyecto NUEVO, con sus
+/// fotos; el `.excalidraw` suelto ya no se ofrece.
+#[test]
+fn el_pixpin_de_compartir_un_lienzo_es_un_proyecto_nuevo_con_su_hoja_y_sus_fotos() {
+    let carpeta = carpeta_temporal("compartir");
+    std::fs::create_dir_all(carpeta.join("imagenes")).unwrap();
+    std::fs::write(carpeta.join("imagenes/f7"), PNG).unwrap();
+
+    let bytes = pixpin_de_un_lienzo(&lienzo_del_pc(), " Viaje ", &carpeta, 1_760_000_000_000).unwrap();
+    assert!(bytes.starts_with(b"PK"), "un .pixpin es un zip");
+    let p = Paquete::desde_bytes(&bytes).unwrap();
+    assert_eq!(p.proyecto.nombre, "Viaje");
+    assert_eq!(p.proyecto.hojas.len(), 1);
+    let d = p.proyecto.hojas[0].dibujo.clone().expect("la hoja es el lienzo");
+    let s = std::str::from_utf8(p.entrada(&format!("lienzos/{d}.excalidraw")).expect("su lienzo")).unwrap();
+    como_lo_lee_el_movil(s).unwrap();
+    assert!(pixpin_motor2d::excalidraw::leer(s).is_ok(), "se vuelve a leer aqui");
+    assert_eq!(p.entrada("imagenes/f7"), Some(PNG), "la foto va dentro");
+    // Dos veces, dos proyectos distintos: al otro lado no se pisan.
+    let otra = Paquete::desde_bytes(&pixpin_de_un_lienzo(&lienzo_del_pc(), "Viaje", &carpeta, 1).unwrap()).unwrap();
+    assert_ne!(otra.proyecto.id, p.proyecto.id);
+
+    // Sin nombre, «Lienzo»; sin la foto al lado, el lienzo sale igual.
+    let vacia = carpeta_temporal("compartir-sin-fotos");
+    let sin = Paquete::desde_bytes(&pixpin_de_un_lienzo(&lienzo_del_pc(), "  ", &vacia, 1).unwrap()).unwrap();
+    assert_eq!(sin.proyecto.nombre, "Lienzo");
+    assert!(sin.entrada("imagenes/f7").is_none());
+    // Caso negativo: lo que no es un lienzo no da un .pixpin.
+    assert!(pixpin_de_un_lienzo("[]", "x", &carpeta, 1).is_err());
+    let _ = std::fs::remove_dir_all(&carpeta);
+    let _ = std::fs::remove_dir_all(&vacia);
+}

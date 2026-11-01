@@ -138,6 +138,35 @@ fn trazo_y_rectangulo_se_guardan_y_vuelven_iguales() {
     assert_eq!(std::fs::read_to_string(otra.ruta()).unwrap(), antes);
 }
 
+/// Lo que dibuja el asistente entra en el chat como un LIENZO (`DIBUJO` con
+/// su `lienzos/<d>.excalidraw`, lo que viaja con Windows y el movil), no
+/// como un `.excalidraw` suelto adjunto.
+#[test]
+fn un_lienzo_nuevo_con_dibujo_es_un_lienzo_del_chat() {
+    let t = Temporal::nueva("con-dibujo");
+    let n = Nucleo::abrir(t.0.join("datos").display().to_string(), "Mac".into()).unwrap();
+    let chat = n.crear_chat("Obra".into()).unwrap();
+    let json = r##"{"type":"excalidraw","version":2,"source":"asistente","elements":[
+        {"id":"r","type":"rectangle","x":0,"y":0,"width":100,"height":50,"angle":0,
+         "strokeColor":"#1e1e1e","backgroundColor":"transparent","fillStyle":"solid","strokeWidth":2,
+         "strokeStyle":"solid","roughness":0,"opacity":100,"isDeleted":false}],
+        "appState":{"viewBackgroundColor":"#ffffff"},"files":{}}"##;
+    let m = n
+        .crear_lienzo_con_dibujo(chat.id.clone(), Some("Lienzo del asistente".into()), json.into())
+        .unwrap();
+    assert_eq!(m.clase, "DIBUJO");
+    assert_eq!(m.nombre, "Lienzo del asistente");
+    let dibujo = m.referencia.clone().unwrap();
+    assert_eq!(m.ruta.as_deref(), Some(format!("lienzos/{dibujo}.excalidraw").as_str()));
+    let ed = n.editar_lienzo(chat.id.clone(), dibujo).unwrap();
+    assert_eq!(ed.cuantos_elementos(), 1);
+    assert_eq!(tipos(&ed.ruta()), vec!["rectangle"]);
+    // Caso negativo: lo que no es un lienzo no deja ni mensaje ni fichero.
+    let antes = n.ultimos_mensajes(chat.id.clone(), 10).unwrap().mensajes.len();
+    assert!(n.crear_lienzo_con_dibujo(chat.id.clone(), None, "[]".into()).is_err());
+    assert_eq!(n.ultimos_mensajes(chat.id.clone(), 10).unwrap().mensajes.len(), antes);
+}
+
 #[test]
 fn deshacer_rehacer_y_borrar() {
     let t = Temporal::nueva("deshacer");
