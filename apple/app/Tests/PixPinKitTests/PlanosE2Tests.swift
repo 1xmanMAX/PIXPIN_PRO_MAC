@@ -180,7 +180,7 @@ final class PlanosE2MetalTests: XCTestCase {
         XCTAssertNil(a.vista.superview)
         // Lo que ofrece el «Exportar»: HTML, PDF, PNG, JPG y el original (un DXF no da DXF).
         let p = try XCTUnwrap(ExportarPlano.preparar(visor))
-        XCTAssertEqual(p.compartible().formatos.map(\.id), ["web", "pdf", "png", "jpg", "original"])
+        XCTAssertEqual(p.compartible().formatos.map(\.id), ["png", "jpg", "pdf", "web", "original"])
         let hecho = try await p.generar("web", claves: [], en: carpeta.appendingPathComponent("salida"))
         XCTAssertTrue(try String(contentsOf: hecho[0], encoding: .utf8).hasPrefix("<!DOCTYPE html>"))
     }

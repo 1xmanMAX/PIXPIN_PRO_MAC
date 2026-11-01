@@ -418,12 +418,12 @@ struct MenuExportarTimeline: View {
         }
     }
 
+    /// La hoja de compartir de toda la app con lo que se ve: la pagina web
+    /// y su PDF.
     private func compartir() {
         Task {
             guard let p = await pagina() else { return }
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(p.nombre).html")
-            guard (try? p.html.write(to: url, atomically: true, encoding: .utf8)) != nil else { return }
-            CompartirMac.mostrar([url])
+            HojaCompartir.abrir(.preparado(CompartirTimeline.pagina(p.html, titulo: p.nombre)), almacen: nil)
         }
     }
 }

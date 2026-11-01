@@ -314,6 +314,10 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         let nombre = limpio.isEmpty ? "Nota" : limpio
         web.createPDF { r in
             let p = PrepararCompartir.deVisor(titulo: nombre, original: url, pdf: try? r.get())
+            // Y como Word, como una nota del chat (`word::es_nota` de Windows).
+            if !texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                p.extras.append(PrepararCompartir.word(titulo: nombre, markdown: texto, nombre: p.base))
+            }
             HojaCompartir.abrir(.preparado(p), almacen: nil)
         }
     }

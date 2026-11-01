@@ -8202,6 +8202,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func paqueteDeProyecto(chat: String) throws  -> Data
     
     /**
+     * **Los mensajes `ids` del chat, con sus carpetas abiertas en paginas**
+     * (lo marcado en el chat que lleva un cuaderno), en el orden en que se
+     * dan. Lo que ya no esta se salta. Bloqueante.
+     */
+    func mensajesConSusPaginas(chat: String, ids: [String]) throws  -> [MensajeChat]
+    
+    /**
      * **La grabacion del mensaje `mensaje`** de `chat` para compartirla:
      * el de una nota de voz o el de la carpeta de una grabacion. `None` si
      * no es ninguna de las dos. La `fecha` va vacia: la escribe Swift con
@@ -11157,6 +11164,22 @@ open func paqueteDeProyecto(chat: String)throws  -> Data  {
     uniffi_pixpin_nucleo_fn_method_nucleo_paquete_de_proyecto(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los mensajes `ids` del chat, con sus carpetas abiertas en paginas**
+     * (lo marcado en el chat que lleva un cuaderno), en el orden en que se
+     * dan. Lo que ya no esta se salta. Bloqueante.
+     */
+open func mensajesConSusPaginas(chat: String, ids: [String])throws  -> [MensajeChat]  {
+    return try  FfiConverterSequenceTypeMensajeChat.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_mensajes_con_sus_paginas(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterSequenceString.lower(ids),uniffiCallStatus
     )
 })
 }
@@ -33629,6 +33652,65 @@ public func FfiConverterTypeOpcionesBusqueda_lower(_ value: OpcionesBusqueda) ->
 
 
 /**
+ * **Los formatos puestos en el orden de la hoja**: `orden[k]` es la
+ * posicion (en lo que se dio) del que va en el sitio `k`, y `inicial`, el
+ * sitio en que quedo el que iba primero: es el que se pone al abrir.
+ */
+public struct OrdenDeFormatos: Equatable, Hashable {
+    public var orden: [UInt32]
+    public var inicial: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(orden: [UInt32], inicial: UInt32) {
+        self.orden = orden
+        self.inicial = inicial
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OrdenDeFormatos: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOrdenDeFormatos: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OrdenDeFormatos {
+        return
+            try OrdenDeFormatos(
+                orden: FfiConverterSequenceUInt32.read(from: &buf), 
+                inicial: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OrdenDeFormatos, into buf: inout [UInt8]) {
+        FfiConverterSequenceUInt32.write(value.orden, into: &buf)
+        FfiConverterUInt32.write(value.inicial, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOrdenDeFormatos_lift(_ buf: RustBuffer) throws -> OrdenDeFormatos {
+    return try FfiConverterTypeOrdenDeFormatos.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOrdenDeFormatos_lower(_ value: OrdenDeFormatos) -> RustBuffer {
+    return FfiConverterTypeOrdenDeFormatos.lower(value)
+}
+
+
+/**
  * Una pagina de «Momentos», del dia mas nuevo al mas viejo.
  */
 public struct PaginaArchivo: Equatable, Hashable {
@@ -39355,6 +39437,75 @@ public func FfiConverterTypeTextoHallado_lift(_ buf: RustBuffer) throws -> Texto
 #endif
 public func FfiConverterTypeTextoHallado_lower(_ value: TextoHallado) -> RustBuffer {
     return FfiConverterTypeTextoHallado.lower(value)
+}
+
+
+/**
+ * Lo que un cuaderno da en texto: su Markdown y el mismo texto llano.
+ */
+public struct TextosDeCuaderno: Equatable, Hashable {
+    /**
+     * El titulo del cuaderno arriba y cada pagina con texto bajo el suyo.
+     */
+    public var markdown: String
+    /**
+     * Lo mismo sin las marcas de los titulos, para el `.txt`.
+     */
+    public var texto: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El titulo del cuaderno arriba y cada pagina con texto bajo el suyo.
+         */markdown: String, 
+        /**
+         * Lo mismo sin las marcas de los titulos, para el `.txt`.
+         */texto: String) {
+        self.markdown = markdown
+        self.texto = texto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextosDeCuaderno: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextosDeCuaderno: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextosDeCuaderno {
+        return
+            try TextosDeCuaderno(
+                markdown: FfiConverterString.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextosDeCuaderno, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.markdown, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextosDeCuaderno_lift(_ buf: RustBuffer) throws -> TextosDeCuaderno {
+    return try FfiConverterTypeTextosDeCuaderno.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextosDeCuaderno_lower(_ value: TextosDeCuaderno) -> RustBuffer {
+    return FfiConverterTypeTextosDeCuaderno.lower(value)
 }
 
 
@@ -49908,6 +50059,30 @@ fileprivate struct FfiConverterOptionTypeTextoElegido: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeTextosDeCuaderno: FfiConverterRustBuffer {
+    typealias SwiftType = TextosDeCuaderno?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTextosDeCuaderno.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTextosDeCuaderno.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeTramoDeSonido: FfiConverterRustBuffer {
     typealias SwiftType = TramoDeSonido?
 
@@ -54976,6 +55151,71 @@ public func paginaWebCompartida(titulo: String, hojas: [HojaParaWeb], excalidraw
 })
 }
 /**
+ * **La clase del formato `id`**, por su nombre corto (`png`, `web`,
+ * `original`, `otro`...): la que decide su icono, el mismo en toda la app
+ * (`icono_de` de Windows).
+ */
+public func claseDeFormatoCompartido(id: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_clase_de_formato_compartido(
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El nombre con el que sale el formato `id`**: el de su clase, o
+ * `propio` si es lo propio de un contenido (el DXF de un plano).
+ */
+public func nombreDeFormatoCompartido(id: String, propio: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nombre_de_formato_compartido(
+        FfiConverterString.lower(id),
+        FfiConverterString.lower(propio),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Pone los formatos `ids` en el orden de la hoja** (`ordenar` de
+ * Windows): los de la misma clase, como venian.
+ */
+public func ordenDeFormatosCompartidos(ids: [String]) -> OrdenDeFormatos  {
+    return try!  FfiConverterTypeOrdenDeFormatos_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_orden_de_formatos_compartidos(
+        FfiConverterSequenceString.lower(ids),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El Markdown y el texto de las notas del cuaderno** (`markdown` y
+ * `texto_llano` de Windows). `None` si ninguna pagina lleva texto: entonces
+ * no se ofrecen Word, Markdown ni Texto.
+ */
+public func textosDeCuaderno(titulo: String, paginas: [PaginaDeCarpeta]) -> TextosDeCuaderno?  {
+    return try!  FfiConverterOptionTypeTextosDeCuaderno.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_textos_de_cuaderno(
+        FfiConverterString.lower(titulo),
+        FfiConverterSequenceTypePaginaDeCarpeta.lower(paginas),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Un Markdown como Word** (`.docx`), por el mismo escritor de las notas
+ * (`pixpin_notas::word::exportar` de Windows).
+ */
+public func wordDeMarkdown(titulo: String, markdown: String)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_word_de_markdown(
+        FfiConverterString.lower(titulo),
+        FfiConverterString.lower(markdown),uniffiCallStatus
+    )
+})
+}
+/**
  * **Anki**: las tarjetas de la grabacion (una por captura, con lo dicho en
  * su tramo) en el fichero de «Archivo → Importar», y sus imagenes al lado.
  * Como el «Enviar a Anki» sin Anki abierto, las imagenes se dejan tambien
@@ -57535,6 +57775,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_pagina_web_compartida() != 39707) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_clase_de_formato_compartido() != 35460) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_nombre_de_formato_compartido() != 46966) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_orden_de_formatos_compartidos() != 59780) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_textos_de_cuaderno() != 41013) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_word_de_markdown() != 34855) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_grabacion_anki() != 42499) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -58397,6 +58652,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_paquete_de_proyecto() != 49140) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_mensajes_con_sus_paginas() != 63295) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_grabacion_para_compartir() != 17061) {

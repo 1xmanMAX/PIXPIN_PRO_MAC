@@ -8,11 +8,12 @@
 // papel los pinta el mismo `PintorLienzo` de la pantalla sobre un mapa de
 // bits, un PDF vectorial o la impresora (`PintorDeHojas`).
 //
-// Compartir es la hoja del Mac (`NSSharingServicePicker`) con el lienzo en
-// el formato que se elija; lo exportado sale tambien en la Salida comun
-// (`Compartir/Salida.swift`, D1) para arrastrarlo. Un lienzo del chat se
-// comparte entero, con sus marcos, desde la hoja comun del menu del mensaje
-// (`Compartir/HojaCompartir.swift`).
+// Compartir es **la hoja de compartir de toda la app**
+// (`Compartir/HojaCompartir.swift`, D1) con el lienzo como esta en el
+// editor: el lienzo entero y cada marco debajo, en HTML, PDF, PNG, JPG y
+// SVG, y de ahi a la Salida, Guardar como…, Copiar o la hoja del Mac (Más…);
+// lo exportado sale tambien en la Salida comun (`Compartir/Salida.swift`)
+// para arrastrarlo.
 
 import AppKit
 import PixPinCore
@@ -168,46 +169,60 @@ extension ModeloEditorLienzo {
 
     // MARK: Compartir
 
-    /// **Compartir…** (⇧⌘S): elegir el formato y la hoja del Mac con el
-    /// fichero (lo elegido si hay algo elegido; si no, todo).
+    /// **Compartir…** (⇧⌘S): la hoja de compartir de toda la app con lo
+    /// que hay en el editor (lo elegido si hay algo elegido; si no, todo).
     func compartir() {
         desplegado = nil
-        guard let vista else { return }
-        let menu = NSMenu(title: "Compartir")
-        for f in FormatoSalidaLienzo.allCases {
-            let item = NSMenuItem(title: "Compartir como \(f.rawValue.uppercased())…",
-                                  action: #selector(VistaEditorLienzoNS.compartirComo(_:)), keyEquivalent: "")
-            item.representedObject = f.rawValue
-            item.target = vista
-            menu.addItem(item)
-        }
-        menu.addItem(.separator())
-        let exportar = NSMenuItem(title: "Exportar…", action: #selector(VistaEditorLienzoNS.exportarDesdeMenu(_:)),
-                                  keyEquivalent: "e")
-        exportar.keyEquivalentModifierMask = [.command, .shift]
-        exportar.target = vista
-        menu.addItem(exportar)
-        let copiar = NSMenuItem(title: "Copiar como PNG", action: #selector(VistaEditorLienzoNS.copiarDesdeMenu(_:)),
-                                keyEquivalent: "c")
-        copiar.keyEquivalentModifierMask = [.command, .shift]
-        copiar.target = vista
-        menu.addItem(copiar)
-        let punto = vista.window?.mouseLocationOutsideOfEventStream ?? .zero
-        menu.popUp(positioning: nil, at: vista.convert(punto, from: nil), in: vista)
+        let p = paraCompartir()
+        guard !p.piezas.isEmpty else { return avisar("No hay nada que compartir aquí.") }
+        HojaCompartir.abrir(.preparado(p), almacen: nil)
     }
 
-    /// Los ficheros de `formato` en una carpeta temporal, para compartirlos.
-    func ficherosParaCompartir(_ formato: FormatoSalidaLienzo) -> [URL] {
-        let datos = ficheros(formato, que: queDeFabrica, transparente: false)
-        guard !datos.isEmpty else { return [] }
-        let carpeta = FileManager.default.temporaryDirectory
-            .appendingPathComponent("pixpin-compartir-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: carpeta, withIntermediateDirectories: true)
-        let base = carpeta.appendingPathComponent(nombreDeFichero).appendingPathExtension(formato.rawValue)
-        return datos.enumerated().compactMap { i, d in
-            let url = Self.numerada(base, i, datos.count)
-            return (try? d.write(to: url)) != nil ? url : nil
+    /// **El lienzo como paginas de la hoja** (`de_lienzo_suelto` y
+    /// `anadir_lienzo` de Windows): lo elegido, o el lienzo entero y, si
+    /// tiene marcos, cada marco debajo, sangrado (van marcados los marcos y
+    /// no el entero, que los repetiria). Se pinta con el pintor de la
+    /// pantalla y el SVG lo escribe el motor.
+    func paraCompartir() -> PreparadoCompartir {
+        let p = PreparadoCompartir(titulo: nombreDeFichero)
+        if let fondo {
+            editor.ponerPapel(ancho: Float(fondo.tamano.width), alto: Float(fondo.tamano.height), png: fondo.png())
         }
+        let version = editor.version()
+        var grupos: [(QueExportar, Int)] = []
+        if queDeFabrica == .seleccion {
+            grupos = [(.seleccion, 0)]
+        } else {
+            grupos = [(.todo, 0)]
+            if editor.hojasParaExportar(que: .marcos).count > 1 { grupos.append((.marcos, 1)) }
+        }
+        let conMarcos = grupos.count > 1
+        for (que, nivel) in grupos {
+            let hojas = editor.hojasParaExportar(que: que)
+            let svgs = editor.svgParaExportar(que: que, transparente: false)
+            for (i, h) in hojas.enumerated() {
+                let caja = h.caja
+                guard caja.width > 0, caja.height > 0 else { continue }
+                let svg: String? = svgs.indices.contains(i) ? svgs[i] : nil
+                let nombre = h.nombre.trimmingCharacters(in: .whitespaces)
+                let pagina = nivel == 0
+                    ? PaginaCompartir(clave: "\(que)-\(i)", nombre: conMarcos ? "Lienzo completo" : titulo,
+                                      detalle: "Lienzo")
+                    : PaginaCompartir(clave: "\(que)-\(i)", nombre: nombre.isEmpty ? "Marco \(i + 1)" : nombre,
+                                      detalle: "Marco", nivel: 1)
+                let plano = h.plano
+                p.anadir(PiezaCompartir(
+                    pagina: pagina, tamano: caja.size,
+                    pintar: { [weak self] ctx, destino in
+                        PintorDeHojas.pintar(plano, caja: caja, en: ctx, destino: destino, transparente: false,
+                                             tapados: self?.tapados, version: version,
+                                             fotos: { [weak self] in self?.foto($0) })
+                    },
+                    svg: { svg }),
+                    marcada: nivel > 0 || !conMarcos)
+            }
+        }
+        return p
     }
 
     // MARK: Imprimir
@@ -244,15 +259,6 @@ extension HojaExportada {
 }
 
 extension VistaEditorLienzoNS {
-    @objc func compartirComo(_ sender: NSMenuItem) {
-        guard let nombre = sender.representedObject as? String, let f = FormatoSalidaLienzo(rawValue: nombre) else { return }
-        let urls = modelo.ficherosParaCompartir(f)
-        guard !urls.isEmpty else { return NSSound.beep() }
-        let selector = NSSharingServicePicker(items: urls)
-        let punto = convert(window?.mouseLocationOutsideOfEventStream ?? .zero, from: nil)
-        selector.show(relativeTo: NSRect(x: punto.x, y: punto.y, width: 1, height: 1), of: self, preferredEdge: .minY)
-    }
-
     @objc func exportarDesdeMenu(_ sender: Any?) { modelo.exportar() }
 
     @objc func copiarDesdeMenu(_ sender: Any?) { modelo.copiarComoPNG() }

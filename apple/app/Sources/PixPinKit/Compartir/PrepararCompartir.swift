@@ -104,15 +104,32 @@ enum PrepararCompartir {
 
     // MARK: Mensajes
 
-    static func deMensajes(chat: String, titulo: String, _ mensajes: [MensajeChat],
+    static func deMensajes(chat: String, titulo: String, _ dados: [MensajeChat],
                            almacen: Almacen?) async -> PreparadoCompartir {
         // Una grabacion sola (una clase, una reunion, una nota de voz, o la
         // carpeta de una grabacion): con su video, sus capturas y sus
         // marcadores, y su pagina web propia (`CompartirGrabacion.swift`).
-        if mensajes.count == 1, let m = mensajes.first, let almacen,
+        if dados.count == 1, let m = dados.first, let almacen,
            m.clase == "VOZ" || CarpetasDelChat.esCarpeta(m),
            let g = await grabacion(m, chat: chat, almacen: almacen) {
             return await deGrabacion(g, chat: chat, almacen: almacen)
+        }
+        // **Un cuaderno** (Windows 4a6112d4, `carpeta::preparar`): solo, con
+        // todos sus formatos (`PdfDeCarpeta.paraCompartir`); entre otros
+        // mensajes, con sus paginas en vez del JSON de su documento, sin
+        // repetir las que ya iban (`con_sus_paginas`).
+        var mensajes = dados
+        if let almacen, mensajes.contains(where: { CarpetasDelChat.esCarpeta($0) }) {
+            if mensajes.count == 1, let m = mensajes.first,
+               let carpeta = await CarpetasDelChat.leer(m.id, chat: chat, almacen: almacen), !carpeta.grabacion {
+                return await PdfDeCarpeta.paraCompartir(carpeta, chat: chat, almacen: almacen)
+            }
+            let nucleo = almacen.nucleo
+            let ids = mensajes.map(\.id)
+            let abiertos = await Task.detached(priority: .userInitiated) {
+                (try? nucleo.mensajesConSusPaginas(chat: chat, ids: ids)) ?? []
+            }.value
+            if !abiertos.isEmpty { mensajes = abiertos }
         }
         let solo = mensajes.count == 1
         let clasesDeFichero: Set<String> = ["IMAGEN", "ARCHIVO", "VOZ"]
@@ -192,7 +209,24 @@ enum PrepararCompartir {
             guard !texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
             anadirTexto(p, clave: clave, nombre: nombre, detalle: m.clase == "MINIAPP" ? "Mini-app" : "Nota",
                         titulo: nil, texto: texto, solo: solo)
+            // Una nota escrita sola tambien sale como Word (`word::es_nota`
+            // de Windows): su Markdown por el escritor de `.docx` del nucleo.
+            if solo, m.clase == "NOTA", m.miniapp == nil, !m.texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                p.extras.append(word(titulo: nombre, markdown: m.texto, nombre: p.base))
+            }
         }
+    }
+
+    /// **El Word de un Markdown** (una nota, un cuaderno), hecho al pedirlo
+    /// por el nucleo (`wordDeMarkdown`).
+    static func word(titulo: String, markdown: String, nombre: String) -> ExtraCompartir {
+        ExtraCompartir(
+            formato: FormatoCompartir(id: IdFormato.word, nombre: "Word", cuantas: .ninguna, simbolo: "doc.text"),
+            que: .escrito(nombre: "\(nombre).docx") {
+                try await Task.detached(priority: .userInitiated) {
+                    try wordDeMarkdown(titulo: titulo, markdown: markdown)
+                }.value
+            })
     }
 
     /// Un texto como paginas. Solo, va tambien entero como `.txt`.

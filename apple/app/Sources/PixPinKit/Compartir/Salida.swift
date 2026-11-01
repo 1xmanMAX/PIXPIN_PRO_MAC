@@ -41,15 +41,35 @@ final class Salida {
     var abierta: Bool { panel?.isVisible == true }
 
     /// **Ensena** `ficheros` con `titulo`. Si ya estaba abierta, se suman
-    /// arriba.
-    func mostrar(_ ficheros: [URL], titulo: String? = nil) {
+    /// arriba. Devuelve si ensena algo: `false` si ninguno esta en el disco
+    /// (quien la llama lo dice; no se calla).
+    @discardableResult
+    func mostrar(_ ficheros: [URL], titulo: String? = nil) -> Bool {
         let hay = ficheros.filter { FileManager.default.fileExists(atPath: $0.path) }
-        guard !hay.isEmpty else { return }
+        guard !hay.isEmpty else {
+            NSLog("PixPin: la Salida no tiene que ensenar: %@", ficheros.map(\.path).joined(separator: ", "))
+            return false
+        }
         modelo.recibir(hay, titulo: titulo ?? Salida.listo)
         let panel = self.panel ?? crearPanel()
         self.panel = panel
-        if !panel.isVisible { colocar(panel) }
+        colocar(panel, deNuevo: !panel.isVisible)
         panel.orderFrontRegardless()
+        return true
+    }
+
+    /// **Lo que mide la Salida con `n` ficheros**: 380 de ancho y lo que
+    /// ocupan la cabecera, la pista, las tarjetas (hasta cuatro a la vista;
+    /// las demas, corriendo la lista), la franja de llevarlos todos y los
+    /// botones. Se mide aqui y no con el `fittingSize` de la vista: con
+    /// `sizingOptions = .preferredContentSize` la vista no da tamano, y la
+    /// ventana nacia de 0 × 0 (por eso «Compartir» parecia no hacer nada).
+    nonisolated static func tamano(ficheros n: Int) -> CGSize {
+        let tarjetas = CGFloat(min(max(n, 1), 4)) * 66
+        let franja: CGFloat = n > 1 ? 32 + 10 : 0
+        // Margen 14 + cabecera 22 + 10 + pista 14 + 10 + tarjetas + 10 +
+        // franja + botones 28 + margen 14.
+        return CGSize(width: 380, height: 14 + 22 + 10 + 14 + 10 + tarjetas + 10 + franja + 28 + 14)
     }
 
     func cerrar() {
@@ -75,13 +95,19 @@ final class Salida {
         return panel
     }
 
-    /// Abajo a la derecha de la pantalla del raton.
-    private func colocar(_ panel: NSPanel) {
+    /// Abajo a la derecha de la pantalla del raton al aparecer; abierta, se
+    /// queda donde este (crece hacia arriba si llegan mas ficheros).
+    private func colocar(_ panel: NSPanel, deNuevo: Bool) {
+        let tamano = Salida.tamano(ficheros: modelo.ficheros.count)
+        if !deNuevo, panel.frame.width > 0 {
+            let f = panel.frame
+            panel.setFrame(NSRect(x: f.maxX - tamano.width, y: f.minY, width: tamano.width, height: tamano.height),
+                           display: true)
+            return
+        }
         let raton = NSEvent.mouseLocation
-        let pantalla = NSScreen.screens.first { $0.frame.contains(raton) } ?? NSScreen.main
-        guard let zona = pantalla?.visibleFrame else { return }
-        panel.layoutIfNeeded()
-        let tamano = panel.contentView?.fittingSize ?? panel.frame.size
+        let pantalla = NSScreen.screens.first { $0.frame.contains(raton) } ?? NSScreen.main ?? NSScreen.screens.first
+        let zona = pantalla?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
         panel.setFrame(NSRect(x: zona.maxX - tamano.width - 16, y: zona.minY + 16,
                               width: tamano.width, height: tamano.height), display: true)
     }
@@ -174,11 +200,13 @@ final class ModeloSalida: ObservableObject {
     func abrir() {
         guard let url = actual else { return }
         if let aviso = AbrirCon.aviso(url) { return avisar(aviso) }
-        NSWorkspace.shared.open(url)
+        if !NSWorkspace.shared.open(url) { avisar("No se pudo abrir") }
     }
 
+    /// En el Finder, con el fichero elegido (para saber donde quedo).
     func mostrarEnCarpeta() {
         guard let url = actual else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else { return avisar("No se pudo hacer") }
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
@@ -324,6 +352,8 @@ private struct TarjetaSalida: View {
         .frame(height: 60)
         .background(ColoresSalida.tarjeta, in: RoundedRectangle(cornerRadius: 9))
         .overlay(RoundedRectangle(cornerRadius: 9).stroke(elegida ? ColoresSalida.azul : .clear, lineWidth: 2))
+        // Donde esta, al pasar el raton.
+        .help(url.path)
         .task(id: url) {
             let pedido = QLThumbnailGenerator.Request(fileAt: url, size: CGSize(width: 48, height: 48),
                                                       scale: 2, representationTypes: .thumbnail)
@@ -356,6 +386,9 @@ private struct Arrastre: NSViewRepresentable {
 
     func updateNSView(_ v: VistaArrastre, context: Context) {
         v.urls = urls
+        // Donde esta el fichero, al pasar el raton (la capa tapa la ayuda
+        // de la tarjeta).
+        v.toolTip = urls.count == 1 ? urls[0].path : nil
         v.alPulsar = alPulsar
         v.alSoltar = alSoltar
     }
