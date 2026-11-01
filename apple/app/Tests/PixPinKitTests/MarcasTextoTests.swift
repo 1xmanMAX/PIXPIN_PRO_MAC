@@ -1,4 +1,5 @@
 @testable import PixPinKit
+import CoreGraphics
 import XCTest
 
 final class MarcasTextoTests: XCTestCase {

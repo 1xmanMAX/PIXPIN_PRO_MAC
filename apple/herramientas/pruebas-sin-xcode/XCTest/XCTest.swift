@@ -10,7 +10,8 @@
 // Las pruebas corren una a una, como en XCTest: cada una con su instancia
 // nueva, las sincronas en el hilo principal y las `async` en el ejecutor que
 // pida su clase (`@MainActor` o no).
-import Foundation
+@_exported import Foundation
+@_exported import CoreGraphics
 
 // MARK: - Estado de la prueba en curso
 

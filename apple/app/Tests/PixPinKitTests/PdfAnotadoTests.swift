@@ -37,6 +37,6 @@ final class PdfAnotadoTests: XCTestCase {
         }
         XCTAssertGreaterThan(tinta(hecho, 0), tinta(doc, 0) + 100, "la tinta se ve en la hoja")
         // Caso negativo: la hoja sin tinta queda igual.
-        XCTAssertEqual(tinta(hecho, 1), tinta(doc, 1), accuracy: 30)
+        XCTAssertLessThanOrEqual(abs(tinta(hecho, 1) - tinta(doc, 1)), 30)
     }
 }
