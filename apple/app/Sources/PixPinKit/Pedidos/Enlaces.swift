@@ -1,8 +1,9 @@
-// **Los enlaces `pixpinmax://`** (`orden::de_enlace` de Windows, 15-oct):
-// `pixpinmax://<verbo>/<trozos>?campo=valor` es el mismo verbo de la linea
-// de ordenes con sus campos con nombre, y `pixpin://atajo/<verbo>/<id>` es
-// la seña de los atajos de Android, para que un enlace sirva en los tres
-// aparatos. Por enlace solo pasa directo lo inofensivo (`seguridad`): lo
+// **Los enlaces `pindesk://`** (`orden::de_enlace` de Windows, 15-oct; hasta
+// nov-2026 `pixpinmax://`, que se sigue entendiendo):
+// `pindesk://<verbo>/<trozos>?campo=valor` es el mismo verbo de la linea
+// de ordenes con sus campos con nombre, y `pindesk://atajo/<verbo>/<id>` (o el
+// `pixpin://atajo/…` de antes) es la seña de los atajos de Android, para que
+// un enlace sirva en los tres aparatos. Por enlace solo pasa directo lo inofensivo (`seguridad`): lo
 // demas pregunta y lo que abre una ruta de fuera no pasa nunca. Los enlaces
 // que hace la propia app van firmados (`FirmaEnlaces`) y no preguntan.
 //
@@ -16,7 +17,7 @@ public enum OrigenOrden: Equatable, Sendable {
     /// El menu del Dock, los Servicios del Finder, Atajos (App Intents):
     /// quien lo pide ya esta delante del Mac.
     case consola
-    /// Un enlace `pixpinmax://`. `firmado`: lo hizo esta misma PixPin.
+    /// Un enlace `pindesk://` (o de antes). `firmado`: lo hizo esta misma app.
     case enlace(firmado: Bool)
 }
 
@@ -43,14 +44,15 @@ public enum Enlaces {
     /// Lo mas largo que se acepta en un enlace (`TOPE_ENLACE`).
     public static let tope = 16 * 1024
 
-    /// Los esquemas que se entienden. `pixpinmax:` es el nuestro (el que
-    /// declara el Info.plist); `pixpin:` es el de Android y tambien el del
-    /// PixPin original de DepthPixel, asi que el Mac no lo reclama, pero si
-    /// llega uno (pegado en `pedido`, o abierto a mano) se entiende igual.
-    public static let esquemas = ["pixpinmax:", "pixpin:"]
+    /// Los esquemas que se entienden. `pindesk:` es el nuestro y
+    /// `pixpinmax:` el de antes (los dos los declara el Info.plist);
+    /// `pixpin:` es el de Android de antes y tambien el del PixPin original de
+    /// DepthPixel, asi que el Mac no lo reclama, pero si llega uno (pegado en
+    /// `pedido`, o abierto a mano) se entiende igual (docs/formato-pindesk.md).
+    public static let esquemas = ["pindesk:", "pixpinmax:", "pixpin:"]
 
-    /// El esquema con que la app arma sus enlaces.
-    public static let esquemaDeLaCasa = "pixpinmax"
+    /// El esquema con que la app arma sus enlaces (antes `pixpinmax`).
+    public static let esquemaDeLaCasa = "pindesk"
 
     /// El largo del esquema si un texto es un enlace nuestro.
     static func largoDelEsquema(_ texto: String) -> Int? {
@@ -67,7 +69,7 @@ public enum Enlaces {
         (b >= 65 && b <= 90) ? b + 32 : b
     }
 
-    /// Si un texto es un enlace `pixpinmax:` (o `pixpin:`).
+    /// Si un texto es un enlace `pindesk:` (o `pixpinmax:`/`pixpin:`).
     public static func esEnlace(_ texto: String) -> Bool {
         largoDelEsquema(texto) != nil
     }
@@ -99,7 +101,7 @@ public enum Enlaces {
     public static func partir(_ url: String) throws -> Partes {
         let url = url.trimmingCharacters(in: .whitespacesAndNewlines)
         if url.utf8.count > tope { throw FalloOrden.noSeEntiende("el enlace es demasiado largo") }
-        guard let largo = largoDelEsquema(url) else { throw FalloOrden.noSeEntiende("no es un enlace pixpinmax:") }
+        guard let largo = largoDelEsquema(url) else { throw FalloOrden.noSeEntiende("no es un enlace pindesk:") }
         var resto = String(decoding: Array(url.utf8)[largo...], as: UTF8.self)
         if let almohadilla = resto.firstIndex(of: "#") { resto = String(resto[..<almohadilla]) }
         while resto.hasPrefix("/") { resto.removeFirst() }
@@ -192,7 +194,7 @@ public enum Enlaces {
         return s
     }
 
-    /// Arma `pixpinmax://<verbo>?campo=valor…` (sin firmar).
+    /// Arma `pindesk://<verbo>?campo=valor…` (sin firmar).
     public static func enlace(_ verbo: String, _ campos: [(String, String)] = [],
                               esquema: String = esquemaDeLaCasa) -> String {
         var s = "\(esquema)://\(verbo)"
@@ -202,7 +204,7 @@ public enum Enlaces {
         return s
     }
 
-    /// El enlace de un pedido (`pixpinmax://pedido?json=…`).
+    /// El enlace de un pedido (`pindesk://pedido?json=…`).
     public static func enlace(de pedido: Pedido) -> String {
         enlace("pedido", [("json", pedido.json)])
     }

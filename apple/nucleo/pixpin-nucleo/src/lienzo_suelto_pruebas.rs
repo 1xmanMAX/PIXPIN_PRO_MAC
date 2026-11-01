@@ -377,16 +377,15 @@ fn un_lienzo_del_pc_sale_como_lienzo_de_una_hoja_y_no_como_archivo() {
         "con sus codigos"
     );
     assert_eq!(e.bytes, bytes.len() as i64);
-    assert!(nombre_del_paquete(&e).ends_with(".pixpin"));
+    assert!(nombre_del_paquete(&e).ends_with(".pindesk"));
     assert!(!nombre_del_paquete(&e).contains(".excalidraw"));
 
-    // El paquete, como lo abre `PaquetePixpin.abrir`.
+    // El paquete, como lo abre `PaquetePixpin.abrir`: con su `formato`, que
+    // ahora es `pindesk` (antes `pixpin`; los dos valen, docs/formato-pindesk.md).
     let p = Paquete::desde_bytes(&bytes).unwrap();
     let manifiesto = String::from_utf8_lossy(p.entrada("manifest.json").unwrap()).into_owned();
-    assert!(
-        manifiesto.contains("\"pixpin\""),
-        "sin esto abrir() da null: {manifiesto}"
-    );
+    let m: Value = serde_json::from_str(&manifiesto).unwrap();
+    assert_eq!(m["formato"], "pindesk", "{manifiesto}");
     assert_eq!(p.proyecto.hojas.len(), 1);
     let hoja = &p.proyecto.hojas[0];
     assert_eq!(hoja.dibujo.as_deref(), Some("d-pc-1"));

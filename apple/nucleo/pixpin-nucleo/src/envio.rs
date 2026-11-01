@@ -395,13 +395,14 @@ pub fn etiqueta_de_envio(codigo: String) -> String {
     envio::etiqueta(&codigo)
 }
 
-/// `_pixpinenvio._tcp`: quien envia y espera.
+/// `_pindeskenvio._tcp` (antes `_pixpinenvio._tcp`, [`crate::sincro::tipo_de_antes`]):
+/// quien envia y espera.
 #[uniffi::export]
 pub fn tipo_de_servicio_envio() -> String {
     envio::SERVICIO.trim_end_matches('.').to_string()
 }
 
-/// `_pixpinrecibe._tcp`: quien espera para recibir.
+/// `_pindeskrecibe._tcp` (antes `_pixpinrecibe._tcp`): quien espera para recibir.
 #[uniffi::export]
 pub fn tipo_de_servicio_recibir() -> String {
     envio::SERVICIO_RECIBIR.trim_end_matches('.').to_string()
@@ -417,7 +418,7 @@ fn codigo_nuevo() -> Result<String, ErrorNucleo> {
     Ok(c)
 }
 
-/// El anuncio de una puerta de envio: `PixPin <nombre>` del `tipo` con el
+/// El anuncio de una puerta de envio: `PinDesk <nombre>` del `tipo` con el
 /// TXT `g` (la etiqueta del codigo) y `n`, como Windows.
 fn anuncio_de_puerta(tipo: &str, codigo: &str, nombre: &str) -> AnuncioBonjour {
     let etiqueta = envio::etiqueta(codigo);
@@ -426,7 +427,7 @@ fn anuncio_de_puerta(tipo: &str, codigo: &str, nombre: &str) -> AnuncioBonjour {
         .take(crate::sincro::LETRAS_DEL_NOMBRE)
         .collect();
     AnuncioBonjour {
-        instancia: crate::sincro::recortar_etiqueta(format!("PixPin {nombre}").trim()),
+        instancia: crate::sincro::instancia_de(&nombre),
         tipo: tipo.trim_end_matches('.').to_string(),
         txt: vec![
             ParTxt {
@@ -716,7 +717,7 @@ fn de_proyecto(
         .get("origen")
         .and_then(|v| v.as_str())
         .unwrap_or(&pr.id);
-    let destino = carpeta.join(format!("{}.pixpin", envio::nombre_sano(&pr.nombre)));
+    let destino = carpeta.join(pindesk_proyecto::nombre_de_paquete(&envio::nombre_sano(&pr.nombre)));
     std::fs::create_dir_all(carpeta)?;
     std::fs::write(&destino, &bytes)?;
     Ok((
@@ -1362,6 +1363,15 @@ mod pruebas {
             "482913"
         );
         assert!(leer_codigo_de_envio("pixpin-chat:1:K7Q2M9XP::1".into()).is_none());
+        // Los QR de PinDesk (`pindesk-envio:`/`pindesk-recibe:`) tambien valen.
+        let q = leer_codigo_de_envio("pindesk-recibe:1:482913:192.168.1.4:47474".into()).unwrap();
+        assert!(q.espera_recibir);
+        assert_eq!(q.codigo, "482913");
+        let q = leer_codigo_de_envio("pindesk-envio:1:482913::0".into()).unwrap();
+        assert!(!q.espera_recibir);
+        assert!(leer_codigo_de_envio("pindesk-chat:1:K7Q2M9XP::1".into()).is_none());
+        assert_eq!(tipo_de_servicio_envio(), "_pindeskenvio._tcp");
+        assert_eq!(tipo_de_servicio_recibir(), "_pindeskrecibe._tcp");
     }
 
     #[test]
@@ -1380,10 +1390,16 @@ mod pruebas {
             aparato: None,
         };
         use crate::recepcion::{ficha_que_llega, nombre_con_extension};
-        assert_eq!(nombre_con_extension(&e), "123.pixpin");
+        assert_eq!(nombre_con_extension(&e), "123.pindesk");
         assert_eq!(ficha_que_llega(&e).id, "p1");
         e.tipo = envio::LIENZO.into();
-        assert_eq!(nombre_con_extension(&e), "123.pixpin");
+        assert_eq!(nombre_con_extension(&e), "123.pindesk");
+        // Lo que ya trae su extension (nueva o la de antes) se queda.
+        e.nombre = "Obra.pixpin".into();
+        assert_eq!(nombre_con_extension(&e), "Obra.pixpin");
+        e.nombre = "Obra.PINDESK".into();
+        assert_eq!(nombre_con_extension(&e), "Obra.PINDESK");
+        e.nombre = "123".into();
         e.tipo = envio::ARCHIVO.into();
         assert_eq!(nombre_con_extension(&e), "123");
     }

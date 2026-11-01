@@ -155,17 +155,18 @@ fn mensaje_que_sustituye(
 }
 
 /// El nombre con el que se guarda algo que llega, ya con su extension: un
-/// proyecto o un lienzo es un `.pixpin` aunque el movil lo mande sin ella
+/// proyecto o un lienzo es un `.pindesk` aunque el movil lo mande sin ella
 /// (el primer envio de prueba llego como `123` siendo un proyecto entero).
 pub fn nombre_con_extension(e: &Elemento) -> String {
     let nombre = envio::nombre_sano(&e.nombre);
     if e.tipo != envio::PROYECTO && e.tipo != envio::LIENZO {
         return nombre;
     }
-    if nombre.to_ascii_lowercase().ends_with(".pixpin") {
+    // Uno que ya trae `.pindesk` (o el `.pixpin` de antes) se queda como esta.
+    if pindesk_proyecto::es_paquete(Path::new(&nombre)) {
         nombre
     } else {
-        format!("{nombre}.pixpin")
+        pindesk_proyecto::nombre_de_paquete(&nombre)
     }
 }
 
@@ -692,7 +693,7 @@ mod pruebas {
             5,
         );
         assert_eq!(g[0].donde, Donde::Carpeta);
-        assert!(raiz.join("recibidos/Roto.pixpin").is_file());
+        assert!(raiz.join("recibidos/Roto.pindesk").is_file());
         assert!(almacen::Indice::leer(&raiz).proyectos.is_empty());
         let _ = std::fs::remove_dir_all(&raiz);
     }

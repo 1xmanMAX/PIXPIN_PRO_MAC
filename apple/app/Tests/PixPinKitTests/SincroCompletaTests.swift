@@ -58,9 +58,14 @@ final class TextosDeEnvioTests: XCTestCase {
         XCTAssertEqual(leerInvitacion(texto: "k7q2-m9xp")?.codigo, "K7Q2M9XP")
         XCTAssertNil(leerInvitacion(texto: "pixpin-envio:1:123456::0"))
         XCTAssertEqual(leerCodigoDeEnvio(texto: "482 913")?.codigo, "482913")
-        XCTAssertEqual(tipoDeServicioChat(), "_pixpinchat._tcp")
-        XCTAssertEqual(tipoDeServicioEnvio(), "_pixpinenvio._tcp")
-        XCTAssertEqual(tipoDeServicioRecibir(), "_pixpinrecibe._tcp")
+        XCTAssertEqual(tipoDeServicioChat(), "_pindeskchat._tcp")
+        XCTAssertEqual(tipoDeServicioEnvio(), "_pindeskenvio._tcp")
+        XCTAssertEqual(tipoDeServicioRecibir(), "_pindeskrecibe._tcp")
+        // Y se anuncian y buscan tambien con el tipo de antes.
+        XCTAssertEqual(tipoDeAntes(tipo: tipoDeServicioChat()), "_pixpinchat._tcp")
+        XCTAssertEqual(tipoDeAntes(tipo: tipoDeServicioEnvio()), "_pixpinenvio._tcp")
+        XCTAssertEqual(tipoDeAntes(tipo: tipoDeServicioRecibir()), "_pixpinrecibe._tcp")
+        XCTAssertEqual(leerInvitacion(texto: "pindesk-chat:1:K7Q2M9XP::0")?.codigo, "K7Q2M9XP")
     }
 }
 

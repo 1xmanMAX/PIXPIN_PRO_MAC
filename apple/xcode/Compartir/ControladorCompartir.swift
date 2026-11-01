@@ -5,8 +5,9 @@
 // `VOZ` o `ARCHIVO`, por `Nucleo.adjuntar`), y el texto y los enlaces van
 // como una nota.
 //
-// La extension vive en su caja de arena: la carpeta de datos de PixPin
-// (`~/Library/Application Support/PixPinMax`) se abre por la excepcion de
+// La extension vive en su caja de arena: la carpeta de datos de PinDesk
+// (`~/Library/Application Support/PinDesk`, o la `PixPinMax` de antes si la
+// app aun no la ha mudado; la extension no muda nada) se abre por la excepcion de
 // `Soporte/Compartir.entitlements`, con la ruta de la casa de verdad (la
 // de `FileManager` seria la del contenedor de la extension).
 //
@@ -58,14 +59,17 @@ final class ControladorCompartir: NSViewController {
         cargarProyectos()
     }
 
-    /// La carpeta de datos de PixPin, en la casa de verdad del usuario.
+    /// La carpeta de datos de PinDesk, en la casa de verdad del usuario: la
+    /// nueva (`PinDesk`) o, si la app aun no la ha mudado, la `PixPinMax` de
+    /// antes (`carpetaDeDatosEn`, la regla de los ayudantes de Windows).
     static func carpetaDeDatos() -> URL {
         var casa = NSHomeDirectory()
         if let pw = getpwuid(getuid()), let dir = pw.pointee.pw_dir {
             casa = String(cString: dir)
         }
-        return URL(fileURLWithPath: casa, isDirectory: true)
-            .appendingPathComponent("Library/Application Support/PixPinMax", isDirectory: true)
+        let base = URL(fileURLWithPath: casa, isDirectory: true)
+            .appendingPathComponent("Library/Application Support", isDirectory: true)
+        return URL(fileURLWithPath: carpetaDeDatosEn(base: base.path), isDirectory: true)
     }
 
     private func cargarProyectos() {

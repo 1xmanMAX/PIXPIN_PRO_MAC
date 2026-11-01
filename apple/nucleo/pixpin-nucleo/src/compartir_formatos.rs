@@ -8,7 +8,7 @@
 //!   `FormatosDeCompartir.Clase` del movil). Quien abre la hoja solo dice
 //!   **que** formatos hay, por su id; el orden (Imagen PNG, Imagen JPG,
 //!   Dibujo SVG, PDF, Pagina web (HTML), Word, Markdown, Texto, Tabla (CSV),
-//!   lo propio, PixPin (.pixpin), Original, Anki) y el nombre se deciden
+//!   lo propio, PinDesk (.pindesk), Original, Anki) y el nombre se deciden
 //!   aqui, una vez para toda la app. Se abre con el que iba primero (una
 //!   foto o un PDF, su original).
 //! - **Un cuaderno con todos sus formatos** (`compartir/carpeta.rs` de
@@ -70,7 +70,9 @@ const FORMATOS_EN_ORDEN: [(ClaseDeFormato, &str, &str); 14] = [
     (ClaseDeFormato::Texto, "texto", "Texto"),
     (ClaseDeFormato::Csv, "csv", "Tabla (CSV)"),
     (ClaseDeFormato::Otro, "otro", ""),
-    (ClaseDeFormato::Pixpin, "pixpin", "PinDesk (.pixpin)"),
+    // La clase sigue diciendose `pixpin` (la usa la app de Swift); el
+    // fichero que sale es `.pindesk` (`compartir-pindesk` de Windows).
+    (ClaseDeFormato::Pixpin, "pixpin", "PinDesk (.pindesk)"),
     (ClaseDeFormato::Original, "original", "Original"),
     (ClaseDeFormato::Anki, "anki", "Anki"),
     (ClaseDeFormato::Wifi, "wifi", "Por Wi‑Fi a mis aparatos"),
@@ -90,7 +92,7 @@ impl ClaseDeFormato {
             "md" | "markdown" => ClaseDeFormato::Markdown,
             "texto" | "txt" => ClaseDeFormato::Texto,
             "csv" => ClaseDeFormato::Csv,
-            "editable" | "pixpin" => ClaseDeFormato::Pixpin,
+            "editable" | "pindesk" | "pixpin" => ClaseDeFormato::Pixpin,
             "original" | "originales" => ClaseDeFormato::Original,
             "anki" => ClaseDeFormato::Anki,
             "wifi" => ClaseDeFormato::Wifi,
@@ -355,7 +357,10 @@ mod pruebas {
         assert_eq!(n("web"), "Página web (HTML)");
         assert_eq!(n("svg"), "Dibujo SVG");
         assert_eq!(n("originales"), "Original");
-        assert_eq!(n("editable"), "PinDesk (.pixpin)");
+        assert_eq!(n("editable"), "PinDesk (.pindesk)");
+        assert_eq!(n("pindesk"), "PinDesk (.pindesk)");
+        assert_eq!(n("pixpin"), "PinDesk (.pindesk)");
+        assert_eq!(clase_de_formato_compartido("pindesk".into()), "pixpin");
         assert_eq!(n("md"), "Markdown");
         // Lo propio lleva el nombre de quien lo ofrece.
         assert_eq!(n("dxf"), "DXF");

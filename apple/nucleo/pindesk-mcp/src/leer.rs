@@ -36,13 +36,12 @@ pub fn raiz() -> PathBuf {
     if let Some(r) = std::env::var_os(VAR_RAIZ).filter(|r| !r.is_empty()) {
         return PathBuf::from(r);
     }
-    // La de la app del Mac (`carpetaDeDatos`): Application Support/PixPinMax.
+    // La de la app del Mac (`carpetaDeDatos`): Application Support/PinDesk,
+    // o la PixPinMax de antes si aun no se mudo.
     let casa = std::env::var_os("HOME")
         .map(PathBuf::from)
         .unwrap_or_default();
-    casa.join("Library")
-        .join("Application Support")
-        .join("PixPinMax")
+    pindesk_sistema::nombre::carpeta_de_datos(&casa.join("Library").join("Application Support"))
 }
 
 /// **El OCR con el motor que eligio el usuario en PinDesk** (`[ocr]`): leer

@@ -1156,8 +1156,8 @@ pub trait ManosAutomatizacion: Send + Sync {
     fn empieza(&self, id: String, nombre: String);
     /// Pregunta al usuario y espera. Sin respuesta es un no.
     fn confirmar(&self, pregunta: String) -> bool;
-    /// Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-    /// llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+    /// Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+    /// llegara de `pindesk://`. `None`: hecho; si no, el motivo.
     fn pedido(&self, json: String) -> Option<String>;
     /// Un turno del asistente sin ventana. `proyecto` es el id del chat
     /// sobre el que se pide; `bloquear`, el disparador (`al_capturar`…): lo

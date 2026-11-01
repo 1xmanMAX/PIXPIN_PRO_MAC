@@ -8,7 +8,7 @@
 //! - **Una nota**: sus «pregunta :: respuesta», «P: / R:» y huecos
 //!   `{{c1::…}}`.
 //!
-//! Van al mazo `PixPin::<proyecto>` con las etiquetas `pixpin` y la del
+//! Van al mazo `PinDesk::<proyecto>` (antes `PixPin::`) con las etiquetas `pindesk` y la del
 //! proyecto. Con Anki abierto (y AnkiConnect, `127.0.0.1:8765`), directas;
 //! si no, un fichero para «Archivo → Importar» en `<raiz>/anki/`, y las
 //! imagenes en la carpeta de medios del perfil de Anki si se encuentra (en
@@ -50,7 +50,7 @@ pub fn anki_hay_tarjetas_en_nota(texto: String) -> bool {
 /// El mazo de un proyecto: `::` es el separador de submazos de Anki, dentro
 /// del nombre no.
 pub fn mazo_de(nombre: &str) -> String {
-    format!("PixPin::{}", nombre.trim().replace("::", ":"))
+    format!("PinDesk::{}", nombre.trim().replace("::", ":"))
 }
 
 /// El titulo de un audio: su nombre sin la extension
@@ -205,7 +205,7 @@ pub fn tarjetas_con(
             .unwrap_or_default(),
         _ => tarjetas::de_la_nota(&m.texto),
     };
-    let etiquetas = vec!["pixpin".to_string(), tarjetas::etiqueta(proyecto)];
+    let etiquetas = vec!["pindesk".to_string(), tarjetas::etiqueta(proyecto)];
     for t in &mut v {
         t.etiquetas = etiquetas.clone();
     }
@@ -372,9 +372,9 @@ mod pruebas {
     use super::*;
 
     #[test]
-    fn el_mazo_cuelga_de_pixpin_sin_romper_los_submazos() {
-        assert_eq!(mazo_de(" Física "), "PixPin::Física");
-        assert_eq!(mazo_de("A::B"), "PixPin::A:B");
+    fn el_mazo_cuelga_de_pindesk_sin_romper_los_submazos() {
+        assert_eq!(mazo_de(" Física "), "PinDesk::Física");
+        assert_eq!(mazo_de("A::B"), "PinDesk::A:B");
     }
 
     #[test]
@@ -430,7 +430,7 @@ mod pruebas {
         assert!(t[0].frente.contains("pixpin-a.png"));
         assert!(t[0].frente.contains("Clase 24-10 18h05 · ⏱ 0:09"));
         assert!(t[0].reverso.starts_with("uno dos"));
-        assert_eq!(t[0].etiquetas, vec!["pixpin".to_string(), "Física_1".to_string()]);
+        assert_eq!(t[0].etiquetas, vec!["pindesk".to_string(), "Física_1".to_string()]);
         // Caso negativo: una nota de voz sin capturas no da tarjetas.
         let sola = Mensaje {
             clase: Some(Clase::Voz),

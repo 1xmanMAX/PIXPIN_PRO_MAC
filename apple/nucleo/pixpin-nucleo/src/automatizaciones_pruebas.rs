@@ -109,6 +109,7 @@ fn una_receta_rota_o_con_un_paso_desconocido_no_entra() {
                         "receta":{"nombre":"x","disparador":{"tipo":"a_mano"},"pasos":"[{\"herramienta\":\"volar\"}]"}});
     assert!(revisar_pedido(&pedido).unwrap_err().contains("volar"));
     assert!(revisar_pedido(&json!({"pixpin":1,"accion":"capturar"})).is_ok());
+    assert!(revisar_pedido(&json!({"pindesk":1,"accion":"capturar"})).is_ok());
 }
 
 #[test]

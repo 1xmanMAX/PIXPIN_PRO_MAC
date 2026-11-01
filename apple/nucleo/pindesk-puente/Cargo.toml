@@ -1,6 +1,6 @@
 # El puente de la extension del navegador (`apps/pindesk-puente` de Windows)
 # en el Mac: Chrome lo arranca como «host» de mensajeria nativa y el pedido
-# llega a PinDesk por el enlace firmado `pixpinmax://pedido`.
+# llega a PinDesk por el enlace firmado `pindesk://pedido`.
 [package]
 name = "pindesk-puente"
 version.workspace = true

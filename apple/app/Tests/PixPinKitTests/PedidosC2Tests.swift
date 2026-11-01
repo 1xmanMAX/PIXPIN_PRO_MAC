@@ -142,15 +142,18 @@ final class PedidosC2Tests: XCTestCase {
         for r in rutas {
             let d = try XCTUnwrap(NSDictionary(contentsOf: r), r.path)
             let esquemas = (d["CFBundleURLTypes"] as? [[String: Any]])?.flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
-            XCTAssertEqual(esquemas, ["pixpinmax"], r.path)
+            XCTAssertEqual(esquemas, ["pindesk", "pixpinmax"], r.path)
             let tipos = (d["CFBundleDocumentTypes"] as? [[String: Any]])?.flatMap { $0["LSItemContentTypes"] as? [String] ?? [] } ?? []
             for t in ["public.image", "public.movie", "public.audio", "com.adobe.pdf",
-                      "io.github.1xmanmax.pixpin.proyecto"] { XCTAssertTrue(tipos.contains(t), t) }
+                      "io.github.1xmanmax.pindesk.proyecto", "io.github.1xmanmax.pixpin.proyecto"] {
+                XCTAssertTrue(tipos.contains(t), t)
+            }
             let mensajes = (d["NSServices"] as? [[String: Any]])?.compactMap { $0["NSMessage"] as? String } ?? []
             XCTAssertEqual(mensajes, ServiciosFinder.servicios.map(\.mensaje), r.path)
             vistos.append(d)
         }
-        for clave in ["CFBundleURLTypes", "CFBundleDocumentTypes", "NSServices", "UTImportedTypeDeclarations"] {
+        for clave in ["CFBundleURLTypes", "CFBundleDocumentTypes", "NSServices", "UTImportedTypeDeclarations",
+                      "UTExportedTypeDeclarations", "NSBonjourServices"] {
             XCTAssertEqual(vistos[0][clave] as? NSArray, vistos[1][clave] as? NSArray, clave)
         }
     }

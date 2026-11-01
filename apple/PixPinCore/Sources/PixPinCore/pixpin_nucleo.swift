@@ -716,8 +716,8 @@ public protocol AppIa: AnyObject, Sendable {
     func confirmar(pregunta: String)  -> Bool
     
     /**
-     * Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-     * llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+     * Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+     * llegara de `pindesk://`. `None`: hecho; si no, el motivo.
      */
     func pedido(json: String)  -> String?
     
@@ -830,8 +830,8 @@ open func confirmar(pregunta: String) -> Bool  {
 }
     
     /**
-     * Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-     * llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+     * Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+     * llegara de `pindesk://`. `None`: hecho; si no, el motivo.
      */
 open func pedido(json: String) -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
@@ -5559,8 +5559,8 @@ public func FfiConverterTypeHojaDeCalculo_lower(_ value: HojaDeCalculo) -> UInt6
 public protocol InvitacionProtocol: AnyObject, Sendable {
     
     /**
-     * Lo que hay que anunciar en Bonjour: `PixPin <nombre>` del tipo
-     * `_pixpinchat._tcp` con el TXT `g` (como Windows). PBKDF2: fuera del
+     * Lo que hay que anunciar en Bonjour: `PinDesk <nombre>` del tipo
+     * `_pindeskchat._tcp` (y el de antes) con el TXT `g` (como Windows). PBKDF2: fuera del
      * hilo de la interfaz.
      */
     func anuncio(nombre: String)  -> AnuncioBonjour
@@ -5649,8 +5649,8 @@ open class Invitacion: InvitacionProtocol, @unchecked Sendable {
 
     
     /**
-     * Lo que hay que anunciar en Bonjour: `PixPin <nombre>` del tipo
-     * `_pixpinchat._tcp` con el TXT `g` (como Windows). PBKDF2: fuera del
+     * Lo que hay que anunciar en Bonjour: `PinDesk <nombre>` del tipo
+     * `_pindeskchat._tcp` (y el de antes) con el TXT `g` (como Windows). PBKDF2: fuera del
      * hilo de la interfaz.
      */
 open func anuncio(nombre: String) -> AnuncioBonjour  {
@@ -6346,8 +6346,8 @@ public protocol ManosAutomatizacion: AnyObject, Sendable {
     func confirmar(pregunta: String)  -> Bool
     
     /**
-     * Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-     * llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+     * Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+     * llegara de `pindesk://`. `None`: hecho; si no, el motivo.
      */
     func pedido(json: String)  -> String?
     
@@ -6449,8 +6449,8 @@ open func confirmar(pregunta: String) -> Bool  {
 }
     
     /**
-     * Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-     * llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+     * Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+     * llegara de `pindesk://`. `None`: hecho; si no, el motivo.
      */
 open func pedido(json: String) -> String?  {
     return try!  FfiConverterOptionString.lift(try! rustCall() {
@@ -7931,7 +7931,8 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func rutaAbsoluta(chat: String, rutaRelativa: String) throws  -> String
     
     /**
-     * Los ajustes de `pixpinmax.toml` (los de fabrica si no hay fichero).
+     * Los ajustes de `pindesk.toml` (o del `pixpinmax.toml` de antes; los de
+     * fabrica si no hay fichero).
      */
     func ajustes() throws  -> AjustesMac
     
@@ -7942,12 +7943,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func ajustesDeFabrica()  -> AjustesMac
     
     /**
-     * Guarda los ajustes del Mac en `pixpinmax.toml` sin tocar lo demas.
+     * Guarda los ajustes del Mac en `pindesk.toml` (o en el `pixpinmax.toml`
+     * de antes si es el que hay) sin tocar lo demas.
      */
     func guardarAjustes(nuevos: AjustesMac) throws 
     
     /**
-     * La ruta de `pixpinmax.toml` (para ensenarla).
+     * La ruta de `pindesk.toml` (o la del de antes; para ensenarla).
      */
     func rutaAjustes()  -> String
     
@@ -10165,7 +10167,8 @@ open func rutaAbsoluta(chat: String, rutaRelativa: String)throws  -> String  {
 }
     
     /**
-     * Los ajustes de `pixpinmax.toml` (los de fabrica si no hay fichero).
+     * Los ajustes de `pindesk.toml` (o del `pixpinmax.toml` de antes; los de
+     * fabrica si no hay fichero).
      */
 open func ajustes()throws  -> AjustesMac  {
     return try  FfiConverterTypeAjustesMac_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -10190,7 +10193,8 @@ open func ajustesDeFabrica() -> AjustesMac  {
 }
     
     /**
-     * Guarda los ajustes del Mac en `pixpinmax.toml` sin tocar lo demas.
+     * Guarda los ajustes del Mac en `pindesk.toml` (o en el `pixpinmax.toml`
+     * de antes si es el que hay) sin tocar lo demas.
      */
 open func guardarAjustes(nuevos: AjustesMac)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
         uniffiCallStatus in
@@ -10202,7 +10206,7 @@ open func guardarAjustes(nuevos: AjustesMac)throws   {try rustCallWithError(FfiC
 }
     
     /**
-     * La ruta de `pixpinmax.toml` (para ensenarla).
+     * La ruta de `pindesk.toml` (o la del de antes; para ensenarla).
      */
 open func rutaAjustes() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -19378,19 +19382,19 @@ public func FfiConverterTypeAnotadoPlano_lower(_ value: AnotadoPlano) -> RustBuf
 
 /**
  * **Lo que este aparato anuncia en la red**, igual que Windows
- * (`anunciarse`) y Android (`Presencia`): la instancia `PixPin <nombre>`
- * del tipo `_pixpin._tcp` con el TXT `g` (etiqueta del grupo), `id`, `l`
+ * (`anunciarse`) y Android (`Presencia`): la instancia `PinDesk <nombre>`
+ * del tipo `_pindesk._tcp` (y del de antes, [`tipo_de_antes`]) con el TXT `g` (etiqueta del grupo), `id`, `l`
  * (letra) y `n` (nombre, 40 letras como mucho). El puerto lo pone quien
  * anuncia: el de su [`Escucha`].
  */
 public struct AnuncioBonjour: Equatable, Hashable {
     /**
-     * `PixPin Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
+     * `PinDesk Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
      * partir una letra.
      */
     public var instancia: String
     /**
-     * `_pixpin._tcp`.
+     * `_pindesk._tcp` (el de antes, con [`tipo_de_antes`]).
      */
     public var tipo: String
     /**
@@ -19411,11 +19415,11 @@ public struct AnuncioBonjour: Equatable, Hashable {
     // declare one manually.
     public init(
         /**
-         * `PixPin Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
+         * `PinDesk Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
          * partir una letra.
          */instancia: String, 
         /**
-         * `_pixpin._tcp`.
+         * `_pindesk._tcp` (el de antes, con [`tipo_de_antes`]).
          */tipo: String, 
         /**
          * `g`, `id`, `l`, `n`, en ese orden.
@@ -29208,7 +29212,7 @@ public struct GrabacionParaCompartir: Equatable, Hashable {
      */
     public var originales: [String]
     /**
-     * El mazo de Anki (`PixPin::<proyecto>`).
+     * El mazo de Anki (`PinDesk::<proyecto>`).
      */
     public var mazo: String
 
@@ -29227,7 +29231,7 @@ public struct GrabacionParaCompartir: Equatable, Hashable {
          * «Originales».
          */originales: [String], 
         /**
-         * El mazo de Anki (`PixPin::<proyecto>`).
+         * El mazo de Anki (`PinDesk::<proyecto>`).
          */mazo: String) {
         self.titulo = titulo
         self.fecha = fecha
@@ -34519,6 +34523,81 @@ public func FfiConverterTypeMotorIa_lift(_ buf: RustBuffer) throws -> MotorIa {
 #endif
 public func FfiConverterTypeMotorIa_lower(_ value: MotorIa) -> RustBuffer {
     return FfiConverterTypeMotorIa.lower(value)
+}
+
+
+/**
+ * **La carpeta de datos que se usa** tras la mudanza y que paso.
+ */
+public struct MudanzaDeDatos: Equatable, Hashable {
+    /**
+     * La ruta que hay que abrir: `<base>/PinDesk`, o `<base>/PixPinMax` si
+     * no se pudo mudar.
+     */
+    public var carpeta: String
+    public var quePaso: QuePasoConLosDatos
+    /**
+     * El motivo, si fallo (para el registro).
+     */
+    public var detalle: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La ruta que hay que abrir: `<base>/PinDesk`, o `<base>/PixPinMax` si
+         * no se pudo mudar.
+         */carpeta: String, quePaso: QuePasoConLosDatos, 
+        /**
+         * El motivo, si fallo (para el registro).
+         */detalle: String) {
+        self.carpeta = carpeta
+        self.quePaso = quePaso
+        self.detalle = detalle
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MudanzaDeDatos: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMudanzaDeDatos: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MudanzaDeDatos {
+        return
+            try MudanzaDeDatos(
+                carpeta: FfiConverterString.read(from: &buf), 
+                quePaso: FfiConverterTypeQuePasoConLosDatos.read(from: &buf), 
+                detalle: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MudanzaDeDatos, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.carpeta, into: &buf)
+        FfiConverterTypeQuePasoConLosDatos.write(value.quePaso, into: &buf)
+        FfiConverterString.write(value.detalle, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMudanzaDeDatos_lift(_ buf: RustBuffer) throws -> MudanzaDeDatos {
+    return try FfiConverterTypeMudanzaDeDatos.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMudanzaDeDatos_lower(_ value: MudanzaDeDatos) -> RustBuffer {
+    return FfiConverterTypeMudanzaDeDatos.lower(value)
 }
 
 
@@ -48443,6 +48522,101 @@ public func FfiConverterTypeQueExportar_lower(_ value: QueExportar) -> RustBuffe
 
 
 /**
+ * Lo que paso al mudar.
+ */
+
+public enum QuePasoConLosDatos: Equatable, Hashable {
+    
+    /**
+     * No habia carpeta vieja, o ya estaba la nueva.
+     */
+    case nada
+    /**
+     * Se renombro.
+     */
+    case movida
+    /**
+     * Se copio; la vieja se queda con sus datos y la nota.
+     */
+    case copiada
+    /**
+     * No se pudo: se sigue con la vieja, intacta.
+     */
+    case fallo
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension QuePasoConLosDatos: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeQuePasoConLosDatos: FfiConverterRustBuffer {
+    typealias SwiftType = QuePasoConLosDatos
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> QuePasoConLosDatos {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .nada
+        
+        case 2: return .movida
+        
+        case 3: return .copiada
+        
+        case 4: return .fallo
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: QuePasoConLosDatos, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .nada:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .movida:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .copiada:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .fallo:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQuePasoConLosDatos_lift(_ buf: RustBuffer) throws -> QuePasoConLosDatos {
+    return try FfiConverterTypeQuePasoConLosDatos.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeQuePasoConLosDatos_lower(_ value: QuePasoConLosDatos) -> RustBuffer {
+    return FfiConverterTypeQuePasoConLosDatos.lower(value)
+}
+
+
+
+/**
  * Como se pinta el fondo (`fillStyle`).
  */
 
@@ -57380,7 +57554,7 @@ public func leerInvitacion(texto: String) -> CodigoDeInvitacion?  {
 })
 }
 /**
- * `_pixpinchat._tcp`.
+ * `_pindeskchat._tcp` (antes `_pixpinchat._tcp`, [`crate::sincro::tipo_de_antes`]).
  */
 public func tipoDeServicioChat() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -57932,7 +58106,8 @@ public func leerCodigoDeEnvio(texto: String) -> CodigoDeEnvio?  {
 })
 }
 /**
- * `_pixpinenvio._tcp`: quien envia y espera.
+ * `_pindeskenvio._tcp` (antes `_pixpinenvio._tcp`, [`crate::sincro::tipo_de_antes`]):
+ * quien envia y espera.
  */
 public func tipoDeServicioEnvio() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -57942,7 +58117,7 @@ public func tipoDeServicioEnvio() -> String  {
 })
 }
 /**
- * `_pixpinrecibe._tcp`: quien espera para recibir.
+ * `_pindeskrecibe._tcp` (antes `_pixpinrecibe._tcp`): quien espera para recibir.
  */
 public func tipoDeServicioRecibir() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -59576,6 +59751,33 @@ public func videoCon(codificador: CodificadorVideo) -> String  {
 })
 }
 /**
+ * **La carpeta de datos bajo `base`** sin mover nada: la nueva si existe;
+ * si no, la vieja si aun tiene datos; si no, la nueva (la regla de los
+ * ayudantes, `nombre::carpeta_de_datos`).
+ */
+public func carpetaDeDatosEn(base: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_carpeta_de_datos_en(
+        FfiConverterString.lower(base),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Muda `<base>/PixPinMax` a `<base>/PinDesk`** si hace falta y dice cual
+ * usar. `base` es `~/Library/Application Support`. Bloqueante (una copia
+ * puede tardar): Swift la llama una vez al arrancar, antes de abrir el
+ * nucleo.
+ */
+public func mudarCarpetaDeDatos(base: String) -> MudanzaDeDatos  {
+    return try!  FfiConverterTypeMudanzaDeDatos_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mudar_carpeta_de_datos(
+        FfiConverterString.lower(base),uniffiCallStatus
+    )
+})
+}
+/**
  * **El album** (`nota_rica::album`): las cajas de las fotos dadas sus
  * proporciones (cero o menos si no se sabe: un 4:3), el ancho que hay, el
  * tope de una foto sola y el de cada fila, y el hueco entre fotos. Una
@@ -59906,8 +60108,24 @@ public func puertoPreferido() -> UInt16  {
 })
 }
 /**
+ * **El tipo de antes de un tipo de PinDesk** (`_pindesk._tcp` →
+ * `_pixpin._tcp`, `_pindeskenvio._tcp` → `_pixpinenvio._tcp`…), sin el
+ * punto final, o `None` si no es de los de PinDesk. Como `tipo_de_antes` de
+ * Windows (`pindesk_shell::mdns`): mientras haya aparatos sin actualizar se
+ * anuncia y se busca con los dos, y si un aparato sale en los dos se usa el
+ * nuevo (docs/formato-pindesk.md).
+ */
+public func tipoDeAntes(tipo: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tipo_de_antes(
+        FfiConverterString.lower(tipo),uniffiCallStatus
+    )
+})
+}
+/**
  * El tipo de servicio de Bonjour para sincronizar, sin el punto final:
- * `_pixpin._tcp` (como lo piden `NWBrowser` y `DNSServiceRegister`).
+ * `_pindesk._tcp` (como lo piden `NWBrowser` y `DNSServiceRegister`).
  */
 public func tipoDeServicio() -> String  {
     return try!  FfiConverterString.lift(try! rustCall() {
@@ -60337,7 +60555,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_leer_invitacion() != 58561) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_chat() != 60202) {
+    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_chat() != 37937) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_nombre_de_fichero_compartido() != 33299) {
@@ -60460,10 +60678,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_leer_codigo_de_envio() != 16060) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_envio() != 6110) {
+    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_envio() != 25231) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_recibir() != 11481) {
+    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio_recibir() != 32640) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_clase_acercar() != 32631) {
@@ -60850,6 +61068,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_video_con() != 55004) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_carpeta_de_datos_en() != 224) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mudar_carpeta_de_datos() != 3880) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_album_de_nota() != 59997) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -60928,7 +61152,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_puerto_preferido() != 61456) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio() != 57375) {
+    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_antes() != 44823) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tipo_de_servicio() != 60529) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_rondas_con_todos() != 23075) {
@@ -61009,16 +61236,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_absoluta() != 15898) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ajustes() != 19676) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ajustes() != 49144) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ajustes_de_fabrica() != 55380) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_ajustes() != 21013) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_ajustes() != 20900) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_ajustes() != 12786) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_ajustes() != 35222) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ajustes_organizar() != 36370) {
@@ -61918,7 +62145,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_appia_confirmar() != 48692) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_appia_pedido() != 19552) {
+    if (uniffi_pixpin_nucleo_checksum_method_appia_pedido() != 3977) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_appia_leer_texto() != 8155) {
@@ -61945,7 +62172,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_confirmar() != 26271) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_pedido() != 61689) {
+    if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_pedido() != 20224) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_manosautomatizacion_asistente() != 30055) {
@@ -61963,7 +62190,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_buscadorenchats_buscar() != 7672) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_invitacion_anuncio() != 30446) {
+    if (uniffi_pixpin_nucleo_checksum_method_invitacion_anuncio() != 17277) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_invitacion_atender() != 13124) {

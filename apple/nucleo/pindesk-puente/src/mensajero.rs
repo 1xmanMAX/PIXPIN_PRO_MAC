@@ -1,7 +1,8 @@
 //! **El mensajero del Mac** (el `pindesk_shell::mensajero` de Windows): en
-//! vez de `WM_COPYDATA`, el pedido va por el enlace `pixpinmax://pedido`,
-//! firmado con la clave de la app (`enlaces.clave`) y abierto con
-//! `open -g` (arranca PinDesk si esta cerrada).
+//! vez de `WM_COPYDATA`, el pedido va por el enlace `pindesk://pedido` (antes
+//! `pixpinmax://pedido`, que la app sigue entendiendo), firmado con la clave
+//! de la app (`enlaces.clave`) y abierto con `open -g` (arranca PinDesk si
+//! esta cerrada).
 
 use std::path::PathBuf;
 
@@ -10,8 +11,25 @@ use sha2::{Digest, Sha256};
 /// Lo mas largo de un pedido.
 pub const TOPE_PEDIDO: usize = 64 * 1024;
 
-/// La version del protocolo (`"pixpin": 1`).
+/// La version del protocolo (`"pindesk": 1`).
 pub const VERSION_PEDIDO: u64 = 1;
+
+/// El campo de la version: `"pindesk"`. Hasta nov-2026 era `"pixpin"`
+/// ([`CAMPO_VERSION_VIEJO`]), que se sigue aceptando (docs/formato-pindesk.md).
+pub const CAMPO_VERSION: &str = "pindesk";
+/// El campo de la version de antes de [`CAMPO_VERSION`].
+pub const CAMPO_VERSION_VIEJO: &str = "pixpin";
+
+/// La version de un pedido: su `"pindesk"` o, si no lo trae, su `"pixpin"`.
+pub fn version_de(pedido: &serde_json::Value) -> Option<&serde_json::Value> {
+    pedido
+        .get(CAMPO_VERSION)
+        .or_else(|| pedido.get(CAMPO_VERSION_VIEJO))
+}
+
+/// El esquema de los enlaces que arma el puente (la app entiende tambien
+/// `pixpinmax:` y `pixpin:`).
+pub const ESQUEMA: &str = "pindesk";
 
 pub mod respuesta {
     pub const ACEPTADO: isize = 1;
@@ -72,10 +90,10 @@ pub const ACCIONES: [&str; 37] = [
 
 /// El vistazo de la ventana de Windows: JSON, version y accion conocida.
 pub fn validar_pedido(json: &str) -> isize {
-    let Ok(serde_json::Value::Object(pedido)) = serde_json::from_str::<serde_json::Value>(json) else {
+    let Ok(pedido @ serde_json::Value::Object(_)) = serde_json::from_str::<serde_json::Value>(json) else {
         return respuesta::NO_SE_ENTIENDE;
     };
-    match pedido.get("pixpin").and_then(|v| v.as_u64()) {
+    match version_de(&pedido).and_then(|v| v.as_u64()) {
         Some(VERSION_PEDIDO) => {}
         Some(_) => return respuesta::VERSION_NO,
         None => return respuesta::NO_SE_ENTIENDE,
@@ -116,17 +134,26 @@ pub fn hmac(clave: &[u8], texto: &[u8]) -> String {
     fuera.finalize().iter().map(|b| format!("{b:02x}")).collect()
 }
 
+/// La carpeta de datos de la app del Mac (`carpetaDeDatos`):
+/// `Application Support/PinDesk`, o la `PixPinMax` de antes si aun no se
+/// mudo (`pindesk_sistema::nombre::carpeta_de_datos`).
+pub fn carpeta_de_datos_del_mac() -> Option<PathBuf> {
+    let casa = std::env::var_os("HOME").filter(|h| !h.is_empty()).map(PathBuf::from)?;
+    Some(pindesk_sistema::nombre::carpeta_de_datos(
+        &casa.join("Library/Application Support"),
+    ))
+}
+
 /// La clave de firmar de la app, si ya firmo algo alguna vez.
 fn clave() -> Option<Vec<u8>> {
-    let casa = std::env::var_os("HOME").map(PathBuf::from)?;
-    let d = std::fs::read(casa.join("Library/Application Support/PixPinMax/enlaces.clave")).ok()?;
+    let d = std::fs::read(carpeta_de_datos_del_mac()?.join("enlaces.clave")).ok()?;
     (d.len() == 32).then_some(d)
 }
 
 /// **El enlace del pedido**, firmado si hay clave (lo canonico es el verbo y
 /// los campos ya descodificados, uno por renglon: `pedido\njson=…`).
 pub fn enlace(json: &str, clave: Option<&[u8]>) -> String {
-    let mut u = format!("pixpinmax://pedido?json={}", codificar(json));
+    let mut u = format!("{ESQUEMA}://pedido?json={}", codificar(json));
     if let Some(k) = clave {
         u.push_str("&firma=");
         u.push_str(&hmac(k, format!("pedido\njson={json}").as_bytes()));

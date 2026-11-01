@@ -147,11 +147,11 @@ impl Entorno {
         );
         let raiz = match en_seco {
             Some(r) => r,
-            // La del Mac: Application Support/PixPinMax (`carpetaDeDatos`).
+            // La del Mac (`carpetaDeDatos`): Application Support/PinDesk, o
+            // la PixPinMax de antes si aun no se mudo.
             None => {
                 let _ = dir_exe;
-                PathBuf::from(std::env::var_os("HOME")?)
-                    .join("Library/Application Support/PixPinMax")
+                crate::mensajero::carpeta_de_datos_del_mac()?
             }
         };
         Some(Entorno {

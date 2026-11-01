@@ -1,8 +1,9 @@
 // Encontrar en la Wi-Fi a quien tiene un codigo (un envio de seis cifras o
 // una invitacion a un chat compartido) sin que el codigo se publique: se
-// busca en Bonjour el tipo (`_pixpinenvio._tcp`, `_pixpinrecibe._tcp`,
-// `_pixpinchat._tcp`) y se elige el que anuncia la etiqueta de ese codigo
-// en su TXT `g`, como `buscar_y_conectar` de Windows.
+// busca en Bonjour el tipo (`_pindeskenvio._tcp`, `_pindeskrecibe._tcp`,
+// `_pindeskchat._tcp`, y a la vez su tipo de antes `_pixpin…`: `Vecinos`) y
+// se elige el que anuncia la etiqueta de ese codigo en su TXT `g`, como
+// `buscar_y_conectar` de Windows.
 //
 // Esas puertas no contestan la sonda `PING` (no son la escucha de
 // siempre): la direccion se saca abriendo una conexion y cerrandola sin

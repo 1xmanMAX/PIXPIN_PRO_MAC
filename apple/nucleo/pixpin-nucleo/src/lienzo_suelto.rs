@@ -8,7 +8,7 @@
 //! los archivos en la conversacion general como adjunto, sin abrirlos.
 //!
 //! El movil manda un lienzo de otra manera (`EnviarActivity.deLienzo`):
-//! tipo `lienzo`, dentro un `.pixpin` con UN proyecto de UNA hoja, la
+//! tipo `lienzo`, dentro un `.pindesk` con UN proyecto de UNA hoja, la
 //! identidad `lienzo:<proyecto>:<hoja>` y el proyecto del que es, para que
 //! al otro lado caiga en el mismo (`Recepcion.guardarLienzo`). Aqui se hace
 //! lo mismo en los dos sentidos:
@@ -206,7 +206,7 @@ fn nombre_de_hoja(nombre: &str, dibujo: &str) -> String {
 }
 
 /// Un lienzo del PC como lo manda el movil (`EnviarActivity.deLienzo`):
-/// el elemento de la oferta y los bytes del `.pixpin` de una hoja.
+/// el elemento de la oferta y los bytes del `.pindesk` de una hoja.
 pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec<u8>), String> {
     let json = std::fs::read_to_string(ruta).map_err(|e| e.to_string())?;
     let en_proyecto = proyecto_y_dibujo(raiz, ruta);
@@ -220,7 +220,7 @@ pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec
     empaquetar_de(raiz, &json, en_proyecto, &nombre, &al_lado, ahora)
 }
 
-/// **El `.pixpin` de un lienzo para «Compartir»** (`pixpin_de_un_lienzo` de
+/// **El `.pindesk` de un lienzo para «Compartir»** (`pixpin_de_un_lienzo` de
 /// Windows, 20-oct-2026): el lienzo `json` como la hoja de un proyecto
 /// NUEVO llamado `nombre` (no el del chat: al otro lado no pisa nada), con
 /// las fotos de `files` buscadas en `carpeta` (`imagenes/<id>` del chat o
@@ -406,11 +406,11 @@ fn empaquetar_de(
     ))
 }
 
-/// El nombre del `.pixpin` que sale, el de `deLienzo`: «Proyecto - Hoja».
+/// El nombre del `.pindesk` que sale, el de `deLienzo`: «Proyecto - Hoja».
 pub fn nombre_del_paquete(e: &Elemento) -> String {
     let proyecto = e.proyecto_nombre.as_deref().unwrap_or("Proyecto");
     format!(
-        "{}.pixpin",
+        "{}.pindesk",
         envio::nombre_sano(&format!("{proyecto} - {}", e.nombre))
     )
 }

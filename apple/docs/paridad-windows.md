@@ -31,18 +31,40 @@ registrado**. Hecho:
   artefacto de la CI «PinDesk-mac-extensiones». El puente del navegador busca la app
   (`exe_de_pixpin`) en su propio paquete y si no en `/Applications/PinDesk.app` y luego
   `/Applications/PixPin.app` (como Windows `pindesk.exe` y luego `pixpinmax.exe`, con pruebas);
-  `registrar-navegador.sh` igual. El MCP no busca la app (abre `pixpinmax://`).
+  `registrar-navegador.sh` igual. El MCP no busca la app (abre `pindesk://`, ver abajo).
 - La extensión del navegador, igual que la de Windows (nombre, menú y avisos).
 
-Se queda igual (y por qué, lo mismo que en Windows): `~/Library/Application Support/PixPinMax`,
-`pixpinmax.toml`, el Llavero `PixPinMax.*` (y su etiqueta «PixPin: clave de …», que no se ve en la
-app), `CFBundleIdentifier` `io.github.1xmanmax.pixpin` y los UTI, `CFBundleExecutable`
-(`Contents/MacOS/PixPin`) y el `NSPortName` de los Servicios, los esquemas `pixpin`/`pixpinmax`,
-`.pixpin`, `_pixpin._tcp` y la instancia «PixPin <equipo>», «PixPin · hoja N», las fotos
-`PixPin_…`, los mazos «PixPin::», el anfitrión `com.pixpinmax.puente`, las claves de
+Se queda igual (y por qué, lo mismo que en Windows): el Llavero `PixPinMax.*` (y su etiqueta
+«PixPin: clave de …», que no se ve en la app; es la entropía de DPAPI de Windows),
+`CFBundleIdentifier` `io.github.1xmanmax.pixpin` y los UTI de antes, `CFBundleExecutable`
+(`Contents/MacOS/PixPin`) y el `NSPortName` de los Servicios, las fotos `PixPin_…`, las claves de
 `UserDefaults`/ventanas/notificaciones (`PixPin…`), la cabecera `X-PixPin-Plazo`, los `NSLog`,
-y los módulos y tipos (`PixPinKit`, `PixPinCore`, `PixPinMacApp`, `AppPixPin`, `CompartirPixPin`).
+los módulos y tipos (`PixPinKit`, `PixPinCore`, `PixPinMacApp`, `AppPixPin`, `CompartirPixPin`),
+el puente `pixpin-nucleo` y los nombres de su API de Swift, y todo lo de la **fase B** (abajo).
 El icono no cambia: Windows solo cambió el texto del `banner.svg` de su README.
+
+## El formato y los nombres de PinDesk (1-nov-2026, Windows `docs/formato-pindesk.md`)
+
+La segunda etapa de Windows (c7a42d2, 920bc2d, 7279091, d9c13ed, 94331d6, 718fcbb): **se escribe con
+el nombre nuevo, se lee también el viejo y se migra una vez**. En el Mac (fase A de la tabla):
+
+| Qué | Escribe | Lee también | Dónde |
+|---|---|---|---|
+| Carpeta de datos | `~/Library/Application Support/PinDesk` | `PixPinMax` (sin mudar) | `K/Almacen.swift` `CarpetaDeDatos`: al primer `carpetaDeDatos()` la muda el núcleo (`N/mudanza.rs` `mudarCarpetaDeDatos`, con `pindesk_sistema::nombre::migrar_carpeta`: renombrar; si no, copiar a `PinDesk.migrando` y renombrar; `MOVIDO-A-PINDESK.txt` en la vieja; si falla, se sigue con la vieja). El MCP, el puente y la extensión de Compartir solo eligen (`carpeta_de_datos`, `carpetaDeDatosEn`); `Compartir.entitlements` deja las dos |
+| Ajustes | `pindesk.toml` | `pixpinmax.toml` | el núcleo (`pindesk_store`); la mudanza lo renombra; `AjustesCaptura.fichero` igual |
+| Proyecto en un fichero | `.pindesk` (`formato: "pindesk"`) | `.pixpin` | compartir, exportar, Wi‑Fi, recibir (`N/recepcion.rs`, `N/envio.rs`, `N/lienzo_suelto.rs`), abrir/«Abrir con» (`K/Pedidos`, `PaqueteProyecto`), Quick Look; UTI nuevo `io.github.1xmanmax.pindesk.proyecto` (además del de `.pixpin`) en los dos `Info.plist` y en `VistaPrevia-Info.plist`; «PinDesk (.pindesk)» |
+| Enlaces | `pindesk://` | `pixpinmax://`, `pixpin://` | `K/Pedidos/Enlaces.swift`, los dos `Info.plist` (`pindesk` y `pixpinmax`; `pixpin` no se reclama, es del PixPin de DepthPixel), el MCP y el puente |
+| Pedidos | `{"pindesk": 1, …}` | `"pixpin": 1` (si vienen los dos, manda `pindesk`) | `K/Pedidos/Pedido.swift`, `N/asistente`, el puente (`mensajero::version_de`) |
+| Sincronizar | `_pindesk._tcp`, `_pindeskenvio`, `_pindeskrecibe`, `_pindeskchat` **y** los `_pixpin…` | los dos; un aparato en los dos, con lo del nuevo | `K/Sincro/Vecinos.swift` (dos `NWBrowser`), `Anunciador.swift` (dos registros), `N/sincro.rs` `tipoDeAntes`; `NSBonjourServices` con los ocho |
+| Instancia | `PinDesk <aparato>` | `PixPin <aparato>` | `N/sincro.rs` `instancia_de`, `DatosVecino.nombreParaVer` |
+| QR | (fase B: `pixpin-envio/recibe/chat`) | `pindesk-envio/recibe/chat` | `pindesk-sincro` |
+| Anki | `PinDesk::<chat>`, etiqueta `pindesk` | — | `N/anki.rs`, `N/compartir_grabacion.rs` |
+| Capas de los PDF, emoji, `"source"` | `PinDesk · hoja N`, `{"pindesk":"emoji","pixpin":"emoji"}`, `"pindesk"` | las dos | los crates (`pindesk-pdf`, `pindesk-motor2d`), `N/zona_al_chat.rs`, `N/fusionar_paginas.rs` |
+| Navegador | anfitrión `com.pindesk.puente` | — (se quita `com.pixpinmax.puente`) | `apple/extension-navegador` (copia de la de Windows), `herramientas/registrar-navegador.sh`; hay que recargar la extensión |
+
+**Fase B** (se sigue escribiendo el viejo porque otro aparato aún no lee el nuevo): los QR que
+enseña el Mac, `pixpin:files/`, los ficheros `.pixpin-lectura`/`-anotado`/`-marcos`/`-vistas`/
+`-marcas`, `.pixpin2d`, `.pixpin-lista`. No cambia: las magias y la sal de Sincronizar.
 
 ## Resumen
 

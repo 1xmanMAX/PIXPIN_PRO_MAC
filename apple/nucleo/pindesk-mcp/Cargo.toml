@@ -1,7 +1,7 @@
 # El servidor MCP de PinDesk para el Mac (`pindesk-mcp`), el de Windows
 # (`apps/pindesk-mcp`) adaptado: Claude Desktop, Claude Code y cualquier
 # cliente MCP lo arrancan y le hablan JSON-RPC 2.0 por stdin/stdout. Lo que
-# escribe en PinDesk va por el enlace firmado `pixpinmax://pedido` (el pedido
+# escribe en PinDesk va por el enlace firmado `pindesk://pedido` (el pedido
 # `herramienta`, con su fichero de respuesta); lo que lee, aqui mismo.
 [package]
 name = "pindesk-mcp"
@@ -17,6 +17,8 @@ path = "src/main.rs"
 serde_json = "1.0"
 sha2 = "0.10.9"
 pindesk-ia = { path = "../pindesk-ia" }
+# La carpeta de datos (`nombre::carpeta_de_datos`: PinDesk, o PixPinMax sin mover).
+pindesk-sistema = { path = "../pindesk-sistema" }
 pindesk-proyecto = { path = "../pindesk-proyecto" }
 pindesk-pdf = { path = "../pindesk-pdf" }
 pindesk-docs = { path = "../pindesk-docs" }

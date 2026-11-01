@@ -119,9 +119,15 @@ public struct AjustesCaptura: Equatable, Sendable {
         return a
     }
 
-    /// El fichero de ajustes de la carpeta de datos.
+    /// El fichero de ajustes de la carpeta de datos: `pindesk.toml`, o el
+    /// `pixpinmax.toml` de antes si solo esta ese (`nombre::ajustes_en`).
     public static var fichero: URL {
-        carpetaDeDatos().appendingPathComponent("pixpinmax.toml")
+        let datos = carpetaDeDatos()
+        let nuevo = datos.appendingPathComponent("pindesk.toml")
+        let viejo = datos.appendingPathComponent("pixpinmax.toml")
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: nuevo.path), fm.fileExists(atPath: viejo.path) { return viejo }
+        return nuevo
     }
 
     /// Los de ahora (de fabrica si no hay fichero o no se puede leer).

@@ -74,7 +74,7 @@ public final class HacerPedidos {
         }
         switch l.orden {
         case .ayuda:
-            avisar("pixpinmax://<verbo>?campo=valor\n" + Verbos.tabla.filter(\.porEnlace).map(\.nombres[0]).joined(separator: ", "))
+            avisar("pindesk://<verbo>?campo=valor\n" + Verbos.tabla.filter(\.porEnlace).map(\.nombres[0]).joined(separator: ", "))
         case let .ocr(rutas, _):
             hacerUno(Pedido("ocr", ["ruta": .texto(rutas.first ?? ""), "rutas": .textos(Array(rutas.dropFirst()))]))
         case let .preguntar(rutas, proyecto):
@@ -337,10 +337,11 @@ public final class HacerPedidos {
             avisar("No existe «\(url.path)».")
             return false
         }
-        // Un `.pixpin` no es un fichero que pinear: es un proyecto entero, y
+        // Un `.pindesk` (o el `.pixpin` de antes) no es un fichero que
+        // pinear: es un proyecto entero, y
         // entra en la lista de proyectos, que es donde se busca (Windows,
         // `abrir_ficheros`). Lo editable que se comparte es este.
-        if url.pathExtension.lowercased() == "pixpin" {
+        if PaqueteProyecto.es(url) {
             Task { await abrirProyecto(url) }
             return true
         }
@@ -355,7 +356,7 @@ public final class HacerPedidos {
         return false
     }
 
-    /// **Un `.pixpin` de fuera, a la lista de proyectos**
+    /// **Un `.pindesk` (o `.pixpin`) de fuera, a la lista de proyectos**
     /// (`importar_paquete` de Windows): pone al dia el mismo proyecto si ya
     /// esta (con su copia de antes) o entra como uno nuevo, y se abre.
     private func abrirProyecto(_ url: URL) async {

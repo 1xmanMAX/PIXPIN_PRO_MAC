@@ -38,7 +38,9 @@
 //!
 //! # Descubrir a los demas
 //!
-//! Lo hace Swift (Bonjour `_pixpin._tcp`, TXT `g`/`id`/`l`/`n`): busca con
+//! Lo hace Swift (Bonjour `_pindesk._tcp` y, mientras haya aparatos sin
+//! actualizar, tambien el `_pixpin._tcp` de antes, [`tipo_de_antes`]; TXT
+//! `g`/`id`/`l`/`n`): busca con
 //! `NWBrowser` y anuncia con `DNSServiceRegister` sobre el puerto de la
 //! [`Escucha`]. Aqui se recibe ya el `host` y el `puerto`.
 //!
@@ -255,10 +257,38 @@ pub fn codigo_valido(codigo: String) -> bool {
 }
 
 /// El tipo de servicio de Bonjour para sincronizar, sin el punto final:
-/// `_pixpin._tcp` (como lo piden `NWBrowser` y `DNSServiceRegister`).
+/// `_pindesk._tcp` (como lo piden `NWBrowser` y `DNSServiceRegister`).
 #[uniffi::export]
 pub fn tipo_de_servicio() -> String {
     pindesk_sincro::SERVICIO.trim_end_matches('.').to_string()
+}
+
+/// **El tipo de antes de un tipo de PinDesk** (`_pindesk._tcp` →
+/// `_pixpin._tcp`, `_pindeskenvio._tcp` → `_pixpinenvio._tcp`…), sin el
+/// punto final, o `None` si no es de los de PinDesk. Como `tipo_de_antes` de
+/// Windows (`pindesk_shell::mdns`): mientras haya aparatos sin actualizar se
+/// anuncia y se busca con los dos, y si un aparato sale en los dos se usa el
+/// nuevo (docs/formato-pindesk.md).
+#[uniffi::export]
+pub fn tipo_de_antes(tipo: String) -> Option<String> {
+    let t = tipo.trim().trim_end_matches('.');
+    let resto = t.strip_prefix("_pindesk")?;
+    resto
+        .ends_with("._tcp")
+        .then(|| format!("_pixpin{resto}"))
+}
+
+/// El prefijo de la instancia que se anuncia: `PinDesk <aparato>`. Hasta
+/// nov-2026 era `PixPin <aparato>` ([`PREFIJO_INSTANCIA_VIEJO`]); se ensena,
+/// no se compara (se compara el TXT `g`/`id`).
+pub const PREFIJO_INSTANCIA: &str = "PinDesk";
+/// El prefijo de antes de [`PREFIJO_INSTANCIA`].
+pub const PREFIJO_INSTANCIA_VIEJO: &str = "PixPin";
+
+/// La instancia de Bonjour de un aparato: `PinDesk <nombre>`, recortada a 63
+/// bytes sin partir una letra.
+pub(crate) fn instancia_de(nombre: &str) -> String {
+    recortar_etiqueta(format!("{PREFIJO_INSTANCIA} {nombre}").trim())
 }
 
 /// El puerto que se intenta primero al escuchar (47474). Si esta tomado se
@@ -276,16 +306,16 @@ pub struct ParTxt {
 }
 
 /// **Lo que este aparato anuncia en la red**, igual que Windows
-/// (`anunciarse`) y Android (`Presencia`): la instancia `PixPin <nombre>`
-/// del tipo `_pixpin._tcp` con el TXT `g` (etiqueta del grupo), `id`, `l`
+/// (`anunciarse`) y Android (`Presencia`): la instancia `PinDesk <nombre>`
+/// del tipo `_pindesk._tcp` (y del de antes, [`tipo_de_antes`]) con el TXT `g` (etiqueta del grupo), `id`, `l`
 /// (letra) y `n` (nombre, 40 letras como mucho). El puerto lo pone quien
 /// anuncia: el de su [`Escucha`].
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct AnuncioBonjour {
-    /// `PixPin Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
+    /// `PinDesk Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
     /// partir una letra.
     pub instancia: String,
-    /// `_pixpin._tcp`.
+    /// `_pindesk._tcp` (el de antes, con [`tipo_de_antes`]).
     pub tipo: String,
     /// `g`, `id`, `l`, `n`, en ese orden.
     pub txt: Vec<ParTxt>,
@@ -322,7 +352,7 @@ fn anuncio_de(id: &str, nombre: &str, letra: Option<&str>, etiqueta: String) -> 
         valor: valor.into(),
     };
     AnuncioBonjour {
-        instancia: recortar_etiqueta(format!("PixPin {nombre}").trim()),
+        instancia: instancia_de(nombre),
         tipo: tipo_de_servicio(),
         txt: vec![
             par("g", &etiqueta),
@@ -927,8 +957,8 @@ mod tests {
             Some("c"),
             "0123456789abcdef".into(),
         );
-        assert_eq!(a.instancia, "PixPin Mac de Max");
-        assert_eq!(a.tipo, "_pixpin._tcp");
+        assert_eq!(a.instancia, "PinDesk Mac de Max");
+        assert_eq!(a.tipo, "_pindesk._tcp");
         let txt: Vec<_> = a
             .txt
             .iter()
@@ -951,9 +981,9 @@ mod tests {
     fn sin_letra_va_vacia_y_el_nombre_largo_se_recorta() {
         let largo = "ñ".repeat(50);
         let a = anuncio_de("id-del-mac", &largo, None, "e".into());
-        // 63 bytes como mucho y sin partir la ñ (2 bytes): «PixPin » son 7.
+        // 63 bytes como mucho y sin partir la ñ (2 bytes): «PinDesk » son 8.
         assert!(a.instancia.len() <= MAXIMO_ETIQUETA);
-        assert_eq!(a.instancia, format!("PixPin {}", "ñ".repeat(28)));
+        assert_eq!(a.instancia, format!("PinDesk {}", "ñ".repeat(27)));
         let valor = |c: &str| a.txt.iter().find(|p| p.clave == c).unwrap().valor.clone();
         assert_eq!(valor("l"), "");
         assert_eq!(valor("n").chars().count(), LETRAS_DEL_NOMBRE);
@@ -961,7 +991,24 @@ mod tests {
 
     #[test]
     fn tipo_y_puerto_son_los_de_pixpin_sincro() {
-        assert_eq!(tipo_de_servicio(), "_pixpin._tcp");
+        assert_eq!(tipo_de_servicio(), "_pindesk._tcp");
         assert_eq!(puerto_preferido(), 47474);
+    }
+
+    #[test]
+    fn cada_tipo_de_pindesk_tiene_su_tipo_de_antes() {
+        for (ahora, antes) in [
+            ("_pindesk._tcp", "_pixpin._tcp"),
+            ("_pindeskenvio._tcp", "_pixpinenvio._tcp"),
+            ("_pindeskrecibe._tcp", "_pixpinrecibe._tcp"),
+            ("_pindeskchat._tcp", "_pixpinchat._tcp"),
+        ] {
+            assert_eq!(tipo_de_antes(ahora.into()).as_deref(), Some(antes));
+            assert_eq!(tipo_de_antes(format!("{ahora}.")).as_deref(), Some(antes));
+        }
+        assert_eq!(tipo_de_antes(tipo_de_servicio()).as_deref(), Some("_pixpin._tcp"));
+        // Los de antes y los de otros no tienen otro de antes.
+        assert_eq!(tipo_de_antes("_pixpin._tcp".into()), None);
+        assert_eq!(tipo_de_antes("_http._tcp".into()), None);
     }
 }

@@ -88,7 +88,7 @@ extension PrepararCompartir {
         }
         anadirOriginales(p, g.originales.map { URL(fileURLWithPath: $0) })
         if let ficha = almacen.chats.first(where: { $0.id == chat }) {
-            p.extras.append(paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pixpin"))
+            p.extras.append(paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pindesk"))
         }
         // Lo suyo es su pagina web, no mandar el audio tal cual.
         p.originalPrimero = false

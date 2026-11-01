@@ -143,7 +143,7 @@ pub fn etiqueta_de_invitacion(codigo: String) -> String {
     invitacion::etiqueta(&codigo)
 }
 
-/// `_pixpinchat._tcp`.
+/// `_pindeskchat._tcp` (antes `_pixpinchat._tcp`, [`crate::sincro::tipo_de_antes`]).
 #[uniffi::export]
 pub fn tipo_de_servicio_chat() -> String {
     invitacion::TIPO.trim_end_matches('.').to_string()
@@ -467,13 +467,13 @@ impl Invitacion {
         invitacion::texto_del_qr(&self.codigo, h.as_deref(), self.puerto)
     }
 
-    /// Lo que hay que anunciar en Bonjour: `PixPin <nombre>` del tipo
-    /// `_pixpinchat._tcp` con el TXT `g` (como Windows). PBKDF2: fuera del
+    /// Lo que hay que anunciar en Bonjour: `PinDesk <nombre>` del tipo
+    /// `_pindeskchat._tcp` (y el de antes) con el TXT `g` (como Windows). PBKDF2: fuera del
     /// hilo de la interfaz.
     pub fn anuncio(&self, nombre: String) -> AnuncioBonjour {
         let etiqueta = invitacion::etiqueta(&self.codigo);
         AnuncioBonjour {
-            instancia: crate::sincro::recortar_etiqueta(format!("PixPin {nombre}").trim()),
+            instancia: crate::sincro::instancia_de(&nombre),
             tipo: tipo_de_servicio_chat(),
             txt: vec![ParTxt {
                 clave: "g".into(),
@@ -592,6 +592,10 @@ mod pruebas {
         assert!(leer_invitacion("pixpin-envio:1:123456::0".into()).is_none());
         assert!(leer_invitacion("k7q2".into()).is_none());
         assert_eq!(invitacion_legible("K7Q2M9XP".into()), "K7Q2-M9XP");
-        assert_eq!(tipo_de_servicio_chat(), "_pixpinchat._tcp");
+        assert_eq!(tipo_de_servicio_chat(), "_pindeskchat._tcp");
+        // El QR de PinDesk (`pindesk-chat:`) tambien vale.
+        let q = leer_invitacion("pindesk-chat:1:K7Q2M9XP:192.168.1.5:4000".into()).unwrap();
+        assert_eq!((q.codigo.as_str(), q.puerto), ("K7Q2M9XP", 4000));
+        assert!(leer_invitacion("pindesk-envio:1:123456::0".into()).is_none());
     }
 }

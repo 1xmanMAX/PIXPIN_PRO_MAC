@@ -20,6 +20,7 @@
 			<key>QLIsDataBasedPreview</key><true/>
 			<key>QLSupportedContentTypes</key>
 			<array>
+				<string>io.github.1xmanmax.pindesk.proyecto</string>
 				<string>io.github.1xmanmax.pixpin.proyecto</string>
 				<string>io.github.1xmanmax.pixpin.dibujo</string>
 				<string>com.excalidraw.excalidraw</string>

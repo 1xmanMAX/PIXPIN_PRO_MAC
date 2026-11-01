@@ -96,7 +96,7 @@ pub struct GrabacionParaCompartir {
     /// Todos sus ficheros que hay en este Mac, sin repetir: «Original» u
     /// «Originales».
     pub originales: Vec<String>,
-    /// El mazo de Anki (`PixPin::<proyecto>`).
+    /// El mazo de Anki (`PinDesk::<proyecto>`).
     pub mazo: String,
 }
 
@@ -759,7 +759,7 @@ fn anki_en(
         });
     }
     for t in &mut tarjetas {
-        t.etiquetas = vec!["pixpin".to_string()];
+        t.etiquetas = vec!["pindesk".to_string()];
     }
     let ruta = carpeta.join(format!("{base} (Anki).txt"));
     escribir(
@@ -880,7 +880,7 @@ mod pruebas {
             temas: vec![],
             acta: Default::default(),
         };
-        GrabacionParaCompartir::de(&c, 0, "PixPin::Fisica".into())
+        GrabacionParaCompartir::de(&c, 0, "PinDesk::Fisica".into())
     }
 
     #[test]
@@ -972,7 +972,7 @@ mod pruebas {
         let v = anki_en(&g, "Clase 1", &dir, "¿Qué?", Some(&medios)).unwrap();
         assert_eq!(v.len(), 2);
         let t = std::fs::read_to_string(&v[0]).unwrap();
-        assert!(t.contains("PixPin::Fisica"));
+        assert!(t.contains("PinDesk::Fisica"));
         assert!(v[1].is_file());
         assert!(
             medios.join(v[1].file_name().unwrap()).is_file(),
@@ -1078,7 +1078,7 @@ mod pruebas {
             .unwrap();
         assert_eq!(g.titulo, "Clase 1");
         assert_eq!(g.cuando, 1_000);
-        assert_eq!(g.mazo, "PixPin::Física");
+        assert_eq!(g.mazo, "PinDesk::Física");
         assert_eq!(
             g.lineas[1],
             LineaDeGrabacion {

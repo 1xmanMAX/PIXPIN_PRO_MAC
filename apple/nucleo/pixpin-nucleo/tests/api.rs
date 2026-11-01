@@ -680,7 +680,7 @@ fn el_anuncio_de_bonjour_sale_con_el_grupo() {
     let codigo = pc.crear_grupo().unwrap();
     let a = pc.anuncio().unwrap().expect("con grupo hay anuncio");
     let yo = pc.aparato().unwrap();
-    assert_eq!(a.instancia, "PixPin PC de casa");
+    assert_eq!(a.instancia, "PinDesk PC de casa");
     assert_eq!(a.tipo, pixpin_nucleo::sincro::tipo_de_servicio());
     assert_eq!(a.etiqueta, pixpin_nucleo::sincro::etiqueta_de_grupo(codigo));
     assert_eq!(pc.etiqueta().unwrap().as_deref(), Some(a.etiqueta.as_str()));

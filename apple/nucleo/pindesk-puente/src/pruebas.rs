@@ -537,8 +537,10 @@ fn la_raiz_es_la_del_mac_y_la_app_la_de_su_paquete() {
     let d = carpeta("raiz");
     std::fs::create_dir_all(&d).unwrap();
     let e = Entorno::del_equipo(Some(&d), None).unwrap();
+    // `PixPinMax` solo si el Mac aun no ha pasado sus datos a PinDesk.
     assert!(
-        e.raiz.ends_with("Library/Application Support/PixPinMax"),
+        e.raiz.ends_with("Library/Application Support/PinDesk")
+            || e.raiz.ends_with("Library/Application Support/PixPinMax"),
         "{:?}",
         e.raiz
     );
@@ -618,4 +620,33 @@ fn lo_que_tarda_el_puente_por_dentro() {
     eprintln!("por dentro (depuracion): tarea {t_tarea:?}, imagen de 1,1 MB {t_imagen:?}");
     assert!(t_tarea < Duration::from_millis(50), "{t_tarea:?}");
     let _ = std::fs::remove_dir_all(&e.raiz);
+}
+
+#[test]
+fn el_pedido_lleva_pindesk_y_se_entiende_tambien_el_pixpin_de_antes() {
+    use crate::mensajero::{enlace, respuesta, validar_pedido};
+    // Los scripts de antes de PinDesk mandan `"pixpin": 1`.
+    assert_eq!(
+        validar_pedido(r#"{"pindesk":1,"accion":"chat"}"#),
+        respuesta::ACEPTADO
+    );
+    assert_eq!(
+        validar_pedido(r#"{"pixpin":1,"accion":"chat"}"#),
+        respuesta::ACEPTADO
+    );
+    // Si vienen los dos, manda `pindesk`.
+    assert_eq!(
+        validar_pedido(r#"{"pindesk":2,"pixpin":1,"accion":"chat"}"#),
+        respuesta::VERSION_NO
+    );
+    // Caso negativo: sin ninguno no es un pedido nuestro.
+    assert_eq!(
+        validar_pedido(r#"{"accion":"chat"}"#),
+        respuesta::NO_SE_ENTIENDE
+    );
+    // El enlace es `pindesk://` (la app entiende tambien los de antes).
+    assert_eq!(enlace("{}", None), "pindesk://pedido?json=%7B%7D");
+    let firmado = enlace("{}", Some(&[7u8; 32]));
+    assert!(firmado.starts_with("pindesk://pedido?json=%7B%7D&firma="));
+    assert_eq!(firmado.len(), "pindesk://pedido?json=%7B%7D&firma=".len() + 64);
 }

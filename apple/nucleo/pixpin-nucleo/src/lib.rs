@@ -139,6 +139,7 @@ pub mod carpetas_flow;
 pub mod llamada;
 pub mod llavero;
 pub mod mini_tiempos;
+pub mod mudanza;
 pub mod miniapps;
 pub mod modelos3d;
 /// La nota rica del chat: su Markdown con formato y sus fotos en album

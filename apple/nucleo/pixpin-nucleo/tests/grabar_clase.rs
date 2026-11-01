@@ -140,7 +140,7 @@ fn la_clase_entra_con_sus_capturas_enlazadas_como_en_windows() {
     match n.enviar_a_anki(chat, voz.id.clone(), "¿Qué se explicó aquí?".into()).unwrap() {
         EnvioAnki::Fichero { n, mazo, ruta } => {
             assert_eq!(n, 2);
-            assert_eq!(mazo, "PixPin::Física");
+            assert_eq!(mazo, "PinDesk::Física");
             assert!(std::fs::read_to_string(ruta).unwrap().contains("pixpin-"));
         }
         // Con un Anki de verdad escuchando, tambien vale.

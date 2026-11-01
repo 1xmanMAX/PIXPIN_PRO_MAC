@@ -560,7 +560,7 @@ mod pruebas {
     }
 
     #[test]
-    fn los_ajustes_pdf_van_en_pixpinmax_toml() {
+    fn los_ajustes_pdf_van_en_pindesk_toml() {
         let d = carpeta("ajustes");
         let n = Nucleo::abrir(d.display().to_string(), "Mac".into()).unwrap();
         let a = n.ajustes_pdf().unwrap();
@@ -574,7 +574,7 @@ mod pruebas {
         let b = n.ajustes_pdf().unwrap();
         assert!(!b.aligerar_al_entrar);
         assert_eq!(b.nivel, NivelAligerar::Pequeno);
-        let toml = std::fs::read_to_string(d.join("pixpinmax.toml")).unwrap();
+        let toml = std::fs::read_to_string(d.join("pindesk.toml")).unwrap();
         assert!(toml.contains("pequeno"), "{toml}");
     }
 }

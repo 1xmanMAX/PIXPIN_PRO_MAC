@@ -183,12 +183,12 @@ pub fn traducir(m: &Mensaje, carpeta: &Path, sello: &str) -> Result<Plan, String
     })
 }
 
-/// El JSON del pedido con `"pixpin": 1`, cortando `texto` hasta que quepa en
+/// El JSON del pedido con `"pindesk": 1`, cortando `texto` hasta que quepa en
 /// [`crate::mensajero::TOPE_PEDIDO`]. Una seleccion de un libro
 /// entero no deberia dejar al usuario sin nada: se manda lo que cabe y se
 /// dice.
 fn a_texto(mut pedido: Value) -> Result<(String, bool), String> {
-    pedido["pixpin"] = json!(crate::mensajero::VERSION_PEDIDO);
+    pedido[crate::mensajero::CAMPO_VERSION] = json!(crate::mensajero::VERSION_PEDIDO);
     let mut recortado = false;
     loop {
         let s = pedido.to_string();

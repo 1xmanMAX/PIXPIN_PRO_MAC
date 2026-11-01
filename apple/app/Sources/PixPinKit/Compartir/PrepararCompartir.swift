@@ -150,7 +150,7 @@ enum PrepararCompartir {
         anadirOriginales(p, originales)
         // El proyecto entero del chat, para abrirlo en otro PixPin o el movil.
         if let almacen, let ficha = almacen.chats.first(where: { $0.id == chat }) {
-            p.extras.append(paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pixpin"))
+            p.extras.append(paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pindesk"))
         }
         // Una foto o un fichero solos: lo que se suele querer es mandarlos
         // tal cual.
@@ -326,7 +326,7 @@ enum PrepararCompartir {
         let nucleo = almacen.nucleo
         let formato = FormatoCompartir(id: id, nombre: nombre, cuantas: .ninguna, simbolo: "shippingbox")
         if fichas.count == 1, let f = fichas.first {
-            return ExtraCompartir(formato: formato, que: .escrito(nombre: "\(nombreDeFicheroCompartido(titulo: f.nombre)).pixpin") {
+            return ExtraCompartir(formato: formato, que: .escrito(nombre: PaqueteProyecto.nombre(nombreDeFicheroCompartido(titulo: f.nombre))) {
                 try await Task.detached { try nucleo.paqueteDeProyecto(chat: f.id) }.value
             })
         }
@@ -336,7 +336,7 @@ enum PrepararCompartir {
             for f in fichas {
                 let datos = try await Task.detached { try nucleo.paqueteDeProyecto(chat: f.id) }.value
                 let url = carpeta.appendingPathComponent(nombreDeFicheroCompartido(titulo: f.nombre))
-                    .appendingPathExtension("pixpin")
+                    .appendingPathExtension(PaqueteProyecto.extension_)
                 try datos.write(to: url, options: .atomic)
                 urls.append(url)
             }

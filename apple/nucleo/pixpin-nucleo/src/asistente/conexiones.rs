@@ -38,7 +38,7 @@ impl Chat for DelChat<'_, '_> {
     }
 
     fn al_chat(&self, ruta: &Path, frase: &str) -> Result<(), String> {
-        let mut p = json!({"pixpin": 1, "accion": "chat", "texto": frase, "archivos": [ruta]});
+        let mut p = json!({"pindesk": 1, "accion": "chat", "texto": frase, "archivos": [ruta]});
         if !self.cx.proyecto.trim().is_empty() {
             p["proyecto"] = json!(self.cx.proyecto);
         }

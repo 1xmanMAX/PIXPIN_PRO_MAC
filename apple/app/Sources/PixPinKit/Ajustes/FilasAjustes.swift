@@ -329,7 +329,7 @@ public enum FilasAjustes {
         if let b = iaModelosViejosOcupan(carpeta: carpetaDeModelosViejos().path) {
             filas.append(FilaAjuste(
                 id: "asistente-borrar-locales", seccion: .asistente, grupo: g, titulo: Lengua.t("ajustes2-asistente-borrar-locales"),
-                ayuda: "Lo que se bajó para el asistente local, que ya no se usa: \(ModelosViejos.tamano(b)) en ~/Library/Application Support/PixPinMax/modelos.",
+                ayuda: "Lo que se bajó para el asistente local, que ya no se usa: \(ModelosViejos.tamano(b)) en ~/Library/Application Support/PinDesk/modelos.",
                 control: .vista { _ in AnyView(FilaModelosViejos()) }))
         }
         for p in ProveedorNube.allCases {
@@ -414,7 +414,7 @@ public enum FilasAjustes {
         let g = Lengua.t("ajustes2-g-fichero")
         return [
             FilaAjuste(id: "fichero", seccion: .avanzado, grupo: g, titulo: Lengua.t("ajustes2-fichero"),
-                       ayuda: "pixpinmax.toml, el mismo que PinDesk para Windows. Lo que no está aquí sigue ahí, con sus comentarios. Lo cambiado a mano vale al reiniciar.",
+                       ayuda: "pindesk.toml, el mismo que PinDesk para Windows. Lo que no está aquí sigue ahí, con sus comentarios. Lo cambiado a mano vale al reiniciar.",
                        control: .boton(Lengua.t("ajustes2-abrir-fichero")) { m in Task { await m.abrirFicheroAjustes() } }),
             FilaAjuste(id: "datos", seccion: .avanzado, grupo: g, titulo: "Carpeta de datos",
                        ayuda: "Proyectos, capturas, sincronización y el archivo de ajustes.",

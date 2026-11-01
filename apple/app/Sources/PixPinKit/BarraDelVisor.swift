@@ -37,7 +37,7 @@ public enum ColorDeExtension {
         (0x607D8B, false, ["txt", "md", "log", "ini", "cfg", "srt", "vtt"]),
         (0x3B5BDB, false, ["epub", "mobi", "azw", "azw3", "fb2", "djvu", "cbz", "cbr"]),
         (0x6CBF5B, false, ["apk", "aab", "xapk", "apks", "exe", "msi", "dmg", "deb", "appimage"]),
-        (0x7048E8, false, ["pixpin", "excalidraw"]),
+        (0x7048E8, false, ["pindesk", "pixpin", "excalidraw"]),
     ]
     private static let resto: [UInt32] = [0x5C7CFA, 0x20C997, 0xFF6B6B, 0xFAB005, 0x845EF7, 0x15AABF, 0xE64980, 0x82C91E]
 

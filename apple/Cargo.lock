@@ -1708,6 +1708,7 @@ dependencies = [
  "pindesk-office",
  "pindesk-pdf",
  "pindesk-proyecto",
+ "pindesk-sistema",
  "serde_json",
  "sha2 0.10.9",
 ]

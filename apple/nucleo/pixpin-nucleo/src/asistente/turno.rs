@@ -218,8 +218,8 @@ pub trait AppIa: Send + Sync {
     /// Pregunta al usuario (en la burbuja, con «Sí» y «No») y espera.
     /// `true`: si. Sin respuesta (parado, ventana cerrada) es un no.
     fn confirmar(&self, pregunta: String) -> bool;
-    /// Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-    /// llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+    /// Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+    /// llegara de `pindesk://`. `None`: hecho; si no, el motivo.
     fn pedido(&self, json: String) -> Option<String>;
     /// El texto de un PDF o una imagen (la capa de texto o Vision). `paginas`
     /// vacio: todas.

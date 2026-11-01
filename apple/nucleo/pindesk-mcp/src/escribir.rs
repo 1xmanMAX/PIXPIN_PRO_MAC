@@ -23,10 +23,12 @@
 //! cualquiera de los dos procesos se caiga (lo peor es esperar hasta el
 //! plazo). La app solo escribe dentro de la carpeta temporal `pindesk-mcp`.
 //!
-//! **En el Mac** el pedido va por el enlace `pixpinmax://pedido?json=…`,
+//! **En el Mac** el pedido va por el enlace `pindesk://pedido?json=…` (antes
+//! `pixpinmax://`, que la app sigue entendiendo),
 //! abierto con `open -g` (sin traer PinDesk delante; la arranca si esta
 //! cerrada) y **firmado** con la clave de la app
-//! (`~/Library/Application Support/PixPinMax/enlaces.clave`, la de
+//! (`~/Library/Application Support/PinDesk/enlaces.clave`, o la de la
+//! carpeta `PixPinMax` de antes si aun no se mudo; la de
 //! `FirmaEnlaces` de Swift): asi la app no pregunta por el enlace, solo lo
 //! que tiene que preguntar (lo que borra o cambia, con `preguntar`).
 
@@ -85,15 +87,16 @@ pub fn hmac(clave: &[u8], texto: &[u8]) -> String {
 
 /// La clave de firmar de la app, si ya firmo algo alguna vez.
 fn clave() -> Option<Vec<u8>> {
-    let casa = std::env::var_os("HOME").map(PathBuf::from)?;
-    let d = std::fs::read(casa.join("Library/Application Support/PixPinMax/enlaces.clave")).ok()?;
+    let casa = std::env::var_os("HOME").filter(|h| !h.is_empty()).map(PathBuf::from)?;
+    let datos = pindesk_sistema::nombre::carpeta_de_datos(&casa.join("Library/Application Support"));
+    let d = std::fs::read(datos.join("enlaces.clave")).ok()?;
     (d.len() == 32).then_some(d)
 }
 
 /// **El enlace del pedido**, firmado si hay clave (lo canonico es el verbo y
 /// los campos ya descodificados, uno por renglon: `pedido\njson=…`).
 pub fn enlace(json: &str, clave: Option<&[u8]>) -> String {
-    let mut u = format!("pixpinmax://pedido?json={}", codificar(json));
+    let mut u = format!("pindesk://pedido?json={}", codificar(json));
     if let Some(k) = clave {
         u.push_str("&firma=");
         u.push_str(&hmac(k, format!("pedido\njson={json}").as_bytes()));
@@ -271,11 +274,11 @@ mod pruebas {
         let u = enlace(r#"{"a":"ñ b"}"#, None);
         assert_eq!(
             u,
-            "pixpinmax://pedido?json=%7B%22a%22%3A%22%C3%B1%20b%22%7D"
+            "pindesk://pedido?json=%7B%22a%22%3A%22%C3%B1%20b%22%7D"
         );
         let f = enlace("{}", Some(&[7u8; 32]));
         assert!(
-            f.contains("&firma=") && f.len() == "pixpinmax://pedido?json=%7B%7D&firma=".len() + 64,
+            f.contains("&firma=") && f.len() == "pindesk://pedido?json=%7B%7D&firma=".len() + 64,
             "{f}"
         );
     }

@@ -44,11 +44,13 @@ public struct DatosVecino: Equatable, Sendable {
     }
 
     /// El nombre para ensenar: el `n` del TXT o, si no lo trae, la instancia
-    /// sin el «PixPin » del principio.
+    /// sin el «PinDesk » (o el «PixPin » de antes) del principio.
     public func nombreParaVer(instancia: String) -> String {
         if !nombre.isEmpty { return nombre }
-        let prefijo = "PixPin "
-        return instancia.hasPrefix(prefijo) ? String(instancia.dropFirst(prefijo.count)) : instancia
+        for prefijo in ["PinDesk ", "PixPin "] where instancia.hasPrefix(prefijo) {
+            return String(instancia.dropFirst(prefijo.count))
+        }
+        return instancia
     }
 }
 

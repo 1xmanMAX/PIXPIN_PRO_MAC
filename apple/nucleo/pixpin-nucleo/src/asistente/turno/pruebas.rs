@@ -101,7 +101,7 @@ fn una_accion_de_la_app_sale_como_pedido_del_protocolo() {
     let pedidos = manos.pedidos.lock().unwrap();
     assert_eq!(pedidos.len(), 1, "{pedidos:?}");
     assert_eq!(pedidos[0]["accion"], "anadir_tarea");
-    assert_eq!(pedidos[0]["pixpin"], 1);
+    assert_eq!(pedidos[0]["pindesk"], 1);
     assert!(r.herramientas.iter().any(|h| h.nombre == "anadir_tarea" && h.ok), "{:?}", r.herramientas);
     assert_eq!(r.texto, "Apuntado: comprar pan.");
     assert_eq!(oyente.tandas.lock().unwrap().concat(), r.texto);

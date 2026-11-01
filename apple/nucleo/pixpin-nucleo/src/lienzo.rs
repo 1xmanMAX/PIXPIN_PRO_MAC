@@ -209,10 +209,8 @@ impl Lienzo {
 }
 
 fn leer_fichero(ruta: &Path) -> Result<Arc<Lienzo>, ErrorNucleo> {
-    let es_pixpin = ruta
-        .extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case("pixpin"));
+    // `.pindesk` o el `.pixpin` de antes.
+    let es_pixpin = pindesk_proyecto::es_paquete(ruta);
     if es_pixpin {
         return Lienzo::de_pixpin(ruta);
     }

@@ -45,6 +45,7 @@ final class TXTBonjourTests: XCTestCase {
     func testElNombreSaleDelTXTODeLaInstancia() {
         XCTAssertEqual(DatosVecino(txt: ["n": "Movil"]).nombreParaVer(instancia: "PixPin Telefono"), "Movil")
         XCTAssertEqual(DatosVecino(txt: [:]).nombreParaVer(instancia: "PixPin Telefono"), "Telefono")
+        XCTAssertEqual(DatosVecino(txt: [:]).nombreParaVer(instancia: "PinDesk Telefono"), "Telefono")
         XCTAssertEqual(DatosVecino(txt: [:]).nombreParaVer(instancia: "Otro"), "Otro")
     }
 
@@ -67,7 +68,9 @@ final class TXTBonjourTests: XCTestCase {
     }
 
     func testElTipoYElPuertoSonLosDeWindows() {
-        XCTAssertEqual(tipoDeServicio(), "_pixpin._tcp")
+        XCTAssertEqual(tipoDeServicio(), "_pindesk._tcp")
+        XCTAssertEqual(tipoDeAntes(tipo: tipoDeServicio()), "_pixpin._tcp")
+        XCTAssertNil(tipoDeAntes(tipo: "_pixpin._tcp"))
         XCTAssertEqual(puertoPreferido(), 47474)
     }
 }
@@ -166,7 +169,7 @@ final class SincroDeVerdadTests: XCTestCase {
         XCTAssertTrue(codigoValido(codigo: codigo))
         let anuncio = try XCTUnwrap(try pc.anuncio())
         XCTAssertEqual(anuncio.tipo, tipoDeServicio())
-        XCTAssertEqual(anuncio.instancia, "PixPin PC")
+        XCTAssertEqual(anuncio.instancia, "PinDesk PC")
 
         // Lo que anuncia el PC, leido como lo leeria otro Mac por Bonjour,
         // es del grupo de quien tenga su codigo.
