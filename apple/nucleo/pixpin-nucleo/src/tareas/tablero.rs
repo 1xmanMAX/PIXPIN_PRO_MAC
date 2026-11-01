@@ -238,6 +238,7 @@ mod pruebas {
             dias: None,
             imagenes: Vec::new(),
             prioridad: None,
+            motivo_jev: None,
         }
     }
 

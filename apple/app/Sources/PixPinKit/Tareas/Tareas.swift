@@ -1067,7 +1067,8 @@ struct FilaTarea: View {
         // La prioridad de Jev va la primera, con su chispa, si el usuario
         // no marco la suya (Windows fa4ca12: lo suyo manda).
         if m.urgencia == nil, let j = t.tarea.chapitaDeJev {
-            ChapitaTarea(texto: j.texto, clase: .jev(j.color), sobreFoto: sobreFoto)
+            ChapitaTarea(texto: j.texto, clase: j.suave ? .jevSuave(j.color) : .jev(j.color), sobreFoto: sobreFoto)
+                .help(t.tarea.pistaDeJev)
         }
         if let u = m.urgencia {
             ChapitaTarea(texto: u == "muy_urgente" ? "Muy urgente" : "Urgente",
@@ -1279,7 +1280,8 @@ struct ColumnaKanban: View {
 /// de `chapitas.rs` de Windows sobre la ventana oscura o sobre una foto.
 struct ChapitaTarea: View {
     /// `jev`: la prioridad de Jev con su color (mas suave que las marcas).
-    enum Clase { case muyUrgente, urgente, etiqueta, jev(UInt32) }
+    /// `jevSuave`: la «Normal» de Jev, con la mitad de fondo.
+    enum Clase { case muyUrgente, urgente, etiqueta, jev(UInt32), jevSuave(UInt32) }
 
     let texto: String
     let clase: Clase
@@ -1294,6 +1296,8 @@ struct ChapitaTarea: View {
         case (.etiqueta, false): return Color.white.opacity(0.08)
         case (.jev, true): return Color.black.opacity(0.6)
         case let (.jev(c), false): return Color(hex: c, alfa: 0.16)
+        case (.jevSuave, true): return Color.black.opacity(0.3)
+        case let (.jevSuave(c), false): return Color(hex: c, alfa: 0.08)
         }
     }
 
@@ -1304,6 +1308,7 @@ struct ChapitaTarea: View {
         case (.etiqueta, true): return Color.white
         case (.etiqueta, false): return Color(hex: 0x9CC4F0)
         case let (.jev(c), _): return Color(hex: c)
+        case let (.jevSuave(c), _): return Color(hex: c)
         }
     }
 

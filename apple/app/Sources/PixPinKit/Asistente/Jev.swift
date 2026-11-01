@@ -230,14 +230,26 @@ struct PuntitosIa: View {
 
 extension Tarea {
     /// La chapita de la prioridad de Jev («✦ Urgente»), si la hay y el
-    /// usuario no marco la suya (lo suyo manda; «normal» no se ensena).
-    var chapitaDeJev: (texto: String, color: UInt32)? {
+    /// usuario no marco la suya (lo suyo manda). «Normal» tambien se ensena,
+    /// gris y casi sin fondo, para que no parezca sin juzgar (Windows
+    /// e775e9f).
+    var chapitaDeJev: (texto: String, color: UInt32, suave: Bool)? {
         let t = JevTextos.actuales
         switch prioridad {
-        case "urgente"?: return ("✦ " + t.prioridadUrgente, 0xE5534B)
-        case "alta"?: return ("✦ " + t.prioridadAlta, 0xE8A33D)
-        case "baja"?: return ("✦ " + t.prioridadBaja, 0x8B949E)
+        case "urgente"?: return ("✦ " + t.prioridadUrgente, 0xE5534B, false)
+        case "alta"?: return ("✦ " + t.prioridadAlta, 0xE8A33D, false)
+        case "normal"?:
+            let normal = t.prioridadNormal.isEmpty ? "Normal" : t.prioridadNormal
+            return ("✦ " + normal, 0x8B949E, true)
+        case "baja"?: return ("✦ " + t.prioridadBaja, 0x8B949E, false)
         default: return nil
         }
+    }
+
+    /// El porque de la prioridad de Jev, para la pista de su chapita
+    /// («Jev: consecuencia media · nadie la espera · sin fecha»).
+    var pistaDeJev: String {
+        guard let m = motivoJev else { return "" }
+        return PixPinCore.pistaDeJev(motivo: m, locale: JevTextos.idioma)
     }
 }

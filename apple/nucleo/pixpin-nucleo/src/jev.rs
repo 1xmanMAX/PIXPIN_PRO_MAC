@@ -368,6 +368,9 @@ pub struct TextosJev {
     pub prioridad_urgente: String,
     pub prioridad_alta: String,
     pub prioridad_baja: String,
+    /// «Normal» (Windows e775e9f: tambien lleva su chapita).
+    #[uniffi(default = "")]
+    pub prioridad_normal: String,
 }
 
 fn catalogo(locale: &str) -> Catalogo {
@@ -413,6 +416,7 @@ pub fn textos_de_jev(locale: String) -> TextosJev {
         prioridad_urgente: t.t("tareas-prioridad-urgente"),
         prioridad_alta: t.t("tareas-prioridad-alta"),
         prioridad_baja: t.t("tareas-prioridad-baja"),
+        prioridad_normal: t.t("tareas-prioridad-normal"),
     }
 }
 

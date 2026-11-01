@@ -123,7 +123,7 @@ def main():
             r = subprocess.run(['git', 'merge-file', '-L', 'mac', '-L', 'base', '-L', 'windows', mm, bb, n])
             informe['conflicto' if r.returncode else 'fusion'].append(clave)
 
-    cambios_app = git(win, 'diff', '--name-only', base, nuevo, '--', 'apps/pixpin/src').splitlines()
+    cambios_app = git(win, 'diff', '--name-only', base, nuevo, '--', 'apps/pindesk/src', 'apps/pixpin/src').splitlines()
     informe['app_de_windows_cambiada'] = cambios_app
     os.makedirs(os.path.join(APPLE, 'target'), exist_ok=True)
     with open(os.path.join(APPLE, 'target', 'portar-de-windows.json'), 'w') as f:

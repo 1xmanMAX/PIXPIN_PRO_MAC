@@ -169,6 +169,7 @@ pub fn mini_tareas_leer(documento: String, desfase_ms: i64) -> Vec<Tarea> {
                 imagenes: Vec::new(),
                 crudo: t.texto,
                 prioridad: None,
+                motivo_jev: None,
             }
         })
         .collect()

@@ -2,8 +2,13 @@
 //! `apps/pixpin/src/jev/urgencia.rs`): por cada tarea pendiente, Jev juzga
 //! lo que pasa si se hace tarde, si otro la espera, si el plazo lo puso otro
 //! y si en su chat la piden ya (`pindesk_typesafe::urgencia`); cuanto falta
-//! para su hora (`⏰`) lo cuenta el codigo, y la tabla de alli da urgente,
-//! alta, normal o baja. Lo que el usuario marco (⏫, 🔼) manda.
+//! para su hora (`⏰` o, si no tiene, la fecha del titulo de su lista:
+//! «HOY SÁBADO», Windows 4fe2730) lo cuenta el codigo, y la tabla de alli da
+//! urgente, alta, normal o baja. Lo que el usuario marco (⏫, 🔼) manda. Con
+//! la prioridad va su porque ([`MotivoJev`], la pista de la chapita).
+//!
+//! **Las listas de temas de una reunion** (las que una nota de voz enlaza en
+//! `temasLista`) no se preguntan: son puntos de una agenda, no tareas.
 //!
 //! Va en segundo plano: al leer las listas ([`aplicar`], desde
 //! `Nucleo::tareas_con_jev`) se pone lo ya sabido y se pregunta por lo que falta en
@@ -28,6 +33,92 @@ use crate::tareas::frase::{self, Urgencia};
 enum Sabido {
     Senales(Senales),
     Fallo(Instant),
+    /// Un tema de una reunion: sin prioridad.
+    Tema,
+}
+
+/// **El porque de la prioridad de Jev** (`pindesk_typesafe::urgencia::Motivo`).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct MotivoJev {
+    /// El nivel de la consecuencia (0 nada … 3 grave).
+    pub consecuencia: u8,
+    /// Otro la espera.
+    pub espera: bool,
+    /// El plazo lo puso otro.
+    pub plazo_ajeno: bool,
+    /// La piden en el chat.
+    pub piden_ya: bool,
+    /// Los dias que faltan (negativo: ya paso).
+    pub dias: Option<i64>,
+    /// Si esos dias salen del titulo de la lista y no de la tarea.
+    pub de_la_lista: bool,
+}
+
+impl From<ju::Motivo> for MotivoJev {
+    fn from(m: ju::Motivo) -> Self {
+        MotivoJev {
+            consecuencia: m.consecuencia,
+            espera: m.espera,
+            plazo_ajeno: m.plazo_ajeno,
+            piden_ya: m.piden_ya,
+            dias: m.dias,
+            de_la_lista: m.de_la_lista,
+        }
+    }
+}
+
+/// **La pista de la chapita de Jev**: el porque de su prioridad en una linea
+/// («Jev: consecuencia media · nadie la espera · sin fecha»), como
+/// `tareas/chapitas.rs::pista_de_jev` de Windows.
+#[uniffi::export]
+pub fn pista_de_jev(motivo: MotivoJev, locale: String) -> String {
+    let t = super::catalogo(&locale);
+    let m = motivo;
+    let consecuencia = match m.consecuencia {
+        0 => "tareas-jev-consecuencia-nada",
+        1 => "tareas-jev-consecuencia-leve",
+        2 => "tareas-jev-consecuencia-media",
+        _ => "tareas-jev-consecuencia-grave",
+    };
+    let mut partes = vec![t.t(consecuencia)];
+    partes.push(t.t(if m.espera { "tareas-jev-la-esperan" } else { "tareas-jev-nadie-espera" }));
+    if m.plazo_ajeno {
+        partes.push(t.t("tareas-jev-plazo-ajeno"));
+    }
+    if m.piden_ya {
+        partes.push(t.t("tareas-jev-la-piden"));
+    }
+    let cuando = match m.dias {
+        None => t.t("tareas-jev-sin-fecha"),
+        Some(d) if d < 0 => t.t("tareas-jev-ya-paso"),
+        Some(0) => t.t("tareas-jev-hoy"),
+        Some(1) => t.t("tareas-jev-manana"),
+        Some(d) => {
+            let mut a = fluent_bundle::FluentArgs::new();
+            a.set("n", d);
+            t.t_args("tareas-jev-en-dias", &a)
+        }
+    };
+    partes.push(if m.de_la_lista {
+        let mut a = fluent_bundle::FluentArgs::new();
+        a.set("cuando", cuando);
+        t.t_args("tareas-jev-por-la-lista", &a)
+    } else {
+        cuando
+    });
+    format!("Jev: {}", partes.join(" · "))
+}
+
+/// Una tarea por preguntar: su clave, su chat, el mensaje de su lista y lo
+/// que se manda.
+type Falta = (String, String, String, Contexto);
+
+/// Los dias que faltan para la fecha del titulo de la lista (dicha el dia en
+/// que se creo, `cuando` en ms UTC), contados desde `hoy` (dia local).
+fn dias_de_la_lista(l: &ListaTareas, hoy: i64, desfase_ms: i64) -> Option<i64> {
+    use pindesk_typesafe::fechas::Fecha;
+    let creada = (l.cuando + desfase_ms).div_euclid(86_400_000);
+    ju::dias_de_la_lista(&l.titulo, Fecha::de_dias(creada), Fecha::de_dias(hoy))
 }
 
 static SABIDO: Mutex<Option<HashMap<String, Sabido>>> = Mutex::new(None);
@@ -76,7 +167,7 @@ pub(crate) fn aplicar(raiz: &Path, listas: &mut [ListaTareas], desfase_ms: i64) 
         return;
     };
     let hoy = frase::ahora(desfase_ms).dia;
-    let faltan = poner_sabido(listas, hoy);
+    let faltan = poner_sabido(listas, hoy, desfase_ms);
     if faltan.is_empty() || PREGUNTANDO.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -94,30 +185,40 @@ pub(crate) fn aplicar(raiz: &Path, listas: &mut [ListaTareas], desfase_ms: i64) 
     }
 }
 
-/// Lo sabido, puesto; devuelve lo que falta preguntar (clave, chat, contexto).
-fn poner_sabido(listas: &mut [ListaTareas], hoy: i64) -> Vec<(String, String, Contexto)> {
+/// Lo sabido, puesto; devuelve lo que falta preguntar.
+fn poner_sabido(listas: &mut [ListaTareas], hoy: i64, desfase_ms: i64) -> Vec<Falta> {
     let mut faltan = Vec::new();
     for l in listas.iter_mut() {
+        let dias_lista = dias_de_la_lista(l, hoy, desfase_ms);
         let (chat, titulo, nombre) = (l.chat.clone(), l.titulo.clone(), l.nombre_chat.clone());
+        let mensaje = l.mensaje.clone();
         for t in l.tareas.iter_mut().filter(|t| !t.hecha) {
             let m = frase::marcas(&t.texto);
             let texto = texto_para_jev(&m);
             if texto.is_empty() {
                 continue;
             }
-            let dias = m.hora.map(|h| h.dia - hoy);
+            let dias = m.hora.map(|h| h.dia - hoy).or(dias_lista);
             let clave = clave_de(&chat, &titulo, &texto);
             let sabido = con_sabido(|s| match s.get(&clave) {
                 Some(Sabido::Senales(x)) => Some(Some(x.clone())),
                 Some(Sabido::Fallo(t)) if t.elapsed() < TRAS_UN_FALLO => Some(None),
+                Some(Sabido::Tema) => Some(None),
                 _ => None,
             });
             match sabido {
-                Some(Some(s)) => t.prioridad = Some(id_de(ju::decidir(marca_de(m.urgencia), Some(&s), dias))),
+                Some(Some(s)) => {
+                    let marca = marca_de(m.urgencia);
+                    t.prioridad = Some(id_de(ju::decidir(marca, Some(&s), dias)));
+                    t.motivo_jev = (marca == Marca::Ninguna)
+                        .then(|| ju::Motivo::de(&s, dias, m.hora.is_none()).into());
+                }
+                // Fallo reciente o tema de reunion: lo de siempre.
                 Some(None) => {}
                 None => faltan.push((
                     clave,
                     chat.clone(),
+                    mensaje.clone(),
                     Contexto {
                         tarea: texto,
                         lista: titulo.clone(),
@@ -131,16 +232,30 @@ fn poner_sabido(listas: &mut [ListaTareas], hoy: i64) -> Vec<(String, String, Co
     faltan
 }
 
-fn preguntar(cliente: &pindesk_typesafe::Cliente, raiz: &Path, mut faltan: Vec<(String, String, Contexto)>) {
-    let mut recientes: HashMap<String, Vec<String>> = HashMap::new();
-    for (_, chat, c) in &mut faltan {
-        let r = recientes.entry(chat.clone()).or_insert_with(|| recientes_del_chat(raiz, chat));
-        c.recientes = r.clone();
-    }
-    let contextos: Vec<Contexto> = faltan.iter().map(|(_, _, c)| c.clone()).collect();
+fn preguntar(cliente: &pindesk_typesafe::Cliente, raiz: &Path, faltan: Vec<Falta>) {
+    let mut chats: HashMap<String, Chat> = HashMap::new();
+    let mut temas = Vec::new();
+    let faltan: Vec<Falta> = faltan
+        .into_iter()
+        .filter_map(|(clave, chat, mensaje, mut c)| {
+            let leido = chats.entry(chat.clone()).or_insert_with(|| leer_chat(raiz, &chat));
+            if leido.temas.contains(&(chat.clone(), mensaje.clone())) {
+                temas.push(clave);
+                return None;
+            }
+            c.recientes = leido.recientes.clone();
+            Some((clave, chat, mensaje, c))
+        })
+        .collect();
+    con_sabido(|s| {
+        for clave in temas {
+            s.insert(clave, Sabido::Tema);
+        }
+    });
+    let contextos: Vec<Contexto> = faltan.iter().map(|(_, _, _, c)| c.clone()).collect();
     let respuestas = ju::preguntar_varias(cliente, &contextos, A_LA_VEZ);
     con_sabido(|s| {
-        for ((clave, _, _), r) in faltan.into_iter().zip(respuestas) {
+        for ((clave, _, _, _), r) in faltan.into_iter().zip(respuestas) {
             match r {
                 Ok(x) => s.insert(clave, Sabido::Senales(x)),
                 Err(_) => s.insert(clave, Sabido::Fallo(Instant::now())),
@@ -149,12 +264,31 @@ fn preguntar(cliente: &pindesk_typesafe::Cliente, raiz: &Path, mut faltan: Vec<(
     });
 }
 
-/// Los ultimos mensajes escritos del chat (notas con texto, no las listas
-/// de tareas), del mas viejo al mas nuevo.
-fn recientes_del_chat(raiz: &Path, chat: &str) -> Vec<String> {
+/// Lo que se lee de un chat para sus tareas.
+#[derive(Default)]
+struct Chat {
+    /// Los ultimos mensajes escritos (notas con texto, no las listas de
+    /// tareas), del mas viejo al mas nuevo.
+    recientes: Vec<String>,
+    /// Las listas de temas de sus reuniones, `(chat, mensaje)`.
+    temas: Vec<(String, String)>,
+}
+
+fn leer_chat(raiz: &Path, chat: &str) -> Chat {
     let Ok(c) = cuaderno::Cuaderno::leer_de(&almacen::carpeta(raiz, chat)) else {
-        return Vec::new();
+        return Chat::default();
     };
+    Chat {
+        recientes: recientes_de(&c),
+        temas: c
+            .mensajes
+            .iter()
+            .filter_map(|m| pindesk_proyecto::temas::lista_de(&m.resto))
+            .collect(),
+    }
+}
+
+fn recientes_de(c: &cuaderno::Cuaderno) -> Vec<String> {
     let mut v: Vec<String> = c
         .mensajes
         .iter()
@@ -216,6 +350,7 @@ mod pruebas {
                     dias: None,
                     imagenes: Vec::new(),
                     prioridad: None,
+                    motivo_jev: None,
                 })
                 .collect(),
             pendientes: textos.len() as u32,
@@ -258,11 +393,55 @@ mod pruebas {
                 }),
             )
         });
-        let faltan = poner_sabido(&mut l, 0);
+        let faltan = poner_sabido(&mut l, 0, 0);
         assert_eq!(l[0].tareas[0].prioridad.as_deref(), Some("urgente"));
         assert!(l[0].tareas[1].prioridad.is_none());
         assert_eq!(faltan.len(), 1);
-        assert_eq!(faltan[0].2.tarea, "regar las plantas zz-prueba");
-        assert_eq!(faltan[0].2.chat, "Mensajes guardados");
+        assert_eq!(faltan[0].3.tarea, "regar las plantas zz-prueba");
+        assert_eq!(faltan[0].3.chat, "Mensajes guardados");
+        // Sin marca del usuario, con su porque.
+        let m = l[0].tareas[0].motivo_jev.clone().unwrap();
+        assert_eq!((m.consecuencia, m.espera, m.plazo_ajeno, m.dias), (3, true, true, None));
+    }
+
+    #[test]
+    fn la_pista_dice_el_porque_como_windows() {
+        let m = MotivoJev {
+            consecuencia: 2,
+            espera: false,
+            plazo_ajeno: false,
+            piden_ya: false,
+            dias: None,
+            de_la_lista: false,
+        };
+        assert_eq!(
+            pista_de_jev(m.clone(), "es-ES".into()),
+            "Jev: consecuencia media · nadie la espera · sin fecha"
+        );
+        let m = MotivoJev {
+            consecuencia: 3,
+            espera: true,
+            plazo_ajeno: true,
+            dias: Some(0),
+            de_la_lista: true,
+            ..m
+        };
+        assert_eq!(
+            pista_de_jev(m, "es-ES".into()),
+            "Jev: consecuencia grave · alguien la espera · plazo de otro · hoy (por el título de la lista)"
+        );
+        assert_eq!(super::super::textos_de_jev("es-ES".into()).prioridad_normal, "Normal");
+    }
+
+    #[test]
+    fn la_fecha_del_titulo_de_la_lista_cuenta() {
+        // «Hoy» dicho el dia en que se creo la lista, mirado ese mismo dia.
+        let mut l = lista(&["x"]);
+        l.titulo = "Hoy".into();
+        l.cuando = 20_000 * 86_400_000;
+        assert_eq!(dias_de_la_lista(&l, 20_000, 0), Some(0));
+        assert_eq!(dias_de_la_lista(&l, 20_002, 0), Some(-2));
+        l.titulo = "Inbox".into();
+        assert_eq!(dias_de_la_lista(&l, 20_000, 0), None);
     }
 }

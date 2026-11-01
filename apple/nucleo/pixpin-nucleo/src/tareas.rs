@@ -77,6 +77,11 @@ pub struct Tarea {
     /// entonces todo va como siempre. Solo en memoria: no se guarda ni viaja.
     #[uniffi(default = None)]
     pub prioridad: Option<String>,
+    /// El porque de esa prioridad (Windows e775e9f), para la pista de su
+    /// chapita ([`crate::jev::urgencia::pista_de_jev`]). `None` si la marco
+    /// el usuario o aun no se sabe. Solo en memoria.
+    #[uniffi(default = None)]
+    pub motivo_jev: Option<crate::jev::urgencia::MotivoJev>,
 }
 
 /// Una lista de tareas de un chat.
@@ -159,6 +164,7 @@ impl Nucleo {
                         .collect(),
                     crudo: t.texto,
                     prioridad: None,
+                    motivo_jev: None,
                 }
             })
             .collect();

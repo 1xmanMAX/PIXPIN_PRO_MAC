@@ -35120,6 +35120,115 @@ public func FfiConverterTypeMosaicoDeFunciones_lower(_ value: MosaicoDeFunciones
 
 
 /**
+ * **El porque de la prioridad de Jev** (`pindesk_typesafe::urgencia::Motivo`).
+ */
+public struct MotivoJev: Equatable, Hashable {
+    /**
+     * El nivel de la consecuencia (0 nada … 3 grave).
+     */
+    public var consecuencia: UInt8
+    /**
+     * Otro la espera.
+     */
+    public var espera: Bool
+    /**
+     * El plazo lo puso otro.
+     */
+    public var plazoAjeno: Bool
+    /**
+     * La piden en el chat.
+     */
+    public var pidenYa: Bool
+    /**
+     * Los dias que faltan (negativo: ya paso).
+     */
+    public var dias: Int64?
+    /**
+     * Si esos dias salen del titulo de la lista y no de la tarea.
+     */
+    public var deLaLista: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El nivel de la consecuencia (0 nada … 3 grave).
+         */consecuencia: UInt8, 
+        /**
+         * Otro la espera.
+         */espera: Bool, 
+        /**
+         * El plazo lo puso otro.
+         */plazoAjeno: Bool, 
+        /**
+         * La piden en el chat.
+         */pidenYa: Bool, 
+        /**
+         * Los dias que faltan (negativo: ya paso).
+         */dias: Int64?, 
+        /**
+         * Si esos dias salen del titulo de la lista y no de la tarea.
+         */deLaLista: Bool) {
+        self.consecuencia = consecuencia
+        self.espera = espera
+        self.plazoAjeno = plazoAjeno
+        self.pidenYa = pidenYa
+        self.dias = dias
+        self.deLaLista = deLaLista
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MotivoJev: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMotivoJev: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MotivoJev {
+        return
+            try MotivoJev(
+                consecuencia: FfiConverterUInt8.read(from: &buf), 
+                espera: FfiConverterBool.read(from: &buf), 
+                plazoAjeno: FfiConverterBool.read(from: &buf), 
+                pidenYa: FfiConverterBool.read(from: &buf), 
+                dias: FfiConverterOptionInt64.read(from: &buf), 
+                deLaLista: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MotivoJev, into buf: inout [UInt8]) {
+        FfiConverterUInt8.write(value.consecuencia, into: &buf)
+        FfiConverterBool.write(value.espera, into: &buf)
+        FfiConverterBool.write(value.plazoAjeno, into: &buf)
+        FfiConverterBool.write(value.pidenYa, into: &buf)
+        FfiConverterOptionInt64.write(value.dias, into: &buf)
+        FfiConverterBool.write(value.deLaLista, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMotivoJev_lift(_ buf: RustBuffer) throws -> MotivoJev {
+    return try FfiConverterTypeMotivoJev.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMotivoJev_lower(_ value: MotivoJev) -> RustBuffer {
+    return FfiConverterTypeMotivoJev.lower(value)
+}
+
+
+/**
  * **Quien contestaria ahora**: Claude o DeepSeek.
  */
 public struct MotorIa: Equatable, Hashable {
@@ -41283,6 +41392,12 @@ public struct Tarea: Equatable, Hashable {
      * entonces todo va como siempre. Solo en memoria: no se guarda ni viaja.
      */
     public var prioridad: String?
+    /**
+     * El porque de esa prioridad (Windows e775e9f), para la pista de su
+     * chapita ([`crate::jev::urgencia::pista_de_jev`]). `None` si la marco
+     * el usuario o aun no se sabe. Solo en memoria.
+     */
+    public var motivoJev: MotivoJev?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -41315,7 +41430,12 @@ public struct Tarea: Equatable, Hashable {
          * Su prioridad segun su contexto (Jev, Windows fa4ca12): `urgente`,
          * `alta`, `normal` o `baja`. `None`: sin Jev, aun no se sabe o hecha;
          * entonces todo va como siempre. Solo en memoria: no se guarda ni viaja.
-         */prioridad: String? = nil) {
+         */prioridad: String? = nil, 
+        /**
+         * El porque de esa prioridad (Windows e775e9f), para la pista de su
+         * chapita ([`crate::jev::urgencia::pista_de_jev`]). `None` si la marco
+         * el usuario o aun no se sabe. Solo en memoria.
+         */motivoJev: MotivoJev? = nil) {
         self.indice = indice
         self.crudo = crudo
         self.texto = texto
@@ -41325,6 +41445,7 @@ public struct Tarea: Equatable, Hashable {
         self.dias = dias
         self.imagenes = imagenes
         self.prioridad = prioridad
+        self.motivoJev = motivoJev
     }
 
     
@@ -41351,7 +41472,8 @@ public struct FfiConverterTypeTarea: FfiConverterRustBuffer {
                 creada: FfiConverterOptionString.read(from: &buf), 
                 dias: FfiConverterOptionUInt32.read(from: &buf), 
                 imagenes: FfiConverterSequenceString.read(from: &buf), 
-                prioridad: FfiConverterOptionString.read(from: &buf)
+                prioridad: FfiConverterOptionString.read(from: &buf), 
+                motivoJev: FfiConverterOptionTypeMotivoJev.read(from: &buf)
         )
     }
 
@@ -41365,6 +41487,7 @@ public struct FfiConverterTypeTarea: FfiConverterRustBuffer {
         FfiConverterOptionUInt32.write(value.dias, into: &buf)
         FfiConverterSequenceString.write(value.imagenes, into: &buf)
         FfiConverterOptionString.write(value.prioridad, into: &buf)
+        FfiConverterOptionTypeMotivoJev.write(value.motivoJev, into: &buf)
     }
 }
 
@@ -42195,6 +42318,10 @@ public struct TextosJev: Equatable, Hashable {
     public var prioridadUrgente: String
     public var prioridadAlta: String
     public var prioridadBaja: String
+    /**
+     * «Normal» (Windows e775e9f: tambien lleva su chapita).
+     */
+    public var prioridadNormal: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -42216,7 +42343,10 @@ public struct TextosJev: Equatable, Hashable {
          */importanteTodo: String, importanteTarea: String, importanteDecision: String, importantePregunta: String, importanteExamen: String, importanteBuscando: String, importanteNada: String, 
         /**
          * «Urgente», «Alta», «Baja» (con «✦ » delante en la chapita).
-         */prioridadUrgente: String, prioridadAlta: String, prioridadBaja: String) {
+         */prioridadUrgente: String, prioridadAlta: String, prioridadBaja: String, 
+        /**
+         * «Normal» (Windows e775e9f: tambien lleva su chapita).
+         */prioridadNormal: String = "") {
         self.grupo = grupo
         self.clave = clave
         self.claveMarcador = claveMarcador
@@ -42239,6 +42369,7 @@ public struct TextosJev: Equatable, Hashable {
         self.prioridadUrgente = prioridadUrgente
         self.prioridadAlta = prioridadAlta
         self.prioridadBaja = prioridadBaja
+        self.prioridadNormal = prioridadNormal
     }
 
     
@@ -42278,7 +42409,8 @@ public struct FfiConverterTypeTextosJev: FfiConverterRustBuffer {
                 importanteNada: FfiConverterString.read(from: &buf), 
                 prioridadUrgente: FfiConverterString.read(from: &buf), 
                 prioridadAlta: FfiConverterString.read(from: &buf), 
-                prioridadBaja: FfiConverterString.read(from: &buf)
+                prioridadBaja: FfiConverterString.read(from: &buf), 
+                prioridadNormal: FfiConverterString.read(from: &buf)
         )
     }
 
@@ -42305,6 +42437,7 @@ public struct FfiConverterTypeTextosJev: FfiConverterRustBuffer {
         FfiConverterString.write(value.prioridadUrgente, into: &buf)
         FfiConverterString.write(value.prioridadAlta, into: &buf)
         FfiConverterString.write(value.prioridadBaja, into: &buf)
+        FfiConverterString.write(value.prioridadNormal, into: &buf)
     }
 }
 
@@ -52813,6 +52946,30 @@ fileprivate struct FfiConverterOptionTypeMensajeChat: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeMotivoJev: FfiConverterRustBuffer {
+    typealias SwiftType = MotivoJev?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeMotivoJev.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeMotivoJev.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeNotaDeClase: FfiConverterRustBuffer {
     typealias SwiftType = NotaDeClase?
 
@@ -59969,6 +60126,20 @@ public func jevPreguntandoTareas() -> Bool  {
 })
 }
 /**
+ * **La pista de la chapita de Jev**: el porque de su prioridad en una linea
+ * («Jev: consecuencia media · nadie la espera · sin fecha»), como
+ * `tareas/chapitas.rs::pista_de_jev` de Windows.
+ */
+public func pistaDeJev(motivo: MotivoJev, locale: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_pista_de_jev(
+        FfiConverterTypeMotivoJev_lower(motivo),
+        FfiConverterString.lower(locale),uniffiCallStatus
+    )
+})
+}
+/**
  * **Instala el medidor de letras del lienzo** (una vez; las demas no hacen
  * nada) y se lo da al motor.
  */
@@ -61850,6 +62021,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_jev_preguntando_tareas() != 44870) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_pista_de_jev() != 43477) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_instalar_medidor_del_lienzo() != 2491) {
