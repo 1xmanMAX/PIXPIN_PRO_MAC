@@ -67,6 +67,9 @@ public final class ModeloAjustes: ObservableObject {
     public let fabrica: AjustesMac
     /// `[pdf]` de `pixpinmax.toml` (`nil` hasta `cargar`).
     @Published public private(set) var pdf: AjustesPdf?
+    /// `[jev]` de `pixpinmax.toml`, los interruptores de Jev (`nil` hasta
+    /// `cargar`).
+    @Published public private(set) var jev: AjustesJev?
     @Published public private(set) var abrirAlIniciar = false
     /// «Abrir al iniciar sesion» espera el visto bueno en Ajustes del Sistema.
     @Published public private(set) var esperaAprobacion = false
@@ -85,6 +88,7 @@ public final class ModeloAjustes: ObservableObject {
     public enum Paso: Equatable {
         case toml(AjustesMac)
         case pdf(AjustesPdf)
+        case jev(AjustesJev)
     }
 
     /// Cuantos pasos guarda «Deshacer» (los de Windows).
@@ -92,6 +96,9 @@ public final class ModeloAjustes: ObservableObject {
 
     /// Los de fabrica de `[pdf]` (`Pdf::default` de Windows).
     public static let pdfDeFabrica = AjustesPdf(aligerarAlEntrar: true, nivel: .equilibrado)
+
+    /// Los de fabrica de `[jev]` (`Jev::default` de Windows: todo encendido).
+    public static let jevDeFabrica = AjustesJev(reunion: true, anki: true, urgencia: true, modelo: true)
 
     public let nucleo: Nucleo
     /// La sincronizacion de la app, para encender o apagar la automatica.
@@ -124,13 +131,16 @@ public final class ModeloAjustes: ObservableObject {
     /// Lee el TOML y pasa la sincronizacion sola al `Sincronizador`.
     public func cargar() async {
         let nucleo = self.nucleo
-        let r = await Task.detached(priority: .utility) { () -> Result<(AjustesMac, AjustesPdf), Error> in
-            do { return .success((try nucleo.ajustes(), try nucleo.ajustesPdf())) } catch { return .failure(error) }
+        let r = await Task.detached(priority: .utility) { () -> Result<(AjustesMac, AjustesPdf, AjustesJev), Error> in
+            do {
+                return .success((try nucleo.ajustes(), try nucleo.ajustesPdf(), try nucleo.ajustesJev()))
+            } catch { return .failure(error) }
         }.value
         switch r {
-        case let .success((a, p)):
+        case let .success((a, p, j)):
             valores = a
             pdf = p
+            jev = j
             sincro?.automatica = a.sincroAutomatica
             error = nil
         case let .failure(e):
@@ -166,6 +176,7 @@ public final class ModeloAjustes: ObservableObject {
         switch paso {
         case let .toml(a): poner(a)
         case let .pdf(p): ponerPdf(p)
+        case let .jev(j): ponerJev(j)
         }
     }
 
@@ -193,6 +204,29 @@ public final class ModeloAjustes: ObservableObject {
                 await guardado.value
                 await sincro?.refrescar()
             }
+        }
+    }
+
+    /// Cambia `[jev]` y lo guarda.
+    public func cambiarJev(_ cambio: (inout AjustesJev) -> Void) {
+        let antes = jev ?? ModeloAjustes.jevDeFabrica
+        var nuevo = antes
+        cambio(&nuevo)
+        guard nuevo != antes else { return }
+        apuntar(.jev(antes))
+        ponerJev(nuevo)
+    }
+
+    private func ponerJev(_ nuevo: AjustesJev) {
+        jev = nuevo
+        let previo = ultimoGuardado
+        let nucleo = self.nucleo
+        ultimoGuardado = Task { [weak self] in
+            await previo?.value
+            let fallo = await Task.detached(priority: .utility) { () -> String? in
+                do { try nucleo.guardarAjustesJev(nuevos: nuevo); return nil } catch { return ModeloAjustes.texto(de: error) }
+            }.value
+            self?.error = fallo.map { "No se pudo guardar: \($0)" }
         }
     }
 

@@ -223,6 +223,10 @@ final class ModeloEstudiar: ObservableObject {
     @Published private(set) var anotada: (lienzo: String, leida: FotoConDibujo)?
     /// Sube cuando llega otra vez lo anotado: se vuelve a pintar.
     @Published private(set) var versionAnotada = 0
+    /// Lo importante que hallo Jev en la clase (Windows 4c14408): tareas,
+    /// decisiones, preguntas y examen, con su filtro (`tipo`; `nil`: todo).
+    @Published private(set) var importante: LoImportante?
+    @Published var filtro: String?
 
     /// Lo de las listas que no se pinta: por donde van, lo que se ve de
     /// ellas y lo alto de cada fila del texto.
@@ -326,6 +330,10 @@ final class ModeloEstudiar: ObservableObject {
         abrirElMedio(video: true)
         cargarMiniaturas()
         irA(ms)
+        filtro = nil
+        importante = nil
+        // Si la nota aun no se miro, Jev la mira ahora (sin clave, nada).
+        leerLoImportante(buscarSiFalta: true)
     }
 
     /// El video (con su sonido) o, si no hay o no se puede ver, la nota.
@@ -799,12 +807,68 @@ final class ModeloEstudiar: ObservableObject {
         if nueva.filas != clase.filas { altosTexto = [:] }
         clase = nueva
         ventana?.subtitle = nueva.nombre
+        leerLoImportante()
         if otrasCapturas {
             grande = nil
             pedida = nil
             // El lienzo de una captura pudo estrenarse (su `referencia`).
             anotadaPedida = nil
             cargarMiniaturas()
+        }
+    }
+
+    // MARK: Lo importante (Jev)
+
+    /// Relee lo importante de la nota; mientras Jev la mira, cada poco.
+    func leerLoImportante(buscarSiFalta: Bool = false) {
+        let (chat, id, nucleo) = (clase.chat, clase.id, almacen.nucleo)
+        Task {
+            let l = await Task.detached(priority: .utility) { try? nucleo.jevLoImportante(chat: chat, voz: id) }.value
+            guard id == clase.id else { return }
+            importante = l
+            if let l, !l.mirado, buscarSiFalta {
+                almacen.buscarLoImportante(id, en: chat, forzar: false)
+                try? await Task.sleep(nanoseconds: 700_000_000)
+                if id == clase.id { leerLoImportante() }
+            } else if l?.buscando == true {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                if id == clase.id { leerLoImportante() }
+            }
+        }
+    }
+
+    /// Va la franja de lo importante: con algo hallado, o mientras Jev lo
+    /// busca (`con_franja` de Windows).
+    var conFranja: Bool {
+        guard let i = importante else { return false }
+        return !i.importantes.isEmpty || (!i.mirado && i.buscando)
+    }
+
+    /// Lo importante de un renglon, un tipo una vez (en el orden de Windows).
+    func importantes(en ms: Int64?) -> [ImportanteDeClase] {
+        guard let ms, let i = importante else { return [] }
+        var vistos = Set<String>()
+        return i.importantes.filter { $0.ms == ms && vistos.insert($0.tipo).inserted }
+    }
+
+    /// Si el renglon se ve con el filtro (sin minuto, solo sin filtro).
+    func seVe(_ l: LineaDeClase) -> Bool {
+        guard let f = filtro else { return true }
+        return importantes(en: l.ms).contains { $0.tipo == f }
+    }
+
+    /// «+N tareas a Tareas»: las apunta en el Inbox con su clase y su minuto.
+    func apuntarTareas() {
+        let (chat, id, nucleo) = (clase.chat, clase.id, almacen.nucleo)
+        let desfase = desfaseLocalMs()
+        Task {
+            let n = await Task.detached(priority: .userInitiated) {
+                (try? nucleo.jevImportantesATareas(chat: chat, voz: id, desfaseMs: desfase)) ?? 0
+            }.value
+            guard n > 0 else { return NSSound.beep() }
+            avisar(textoJevTareasApuntadas(locale: JevTextos.idioma, n: UInt64(n)))
+            NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            leerLoImportante()
         }
     }
 
@@ -1336,10 +1400,25 @@ private struct ColumnaDelTexto: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Label("Transcripción", systemImage: "text.quote")
-                .font(.system(size: 14, weight: .medium))
-                .padding(.horizontal, 12)
-                .frame(height: 36)
+            HStack(spacing: 8) {
+                Label("Transcripción", systemImage: "text.quote")
+                    .font(.system(size: 14, weight: .medium))
+                Spacer(minLength: 0)
+                // Las tareas que hallo Jev, a Tareas (Windows 4c14408).
+                if let n = m.importante?.porApuntar, n > 0 {
+                    Button { m.apuntarTareas() } label: {
+                        Text(textoJevTareasPorApuntar(locale: JevTextos.idioma, n: UInt64(n)))
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.primary)
+                            .padding(.horizontal, 10).frame(height: 22)
+                            .background(Color(hex: 0x3B82F6, alfa: 0.2), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            if m.conFranja { FranjaDeLoImportante(m: m) }
             if m.clase.lineas.isEmpty, m.clase.senales.isEmpty {
                 Text("Aún no hay transcripción: pulsa «Pasar a texto» en la nota del chat y aparecerá aquí sola.")
                     .font(.system(size: 13.5)).foregroundStyle(.secondary)
@@ -1380,7 +1459,13 @@ private struct ColumnaDelTexto: View {
 
     @ViewBuilder private func fila(_ f: FilaDeClase, actual: Int?) -> some View {
         if let i = f.linea.map(Int.init), m.clase.lineas.indices.contains(i) {
-            linea(m.clase.lineas[i], esActual: actual == i)
+            // Con el filtro de lo importante, lo demas no se ve (mide 0:
+            // las cuentas del scroll siguen valiendo).
+            if m.seVe(m.clase.lineas[i]) {
+                linea(m.clase.lineas[i], esActual: actual == i)
+            } else {
+                Color.clear.frame(height: 0)
+            }
         } else if let j = f.senal.map(Int.init), m.clase.senales.indices.contains(j) {
             marcador(m.clase.senales[j])
         }
@@ -1389,11 +1474,22 @@ private struct ColumnaDelTexto: View {
     private func linea(_ l: LineaDeClase, esActual: Bool) -> some View {
         // Lo que aun no se ha oido, un poco apagado.
         let futuro = m.sonando && (l.ms.map { $0 > m.posicionMs } ?? false)
+        let suyos = m.importantes(en: l.ms)
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(l.ms.map { FormatoVoz.marca(ms: $0) } ?? "")
-                .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(esActual ? Color.accentColor : Color.secondary)
-                .frame(width: 44, alignment: .leading)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(l.ms.map { FormatoVoz.marca(ms: $0) } ?? "")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(esActual ? Color.accentColor : Color.secondary)
+                // Un punto de color por cada cosa importante del renglon.
+                if !suyos.isEmpty {
+                    HStack(spacing: 3) {
+                        ForEach(suyos, id: \.tipo) { i in
+                            Circle().fill(Color(hex: i.color)).frame(width: 6, height: 6)
+                        }
+                    }
+                }
+            }
+            .frame(width: 44, alignment: .leading)
             Text(l.texto)
                 .font(.system(size: 14.5))
                 .foregroundStyle(Color.primary.opacity(futuro ? 0.6 : 1))
@@ -1429,6 +1525,63 @@ private struct ColumnaDelTexto: View {
         .padding(.vertical, 3)
         .contentShape(Rectangle())
         .onTapGesture { m.irA(s.ms) }
+    }
+}
+
+/// **La franja de lo importante** (Windows 4c14408), bajo el titulo del
+/// texto: «Todo» y una chapita de su color por tipo, con cuantas hay; o,
+/// mientras Jev mira la clase, «Buscando lo importante…».
+private struct FranjaDeLoImportante: View {
+    @ObservedObject var m: ModeloEstudiar
+
+    private var t: TextosJev { JevTextos.actuales }
+
+    private func nombre(_ tipo: String) -> String {
+        switch tipo {
+        case "tarea": t.importanteTarea
+        case "decision": t.importanteDecision
+        case "pregunta": t.importantePregunta
+        case "examen": t.importanteExamen
+        default: tipo
+        }
+    }
+
+    private func chapa(_ rotulo: String, color: UInt32?, filtro: String?) -> some View {
+        let elegida = m.filtro == filtro
+        return Button {
+            m.filtro = filtro
+        } label: {
+            HStack(spacing: 6) {
+                if let color { Circle().fill(Color(hex: color)).frame(width: 7, height: 7) }
+                Text(rotulo).font(.system(size: 12))
+            }
+            .foregroundStyle(Color.primary)
+            .padding(.horizontal, 9).frame(height: 22)
+            .background(Color(hex: color ?? 0x3B82F6, alfa: elegida ? 0.28 : 0.1), in: Capsule())
+            .overlay(Capsule().stroke(elegida ? Color(hex: color ?? 0x3B82F6) : Color.clear, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+
+    var body: some View {
+        Group {
+            if let i = m.importante, !i.importantes.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        chapa(t.importanteTodo, color: nil, filtro: nil)
+                        ForEach(i.cuantos, id: \.tipo) { c in
+                            chapa("\(nombre(c.tipo)) \(c.n)", color: c.color, filtro: c.tipo)
+                        }
+                    }
+                }
+            } else {
+                Text(t.importanteBuscando)
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.secondary)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
     }
 }
 

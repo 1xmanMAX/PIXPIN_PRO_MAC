@@ -13,6 +13,9 @@ struct CabeceraDelAsistente: View {
     let almacen: Almacen
     let chat: String
     @State private var motor = ""
+    /// Lo que eligio Jev para el ultimo pedido («Claude Sonnet · Jev»,
+    /// Windows e51da39), mientras dure.
+    @State private var rotuloJev: String?
 
     static let motores: [(id: String, nombre: String)] = [("claude", "Claude Haiku"), ("deepseek", "DeepSeek")]
 
@@ -35,7 +38,7 @@ struct CabeceraDelAsistente: View {
                     }
                 }
             } label: {
-                Label(Self.nombre(de: motor), systemImage: "sparkles")
+                Label(rotuloJev ?? Self.nombre(de: motor), systemImage: "sparkles")
                     .font(.caption)
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .background(Color.accentColor.opacity(0.15), in: Capsule())
@@ -56,6 +59,11 @@ struct CabeceraDelAsistente: View {
             motor = await Task.detached(priority: .utility) {
                 iaQueMotor(ajustes: AjustesIa(motor: id, pensar: nil, documentosALaNube: "")).proveedor
             }.value
+            // El modelo que eligio Jev se mira cada poco (es leer memoria).
+            while !Task.isCancelled {
+                rotuloJev = jevRotuloDelModelo(chat: chat) ?? jevRotuloDelModelo(chat: "")
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+            }
         }
     }
 

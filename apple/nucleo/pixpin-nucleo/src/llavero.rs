@@ -90,8 +90,19 @@ fn proveedor(id: &str) -> Result<Proveedor, ErrorNucleo> {
 /// vez da error de argumento y se queda el primero.
 #[uniffi::export]
 pub fn instalar_llavero(llavero: Arc<dyn LlaveroApp>) -> Result<(), ErrorNucleo> {
+    // Una copia para lo que no es de `pixpin-ia` (la clave de Jev, `jev.rs`).
+    let _ = LLAVERO.set(llavero.clone());
     claves::instalar_llavero(Box::new(Adaptador { app: llavero }))
         .map_err(|detalle| ErrorNucleo::Argumento { detalle })
+}
+
+/// El Llavero de la app, tal cual (el primero que se instalo).
+static LLAVERO: std::sync::OnceLock<Arc<dyn LlaveroApp>> = std::sync::OnceLock::new();
+
+/// **El Llavero de la app**, si ya se instalo: para las claves que no son de
+/// un proveedor del asistente (la de TypeSafe, `crate::jev`).
+pub(crate) fn llavero_app() -> Option<Arc<dyn LlaveroApp>> {
+    LLAVERO.get().cloned()
 }
 
 /// Guarda la clave de un proveedor (`claude`, `deepseek`) en el llavero

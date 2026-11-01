@@ -422,6 +422,8 @@ struct ClaveNube: View {
         guard !clave.isEmpty else { return }
         do {
             try iaGuardarClave(proveedorId: proveedor.rawValue, clave: clave)
+            // El puntito de su IA: clave nueva, aun sin saber si vale.
+            iaEstadoClaveCambiada(servicio: proveedor.rawValue)
             escrita = ""
             aviso = nil
             leer()
@@ -448,6 +450,7 @@ struct ClaveNube: View {
     private func borrar() {
         do {
             try iaBorrarClave(proveedorId: proveedor.rawValue)
+            iaEstadoClaveCambiada(servicio: proveedor.rawValue)
             aviso = nil
             prueba = nil
         } catch {

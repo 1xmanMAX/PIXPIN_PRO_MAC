@@ -327,6 +327,17 @@ public enum FilasAjustes {
                 ayuda: "Se guarda en el Llavero de este Mac, nunca en claro. Sácala en \(p.consola).",
                 control: .vista { _ in AnyView(ClaveNube(proveedor: p)) }))
         }
+        // Jev de TypeSafe (Windows 24fdfa9): su clave y un interruptor por
+        // cada funcion que el Mac tiene (`[jev]`, que no viaja).
+        let tj = JevTextos.actuales
+        filas.append(FilaAjuste(
+            id: "clave-typesafe", seccion: .asistente, grupo: tj.grupo, titulo: tj.clave,
+            ayuda: "Se guarda en el Llavero de este Mac, nunca en claro. Sácala en console.typesafe.ai. Sin clave, todo sigue como siempre.",
+            control: .vista { _ in AnyView(ClaveJev()) }))
+        filas.append(filaJev("reunion", tj.reunion, \.reunion))
+        filas.append(filaJev("anki", tj.anki, \.anki))
+        filas.append(filaJev("urgencia", tj.urgencia, \.urgencia))
+        filas.append(filaJev("modelo", tj.modelo, \.modelo))
         // Las conexiones (Windows, 17-oct): Google Drive para el asistente
         // de la nube, con el ID de cliente del usuario y OAuth.
         for c in iaConexiones() {
@@ -336,6 +347,19 @@ public enum FilasAjustes {
                 control: .vista { _ in AnyView(FilaConexion(id: c.id)) }))
         }
         return filas
+    }
+
+    /// Un interruptor de `[jev]`, con su punto azul y su «Restablecer».
+    static func filaJev(_ id: String, _ t: TextoInterruptorJev,
+                        _ kp: WritableKeyPath<AjustesJev, Bool>) -> FilaAjuste {
+        let fabrica = ModeloAjustes.jevDeFabrica
+        var f = FilaAjuste(
+            id: "jev-\(id)", seccion: .asistente, grupo: JevTextos.actuales.grupo, titulo: t.titulo, ayuda: t.ayuda,
+            control: .interruptor(get: { ($0.jev ?? fabrica)[keyPath: kp] },
+                                  set: { m, v in m.cambiarJev { $0[keyPath: kp] = v } }))
+        f.cambiada = { ($0.jev ?? fabrica)[keyPath: kp] != fabrica[keyPath: kp] }
+        f.restablecerOtro = { m in m.cambiarJev { $0[keyPath: kp] = fabrica[keyPath: kp] } }
+        return f
     }
 
     // MARK: Atajos, Sincro, Apariencia, Avanzado
