@@ -17,8 +17,10 @@ final class AsistenteF9Tests: XCTestCase {
 
     func testLaPastillaNombraElMotor() {
         XCTAssertEqual(CabeceraDelAsistente.nombre(de: "claude"), "Claude Haiku")
-        XCTAssertEqual(CabeceraDelAsistente.nombre(de: ""), "Local")
-        XCTAssertEqual(CabeceraDelAsistente.nombre(de: "otro"), "Local")
+        XCTAssertEqual(CabeceraDelAsistente.nombre(de: "deepseek"), "DeepSeek")
+        // Ya no hay motor local (como Windows): lo desconocido es Claude.
+        XCTAssertEqual(CabeceraDelAsistente.nombre(de: ""), "Claude Haiku")
+        XCTAssertEqual(CabeceraDelAsistente.nombre(de: "otro"), "Claude Haiku")
     }
 
     func testConversacionNuevaEsUnaNotaDelAsistente() throws {
