@@ -36,6 +36,9 @@ fn sin_ordenar() -> ClaseParaExportar {
             },
         ],
         adjuntos: vec![],
+        importantes: vec![],
+        temas: vec![],
+        acta: Default::default(),
     }
 }
 
@@ -44,6 +47,44 @@ fn incrustar(_: &Path) -> Option<Medio> {
         mime: "image/png".into(),
         bytes: b"png".to_vec(),
     })
+}
+
+#[test]
+fn lo_importante_lleva_sus_chapitas_y_el_filtro() {
+    // Sin nada hallado, la pagina es la de siempre.
+    let h = html(&ejemplo(), &Rotulos::default(), &incrustar);
+    assert!(!h.contains("filtro-importante\" role"));
+    assert!(!h.contains(" data-tipos="));
+    let mut c = ejemplo();
+    c.importantes = vec![
+        clase::Importante {
+            ms: 60_000,
+            tipo: clase::TipoImportante::Examen,
+            p: 0.9,
+            quien: None,
+            cuando: None,
+            en_tareas: false,
+        },
+        clase::Importante {
+            ms: 60_000,
+            tipo: clase::TipoImportante::Tarea,
+            p: 0.8,
+            quien: Some(true),
+            cuando: None,
+            en_tareas: false,
+        },
+    ];
+    let h = html(&c, &Rotulos::default(), &incrustar);
+    assert!(h.contains("data-tipos=\"tarea examen\""));
+    assert!(h.contains(
+        "<span class=\"chip tarea\">Tarea</span><span class=\"chip examen\">Examen</span>"
+    ));
+    assert!(h.contains("data-filtro=\"tarea\""));
+    assert!(h.contains("Examen 1</button>"));
+    // Sin decisiones ni preguntas, sus botones no salen.
+    assert!(!h.contains("button\" data-filtro=\"decision\""));
+    // Lo que no es importante no lleva `data-tipos`.
+    assert!(h.contains("<p class=\"linea\" id=\"t-0\" data-ms=\"0\"><a"));
 }
 
 #[test]
@@ -291,4 +332,67 @@ fn el_markdown_va_en_un_zip_con_su_carpeta() {
     assert!(md.contains("![Captura 2 · 1:05](Clase%201_archivos/captura-02-1m05s.png)"));
     // La que no se pudo leer no se enlaza.
     assert!(!md.contains("Captura 1 ·"));
+}
+
+#[test]
+fn la_agenda_va_con_su_estado() {
+    use crate::temas::{Tema, por_jev};
+    let mut c = ejemplo();
+    let mut t = vec![
+        Tema::nuevo("t1", "Presupuesto <2027>"),
+        Tema::nuevo("t2", "Viaje"),
+    ];
+    por_jev(&mut t, "t1", 65_000, 0.9);
+    c.temas = t;
+    let h = html(&c, &Rotulos::default(), &incrustar);
+    assert!(h.contains("Temas de la reunión"));
+    assert!(h.contains("1/2"));
+    assert!(h.contains("Presupuesto &lt;2027&gt;"));
+    assert!(h.contains("class=\"tema hecho\" data-ms=\"65000\""));
+    assert!(h.contains("Sin tratar"));
+    let md = markdown(&c, &Rotulos::default(), &|_| None);
+    assert!(md.contains("- [x] Presupuesto"));
+    assert!(md.contains("· 1:05"));
+    assert!(md.contains("- [ ] Viaje — *Sin tratar*"));
+    // Sin temas, la pagina es la de siempre.
+    c.temas.clear();
+    assert!(!html(&c, &Rotulos::default(), &incrustar).contains("lista-temas\""));
+}
+
+#[test]
+fn lo_de_la_reunion_en_vivo_va_al_lado_con_su_minuto() {
+    use crate::acta_viva::{Acta, Dicho, TiempoDeTema, TiempoPorTema};
+    use crate::temas::Tema;
+    let mut c = ejemplo();
+    c.temas = vec![Tema::nuevo("t1", "Paro"), Tema::nuevo("t2", "Viaje")];
+    c.acta = Acta {
+        decisiones: vec![Dicho {
+            ms: 125_000,
+            texto: "adelantamos <el> pedido".into(),
+        }],
+        preguntas_abiertas: vec![Dicho {
+            ms: 300_000,
+            texto: "¿quién paga?".into(),
+        }],
+        tiempo_por_tema: Some(TiempoPorTema {
+            temas: vec![TiempoDeTema {
+                id: "t1".into(),
+                ms: 359_000,
+            }],
+            otro: 0,
+        }),
+        ..Acta::default()
+    };
+    let h = html(&c, &Rotulos::default(), &incrustar);
+    assert!(h.contains("Decisiones <span class=\"cuenta\">1</span>"));
+    assert!(h.contains("data-ms=\"125000\"><a class=\"t\" href=\"#t-125000\""));
+    assert!(h.contains("adelantamos &lt;el&gt; pedido"));
+    assert!(h.contains("Preguntas sin respuesta"));
+    assert!(h.contains("<span class=\"duracion\">6 min</span>"));
+    // El tema sin minutos contados no dice nada.
+    assert_eq!(h.matches("class=\"duracion\"").count(), 1);
+    let md = markdown(&c, &Rotulos::default(), &|_| None);
+    assert!(md.contains("## Decisiones"));
+    assert!(md.contains("- 2:05 · adelantamos \\<el\\> pedido"));
+    assert!(md.contains("- [ ] Paro (6 min)"));
 }

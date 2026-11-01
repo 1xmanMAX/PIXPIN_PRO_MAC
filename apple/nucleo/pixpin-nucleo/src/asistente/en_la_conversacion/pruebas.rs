@@ -245,17 +245,12 @@ fn sin_motor_la_respuesta_lo_dice() {
     // La nube sin clave en el Llavero (un proveedor que no esta).
     let ajustes = AjustesIa {
         motor: "local".into(),
-        modelo: String::new(),
         pensar: None,
-        respaldo_local: false,
-        mejor_vista: false,
         documentos_a_la_nube: String::new(),
-        carpeta_modelos: d.join("modelos").display().to_string(),
-        puerto_usuario: 0,
     };
     let fin = ia_turno_en_chat(ajustes, n.clone(), chat.clone(), inicio, 0, Arc::<Manos>::default(), Arc::<Ve>::default(), CorteIa::nuevo()).unwrap();
     assert!(fin.respuesta.texto.starts_with("⚠️"), "{}", fin.respuesta.texto);
-    assert!(fin.respuesta.texto.contains("modelo local"), "{}", fin.respuesta.texto);
+    assert!(fin.respuesta.texto.contains("Falta la clave"), "{}", fin.respuesta.texto);
     let _ = std::fs::remove_dir_all(d);
 }
 

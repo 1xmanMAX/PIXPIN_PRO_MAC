@@ -41,7 +41,7 @@ public enum SeccionAjustes: String, CaseIterable, Identifiable, Sendable {
         case .general: "Cómo arranca PixPin y qué hace con los PDF del chat."
         case .captura: "Cómo se hace una captura y qué pasa con ella después."
         case .voz: "Pasar a texto las notas de voz con dos idiomas."
-        case .asistente: "Quién contesta en el chat «Asistente»: el modelo de este Mac, Claude o DeepSeek."
+        case .asistente: "Quién contesta en el chat «Asistente»: Claude o DeepSeek, con tu clave."
         case .atajos: "Pulsa «Cambiar» y luego la combinación. ⌫ la deja sin atajo; Esc cancela."
         case .sincro: "Cómo se encuentra este Mac con el móvil y los demás equipos."
         case .apariencia: "El aspecto de PixPin."
@@ -297,27 +297,30 @@ public enum FilasAjustes {
     static var asistente: [FilaAjuste] {
         let g = "Motor del asistente", v = "Voz del asistente", c = "Claves de API"
         var filas = [
-            opcion(.asistente, g, "asistente-motor", "Motor", "Local: gratis y sin red. Nube: con tu clave.",
-                   \.asistenteMotor, [("Local (este Mac)", ""), ("Claude", "claude"), ("DeepSeek", "deepseek")]),
-            opcion(.asistente, g, "asistente-modelo", "Modelo del asistente",
-                   "Con motor Local. El 2B dibuja y ve mejor; el 0.8B gasta menos.",
-                   \.asistenteModelo, [("Qwen3.5 2B (recomendado)", ""), ("Qwen3.5 0.8B (ligero)", "qwen3.5-0.8b")]),
+            // Sin modelo local desde el 27-oct-2026 (Windows `f86732c`): lo
+            // vacio o el `local` de antes salen como Claude. Sin ninguna clave
+            // contesta Apple Intelligence, si este Mac la tiene.
+            opcion(.asistente, g, "asistente-motor", "Motor",
+                   "Contesta por internet con tu clave: Claude Haiku o DeepSeek. Sin clave, Apple Intelligence (si este Mac la tiene).",
+                   \.asistenteMotor, [("Claude", "claude"), ("DeepSeek", "deepseek")]),
             opcion(.asistente, g, "asistente-pensar", "Pensar antes de contestar",
                    "Antes de actuar, el asistente piensa y escribe lo que entendió. Pensar tarda: en automático solo piensa en las tareas complejas o si se lo pides («piénsalo», «paso a paso»).",
                    \.asistentePensar, [("Automático", nil), ("Siempre", true), ("Nunca", false)]),
-            interruptor(.asistente, g, "asistente-respaldo", "Si la nube falla, seguir con el local",
-                        "Sin red, con la clave mal o sin saldo, contesta el modelo local (si está bajado) y te avisa en la respuesta.",
-                        \.asistenteRespaldoLocal),
-            interruptor(.asistente, g, "asistente-vista", "Mejor vista con fotos (Gemma 4 E2B)",
-                        "Opcional: para describir una foto o leer lo que pone usa Gemma 4 E2B, que ve mejor. Se baja aparte desde el chat «Asistente».",
-                        \.asistenteMejorVista),
             opcion(.asistente, g, "asistente-docs", "Tus documentos y la nube",
-                   "Con Claude o DeepSeek, lo que el asistente encuentre en tus PDF, notas y chats sale por internet para contestarte. Con el modelo local nunca sale del Mac.",
+                   "Con Claude o DeepSeek, lo que el asistente encuentre en tus PDF, notas y chats sale por internet para contestarte.",
                    \.asistenteDocumentosALaNube, [("Preguntar", ""), ("Permitir", "si"), ("No permitir", "no")]),
             interruptor(.asistente, v, "asistente-revisar", "Ver lo dicho antes de enviarlo",
                         "Con el micrófono del chat «Asistente»: lo que dices queda escrito en la caja para corregirlo y lo envías tú. Apagado, se envía solo.",
                         \.asistenteRevisarLoDicho),
         ]
+        // Lo que quedo bajado del asistente local, mientras siga ahi
+        // (`ajustes2-asistente-borrar-locales` de Windows).
+        if let b = iaModelosViejosOcupan(carpeta: carpetaDeModelosViejos().path) {
+            filas.append(FilaAjuste(
+                id: "asistente-borrar-locales", seccion: .asistente, grupo: g, titulo: "Modelos locales antiguos",
+                ayuda: "Lo que se bajó para el asistente local, que ya no se usa: \(ModelosViejos.tamano(b)) en ~/Library/Application Support/PixPinMax/modelos.",
+                control: .vista { _ in AnyView(FilaModelosViejos()) }))
+        }
         for p in ProveedorNube.allCases {
             filas.append(FilaAjuste(
                 id: "clave-\(p.rawValue)", seccion: .asistente, grupo: c, titulo: "Clave de \(p.nombre)",

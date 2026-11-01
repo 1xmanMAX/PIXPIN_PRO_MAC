@@ -568,6 +568,16 @@ pub const REPLY: Icono = Icono {
     )],
 };
 
+/// `save` (`src/content/save/materialicons/24px.svg`): «Guardar» lo
+/// abierto de paso en un chat (`guardar_de_paso`).
+pub const SAVE: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z",
+        false,
+    )],
+};
+
 /// `settings` (`src/action/settings/materialicons/24px.svg`): el engranaje
 /// de la cabecera del visor, al lado del marcador (v0.66 del movil).
 pub const SETTINGS: Icono = Icono {
@@ -916,7 +926,9 @@ pub const GROUP: Icono = Icono {
 /// Todos, para poder comprobarlos de una vez.
 pub const TODOS: &[Icono] = &[
     GROUP,
+    SAVE,
     VIDEOCAM,
+    PHOTO_CAMERA,
     EDIT_NOTE,
     CROP_FREE,
     MORE_VERT,
@@ -939,6 +951,7 @@ pub const TODOS: &[Icono] = &[
     LIGHT_MODE,
     FULLSCREEN,
     FULLSCREEN_EXIT,
+    SCREEN_SHARE,
     DRAG_INDICATOR,
     ADD,
     GRID_VIEW,
@@ -991,6 +1004,10 @@ pub const TODOS: &[Icono] = &[
     LAUNCH,
     LIBRARY_ADD,
     LIBRARY_MUSIC,
+    MUSIC_NOTE,
+    TIMER,
+    SPEED,
+    DOCUMENT_SCANNER,
     LINK,
     LIST,
     LYRICS,
@@ -1026,6 +1043,20 @@ pub const VIDEOCAM: Icono = Icono {
     )],
 };
 
+/// `photo_camera` (`src/image/photo_camera/materialicons/24px.svg`): «Foto»
+/// con la camara del equipo en la reunion presencial (27-oct-2026). El
+/// `<circle>` del centro va como dos arcos.
+pub const PHOTO_CAMERA: Icono = Icono {
+    vista: VISTA,
+    trazos: &[
+        relleno("M12 8.8a3.2 3.2 0 1 0 0 6.4a3.2 3.2 0 1 0 0-6.4z", false),
+        relleno(
+            "M9 2L7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z",
+            false,
+        ),
+    ],
+};
+
 /// `fullscreen` (`src/navigation/fullscreen/materialicons/24px.svg`): los
 /// lectores, de pin a pantalla completa.
 pub const FULLSCREEN: Icono = Icono {
@@ -1041,6 +1072,18 @@ pub const FULLSCREEN_EXIT: Icono = Icono {
     vista: VISTA,
     trazos: &[relleno(
         "M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z",
+        false,
+    )],
+};
+
+/// `screen_share` (`src/hardware/screen_share/materialicons/24px.svg`):
+/// «Pantalla» de la barra de grabar (29-oct-2026), que enciende o apaga el
+/// video de la pantalla mientras el audio sigue. El mismo dibujo que
+/// `ic_reunion_pantalla` del movil.
+pub const SCREEN_SHARE: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.11-.9-2-2-2H4c-1.11 0-2 .89-2 2v10c0 1.1.89 2 2 2H0v2h24v-2h-4zM4 16V6h16v10.01L4 16zM13 13.52v-2.19c-2.78 0-4.61.85-6 2.72.56-2.67 2.11-5.33 6-5.87V6l4 3.73-4 3.79z",
         false,
     )],
 };
@@ -1093,6 +1136,49 @@ pub const FONT_DOWNLOAD: Icono = Icono {
     trazos: &[relleno(
         "M9.93 13.5h4.14L12 7.98zM20 2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-4.05 16.5l-1.14-3H9.17l-1.12 3H5.96l5.11-13h1.86l5.11 13h-2.09z",
         false,
+    )],
+};
+
+/// `music_note` (`src/image/music_note/materialicons/24px.svg`): la
+/// portada de una cancion que no la trae y la entrada «Musica» de la hoja
+/// del «+» (27-oct-2026).
+pub const MUSIC_NOTE: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z",
+        false,
+    )],
+};
+
+/// `timer` (`src/image/timer/materialicons/24px.svg`): «Sincronizar la
+/// letra» del karaoke, como el reloj del movil.
+pub const TIMER: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z",
+        false,
+    )],
+};
+
+/// `speed` (`src/av/speed/materialicons/24px.svg`): «Lectura veloz», en el
+/// menu del mensaje y en su chapa de la burbuja (`Icons.Filled.Speed` del
+/// movil, 27-oct-2026).
+pub const SPEED: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M20.38 8.57l-1.23 1.85a8 8 0 01-.22 7.58H5.07A8 8 0 0115.58 6.85l1.85-1.23A10 10 0 003.35 19a2 2 0 001.72 1h13.85a2 2 0 001.74-1 10 10 0 00-.27-10.44zm-9.79 6.84a2 2 0 002.83 0l5.66-8.49-8.49 5.66a2 2 0 000 2.83z",
+        false,
+    )],
+};
+
+/// `document_scanner` (`src/action/document_scanner/materialicons/24px.svg`):
+/// la chapa «Escaneado» de la burbuja (`Icons.Filled.DocumentScanner` del
+/// movil). Par-impar: las rayas del papel son huecos.
+pub const DOCUMENT_SCANNER: Icono = Icono {
+    vista: VISTA,
+    trazos: &[relleno(
+        "M7 3H4v3H2V1h5v2zm15 3V1h-5v2h3v3h2zM7 21H4v-3H2v5h5v-2zm13-3v3h-3v2h5v-5h-2zM19 18c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2v12zM15 8H9v2h6V8zm0 3H9v2h6v-2zm0 3H9v2h6v-2z",
+        true,
     )],
 };
 

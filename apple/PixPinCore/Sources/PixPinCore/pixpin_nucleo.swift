@@ -17637,68 +17637,41 @@ public func FfiConverterTypeAdjuntoLeccion_lower(_ value: AdjuntoLeccion) -> Rus
 
 /**
  * **Los ajustes `[asistente]`** que usa el turno (Swift los lee con
- * `Nucleo::ajustes`), mas donde viven los modelos y el puerto del
- * `llama-server` del usuario.
+ * `Nucleo::ajustes`).
  */
 public struct AjustesIa: Equatable, Hashable {
     /**
-     * `""`/`local`, `claude` o `deepseek`.
+     * `claude` o `deepseek`; vacio o `local` (de cuando habia modelo
+     * local): la nube que tenga clave ([`eleccion_con`]).
      */
     public var motor: String
-    /**
-     * El modelo local (`qwen3.5-2b`, `qwen3.5-0.8b`; vacio: el 2B).
-     */
-    public var modelo: String
     /**
      * `None`: automatico.
      */
     public var pensar: Bool?
-    public var respaldoLocal: Bool
-    public var mejorVista: Bool
     /**
      * `""` preguntar, `si`, `no`. `buscar_en_mis_cosas` lo lee (y lo
      * guarda al preguntar) de la carpeta de datos; aqui va para saberlo.
      */
     public var documentosALaNube: String
-    /**
-     * La carpeta de los modelos bajados.
-     */
-    public var carpetaModelos: String
-    /**
-     * El puerto del `llama-server` propio del usuario (8080).
-     */
-    public var puertoUsuario: UInt16
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         /**
-         * `""`/`local`, `claude` o `deepseek`.
+         * `claude` o `deepseek`; vacio o `local` (de cuando habia modelo
+         * local): la nube que tenga clave ([`eleccion_con`]).
          */motor: String, 
         /**
-         * El modelo local (`qwen3.5-2b`, `qwen3.5-0.8b`; vacio: el 2B).
-         */modelo: String, 
-        /**
          * `None`: automatico.
-         */pensar: Bool?, respaldoLocal: Bool, mejorVista: Bool, 
+         */pensar: Bool?, 
         /**
          * `""` preguntar, `si`, `no`. `buscar_en_mis_cosas` lo lee (y lo
          * guarda al preguntar) de la carpeta de datos; aqui va para saberlo.
-         */documentosALaNube: String, 
-        /**
-         * La carpeta de los modelos bajados.
-         */carpetaModelos: String, 
-        /**
-         * El puerto del `llama-server` propio del usuario (8080).
-         */puertoUsuario: UInt16) {
+         */documentosALaNube: String) {
         self.motor = motor
-        self.modelo = modelo
         self.pensar = pensar
-        self.respaldoLocal = respaldoLocal
-        self.mejorVista = mejorVista
         self.documentosALaNube = documentosALaNube
-        self.carpetaModelos = carpetaModelos
-        self.puertoUsuario = puertoUsuario
     }
 
     
@@ -17718,25 +17691,15 @@ public struct FfiConverterTypeAjustesIa: FfiConverterRustBuffer {
         return
             try AjustesIa(
                 motor: FfiConverterString.read(from: &buf), 
-                modelo: FfiConverterString.read(from: &buf), 
                 pensar: FfiConverterOptionBool.read(from: &buf), 
-                respaldoLocal: FfiConverterBool.read(from: &buf), 
-                mejorVista: FfiConverterBool.read(from: &buf), 
-                documentosALaNube: FfiConverterString.read(from: &buf), 
-                carpetaModelos: FfiConverterString.read(from: &buf), 
-                puertoUsuario: FfiConverterUInt16.read(from: &buf)
+                documentosALaNube: FfiConverterString.read(from: &buf)
         )
     }
 
     public static func write(_ value: AjustesIa, into buf: inout [UInt8]) {
         FfiConverterString.write(value.motor, into: &buf)
-        FfiConverterString.write(value.modelo, into: &buf)
         FfiConverterOptionBool.write(value.pensar, into: &buf)
-        FfiConverterBool.write(value.respaldoLocal, into: &buf)
-        FfiConverterBool.write(value.mejorVista, into: &buf)
         FfiConverterString.write(value.documentosALaNube, into: &buf)
-        FfiConverterString.write(value.carpetaModelos, into: &buf)
-        FfiConverterUInt16.write(value.puertoUsuario, into: &buf)
     }
 }
 
@@ -17810,25 +17773,14 @@ public struct AjustesMac: Equatable, Hashable {
      */
     public var vozModoDeIdiomas: String
     /**
-     * Quien contesta: vacio (local), `claude` o `deepseek`.
+     * Quien contesta: `claude` o `deepseek`; vacio (o el `local` de antes
+     * del 27-oct-2026), la nube que tenga clave.
      */
     public var asistenteMotor: String
-    /**
-     * El modelo local: vacio (el 2B) o `qwen3.5-0.8b`.
-     */
-    public var asistenteModelo: String
     /**
      * Pensar antes de contestar: `None` automatico, o siempre/nunca.
      */
     public var asistentePensar: Bool?
-    /**
-     * Si la nube falla, seguir con el modelo local.
-     */
-    public var asistenteRespaldoLocal: Bool
-    /**
-     * Gemma 4 E2B para mirar fotos.
-     */
-    public var asistenteMejorVista: Bool
     /**
      * Los documentos propios a la nube: vacio (preguntar), `si` o `no`.
      */
@@ -17879,20 +17831,12 @@ public struct AjustesMac: Equatable, Hashable {
          * `cada_uno` o `todo_en_uno` (`[voz] modo_de_idiomas`).
          */vozModoDeIdiomas: String, 
         /**
-         * Quien contesta: vacio (local), `claude` o `deepseek`.
+         * Quien contesta: `claude` o `deepseek`; vacio (o el `local` de antes
+         * del 27-oct-2026), la nube que tenga clave.
          */asistenteMotor: String, 
-        /**
-         * El modelo local: vacio (el 2B) o `qwen3.5-0.8b`.
-         */asistenteModelo: String, 
         /**
          * Pensar antes de contestar: `None` automatico, o siempre/nunca.
          */asistentePensar: Bool?, 
-        /**
-         * Si la nube falla, seguir con el modelo local.
-         */asistenteRespaldoLocal: Bool, 
-        /**
-         * Gemma 4 E2B para mirar fotos.
-         */asistenteMejorVista: Bool, 
         /**
          * Los documentos propios a la nube: vacio (preguntar), `si` o `no`.
          */asistenteDocumentosALaNube: String, 
@@ -17912,10 +17856,7 @@ public struct AjustesMac: Equatable, Hashable {
         self.vozSegundoIdioma = vozSegundoIdioma
         self.vozModoDeIdiomas = vozModoDeIdiomas
         self.asistenteMotor = asistenteMotor
-        self.asistenteModelo = asistenteModelo
         self.asistentePensar = asistentePensar
-        self.asistenteRespaldoLocal = asistenteRespaldoLocal
-        self.asistenteMejorVista = asistenteMejorVista
         self.asistenteDocumentosALaNube = asistenteDocumentosALaNube
         self.asistenteRevisarLoDicho = asistenteRevisarLoDicho
     }
@@ -17949,10 +17890,7 @@ public struct FfiConverterTypeAjustesMac: FfiConverterRustBuffer {
                 vozSegundoIdioma: FfiConverterString.read(from: &buf), 
                 vozModoDeIdiomas: FfiConverterString.read(from: &buf), 
                 asistenteMotor: FfiConverterString.read(from: &buf), 
-                asistenteModelo: FfiConverterString.read(from: &buf), 
                 asistentePensar: FfiConverterOptionBool.read(from: &buf), 
-                asistenteRespaldoLocal: FfiConverterBool.read(from: &buf), 
-                asistenteMejorVista: FfiConverterBool.read(from: &buf), 
                 asistenteDocumentosALaNube: FfiConverterString.read(from: &buf), 
                 asistenteRevisarLoDicho: FfiConverterBool.read(from: &buf)
         )
@@ -17972,10 +17910,7 @@ public struct FfiConverterTypeAjustesMac: FfiConverterRustBuffer {
         FfiConverterString.write(value.vozSegundoIdioma, into: &buf)
         FfiConverterString.write(value.vozModoDeIdiomas, into: &buf)
         FfiConverterString.write(value.asistenteMotor, into: &buf)
-        FfiConverterString.write(value.asistenteModelo, into: &buf)
         FfiConverterOptionBool.write(value.asistentePensar, into: &buf)
-        FfiConverterBool.write(value.asistenteRespaldoLocal, into: &buf)
-        FfiConverterBool.write(value.asistenteMejorVista, into: &buf)
         FfiConverterString.write(value.asistenteDocumentosALaNube, into: &buf)
         FfiConverterBool.write(value.asistenteRevisarLoDicho, into: &buf)
     }
@@ -21457,67 +21392,6 @@ public func FfiConverterTypeCarpetasDeFlow_lift(_ buf: RustBuffer) throws -> Car
 #endif
 public func FfiConverterTypeCarpetasDeFlow_lower(_ value: CarpetasDeFlow) -> RustBuffer {
     return FfiConverterTypeCarpetasDeFlow.lower(value)
-}
-
-
-/**
- * Lo que se puede bajar y como esta.
- */
-public struct CatalogoLocal: Equatable, Hashable {
-    public var versionMotor: String
-    public var motor: FicheroIa
-    public var modelos: [ModeloIa]
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(versionMotor: String, motor: FicheroIa, modelos: [ModeloIa]) {
-        self.versionMotor = versionMotor
-        self.motor = motor
-        self.modelos = modelos
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension CatalogoLocal: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeCatalogoLocal: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CatalogoLocal {
-        return
-            try CatalogoLocal(
-                versionMotor: FfiConverterString.read(from: &buf), 
-                motor: FfiConverterTypeFicheroIa.read(from: &buf), 
-                modelos: FfiConverterSequenceTypeModeloIa.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: CatalogoLocal, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.versionMotor, into: &buf)
-        FfiConverterTypeFicheroIa.write(value.motor, into: &buf)
-        FfiConverterSequenceTypeModeloIa.write(value.modelos, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCatalogoLocal_lift(_ buf: RustBuffer) throws -> CatalogoLocal {
-    return try FfiConverterTypeCatalogoLocal.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeCatalogoLocal_lower(_ value: CatalogoLocal) -> RustBuffer {
-    return FfiConverterTypeCatalogoLocal.lower(value)
 }
 
 
@@ -26573,81 +26447,6 @@ public func FfiConverterTypeFichaLeccion_lift(_ buf: RustBuffer) throws -> Ficha
 #endif
 public func FfiConverterTypeFichaLeccion_lower(_ value: FichaLeccion) -> RustBuffer {
     return FfiConverterTypeFichaLeccion.lower(value)
-}
-
-
-/**
- * Un fichero que se baja.
- */
-public struct FicheroIa: Equatable, Hashable {
-    public var nombre: String
-    public var url: String
-    public var bytes: UInt64
-    public var sha256: String
-    /**
-     * Si ya esta en su sitio y verificado.
-     */
-    public var listo: Bool
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(nombre: String, url: String, bytes: UInt64, sha256: String, 
-        /**
-         * Si ya esta en su sitio y verificado.
-         */listo: Bool) {
-        self.nombre = nombre
-        self.url = url
-        self.bytes = bytes
-        self.sha256 = sha256
-        self.listo = listo
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension FicheroIa: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeFicheroIa: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FicheroIa {
-        return
-            try FicheroIa(
-                nombre: FfiConverterString.read(from: &buf), 
-                url: FfiConverterString.read(from: &buf), 
-                bytes: FfiConverterUInt64.read(from: &buf), 
-                sha256: FfiConverterString.read(from: &buf), 
-                listo: FfiConverterBool.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: FicheroIa, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.nombre, into: &buf)
-        FfiConverterString.write(value.url, into: &buf)
-        FfiConverterUInt64.write(value.bytes, into: &buf)
-        FfiConverterString.write(value.sha256, into: &buf)
-        FfiConverterBool.write(value.listo, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFicheroIa_lift(_ buf: RustBuffer) throws -> FicheroIa {
-    return try FfiConverterTypeFicheroIa.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeFicheroIa_lower(_ value: FicheroIa) -> RustBuffer {
-    return FfiConverterTypeFicheroIa.lower(value)
 }
 
 
@@ -33059,101 +32858,6 @@ public func FfiConverterTypeMiembroGrupo_lower(_ value: MiembroGrupo) -> RustBuf
 
 
 /**
- * Un modelo que se puede bajar.
- */
-public struct ModeloIa: Equatable, Hashable {
-    /**
-     * `qwen3.5-2b`, `qwen3.5-0.8b`, `gemma-4-e2b` (el ajuste `modelo`).
-     */
-    public var id: String
-    public var nombre: String
-    public var licencia: String
-    /**
-     * Lo que ocupa en memoria cargado.
-     */
-    public var ramMb: UInt32
-    public var ficheros: [FicheroIa]
-    /**
-     * El de «mejor vista»: no es nunca «el de siempre».
-     */
-    public var opcional: Bool
-    public var listo: Bool
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * `qwen3.5-2b`, `qwen3.5-0.8b`, `gemma-4-e2b` (el ajuste `modelo`).
-         */id: String, nombre: String, licencia: String, 
-        /**
-         * Lo que ocupa en memoria cargado.
-         */ramMb: UInt32, ficheros: [FicheroIa], 
-        /**
-         * El de «mejor vista»: no es nunca «el de siempre».
-         */opcional: Bool, listo: Bool) {
-        self.id = id
-        self.nombre = nombre
-        self.licencia = licencia
-        self.ramMb = ramMb
-        self.ficheros = ficheros
-        self.opcional = opcional
-        self.listo = listo
-    }
-
-    
-
-    
-}
-
-#if compiler(>=6)
-extension ModeloIa: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeModeloIa: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModeloIa {
-        return
-            try ModeloIa(
-                id: FfiConverterString.read(from: &buf), 
-                nombre: FfiConverterString.read(from: &buf), 
-                licencia: FfiConverterString.read(from: &buf), 
-                ramMb: FfiConverterUInt32.read(from: &buf), 
-                ficheros: FfiConverterSequenceTypeFicheroIa.read(from: &buf), 
-                opcional: FfiConverterBool.read(from: &buf), 
-                listo: FfiConverterBool.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: ModeloIa, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.id, into: &buf)
-        FfiConverterString.write(value.nombre, into: &buf)
-        FfiConverterString.write(value.licencia, into: &buf)
-        FfiConverterUInt32.write(value.ramMb, into: &buf)
-        FfiConverterSequenceTypeFicheroIa.write(value.ficheros, into: &buf)
-        FfiConverterBool.write(value.opcional, into: &buf)
-        FfiConverterBool.write(value.listo, into: &buf)
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeModeloIa_lift(_ buf: RustBuffer) throws -> ModeloIa {
-    return try FfiConverterTypeModeloIa.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeModeloIa_lower(_ value: ModeloIa) -> RustBuffer {
-    return FfiConverterTypeModeloIa.lower(value)
-}
-
-
-/**
  * Un momento, listo para pintar su tarjeta.
  */
 public struct MomentoTimeline: Equatable, Hashable {
@@ -33372,6 +33076,95 @@ public func FfiConverterTypeMosaicoDeFunciones_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeMosaicoDeFunciones_lower(_ value: MosaicoDeFunciones) -> RustBuffer {
     return FfiConverterTypeMosaicoDeFunciones.lower(value)
+}
+
+
+/**
+ * **Quien contestaria ahora**: Claude o DeepSeek.
+ */
+public struct MotorIa: Equatable, Hashable {
+    /**
+     * `claude`, `deepseek`.
+     */
+    public var proveedor: String
+    /**
+     * «Claude Haiku 5.5».
+     */
+    public var nombre: String
+    /**
+     * El modelo que se pide a la API.
+     */
+    public var modelo: String
+    /**
+     * Si hay clave en el Llavero.
+     */
+    public var conClave: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * `claude`, `deepseek`.
+         */proveedor: String, 
+        /**
+         * «Claude Haiku 5.5».
+         */nombre: String, 
+        /**
+         * El modelo que se pide a la API.
+         */modelo: String, 
+        /**
+         * Si hay clave en el Llavero.
+         */conClave: Bool) {
+        self.proveedor = proveedor
+        self.nombre = nombre
+        self.modelo = modelo
+        self.conClave = conClave
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension MotorIa: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMotorIa: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MotorIa {
+        return
+            try MotorIa(
+                proveedor: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                modelo: FfiConverterString.read(from: &buf), 
+                conClave: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: MotorIa, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.proveedor, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.modelo, into: &buf)
+        FfiConverterBool.write(value.conClave, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMotorIa_lift(_ buf: RustBuffer) throws -> MotorIa {
+    return try FfiConverterTypeMotorIa.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMotorIa_lower(_ value: MotorIa) -> RustBuffer {
+    return FfiConverterTypeMotorIa.lower(value)
 }
 
 
@@ -37246,7 +37039,7 @@ public func FfiConverterTypeRespuestaDeFunciones_lower(_ value: RespuestaDeFunci
 
 
 /**
- * Lo que contesto el motor local en un turno.
+ * Lo que contesto el asistente en un turno.
  */
 public struct RespuestaIa: Equatable, Hashable {
     public var texto: String
@@ -37265,7 +37058,7 @@ public struct RespuestaIa: Equatable, Hashable {
      */
     public var segundosPensando: Float?
     /**
-     * Quien contesto («Claude Haiku 5.5», «Qwen3.5 2B (recomendado)»).
+     * Quien contesto («Claude Haiku 5.5», «DeepSeek V4.1 Flash»).
      */
     public var motor: String
     /**
@@ -37293,7 +37086,7 @@ public struct RespuestaIa: Equatable, Hashable {
          * Cuanto penso («Pensó 12 s»), si penso.
          */segundosPensando: Float?, 
         /**
-         * Quien contesto («Claude Haiku 5.5», «Qwen3.5 2B (recomendado)»).
+         * Quien contesto («Claude Haiku 5.5», «DeepSeek V4.1 Flash»).
          */motor: String, 
         /**
          * La hoja de trabajo de la conversacion, reescrita (JSON), para el
@@ -45897,114 +45690,6 @@ public func FfiConverterTypeMotivoAuto_lower(_ value: MotivoAuto) -> RustBuffer 
 
 
 /**
- * **Quien contestaria ahora.**
- */
-
-public enum MotorIa: Equatable, Hashable {
-    
-    /**
-     * Claude o DeepSeek. `con_clave`: si hay clave en el Llavero.
-     */
-    case nube(proveedor: String, nombre: String, modelo: String, conClave: Bool
-    )
-    /**
-     * El modelo bajado, con el `llama-server` de PixPin.
-     */
-    case descargado(modelo: String, nombre: String
-    )
-    /**
-     * Un `llama-server` que arranco el usuario.
-     */
-    case usuario(puerto: UInt16
-    )
-    /**
-     * Ninguno local (Swift prueba Foundation Models).
-     */
-    case ninguno
-
-
-
-
-
-}
-
-#if compiler(>=6)
-extension MotorIa: Sendable {}
-#endif
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public struct FfiConverterTypeMotorIa: FfiConverterRustBuffer {
-    typealias SwiftType = MotorIa
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MotorIa {
-        let variant: Int32 = try readInt(&buf)
-        switch variant {
-        
-        case 1: return .nube(proveedor: try FfiConverterString.read(from: &buf), nombre: try FfiConverterString.read(from: &buf), modelo: try FfiConverterString.read(from: &buf), conClave: try FfiConverterBool.read(from: &buf)
-        )
-        
-        case 2: return .descargado(modelo: try FfiConverterString.read(from: &buf), nombre: try FfiConverterString.read(from: &buf)
-        )
-        
-        case 3: return .usuario(puerto: try FfiConverterUInt16.read(from: &buf)
-        )
-        
-        case 4: return .ninguno
-        
-        default: throw UniffiInternalError.unexpectedEnumCase
-        }
-    }
-
-    public static func write(_ value: MotorIa, into buf: inout [UInt8]) {
-        switch value {
-        
-        
-        case let .nube(proveedor,nombre,modelo,conClave):
-            writeInt(&buf, Int32(1))
-            FfiConverterString.write(proveedor, into: &buf)
-            FfiConverterString.write(nombre, into: &buf)
-            FfiConverterString.write(modelo, into: &buf)
-            FfiConverterBool.write(conClave, into: &buf)
-            
-        
-        case let .descargado(modelo,nombre):
-            writeInt(&buf, Int32(2))
-            FfiConverterString.write(modelo, into: &buf)
-            FfiConverterString.write(nombre, into: &buf)
-            
-        
-        case let .usuario(puerto):
-            writeInt(&buf, Int32(3))
-            FfiConverterUInt16.write(puerto, into: &buf)
-            
-        
-        case .ninguno:
-            writeInt(&buf, Int32(4))
-        
-        }
-    }
-}
-
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMotorIa_lift(_ buf: RustBuffer) throws -> MotorIa {
-    return try FfiConverterTypeMotorIa.lift(buf)
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-public func FfiConverterTypeMotorIa_lower(_ value: MotorIa) -> RustBuffer {
-    return FfiConverterTypeMotorIa.lower(value)
-}
-
-
-
-/**
  * Los cuatro niveles de PixPin (los perfiles de pdfsqueeze).
  */
 
@@ -52402,31 +52087,6 @@ fileprivate struct FfiConverterSequenceTypeFichaLeccion: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
-fileprivate struct FfiConverterSequenceTypeFicheroIa: FfiConverterRustBuffer {
-    typealias SwiftType = [FicheroIa]
-
-    public static func write(_ value: [FicheroIa], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeFicheroIa.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FicheroIa] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [FicheroIa]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeFicheroIa.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
 fileprivate struct FfiConverterSequenceTypeFiguraDeBiblioteca: FfiConverterRustBuffer {
     typealias SwiftType = [FiguraDeBiblioteca]
 
@@ -53444,31 +53104,6 @@ fileprivate struct FfiConverterSequenceTypeMiembroGrupo: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeMiembroGrupo.read(from: &buf))
-        }
-        return seq
-    }
-}
-
-#if swift(>=5.8)
-@_documentation(visibility: private)
-#endif
-fileprivate struct FfiConverterSequenceTypeModeloIa: FfiConverterRustBuffer {
-    typealias SwiftType = [ModeloIa]
-
-    public static func write(_ value: [ModeloIa], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterTypeModeloIa.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ModeloIa] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [ModeloIa]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterTypeModeloIa.read(from: &buf))
         }
         return seq
     }
@@ -54870,53 +54505,6 @@ public func iaLlamar(nombre: String, argumentos: String, origenX: Double, origen
 })
 }
 /**
- * Si hay un `llama-server` con el modelo cargado en `127.0.0.1:puerto`
- * (`GET /health` da 200). Tarda como mucho unos 300 ms si no hay nadie.
- */
-public func llamaLocalActivo(puerto: UInt16) -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_llama_local_activo(
-        FfiConverterUInt16.lower(puerto),uniffiCallStatus
-    )
-})
-}
-/**
- * **Un turno con el `llama-server` del usuario**: `historial` es lo dicho
- * antes (del mas antiguo al mas nuevo) y `pedido` lo nuevo. Usa las
- * herramientas que vienen a cuento; las que dibujan se juntan en
- * [`RespuestaIa::lienzo`] y las que la app del Mac aun no sabe hacer
- * vuelven al modelo como fallo, para que lo diga.
- */
-public func llamaLocalPreguntar(puerto: UInt16, historial: [MensajeIa], pedido: String)throws  -> RespuestaIa  {
-    return try  FfiConverterTypeRespuestaIa_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_llama_local_preguntar(
-        FfiConverterUInt16.lower(puerto),
-        FfiConverterSequenceTypeMensajeIa.lower(historial),
-        FfiConverterString.lower(pedido),uniffiCallStatus
-    )
-})
-}
-/**
- * **Un turno en vivo con el `llama-server` del usuario**: como
- * [`llama_local_preguntar`], pero el texto va llegando a `oyente` mientras
- * el modelo escribe (en tandas) y `corte` lo para. Devuelve la respuesta
- * entera al final (cortada, si se paro: con lo que hubiera).
- */
-public func llamaLocalPreguntarEnVivo(puerto: UInt16, historial: [MensajeIa], pedido: String, oyente: OyenteIa, corte: CorteIa)throws  -> RespuestaIa  {
-    return try  FfiConverterTypeRespuestaIa_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_llama_local_preguntar_en_vivo(
-        FfiConverterUInt16.lower(puerto),
-        FfiConverterSequenceTypeMensajeIa.lower(historial),
-        FfiConverterString.lower(pedido),
-        FfiConverterTypeOyenteIa_lower(oyente),
-        FfiConverterTypeCorteIa_lower(corte),uniffiCallStatus
-    )
-})
-}
-/**
  * Corta la espera al navegador.
  */
 public func iaCancelarConexion()  {try! rustCall() {
@@ -55068,101 +54656,60 @@ public func instalarMedidorDeLetras(medidor: MedidorLetras)  {try! rustCall() {
 }
 }
 /**
- * La carpeta donde Swift saca el `.tar.gz` del motor (con `tar`), ya
- * creada.
+ * **Borra la carpeta entera** y devuelve lo liberado. Solo esa carpeta:
+ * es la que la app creo para el asistente local.
  */
-public func iaCarpetaMotor(carpeta: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+public func iaModelosViejosBorrar(carpeta: String)throws  -> UInt64  {
+    return try  FfiConverterUInt64.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
         uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_carpeta_motor(
+    uniffi_pixpin_nucleo_fn_func_ia_modelos_viejos_borrar(
         FfiConverterString.lower(carpeta),uniffiCallStatus
     )
 })
 }
 /**
- * **Lo que se puede bajar**, y que esta ya en `carpeta`.
+ * «Dejarlos»: la tarjeta no vuelve a salir (el boton de Ajustes sigue).
  */
-public func iaCatalogoLocal(carpeta: String) -> CatalogoLocal  {
-    return try!  FfiConverterTypeCatalogoLocal_lift(try! rustCall() {
+public func iaModelosViejosNoAvisar(carpeta: String)  {try! rustCall() {
         uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_catalogo_local(
-        FfiConverterString.lower(carpeta),uniffiCallStatus
-    )
-})
-}
-/**
- * **Mata el `llama-server` que dejo una PixPin que murio de golpe** (al
- * arrancar). Solo si el pid apuntado sigue siendo nuestro `llama-server`
- * (su orden lleva la ruta apuntada, que es de nuestra carpeta). Devuelve si mato alguno.
- */
-public func iaLimpiarHuerfanos(carpeta: String) -> Bool  {
-    return try!  FfiConverterBool.lift(try! rustCall() {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_limpiar_huerfanos(
-        FfiConverterString.lower(carpeta),uniffiCallStatus
-    )
-})
-}
-/**
- * Carga el modelo ya, sin esperar a la primera pregunta (al abrir la
- * ventana del asistente). Bloquea hasta que carga: desde un hilo de fondo.
- */
-public func iaPrecargarLocal(carpeta: String, modelo: String)  {try! rustCall() {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_precargar_local(
-        FfiConverterString.lower(carpeta),
-        FfiConverterString.lower(modelo),uniffiCallStatus
-    )
-}
-}
-/**
- * **Adonde va un fichero** que baja Swift (ya con su carpeta creada).
- * Swift baja a otro sitio y lo mueve aqui al acabar.
- */
-public func iaRutaDescarga(carpeta: String, que: String, nombre: String)throws  -> String  {
-    return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_ruta_descarga(
-        FfiConverterString.lower(carpeta),
-        FfiConverterString.lower(que),
-        FfiConverterString.lower(nombre),uniffiCallStatus
-    )
-})
-}
-/**
- * **Suelta los modelos ya**: mata cada `llama-server` de PixPin y
- * devuelve la memoria (al salir de la app y al cambiar de modelo).
- */
-public func iaSoltarMotores()  {try! rustCall() {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_soltar_motores(uniffiCallStatus
-    )
-}
-}
-/**
- * **El motor ya sacado**: comprueba que esta `llama-server`, deja la marca
- * y borra el `.tar.gz`.
- */
-public func iaTerminarMotor(carpeta: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
-        uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_terminar_motor(
+    uniffi_pixpin_nucleo_fn_func_ia_modelos_viejos_no_avisar(
         FfiConverterString.lower(carpeta),uniffiCallStatus
     )
 }
 }
 /**
- * **Comprueba la huella** de lo bajado y deja su marca. Si no coincide, lo
- * borra (uno danado no se queda con el nombre bueno) y da error. Tarda
- * (lee el fichero entero): fuera del hilo principal.
+ * **Cuanto ocupan** los modelos viejos de `carpeta`, o nada si no queda
+ * nada. Se mide como mucho cada 30 s.
  */
-public func iaVerificarDescarga(carpeta: String, que: String, nombre: String)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+public func iaModelosViejosOcupan(carpeta: String) -> UInt64?  {
+    return try!  FfiConverterOptionUInt64.lift(try! rustCall() {
         uniffiCallStatus in
-    uniffi_pixpin_nucleo_fn_func_ia_verificar_descarga(
-        FfiConverterString.lower(carpeta),
-        FfiConverterString.lower(que),
-        FfiConverterString.lower(nombre),uniffiCallStatus
+    uniffi_pixpin_nucleo_fn_func_ia_modelos_viejos_ocupan(
+        FfiConverterString.lower(carpeta),uniffiCallStatus
     )
+})
 }
+/**
+ * Lo que ocupan si aun no se dijo «Dejarlos»: lo que ensena la tarjeta.
+ */
+public func iaModelosViejosPorAvisar(carpeta: String) -> UInt64?  {
+    return try!  FfiConverterOptionUInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_modelos_viejos_por_avisar(
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+/**
+ * «1,9 GB», «740 MB»: como lo dicen la tarjeta y los ajustes.
+ */
+public func iaTamanoEnDisco(bytes: UInt64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_tamano_en_disco(
+        FfiConverterUInt64.lower(bytes),uniffiCallStatus
+    )
+})
 }
 /**
  * Los iconos que se ofrecen para elegir.
@@ -55194,6 +54741,19 @@ public func instalarTransporte(transporte: TransporteApp)throws   {try rustCallW
         FfiConverterTypeTransporteApp_lower(transporte),uniffiCallStatus
     )
 }
+}
+/**
+ * **Si `pedido` es una orden simple** del camino rapido («apunta pan»,
+ * «¿que tengo pendiente?»): se hace sin modelo y, por eso, tambien sin
+ * clave de la nube (Windows, `asistente::rapido::es_orden`).
+ */
+public func iaEsOrdenRapida(pedido: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_ia_es_orden_rapida(
+        FfiConverterString.lower(pedido),uniffiCallStatus
+    )
+})
 }
 /**
  * **Una herramienta de la app pedida desde fuera** (el MCP: Claude Desktop,
@@ -55228,8 +54788,8 @@ public func iaProbarClave(proveedorId: String)throws  -> String  {
 })
 }
 /**
- * **Quien contestaria con estos ajustes.** Mira el disco y, si hace falta,
- * hace un `GET /health` local (≤ 300 ms): fuera del hilo principal.
+ * **Quien contestaria con estos ajustes.** Mira el Llavero: fuera del hilo
+ * principal.
  */
 public func iaQueMotor(ajustes: AjustesIa) -> MotorIa  {
     return try!  FfiConverterTypeMotorIa_lift(try! rustCall() {
@@ -58079,15 +57639,6 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_ia_llamar() != 11425) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_llama_local_activo() != 1000) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_pixpin_nucleo_checksum_func_llama_local_preguntar() != 60202) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_pixpin_nucleo_checksum_func_llama_local_preguntar_en_vivo() != 12190) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_cancelar_conexion() != 11886) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -58124,28 +57675,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_instalar_medidor_de_letras() != 45106) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_carpeta_motor() != 7044) {
+    if (uniffi_pixpin_nucleo_checksum_func_ia_modelos_viejos_borrar() != 59035) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_catalogo_local() != 65284) {
+    if (uniffi_pixpin_nucleo_checksum_func_ia_modelos_viejos_no_avisar() != 42574) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_limpiar_huerfanos() != 26222) {
+    if (uniffi_pixpin_nucleo_checksum_func_ia_modelos_viejos_ocupan() != 454) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_precargar_local() != 4773) {
+    if (uniffi_pixpin_nucleo_checksum_func_ia_modelos_viejos_por_avisar() != 28301) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_ruta_descarga() != 55280) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_soltar_motores() != 50584) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_terminar_motor() != 21674) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_verificar_descarga() != 22430) {
+    if (uniffi_pixpin_nucleo_checksum_func_ia_tamano_en_disco() != 30249) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ia_iconos_de_receta() != 21306) {
@@ -58157,13 +57699,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_instalar_transporte() != 12589) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_ia_es_orden_rapida() != 5107) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_ia_hacer_herramienta() != 35673) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ia_probar_clave() != 41600) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_func_ia_que_motor() != 33757) {
+    if (uniffi_pixpin_nucleo_checksum_func_ia_que_motor() != 33172) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_ia_turno() != 54407) {

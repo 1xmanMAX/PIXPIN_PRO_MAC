@@ -171,8 +171,12 @@ pub fn abrir(textos: &Catalogo, ruta: &Path) -> Result<bool> {
         .to_owned();
     let e = monitor.escala_por_cien as f32 / 100.0;
     let (area_pin, _) = crate::lector_pin::area_inicial();
-    let mut pin =
-        PinLector::nuevo(area_pin, e).con_extension(&pixpin_docs::extension(&nombre_fichero));
+    // Abierto de fuera (de paso): «Guardar» en un chat.
+    let de_paso = crate::oscuro::ubicacion()
+        .is_some_and(|u| crate::guardar_de_paso::es_de_paso(u.raiz(), ruta));
+    let mut pin = PinLector::nuevo(area_pin, e)
+        .con_extension(&pixpin_docs::extension(&nombre_fichero))
+        .con_guardar(de_paso);
     // Llana y no «normal»: la normal lleva `WS_EX_NOREDIRECTIONBITMAP`, que
     // es lo que quiere Direct2D y lo que ESTORBA a un WebView2 metido dentro.
     // Con ella el desplazamiento de la pagina iba a tirones.
@@ -250,6 +254,9 @@ pub fn abrir(textos: &Catalogo, ruta: &Path) -> Result<bool> {
                 titulo: nombre.clone(),
                 menu: false,
                 maqueta: false,
+                entero: Some(riel::Entero::Pagina(crate::marcos_doc::Entero::de_fichero(
+                    ruta,
+                ))),
             },
             textos,
         ),
@@ -298,6 +305,20 @@ pub fn abrir(textos: &Catalogo, ruta: &Path) -> Result<bool> {
                     Some(AccionPin::Nombre) => {
                         if crate::abrir_con::abrir_con_o_avisar(ventana.handle(), ruta, textos) {
                             vivo = false;
+                        }
+                    }
+                    Some(AccionPin::Guardar) => {
+                        if let Some(u) = crate::oscuro::ubicacion()
+                            && crate::guardar_de_paso::preguntar_y_guardar(
+                                ventana.handle(),
+                                u.raiz(),
+                                ruta,
+                                crate::guardar_de_paso::Visor::Pagina,
+                                &[],
+                                textos,
+                            )
+                        {
+                            pin.poner_guardar(false);
                         }
                     }
                     Some(AccionPin::PantallaCompleta) => {
@@ -407,6 +428,8 @@ pub fn abrir(textos: &Catalogo, ruta: &Path) -> Result<bool> {
                 pin.fijado,
                 pin.oscuro(),
             );
+            // El riel se va y vuelve con la barra del pin.
+            r.con_barras(pin.barra_a_la_vista());
             r.tic(Some(&visor));
             // Con marcos, Ctrl+P es suyo (y no la impresion de Edge).
             visor.tomar_ctrl_p(r.hay_marcos());

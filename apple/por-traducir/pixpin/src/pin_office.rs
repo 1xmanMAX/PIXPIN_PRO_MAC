@@ -95,6 +95,22 @@ pub fn se_abre(ruta: &Path) -> bool {
     va_al_pin(&ext, hay, vista_previa::atascado())
 }
 
+/// **Cualquier otro documento con previsualizador de Windows** (el del panel
+/// del Explorador: SolidWorks, Illustrator, un `.eml`, lo que el equipo
+/// tenga): tambien al pin de Office, que es el anfitrion de esas vistas. Es
+/// el ultimo recurso de la vista rapida y de «Abrir con PixPin», despues de
+/// los visores propios: ni fotos, ni videos, ni audios (tienen su pin).
+pub fn se_previsualiza(ruta: &Path) -> bool {
+    use pixpin_shell::asociaciones::{AUDIOS, IMAGENES, VIDEOS};
+    let ext = vista_previa::extension_de(ruta);
+    !ext.is_empty()
+        && !IMAGENES.contains(&ext.as_str())
+        && !VIDEOS.contains(&ext.as_str())
+        && !AUDIOS.contains(&ext.as_str())
+        && !vista_previa::atascado()
+        && vista_previa::manejador_de_extension(&ext).is_some()
+}
+
 /// Abre `ruta` en un pin de Office, en su propio hilo.
 pub fn lanzar(idioma: pixpin_store::Idioma, ubicacion: Ubicacion, ruta: &Path) {
     let ruta = ruta.to_path_buf();
@@ -168,7 +184,9 @@ fn abrir(
     // puede oscurecer desde aqui.
     let mut pin = PinLector::nuevo(area_pin, e)
         .con_extension(&pixpin_docs::extension(&nombre_fichero))
-        .sin_oscuro();
+        .sin_oscuro()
+        // Abierto de fuera (de paso): «Guardar» en un chat.
+        .con_guardar(crate::guardar_de_paso::es_de_paso(ubicacion.raiz(), ruta));
     let mut area = pin.area;
     let mut ventana =
         VentanaOverlay::nueva_llana(area, &format!("{nombre} — {}", textos.t("office-titulo")))
@@ -238,6 +256,12 @@ fn abrir(
             titulo: nombre.clone(),
             menu: false,
             maqueta: false,
+            // Entero, con su aplicacion (Word, Excel...): la vista previa de
+            // Office no imprime.
+            entero: Some(crate::visor_html::riel::Entero::ConSuApp(
+                crate::marcos_doc::Entero::de_fichero(ruta),
+                ruta.to_path_buf(),
+            )),
         },
         textos,
     );
@@ -284,6 +308,18 @@ fn abrir(
                         vivo = false;
                     }
                     Some(AccionPin::Propio(_)) => {}
+                    Some(AccionPin::Guardar) => {
+                        if crate::guardar_de_paso::preguntar_y_guardar(
+                            ventana.handle(),
+                            ubicacion.raiz(),
+                            ruta,
+                            crate::guardar_de_paso::Visor::Otro,
+                            &[],
+                            textos,
+                        ) {
+                            pin.poner_guardar(false);
+                        }
+                    }
                     Some(AccionPin::PantallaCompleta) => {
                         pin.alternar_pantalla_completa(&mut ventana)
                     }
@@ -369,6 +405,8 @@ fn abrir(
                 pin.fijado,
                 false,
             );
+            // El riel se va y vuelve con la barra del pin.
+            r.con_barras(pin.barra_a_la_vista());
             r.tic(None);
         }
         let tope = if pin.quiere_reloj() { 50 } else { 250 };

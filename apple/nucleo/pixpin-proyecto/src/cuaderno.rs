@@ -69,9 +69,8 @@ pub enum Seccion {
     /// galeria solo aparezca lo mismo que aparece en la seccion de proyectos
     /// de Android».
     ///
-    /// Es la primera de las del chat: lo que se quiere al entrar es VER lo
-    /// que hay, no leer una lista. (La ficha se abre en «Proyectos», que va
-    /// delante y no es de mensajes.)
+    /// Es la primera porque es la que se abre al pulsar el titulo: lo que se
+    /// quiere al entrar es VER lo que hay, no leer una lista.
     Galeria,
     Todo,
     Fotos,
@@ -87,12 +86,6 @@ pub enum Seccion {
     Dibujos,
     Fijados,
     Buzon,
-    /// **Los proyectos** (25-oct-2026, el usuario: «quiero que esta zona de
-    /// proyectos se mueva al menu que se abre al darle click en la parte de
-    /// arriba del chat»): la pestana de la ficha del chat que lista los
-    /// proyectos para pasar de uno a otro. No es de mensajes —ninguno es de
-    /// esta seccion— y no se guarda ni viaja: solo dice que pestana se ve.
-    Proyectos,
 }
 
 /// Las extensiones de video: las mismas que la familia «video» de los
@@ -135,7 +128,7 @@ pub fn tiene_enlace(texto: &str) -> bool {
 }
 
 impl Seccion {
-    pub const TODAS: [Seccion; 11] = [
+    pub const TODAS: [Seccion; 10] = [
         Seccion::Galeria,
         Seccion::Todo,
         Seccion::Fotos,
@@ -146,7 +139,6 @@ impl Seccion {
         Seccion::Dibujos,
         Seccion::Fijados,
         Seccion::Buzon,
-        Seccion::Proyectos,
     ];
 
     /// La clave de su nombre traducido.
@@ -162,7 +154,6 @@ impl Seccion {
             Seccion::Dibujos => "info-dibujos",
             Seccion::Fijados => "info-fijados",
             Seccion::Buzon => "info-buzon",
-            Seccion::Proyectos => "info-proyectos",
         }
     }
 
@@ -237,6 +228,19 @@ pub struct Mensaje {
     pub uid: Option<String>,
     pub aparato: Option<String>,
     pub origen: Option<String>,
+    /// **Es una version de otro mensaje** (Android v0.145.0, 27-oct-2026,
+    /// «versiones vinculadas en los chats compartidos»): el codigo unico
+    /// (`codigo_unico`) del original, el mismo en todos los aparatos. En un
+    /// chat compartido, tocar lo de otra persona no lo cambia: hace una copia
+    /// mia que lleva esto y contesta al original (`responde_a`). Ver
+    /// `versiones` y `docs/manual-chats-compartidos.md`. No se escribe si no
+    /// hay: un mensaje de siempre sale igual que antes.
+    #[serde(rename = "versionDe", skip_serializing_if = "Option::is_none")]
+    pub version_de: Option<String>,
+    /// Que version es de su original (1, 2…), para nombrarla: «Version 2».
+    /// Solo una etiqueta: dos aparatos pueden dar el mismo numero.
+    #[serde(rename = "versionN", skip_serializing_if = "Option::is_none")]
+    pub version_n: Option<i64>,
     /// Lo que no se entiende, tal cual: guardar no puede perder lo que
     /// anada una version de Android.
     #[serde(flatten)]
@@ -459,7 +463,31 @@ pub fn anadir(carpeta: &std::path::Path, m: &Mensaje) -> std::io::Result<()> {
         .open(carpeta.join("guardados.jsonl"))?;
     // El salto va DESPUES de la linea: si el fichero se corta, lo roto es lo
     // ultimo y lo anterior sigue entero.
-    writeln!(f, "{linea}")
+    writeln!(f, "{linea}")?;
+    apuntar_en_el_diario(carpeta);
+    Ok(())
+}
+
+/// **Apunta en el diario de sincronizar que el cuaderno de `carpeta` se
+/// escribio** (27-oct-2026, `MensajesStore` de Android): despues de
+/// escribirlo, con su huella. Asi la vuelta siguiente sabe que este chat
+/// cambio sin mirar los demas. Solo para la carpeta de un chat
+/// (`<raiz>/proyectos/<ficha>`); apuntar nunca falla ni para a quien
+/// guarda.
+pub fn apuntar_en_el_diario(carpeta: &std::path::Path) {
+    let Some(id) = carpeta.file_name().map(|n| n.to_string_lossy().to_string()) else {
+        return;
+    };
+    let Some(proyectos) = carpeta.parent() else {
+        return;
+    };
+    if proyectos.file_name().is_none_or(|n| n != "proyectos") {
+        return;
+    }
+    let Some(raiz) = proyectos.parent() else {
+        return;
+    };
+    pixpin_sincro::diario::Diario::de(raiz).archivo(&format!("proyectos/{id}/guardados.jsonl"));
 }
 
 /// La linea que [`anadir`] escribiria para `m`, sin escribirla: quien tiene
@@ -483,7 +511,9 @@ pub fn anadir_lineas(carpeta: &std::path::Path, lineas: &[String]) -> std::io::R
         .create(true)
         .append(true)
         .open(carpeta.join("guardados.jsonl"))?;
-    f.write_all(todo.as_bytes())
+    f.write_all(todo.as_bytes())?;
+    apuntar_en_el_diario(carpeta);
+    Ok(())
 }
 
 /// Cambia un mensaje que ya estaba escrito, dejando el resto del fichero como
@@ -567,6 +597,7 @@ pub fn quitar(
         let temporal = fichero.with_extension("jsonl.tmp");
         std::fs::write(&temporal, salida)?;
         std::fs::rename(&temporal, &fichero)?;
+        apuntar_en_el_diario(carpeta);
     }
     Ok(quitados)
 }
@@ -593,6 +624,9 @@ fn reescribir_con_el(fichero: &std::path::Path, texto: &str, m: &Mensaje) -> std
     let temporal = fichero.with_extension("jsonl.tmp");
     std::fs::write(&temporal, salida)?;
     std::fs::rename(&temporal, fichero)?;
+    if let Some(carpeta) = fichero.parent() {
+        apuntar_en_el_diario(carpeta);
+    }
     Ok(true)
 }
 
@@ -608,6 +642,28 @@ pub struct Cuaderno {
     pub lineas_rotas: usize,
 }
 
+/// **Rescata una linea con una clave repetida** (27-oct-2026): las fotos y
+/// los clips de la camara de la reunion presencial se escribieron un dia con
+/// `origen: "camara"` en `resto`, y `origen` ya es un campo del mensaje: la
+/// linea salia con `"origen"` dos veces y no se leia (el mensaje se perdia
+/// del chat). Leida como JSON suelto gana la ultima, la de `resto`; si es
+/// una de las fuentes de la camara, vuelve a su sitio (`resto.fuente`, ver
+/// `presencial::FUENTE`) y el campo del mensaje queda como estaba, vacio.
+fn rescatar(linea: &str) -> serde_json::Result<Mensaje> {
+    let v: serde_json::Value = serde_json::from_str(linea)?;
+    let mut m: Mensaje = serde_json::from_value(v)?;
+    if let Some(f) = m
+        .origen
+        .take_if(|o| o == crate::presencial::DE_CAMARA || o == crate::presencial::DEL_MOVIL)
+    {
+        m.resto.insert(
+            crate::presencial::FUENTE.into(),
+            serde_json::Value::String(f),
+        );
+    }
+    Ok(m)
+}
+
 impl Cuaderno {
     /// Lee un cuaderno de su texto.
     ///
@@ -620,7 +676,7 @@ impl Cuaderno {
             if linea.trim().is_empty() {
                 continue;
             }
-            match serde_json::from_str::<Mensaje>(linea) {
+            match serde_json::from_str::<Mensaje>(linea).or_else(|_| rescatar(linea)) {
                 Ok(m) => mensajes.push(m),
                 Err(_) => lineas_rotas += 1,
             }
@@ -717,7 +773,7 @@ pub fn indices_de_seccion(mensajes: &[Mensaje], seccion: Seccion) -> Vec<usize> 
                 // son hojas y no salen.
                 Seccion::Galeria => matches!(m.clase, Some(Clase::Dibujo | Clase::Pagina)),
                 Seccion::Todo => true,
-                Seccion::Buzon | Seccion::Proyectos => false,
+                Seccion::Buzon => false,
                 Seccion::Fijados => m.fijado,
                 Seccion::Fotos => m.clase == Some(Clase::Imagen) && !es_video(m),
                 Seccion::Videos => es_video(m),
@@ -1262,7 +1318,7 @@ mod pruebas {
 
     #[test]
     fn la_galeria_es_la_primera_pestana_y_lo_del_buzon_no_se_cuela() {
-        // La primera de las del chat.
+        // Es la que se abre al pulsar el titulo del proyecto.
         assert_eq!(Seccion::TODAS[0], Seccion::Galeria);
         // Caso negativo: un lienzo en el buzon esta ahi para decidir si se
         // queda, y ensenarlo ya en la galeria seria darlo por aceptado.
@@ -1341,25 +1397,6 @@ mod pruebas {
     }
 
     #[test]
-    fn la_de_proyectos_no_se_queda_ningun_mensaje() {
-        // La pestana de proyectos lista proyectos, no mensajes: ni una nota,
-        // ni un proyecto adjunto, ni lo del buzon se cuelan en ella.
-        let c = Cuaderno::leer(concat!(
-            r#"{"id":"n","clase":"NOTA","texto":"hola","fijado":true}"#,
-            "\n",
-            r#"{"id":"p","clase":"PROYECTO","referencia":"otro"}"#,
-            "\n",
-            r#"{"id":"b","clase":"IMAGEN","enBuzon":true}"#,
-            "\n"
-        ));
-        assert!(c.de_seccion(Seccion::Proyectos).is_empty());
-        assert!(!Seccion::Proyectos.es_cuadricula());
-        assert_eq!(Seccion::Proyectos.clave(), "info-proyectos");
-        // Caso de control: los mismos mensajes si salen en «Todo».
-        assert_eq!(c.de_seccion(Seccion::Todo).len(), 2);
-    }
-
-    #[test]
     fn una_clase_que_no_conocemos_solo_sale_en_todo() {
         let c =
             Cuaderno::leer(r#"{"id":"x","clase":"COSA_NUEVA","texto":"de una version futura"}"#);
@@ -1414,5 +1451,92 @@ mod pruebas_lineas {
         anadir_lineas(&b, &[]).unwrap();
         assert_eq!(leer(&a), leer(&b));
         let _ = std::fs::remove_dir_all(d);
+    }
+}
+
+#[cfg(test)]
+mod pruebas_versiones {
+    use super::*;
+
+    /// Una version tal como la escribe Android v0.145.0
+    /// (`VersionesVinculadas.nueva`), con una clave que el PC no tiene.
+    const DE_ANDROID: &str = r#"{"id":"nuevo","cuando":5000,"clase":"DIBUJO","texto":"planta","referencia":"dib-nuevo","proyecto":"p1","respondeA":"orig","numero":4,"uid":"NUEVOUID23","aparato":"MAXX","versionDe":"ORIGUID123","versionN":2,"escaneado":{"x":1}}"#;
+
+    #[test]
+    fn las_claves_de_la_version_se_leen_con_su_nombre_y_salen_igual() {
+        let m: Mensaje = serde_json::from_str(DE_ANDROID).unwrap();
+        assert_eq!(m.version_de.as_deref(), Some("ORIGUID123"));
+        assert_eq!(m.version_n, Some(2));
+        assert_eq!(m.responde_a.as_deref(), Some("orig"));
+        // Ya no van en `resto`: no salen dos veces.
+        assert!(!m.resto.contains_key("versionDe"));
+        assert!(!m.resto.contains_key("versionN"));
+        let vuelta: serde_json::Value = serde_json::to_value(&m).unwrap();
+        assert_eq!(vuelta["versionDe"], "ORIGUID123");
+        assert_eq!(vuelta["versionN"], 2);
+        // Lo que el PC no entiende sigue tal cual.
+        assert_eq!(vuelta["escaneado"]["x"], 1);
+        let otra: Mensaje = serde_json::from_value(vuelta).unwrap();
+        assert_eq!(otra.version_de, m.version_de);
+        assert_eq!(otra.version_n, m.version_n);
+    }
+
+    #[test]
+    fn un_mensaje_de_siempre_no_gana_ninguna_clave() {
+        // Caso negativo: sin version, la linea es la de antes, sin
+        // `"versionDe":null` que el movil tomaria por un cambio.
+        let m = Mensaje::nota(
+            "hola",
+            &Sello {
+                cuando: 1,
+                numero: 1,
+                aparato: "K7Q2".into(),
+                proyecto: "p".into(),
+            },
+        );
+        let linea = linea_de(&m).unwrap();
+        assert!(!linea.contains("versionDe"), "{linea}");
+        assert!(!linea.contains("versionN"), "{linea}");
+        // Y una linea de antes (sin las claves) se lee sin version.
+        let vieja: Mensaje = serde_json::from_str(r#"{"id":"a","cuando":1}"#).unwrap();
+        assert_eq!((vieja.version_de, vieja.version_n), (None, None));
+    }
+}
+
+#[cfg(test)]
+mod pruebas_fuente {
+    use super::*;
+
+    #[test]
+    fn la_foto_de_la_camara_se_vuelve_a_leer() {
+        let mut m = Mensaje {
+            id: "1".into(),
+            ..Default::default()
+        };
+        crate::presencial::marcar_de_camara(&mut m.resto);
+        let leido = Cuaderno::leer(&format!("{}\n", linea_de(&m).unwrap()));
+        assert_eq!(leido.mensajes.len(), 1, "no se pierde");
+        assert!(crate::presencial::es_de_camara(&leido.mensajes[0].resto));
+        assert_eq!(leido.mensajes[0].origen, None);
+    }
+
+    #[test]
+    fn la_linea_con_origen_repetido_se_rescata() {
+        // Lo que escribia la reunion presencial con `origen` en `resto`.
+        let linea = r#"{"id":"7","cuando":7,"clase":"IMAGEN","nombre":"foto.jpg","aparato":null,"origen":null,"origen":"camara","enGrabacion":{"de":"v","ms":5}}"#;
+        let c = Cuaderno::leer(&format!("{linea}\n"));
+        assert_eq!((c.mensajes.len(), c.lineas_rotas), (1, 0));
+        let m = &c.mensajes[0];
+        assert!(crate::presencial::es_de_camara(&m.resto));
+        assert_eq!(m.origen, None, "el campo del mensaje queda vacio");
+        assert!(m.resto.contains_key("enGrabacion"));
+        // Caso negativo: un `origen` de verdad (un aparato) no se toca, y lo
+        // que no es JSON sigue roto.
+        let otra = r#"{"id":"8","origen":"K7Q2"}"#;
+        assert_eq!(
+            Cuaderno::leer(otra).mensajes[0].origen.as_deref(),
+            Some("K7Q2")
+        );
+        assert_eq!(Cuaderno::leer("{no es json\n").lineas_rotas, 1);
     }
 }

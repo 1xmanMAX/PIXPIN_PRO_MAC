@@ -34,6 +34,8 @@ use crate::overlay::Recursos;
 
 /// La caja flotante a la que se sueltan ficheros para un proyecto (2-oct).
 // El asistente local en la conversacion (`crate::asistente`).
+/// El «↓» de Telegram: vuelve al ultimo mensaje al subir.
+mod al_final;
 mod asistente;
 /// El aviso flotante del asistente sin el chat (Flow, automatizaciones).
 mod aviso_asistente;
@@ -111,11 +113,11 @@ pub(crate) mod sin_ventana {
     /// El motor elegido en Ajustes → Asistente.
     pub(crate) fn motor(
         ubicacion: &Ubicacion,
-        textos: &Catalogo,
+        _textos: &Catalogo,
     ) -> Result<std::sync::Arc<dyn pixpin_ia::motor::Motor>, String> {
         // Los encargos de las automatizaciones: sin pedido que clasificar,
         // la nube piensa como antes.
-        super::asistente::motor_de_los_ajustes(ubicacion, textos, "", false, true)
+        super::asistente::motor_de_los_ajustes(ubicacion, true)
     }
 }
 /// «Enviar a Anki» del menu de un mensaje (24-oct-2026).
@@ -125,8 +127,13 @@ mod buscar_en_chats;
 /// Las carpetas de paginas: un cuaderno con nombre dentro del chat, su
 /// ventana con las paginas en orden y su PDF (26-oct-2026).
 pub(crate) mod carpetas;
+/// Las chapas de debajo del nombre: «Escaneado» y «Lectura veloz · N %»
+/// (23 y 27-oct-2026), y «⚡ Lectura veloz» del menu del mensaje.
+mod chapas;
 /// La descripcion de una foto: su `texto`, como en el movil (3-oct).
-mod descripcion;
+pub(crate) mod descripcion;
+/// Cada chat se abre donde se dejo, y lo no visto del «↓» (27-oct-2026).
+mod donde_se_dejo;
 /// Donde se guarda cada proyecto (su carpeta elegida o la habitual).
 mod donde_vive;
 /// v2-menus: el cuadro de enviar fotos (ordenar arrastrando, quitar).
@@ -137,11 +144,17 @@ mod ficha_del_chat;
 /// La ventana de las figuras guardadas, con su previsualizador: la abre su
 /// mosaico de Funciones y la bandeja (24/25-oct-2026).
 mod figuras;
+/// Las versiones vinculadas de un chat compartido: tocar lo de otra persona
+/// hace mi version y su original no cambia (27-oct-2026).
+pub(crate) mod versiones;
 
 /// **Abre la ventana de las figuras** (o la trae delante).
 pub(crate) fn abrir_figuras(idioma: pixpin_store::Idioma) {
     figuras::abrir(idioma);
 }
+/// Dictar al chat (29-oct-2026, Jev): «anota en el chat de la obra que…»
+/// al dictar en la caja propone anotarlo en ese chat.
+mod dictado_a_chat;
 /// La ventana de estudiar una clase grabada: el video o la captura del
 /// minuto, el texto y las capturas, que se siguen (25-oct-2026).
 mod estudiar_clase;
@@ -176,15 +189,19 @@ mod muestra_menus;
 /// Muestra en PNG de «Pensando…» en la burbuja del asistente (13-oct).
 #[cfg(test)]
 mod muestra_pensado;
-/// Los mensajes de sistema (`auto-*`) en su franja y no como burbujas (14-oct).
+/// Los mensajes de sistema (`auto-*`) sin burbuja ni franja (14 y 27-oct).
 #[cfg(test)]
 mod muestra_sistema;
 /// F8: muestra en PNG del chat con una zona recien mandada.
 #[cfg(test)]
 mod muestra_zona;
+/// Musica con su letra (27-oct): Adjuntar → «Musica», la tarjeta con su
+/// portada y el karaoke con «Sincronizar la letra».
+mod musica;
 /// La burbuja de una nota como un Markdown pequeno: texto con formato y
 /// sus fotos en album (25-oct-2026).
 mod nota_rica;
+mod opciones_del_mensaje;
 /// Clip → «Una pagina de un proyecto».
 mod paginas;
 /// La vista previa de un lienzo, con el papel y la tinta del lienzo.
@@ -194,6 +211,9 @@ mod papel_de_la_vista;
 mod pensado;
 /// «Quien llama» en la llamada secreta de una nota de voz (B11, v0.98.6).
 mod quien_llama;
+/// Repasar una clase en voz alta (29-oct-2026, Jev): que puntos clave se
+/// cubren, se dicen mal o faltan. Se abre desde «Estudiar la clase».
+mod repaso_oral;
 use crate::asistente::nube as asistente_nube;
 /// El cursor de la caja de escribir: la rayita, lo seleccionado y que letra
 /// cae bajo el raton (10-oct). Vive en `caja_texto`, comun a toda la app:
@@ -601,15 +621,6 @@ pub(crate) fn ir_a(
     } else {
         // Cerrado o naciendo: el bucle lo recoge en su primera vuelta.
         lanzar(idioma, ubicacion, opciones);
-    }
-}
-
-/// Pide, desde el propio chat, pasar a otro proyecto: lo mismo que pide el
-/// universo, sin mensaje al que ir. Lo recoge `tomar_ir_a` en la vuelta del
-/// bucle, que guarda lo escrito y lo abierto del que se deja.
-fn pedir_ir_a(proyecto: String) {
-    if let Ok(mut g) = IR_A.lock() {
-        *g = Some((proyecto, None));
     }
 }
 
@@ -1029,8 +1040,11 @@ pub fn abrir(
     let mut fallo_pintado = false;
     // Buscar dentro de todos los chats desde el buscador de la lista
     // (`buscar_en_chats`): su hilo nace con la primera busqueda.
-    let mut en_chats =
-        buscar_en_chats::BuscarEnChats::nuevo(ubicacion.raiz(), ventana.handle().0 as isize);
+    let mut en_chats = buscar_en_chats::BuscarEnChats::nuevo(
+        ubicacion.raiz(),
+        ventana.handle().0 as isize,
+        textos,
+    );
 
     loop {
         pixpin_shell::overlay::bombear_pendientes();
@@ -1085,6 +1099,19 @@ pub fn abrir(
                             pixpin_shell::elegir::pedir_imagenes(ventana.handle()),
                             abierto.as_mut(),
                         );
+                    }
+                    Some(Accion::AdjMusica) => {
+                        let rutas = pixpin_shell::elegir::pedir_musica(ventana.handle());
+                        if let Some(a) = abierto.as_mut()
+                            && let Some(t) =
+                                musica::adjuntar(ubicacion, a, &identidad, &rutas, textos)
+                        {
+                            aviso = Some((t, std::time::Instant::now()));
+                            if let Some(i) = elegida {
+                                fichas[i].tocado = a.ficha.tocado;
+                                fichas[i].resumen = a.ficha.resumen.clone();
+                            }
+                        }
                     }
                     // Traer del movil abre su propio cartel, en otro
                     // hilo: mientras se espera al movil, el chat
@@ -1177,7 +1204,7 @@ pub fn abrir(
                                     }
                                 }
                                 fichas.push(ficha.clone());
-                                orden = filtrar(&fichas, &busqueda);
+                                orden = en_chats.filtrar(&fichas, &busqueda);
                                 elegida = Some(fichas.len() - 1);
                                 let mut nuevo = abrir_proyecto(ubicacion, &ficha);
                                 nuevo.empezar_a_renombrar();
@@ -1440,6 +1467,98 @@ pub fn abrir(
                     }
                     hay_que_pintar = true;
                 }
+                // Arrastrar la letra la mueve, como en un movil (y como el
+                // panel tactil de dos dedos, que llega como rueda). Un clic
+                // sin mover en una linea con minuto salta ahi al soltar.
+                EventoOverlay::BotonPulsado(p)
+                    if menu.is_none()
+                        && pendientes.is_none()
+                        && arrastre.is_none()
+                        && !disposicion.arrastra_ventana(local(p), escala)
+                        && abierto.as_ref().is_some_and(|a| {
+                            arrastre_de_la_letra(a, local(p), &disposicion, escala).is_some()
+                        }) =>
+                {
+                    let l = local(p);
+                    if let Some(a) = abierto.as_mut()
+                        && let Some(trozo) = arrastre_de_la_letra(a, l, &disposicion, escala)
+                    {
+                        let sonando = suena_la_letra(a);
+                        if let Some(letra) = a.letra.as_mut() {
+                            let scroll = if sigue_a_la_cancion(
+                                letra.a_mano,
+                                std::time::Instant::now(),
+                                sonando,
+                            ) {
+                                letra.pintado.get()
+                            } else {
+                                letra.scroll
+                            };
+                            letra.arrastre = Some(ArrastreDeLetra {
+                                y: l.y,
+                                scroll,
+                                movido: false,
+                                trozo,
+                            });
+                            ventana.capturar_raton();
+                        }
+                    }
+                }
+                EventoOverlay::RatonMovido(p)
+                    if abierto
+                        .as_ref()
+                        .and_then(|a| a.letra.as_ref())
+                        .is_some_and(|l| l.arrastre.is_some()) =>
+                {
+                    let l = local(p);
+                    if let Some(a) = abierto.as_mut()
+                        && let Some(g) = a.letra.as_ref().and_then(|x| x.arrastre)
+                    {
+                        let dy = g.y - l.y;
+                        if g.movido || dy.abs() >= LETRA_UMBRAL_DE_ARRASTRE * escala as i32 / 100 {
+                            if let Some(x) = a.letra.as_mut() {
+                                // Desde donde se agarro: mover cuenta todo
+                                // lo arrastrado, no solo lo de este evento.
+                                x.a_mano = None;
+                                x.pintado.set(g.scroll);
+                                x.arrastre = Some(ArrastreDeLetra { movido: true, ..g });
+                            }
+                            mover_la_letra(a, &disposicion, escala, dy);
+                            hay_que_pintar = true;
+                        }
+                    }
+                    ventana.poner_cursor(FormaCursorWin::Flecha);
+                }
+                EventoOverlay::BotonSoltado(_)
+                    if abierto
+                        .as_ref()
+                        .and_then(|a| a.letra.as_ref())
+                        .is_some_and(|l| l.arrastre.is_some()) =>
+                {
+                    ventana.soltar_raton();
+                    if let Some(a) = abierto.as_mut()
+                        && let Some(g) = a.letra.as_mut().and_then(|x| x.arrastre.take())
+                        && !g.movido
+                        && let Some((i, ms)) = g.trozo
+                    {
+                        match saltar_en_el_audio(a, i, ms) {
+                            Ok(()) => {
+                                if let Some(x) = a.letra.as_mut() {
+                                    x.a_mano = None;
+                                    x.seguido = None;
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!(?e, "no se pudo saltar en el audio");
+                                aviso = Some((
+                                    textos.t("chat-voz-no-es-audio"),
+                                    std::time::Instant::now(),
+                                ));
+                            }
+                        }
+                    }
+                    hay_que_pintar = true;
+                }
                 EventoOverlay::BotonPulsado(p) => {
                     let l = local(p);
                     // El lienzo vivo manda dentro de su burbuja: ahi el clic
@@ -1689,9 +1808,6 @@ pub fn abrir(
                                     // filtrando sin que nadie la pidiera.
                                     a.buscando_info = false;
                                     a.busqueda_info.vaciar();
-                                    // Se abre en «Proyectos»: tiene que saber
-                                    // cuales hay antes de elegir pestana.
-                                    ficha_del_chat::poner_proyectos(a, &fichas);
                                     a.info = Some(ficha_del_chat::primera(a));
                                     a.info_abierta = None;
                                     a.scroll_info = 0;
@@ -1801,8 +1917,12 @@ pub fn abrir(
                                     }
                                 }
                                 Zona::Ir(j) => ejecutar(Accion::Ir(j), a, &cx),
+                                Zona::Versiones(i) => Efecto::Menu(menu_de_versiones(a, i, textos)),
+                                Zona::AlFinal => {
+                                    a.scroll = None;
+                                    Efecto::Nada
+                                }
                                 Zona::Lecciones => ejecutar(Accion::Lecciones, a, &cx),
-                                Zona::Sistema => Efecto::Menu(menu_de_sistema(a, textos)),
                                 Zona::ConfirmarIa(i, si) => {
                                     asistente::contestar(a, i, si);
                                     Efecto::Nada
@@ -1878,7 +1998,15 @@ pub fn abrir(
                                     Efecto::Cambio
                                 }
                                 Zona::Trozo(i, ms) => match saltar_en_el_audio(a, i, ms) {
-                                    Ok(()) => Efecto::Nada,
+                                    Ok(()) => {
+                                        // Pulsar una linea vuelve a seguir a
+                                        // la cancion desde ahi.
+                                        if let Some(l) = a.letra.as_mut() {
+                                            l.a_mano = None;
+                                            l.seguido = None;
+                                        }
+                                        Efecto::Nada
+                                    }
                                     Err(e) => {
                                         tracing::warn!(?e, "no se pudo saltar en el audio");
                                         Efecto::Aviso(textos.t("chat-voz-no-es-audio"))
@@ -1897,6 +2025,10 @@ pub fn abrir(
                                 Zona::LetraCopiar => copiar_la_letra(a, textos),
                                 Zona::LetraMarcar => poner_la_marca(ubicacion, a, textos),
                                 Zona::LetraEditar => editar_la_letra(a, textos),
+                                Zona::Musica(musica::Boton::SincronizarSola) => {
+                                    musica::sincronizar_sola(ubicacion, a, idioma, textos)
+                                }
+                                Zona::Musica(b) => musica::pulsar(ubicacion, a, b, textos),
                                 Zona::Marca(i, ms) => match saltar_en_el_audio(a, i, ms) {
                                     Ok(()) => Efecto::Nada,
                                     Err(e) => {
@@ -1913,6 +2045,7 @@ pub fn abrir(
                                     Efecto::Nada
                                 }
                                 Zona::Renombrar(i) => ejecutar(Accion::Renombrar(i), a, &cx),
+                                Zona::LecturaVeloz(i) => ejecutar(Accion::LecturaVeloz(i), a, &cx),
                                 Zona::CerrarNombre => {
                                     a.renombrando_mensaje = None;
                                     Efecto::Nada
@@ -1925,6 +2058,11 @@ pub fn abrir(
                                 Zona::SelFijar => fijar_marcados(ubicacion, a, textos),
                                 Zona::SelReenviar => {
                                     ejecutar(Accion::Reenviar(indices_marcados(a)), a, &cx)
+                                }
+                                Zona::Anotar => ejecutar(Accion::Anotar, a, &cx),
+                                Zona::NoAnotar => {
+                                    a.anotar.propuesta = None;
+                                    Efecto::Nada
                                 }
                                 Zona::SelBorrar => {
                                     let hecho =
@@ -2027,14 +2165,6 @@ pub fn abrir(
                                     a.info = Some(s);
                                     a.scroll_info = 0;
                                     a.nav_info.foco.set(None);
-                                }
-                                // Un proyecto: el de este chat lleva a su
-                                // galeria; otro cierra la isla y el chat pasa
-                                // a el (lo recoge `tomar_ir_a` en esta vuelta).
-                                ZonaInfo::Proyecto(n) => {
-                                    if let Some(id) = ficha_del_chat::pulsar_proyecto(a, n) {
-                                        pedir_ir_a(id);
-                                    }
                                 }
                                 // Un enlace se abre en el navegador y la isla
                                 // se queda; lo demas, en su previa.
@@ -2448,33 +2578,25 @@ pub fn abrir(
                             abierto = Some(nuevo);
                         }
                         hay_que_pintar = true;
-                    } else if let Some(el) =
-                        en_chats.elemento_en(&disposicion, l, scroll, orden.len(), escala)
-                    {
-                        // Un mensaje encontrado en la seccion «Mensajes» del
-                        // buscador: su chat, llevado a el y resaltado, por
-                        // el mismo camino que «Ver en el chat» (`ir_a`).
-                        match el {
-                            pixpin_ui::buscar_en_chats::Elemento::Mensaje(n) => {
-                                if let Some(enc) = en_chats.encontrado(n) {
-                                    // Si es el chat abierto y tiene su propia
-                                    // lupa o un chip puestos, se quitan: el
-                                    // mensaje podria quedar escondido y no
-                                    // habria adonde ir.
-                                    if let Some(a) =
-                                        abierto.as_mut().filter(|a| a.ficha.id == enc.chat)
-                                    {
-                                        a.busqueda = None;
-                                        a.por_etiqueta = None;
-                                        a.colocado.borrow_mut().ancho = 0;
-                                    }
-                                    pedir_ir_a_mensaje(enc.chat.clone(), enc.codigo.clone());
-                                }
-                            }
-                            pixpin_ui::buscar_en_chats::Elemento::VerMas => en_chats.ver_mas(),
-                            pixpin_ui::buscar_en_chats::Elemento::Cabecera => {}
+                    } else if let Some(pulsado) = en_chats.pulsar(
+                        &disposicion,
+                        l,
+                        scroll,
+                        orden.len(),
+                        escala,
+                        false,
+                        &mut abierto,
+                    ) {
+                        // La seccion «Mensajes» del buscador: una pestana
+                        // por tipo vuelve a filtrar los chats; un mensaje
+                        // encontrado se abre o se va a el
+                        // (`buscar_en_chats::BuscarEnChats::pulsar`).
+                        if pulsado == buscar_en_chats::Pulsado::Pestana {
+                            orden = en_chats.filtrar(&fichas, &busqueda);
+                            scroll = 0;
+                        } else {
+                            buscando = false;
                         }
-                        buscando = false;
                         hay_que_pintar = true;
                     }
                 }
@@ -2667,6 +2789,23 @@ pub fn abrir(
                         }
                         hay_que_pintar = true;
                     }
+                    // Clic derecho sobre un mensaje encontrado en todos los
+                    // chats: ir a el, sin abrirlo.
+                    else if !disposicion.boton_nuevo(escala).contiene(l)
+                        && en_chats
+                            .pulsar(
+                                &disposicion,
+                                l,
+                                scroll,
+                                orden.len(),
+                                escala,
+                                true,
+                                &mut abierto,
+                            )
+                            .is_some()
+                    {
+                        hay_que_pintar = true;
+                    }
                     // Clic derecho sobre «+»: crearlo en una carpeta elegida
                     // («Guardar en…»). El clic izquierdo sigue creandolo en
                     // la zona habitual: si no se elige, va donde siempre.
@@ -2717,7 +2856,7 @@ pub fn abrir(
                                 borradores.insert(a.ficha.id.clone(), a.borrador);
                             }
                             fichas.push(ficha.clone());
-                            orden = filtrar(&fichas, &busqueda);
+                            orden = en_chats.filtrar(&fichas, &busqueda);
                             elegida = Some(fichas.len() - 1);
                             let mut nuevo = abrir_proyecto(ubicacion, &ficha);
                             nuevo.empezar_a_renombrar();
@@ -3173,14 +3312,49 @@ pub fn abrir(
                 EventoOverlay::Rueda(delta)
                     if abierto.as_ref().is_some_and(|a| a.letra.is_some()) =>
                 {
-                    if let Some(a) = abierto.as_mut()
-                        && let caja = caja_de_la_letra(a, &disposicion, escala).texto
-                        && let Some(l) = a.letra.as_mut()
-                    {
-                        let tope =
-                            pixpin_ui::chat::tope_de_la_letra(caja, &l.altos.borrow(), escala);
+                    if let Some(a) = abierto.as_mut() {
                         let paso = (chat::FILA * 3 / 2 * escala / 100) as i32;
-                        l.scroll = (l.scroll - giro_de_rueda(delta, paso)).clamp(0, tope);
+                        mover_la_letra(a, &disposicion, escala, -giro_de_rueda(delta, paso));
+                    }
+                    hay_que_pintar = true;
+                }
+                // Y las teclas de siempre: Re Pag / Av Pag, las flechas,
+                // Inicio y Fin.
+                EventoOverlay::Tecla {
+                    vk, ctrl: false, ..
+                } if menu.is_none()
+                    && matches!(
+                        vk,
+                        VK_RE_PAG | VK_AV_PAG | VK_ARRIBA | VK_ABAJO | VK_INICIO | VK_FIN
+                    )
+                    && abierto
+                        .as_ref()
+                        .is_some_and(|a| a.letra.is_some() && !musica::sincronizando(a)) =>
+                {
+                    if let Some(a) = abierto.as_mut() {
+                        let pagina = caja_de_la_letra(a, &disposicion, escala).texto.alto as i32;
+                        let fila = (chat::FILA * escala / 100) as i32;
+                        let dy = match vk {
+                            VK_RE_PAG => -pagina * 4 / 5,
+                            VK_AV_PAG => pagina * 4 / 5,
+                            VK_ARRIBA => -fila,
+                            VK_ABAJO => fila,
+                            VK_INICIO => -i32::MAX / 2,
+                            _ => i32::MAX / 2,
+                        };
+                        mover_la_letra(a, &disposicion, escala, dy);
+                    }
+                    hay_que_pintar = true;
+                }
+                // Sincronizando la letra de una cancion, las teclas son suyas
+                // (Espacio marca, Retroceso deshace, Intro guarda).
+                EventoOverlay::Tecla { vk, ctrl, .. }
+                    if menu.is_none() && abierto.as_ref().is_some_and(musica::sincronizando) =>
+                {
+                    if let Some(a) = abierto.as_mut()
+                        && let Efecto::Aviso(t) = musica::tecla(ubicacion, a, vk, ctrl, textos)
+                    {
+                        aviso = Some((t, std::time::Instant::now()));
                     }
                     hay_que_pintar = true;
                 }
@@ -3512,7 +3686,7 @@ pub fn abrir(
                         guardar_nombre(ubicacion, a);
                         if let Some(i) = elegida {
                             fichas[i].nombre = a.ficha.nombre.clone();
-                            orden = filtrar(&fichas, &busqueda);
+                            orden = en_chats.filtrar(&fichas, &busqueda);
                         }
                         // Recien nacido compartido: ya con nombre, a invitar
                         // (sus personas: «Anadir», el codigo y el QR).
@@ -3710,11 +3884,6 @@ pub fn abrir(
                                 tocar = Some(c.mensaje)
                             }
                             Tecla::Pulsar(c) => a.info_abierta = Some(c),
-                            Tecla::Proyecto(n) => {
-                                if let Some(id) = ficha_del_chat::pulsar_proyecto(a, n) {
-                                    pedir_ir_a(id);
-                                }
-                            }
                             Tecla::Abrir => match a.info_abierta {
                                 Some(c) if ficha_del_chat::es_enlace(a, c) => {
                                     if let Efecto::Aviso(t) = abrir_enlace(a, c.mensaje, textos) {
@@ -3821,7 +3990,7 @@ pub fn abrir(
                 // El buscador de la lista, igual: la caja de una linea comun.
                 EventoOverlay::Caracter(c) if buscando => {
                     if busqueda.caracter(c) {
-                        orden = filtrar(&fichas, &busqueda);
+                        orden = en_chats.filtrar(&fichas, &busqueda);
                         scroll = 0;
                     }
                     hay_que_pintar = true;
@@ -3830,7 +3999,7 @@ pub fn abrir(
                     vk, shift, ctrl, ..
                 } if buscando && redaccion::CajaLinea::es_suya(vk, shift, ctrl) => {
                     if tecla_en_caja(&mut busqueda, vk, shift, ctrl).cambio() {
-                        orden = filtrar(&fichas, &busqueda);
+                        orden = en_chats.filtrar(&fichas, &busqueda);
                         scroll = 0;
                     }
                     hay_que_pintar = true;
@@ -3840,7 +4009,8 @@ pub fn abrir(
                 EventoOverlay::Tecla { vk, .. } if buscando && vk == VK_ESCAPE => {
                     buscando = false;
                     busqueda.vaciar();
-                    orden = filtrar(&fichas, &busqueda);
+                    en_chats.cerrar();
+                    orden = en_chats.filtrar(&fichas, &busqueda);
                     hay_que_pintar = true;
                 }
                 // Editando una receta del asistente en la caja: Entrar guarda
@@ -4019,6 +4189,27 @@ pub fn abrir(
                     }
                     hay_que_pintar = true;
                 }
+                // Dictar al chat: con la chapa a la vista, Intro la anota (o
+                // abre la lista de chats) y Escape la quita.
+                EventoOverlay::Tecla { vk, shift, .. }
+                    if (vk == VK_ENTRAR && !shift || vk == VK_ESCAPE)
+                        && abierto
+                            .as_ref()
+                            .is_some_and(|a| a.anotar.propuesta.is_some()) =>
+                {
+                    if vk == VK_ESCAPE {
+                        if let Some(a) = abierto.as_mut() {
+                            a.anotar.propuesta = None;
+                        }
+                    } else {
+                        let ancla = abierto
+                            .as_ref()
+                            .and_then(|a| dictado_a_chat::ancla(&a.anotar))
+                            .unwrap_or(Punto { x: 0, y: 0 });
+                        hacer_del_menu!(ancla, Some(Accion::Anotar));
+                    }
+                    hay_que_pintar = true;
+                }
                 EventoOverlay::Tecla { vk, shift, .. } if vk == VK_ENTRAR => {
                     if let Some(a) = abierto.as_mut() {
                         if shift {
@@ -4096,7 +4287,7 @@ pub fn abrir(
                     .into_iter()
                     .cloned()
                     .collect();
-                orden = filtrar(&fichas, &busqueda);
+                orden = en_chats.filtrar(&fichas, &busqueda);
                 // El proyecto abierto sigue siendo el mismo aunque haya
                 // cambiado de sitio en la lista.
                 elegida = elegida_id.and_then(|id| fichas.iter().position(|f| f.id == id));
@@ -4113,6 +4304,9 @@ pub fn abrir(
         // sin tirar lo que el usuario tenga a medias. Con una hoja o un
         // lienzo abiertos se espera: el que esta escribiendo manda.
         if tomar_refrescar() {
+            // Al volver de un editor (un lienzo, el lector), lo cambiado sobre
+            // lo de otra persona pasa a ser mi version (27-oct-2026).
+            versiones::cerrar(ubicacion.raiz(), textos);
             pendiente_de_releer = true;
             // Y lo encontrado en los chats, que pudo cambiar con lo llegado.
             en_chats.releer();
@@ -4170,6 +4364,8 @@ pub fn abrir(
                         a.info = None;
                         cerrar_panel(ubicacion, a);
                         if let Some(j) = codigo.and_then(|c| indice_de_codigo(&a.mensajes, &c)) {
+                            // Lo de dentro de una carpeta, a su tarjeta.
+                            let j = buscar_en_chats::adonde_saltar(&a.mensajes, j);
                             a.ir_a = Some(j);
                             a.resaltado = Some((j, std::time::Instant::now()));
                         }
@@ -4181,6 +4377,23 @@ pub fn abrir(
                     tracing::warn!(%proyecto, "el universo pidio un proyecto que no esta en la lista")
                 }
             }
+        }
+        // Lo encontrado en todos los chats que se pulso para abrirlo: ya en
+        // su chat, se toca su burbuja, que lo abre en su visor.
+        if let Some(j) = en_chats.tomar_abrir(abierto.as_ref(), textos) {
+            tocar_la_burbuja(
+                j,
+                ubicacion,
+                &mut abierto,
+                &fichas,
+                &mut elegida,
+                &mut borradores,
+                textos,
+                lienzo,
+                idioma,
+                &identidad,
+            );
+            hay_que_pintar = true;
         }
         // La figura elegida en su ventana para este chat (el «+» → «Figura»):
         // despues de `ir_a`, que ya trajo su proyecto si era otro.
@@ -4266,6 +4479,7 @@ pub fn abrir(
             && a.colocado.borrow().puestos.len() == cuantas_se_ven(a)
             && let Some(j) = a.ir_a.take()
         {
+            a.donde_se_dejo.olvidar_la_vuelta();
             let area = area_del_historial(&disposicion, a, escala);
             // Con una busqueda puesta, el mensaje al que se iba puede estar
             // filtrado y no tener sitio: entonces no se salta a ninguna parte.
@@ -4282,6 +4496,34 @@ pub fn abrir(
                     arriba - (24 * escala / 100) as i32,
                 );
                 a.scroll = if quiero >= tope { None } else { Some(quiero) };
+            }
+            hay_que_pintar = true;
+        }
+        // Volver a donde se dejo el chat recien abierto, en cuanto esten
+        // medidas sus burbujas (igual que `ir_a`). Buscando no: lo que se ve
+        // es otra lista.
+        if let Some(a) = abierto.as_mut()
+            && a.donde_se_dejo.por_volver()
+            && a.mini.is_none()
+            && a.info.is_none()
+            && a.letra.is_none()
+            && a.colocado.borrow().puestos.len() == cuantas_se_ven(a)
+        {
+            if a.busqueda.is_none() && a.por_etiqueta.is_none() {
+                let area = area_del_historial(&disposicion, a, escala);
+                let c = a.colocado.borrow();
+                let ids: Vec<&str> = c
+                    .visibles
+                    .iter()
+                    .map(|i| a.mensajes[*i].id.as_str())
+                    .collect();
+                let vuelta = a
+                    .donde_se_dejo
+                    .volver(area, &c.puestos, a.alto.get(), &ids, escala);
+                drop(c);
+                a.scroll = vuelta;
+            } else {
+                a.donde_se_dejo.olvidar_la_vuelta();
             }
             hay_que_pintar = true;
         }
@@ -4321,7 +4563,7 @@ pub fn abrir(
         }
         // Lo escrito en el buscador de la lista, tambien dentro de todos los
         // chats: tras la espera se le pide al hilo, y lo que conteste se pinta.
-        if en_chats.latido(&busqueda, ms) {
+        if en_chats.latido(&busqueda, buscando, disposicion.filas.ancho, escala, ms) {
             let d = disponer(marco, escala, ancho_lista, abierto.as_ref());
             scroll = d.scroll_ajustado(
                 scroll,
@@ -4363,11 +4605,6 @@ pub fn abrir(
             // el fotograma: crear recursos de dibujo a medias no se puede, y
             // leer del disco dentro del fotograma se notaria.
             let mut faltan_fondos = false;
-            // Los proyectos de la pestana «Proyectos», al dia con la lista
-            // antes de pintar: lo que se pulse despues es lo que se vio.
-            if let Some(a) = abierto.as_mut().filter(|a| a.info.is_some()) {
-                ficha_del_chat::poner_proyectos(a, &fichas);
-            }
             if let Some(a) = abierto.as_ref() {
                 if a.info.is_some() {
                     // Las miniaturas de lo que se ve en la ficha y, en la
@@ -4399,6 +4636,10 @@ pub fn abrir(
             {
                 faltan_fondos |= previas.asegurar(&[ruta], &motor);
             }
+            // Y la portada de la cancion del karaoke.
+            if let Some(ruta) = abierto.as_ref().and_then(musica::portada_de_la_letra) {
+                faltan_fondos |= previas.asegurar(&[ruta], &motor);
+            }
             // Los logos de las filas que se ven y el del abierto (su
             // cabecera): leidos una vez, luego solo se pintan.
             {
@@ -4410,22 +4651,17 @@ pub fn abrir(
                     .filter_map(|i| fichas.get(*i))
                     .map(|f| f.id.as_str());
                 let del_abierto = abierto.as_ref().map(|a| a.ficha.id.as_str());
-                // Y los de la pestana de proyectos de la ficha, si se ve.
-                let de_la_ficha = abierto
-                    .as_ref()
-                    .map(|a| ficha_del_chat::logos_a_preparar(a, &disposicion, escala))
-                    .unwrap_or_default();
                 logo::preparar(
                     ubicacion.raiz(),
                     &fichas,
                     filas
                         .chain(del_abierto)
-                        .chain(de_la_ficha.iter().map(String::as_str))
                         // Y los de los chats de los mensajes encontrados.
                         .chain(en_chats.chats()),
                     &motor,
                 );
             }
+            faltan_fondos |= en_chats.preparar(&motor);
             if let Ok(destino) = superficie.empezar(&motor) {
                 let lista = Lista {
                     fichas: &fichas,
@@ -4556,6 +4792,12 @@ pub fn abrir(
                         };
                         pintar_menu_abierto(p, &c, m, marco);
                     }
+                    // La chapa de dictar al chat, encima de la caja.
+                    if let Some(a) = abierto_ref
+                        .filter(|a| a.info.is_none() && a.letra.is_none() && a.mini.is_none())
+                    {
+                        dictado_a_chat::pintar(p, &disposicion, tema, escala, alto_caja, a, textos);
+                    }
                     if let Some(t) = aviso_ref {
                         pintar_aviso(p, &disposicion, escala, alto_caja, t);
                     }
@@ -4566,6 +4808,7 @@ pub fn abrir(
                     // asi que volver a subirlos no toca el disco.
                     miniaturas.soltar();
                     previas.soltar();
+                    en_chats.soltar();
                     CACHE_GRAFITO.with_borrow_mut(|c| c.vaciar());
                     logo::soltar();
                     crate::tema_cosmos::soltar();
@@ -4586,7 +4829,10 @@ pub fn abrir(
             // Solo con el historial a la vista: con la hoja o el panel
             // delante no se mide nada, y esto daria vueltas sin parar.
             if abierto.as_ref().is_some_and(|a| {
-                a.ir_a.is_some() && a.mini.is_none() && a.info.is_none() && a.letra.is_none()
+                (a.ir_a.is_some() || a.donde_se_dejo.por_volver())
+                    && a.mini.is_none()
+                    && a.info.is_none()
+                    && a.letra.is_none()
             }) {
                 hay_que_pintar = true;
             }
@@ -4646,6 +4892,12 @@ pub fn abrir(
         if let Some(clave) = aviso_ia {
             aviso = Some((textos.t(&clave), std::time::Instant::now()));
         }
+        // Lo que dicen las versiones vinculadas («Es de Ana: si lo cambias…»,
+        // «Se guardo como tu version»), desde donde no hay aviso a mano.
+        if let Some(t) = versiones::tomar_aviso(textos) {
+            aviso = Some((t, std::time::Instant::now()));
+            hay_que_pintar = true;
+        }
         // «…y ábrelo»: el lienzo donde acaba de dibujar, abierto como si se
         // hubiera tocado su burbuja.
         if let Some(j) = abierto.as_ref().and_then(asistente::lienzo_por_abrir) {
@@ -4698,8 +4950,16 @@ pub fn abrir(
         // nadie va a mover el raton para enterarse. Se mira aqui —una vez
         // por vuelta— y no al pintar, porque escribe en el cuaderno.
         if let Some(a) = abierto.as_mut() {
-            let (cambio, fallo) = latido_del_dictado(a, textos);
+            let (cambio, fallo, frases) = latido_del_dictado(a, textos);
             if cambio {
+                hay_que_pintar = true;
+            }
+            // Dictar al chat (Jev, en su hilo; sin clave, nada).
+            for (dicho, antes) in frases {
+                a.anotar
+                    .oir(ubicacion, &dicho, &antes, &fichas, &a.ficha.id);
+            }
+            if a.anotar.latido(ubicacion) {
                 hay_que_pintar = true;
             }
             if let Some(dicho) = fallo {
@@ -4710,7 +4970,9 @@ pub fn abrir(
                 // pero acaba igual: escrita en el cuaderno.
                 .or_else(|| latido_del_telepronter(ubicacion, a, &identidad, textos))
                 // Y las ventanas de la voz (letra, Pronunciar, conversacion).
-                .or_else(|| latido_de_la_voz(ubicacion, a, &identidad, textos, idioma));
+                .or_else(|| latido_de_la_voz(ubicacion, a, &identidad, textos, idioma))
+                // Y «Sincronizar sola» de una cancion, que acaba en su hilo.
+                .or_else(|| musica::latido_sola(ubicacion, a, textos));
             if let Some(dicho) = dicho {
                 aviso = Some((dicho, std::time::Instant::now()));
                 hay_que_pintar = true;
@@ -4720,14 +4982,14 @@ pub fn abrir(
         // diez: mas es gastar procesador que le hace falta al reconocedor.
         let hasta_la_transcripcion = abierto
             .as_ref()
-            .and_then(|a| a.transcribiendo.as_ref())
+            .filter(|a| a.transcribiendo.is_some() || a.sola.is_some())
             .map(|_| 250u32);
         // Dictando, lo provisional tiene que ir apareciendo mientras se
         // habla: una decima de segundo es lo que tarda SAPI en dar la
         // siguiente hipotesis.
         let hasta_el_dictado = abierto
             .as_ref()
-            .and_then(|a| a.dictado.as_ref())
+            .filter(|a| a.dictado.is_some() || a.anotar.espera())
             .map(|_| 100u32);
         // Y con el telepronter abierto hay que volver a mirar su canal: la
         // lectura llega de otro hilo y aqui no entra ningun evento por ella.
@@ -5143,10 +5405,6 @@ struct Abierto {
     info_abierta: Option<pixpin_ui::info::Cosa>,
     /// La tira de pestanas desplazada y el foco del teclado de la ficha.
     nav_info: ficha_del_chat::Navegacion,
-    /// Los proyectos que lista la pestana «Proyectos» de la ficha: los de la
-    /// lista de chats, apuntados antes de pintar (`poner_proyectos`) para
-    /// que lo que se pulsa sea lo que se pinto.
-    proyectos_info: Vec<pixpin_proyecto::almacen::Ficha>,
     /// Donde esta el raton sobre la ficha, para resaltar lo que hay debajo.
     raton_info: Punto,
     /// A que mensaje se esta contestando (su id). Aparte de `marcados`:
@@ -5171,6 +5429,9 @@ struct Abierto {
     /// Desde arriba. `None` es «pegado al final», que es como se abre y
     /// como se queda hasta que el usuario sube.
     scroll: Option<i32>,
+    /// Donde se dejo este chat (se vuelve ahi al abrirlo) y lo que queda
+    /// sin ver debajo, para la chapa del «↓» (`donde_se_dejo`).
+    donde_se_dejo: donde_se_dejo::Recuerdo,
     /// Lo que ocupa todo el historial, que solo se sabe al medirlo (hace
     /// falta la fuente). Lo apunta el pintado para que la rueda sepa su tope.
     alto: std::cell::Cell<u32>,
@@ -5197,6 +5458,8 @@ struct Abierto {
     transcribiendo: Option<crate::voz::EnMarcha>,
     /// El dictado en curso (clic derecho en el microfono), si hay uno.
     dictado: Option<Dictando>,
+    /// Dictar al chat (Jev): lo que se propone anotar en otro chat.
+    anotar: dictado_a_chat::Anotar,
     /// El telepronter abierto, si hay uno: por aqui llega la lectura cuando
     /// el usuario termina de leer. Se guarda el extremo del canal y no un
     /// manejador de la ventana porque **la ventana vive en su propio hilo**
@@ -5220,6 +5483,9 @@ struct Abierto {
     desplegados: std::collections::BTreeSet<String>,
     /// La pantalla de la letra, si esta abierta (`LetraActivity`).
     letra: Option<LetraAbierta>,
+    /// «Sincronizar sola» en marcha (`musica`): la cancion se oye en su
+    /// hilo y la letra pegada se alinea con lo oido.
+    sola: Option<musica::Sola>,
     /// Lo que la voz tiene a medias en otras ventanas: la caja de la
     /// letra, Pronunciar y la conversacion por turnos.
     voz: crate::voz_en_chat::Pendiente,
@@ -5255,6 +5521,49 @@ struct LetraAbierta {
     /// La captura de la clase que se ensena (la del minuto que suena): se
     /// repinta cuando cambia, aunque el parrafo siga siendo el mismo.
     captura: Option<usize>,
+    /// «Sincronizar la letra» de una cancion, si se esta haciendo
+    /// (`musica`): las lineas y los minutos marcados hasta ahora.
+    sincronizando: Option<pixpin_voz::letra_de_cancion::Sincronizador>,
+    /// Cuando se movio la letra a mano por ultima vez (rueda, teclas o
+    /// arrastrando). Mientras suena, seguir a la cancion se para
+    /// [`LETRA_A_MANO`] desde entonces; un clic en una linea lo vuelve a
+    /// encender (ver [`sigue_a_la_cancion`]).
+    a_mano: Option<std::time::Instant>,
+    /// El desplazamiento que se pinto de verdad: siguiendo a la cancion no
+    /// es `scroll`, y mover a mano tiene que empezar desde lo que se ve.
+    pintado: std::cell::Cell<i32>,
+    /// Arrastrando la letra con el raton (o el dedo).
+    arrastre: Option<ArrastreDeLetra>,
+}
+
+/// Un arrastre de la letra: donde se pulso, desde que desplazamiento, si ya
+/// se movio y la linea pulsada (que se salta al soltar si no se movio).
+#[derive(Debug, Clone, Copy)]
+struct ArrastreDeLetra {
+    y: i32,
+    scroll: i32,
+    movido: bool,
+    trozo: Option<(usize, i64)>,
+}
+
+/// Lo que se para «seguir a la cancion» tras mover la letra a mano.
+const LETRA_A_MANO: std::time::Duration = std::time::Duration::from_secs(6);
+
+/// Lo que hay que mover el raton para que un clic sea un arrastre.
+const LETRA_UMBRAL_DE_ARRASTRE: i32 = 6;
+
+/// **Si la vista de la letra sigue a la cancion**: siempre, salvo en los
+/// [`LETRA_A_MANO`] que siguen a moverla a mano mientras suena. Parada, lo
+/// movido a mano se queda donde se dejo (no hay nada que seguir).
+fn sigue_a_la_cancion(
+    a_mano: Option<std::time::Instant>,
+    ahora: std::time::Instant,
+    sonando: bool,
+) -> bool {
+    match a_mano {
+        None => true,
+        Some(t) => sonando && ahora.saturating_duration_since(t) >= LETRA_A_MANO,
+    }
 }
 
 #[derive(Default)]
@@ -5352,7 +5661,7 @@ pub(crate) fn color_avatar(codigo: &str) -> Color {
 
 /// El color de una persona en un chat compartido: su nombre encima de sus
 /// burbujas y su circulo (`conversacion::tono`, el mismo en todas partes).
-fn color_de_persona(nombre: &str) -> Color {
+pub(crate) fn color_de_persona(nombre: &str) -> Color {
     hex(COLORES_AVATAR[pixpin_ui::conversacion::tono(nombre, COLORES_AVATAR.len())])
 }
 
@@ -5374,14 +5683,16 @@ fn pintar_chapa_compartido(p: &Pintor, avatar: RectF, aro: Color) -> RectF {
         alto: lado,
     };
     p.rellenar_redondeado(caja, lado / 2.0, aro);
-    let dentro = encoger(caja, grosor);
-    p.rellenar_redondeado(dentro, dentro.ancho / 2.0, hex(VERDE_COMPARTIDO));
-    p.icono(
-        &mi::GROUP,
-        encoger(dentro, dentro.ancho * 0.14),
-        Color::BLANCO,
-    );
+    pintar_insignia_compartido(p, encoger(caja, grosor));
     caja
+}
+
+/// **La insignia de chat compartido**, sin aro: el circulito verde con las
+/// dos personas en `caja`. La misma en la lista de chats y en lo que viene
+/// de un chat compartido fuera de el (las listas de Tareas, checklist 26).
+pub(crate) fn pintar_insignia_compartido(p: &Pintor, caja: RectF) {
+    p.rellenar_redondeado(caja, caja.ancho / 2.0, hex(VERDE_COMPARTIDO));
+    p.icono(&mi::GROUP, encoger(caja, caja.ancho * 0.14), Color::BLANCO);
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -6026,39 +6337,6 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
             tema.separador,
         );
         a.zonas.borrow_mut().push((barra, Zona::Ir(indice_fijado)));
-    } else if let Some(linea) = linea_de_sistema(a, textos) {
-        // En el chat «Asistente», lo del sistema plegado en una linea
-        // discreta: pulsarla lo lista (`menu_de_sistema`).
-        let barra = d.fijado(escala);
-        p.rellenar(rf(barra), tema.cabecera);
-        let x = barra.x as f32 + chat::FIJADO_MARGEN_X as f32 * e;
-        let ancho = (barra.derecha() as f32 - chat::FIJADO_MARGEN_X as f32 * e - x).max(0.0);
-        p.texto_linea(
-            &textos.t("chat-sistema-titulo"),
-            x,
-            barra.y as f32 + 7.0 * e,
-            chat::CONTADOR_TAM * e,
-            ancho,
-            tema.apagado,
-        );
-        p.texto_linea(
-            &linea,
-            x,
-            barra.y as f32 + 25.0 * e,
-            chat::CABECERA_TAM * e,
-            ancho,
-            tema.apagado,
-        );
-        p.rellenar(
-            RectF {
-                x: barra.x as f32,
-                y: barra.abajo() as f32 - (1.0 * e).max(1.0),
-                ancho: barra.ancho as f32,
-                alto: (1.0 * e).max(1.0),
-            },
-            tema.separador,
-        );
-        a.zonas.borrow_mut().push((barra, Zona::Sistema));
     } else if let Some(aviso) = aviso_de_lecciones(a) {
         // Sin fijado, la franja es del aviso de lecciones: «💡 N lecciones:»
         // y la primera. Tocarla abre las de este proyecto.
@@ -6164,7 +6442,10 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     // cuando cambia el ancho, no en cada fotograma.
     let ancho_contenido = h::ancho_contenido(area, escala);
     let aguja = a.busqueda.as_deref().unwrap_or_default().to_owned();
-    let generacion = crate::sincronizar::compartidos_ui::generacion(&a.raiz);
+    // Y con lo ultimo de Lectura Veloz: su chapa sale o crece al llegar.
+    let generacion = crate::sincronizar::compartidos_ui::generacion(&a.raiz)
+        .wrapping_mul(1_000_003)
+        .wrapping_add(crate::lectura_veloz::generacion());
     {
         let mut c = a.colocado.borrow_mut();
         if c.ancho != ancho_contenido
@@ -6179,6 +6460,7 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
             // Con el asistente de por medio, cada uno a su lado (una vez,
             // no por mensaje: mirarlo es recorrer la conversacion).
             let con_ia = asistente::conversacion_con_ia(a);
+            let rotulos = versiones::rotulos(a, textos);
             let visibles = indices_visibles(a);
             let mut entradas = Vec::with_capacity(visibles.len());
             let mut todas = Vec::with_capacity(visibles.len());
@@ -6196,6 +6478,7 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
                         ahora,
                         aguja: &aguja,
                         con_ia,
+                        versiones: &rotulos,
                     },
                 );
                 entradas.push(entrada);
@@ -6239,6 +6522,17 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     let scroll = a
         .scroll
         .unwrap_or_else(|| h::scroll_maximo(area, a.alto.get()));
+    // Donde se queda este chat y lo que hay sin ver debajo (`donde_se_dejo`).
+    // Buscando, lo que se ve es otra lista: no se apunta.
+    if a.busqueda.is_none() && a.por_etiqueta.is_none() {
+        let ids: Vec<&str> = c
+            .visibles
+            .iter()
+            .map(|i| a.mensajes[*i].id.as_str())
+            .collect();
+        a.donde_se_dejo
+            .apuntar(area, &c.puestos, a.alto.get(), a.scroll, &ids, escala);
+    }
     p.empujar_recorte(rf(area));
     let (primero, cuantos) = h::visibles(area, &c.puestos, scroll);
     for cual in primero..primero + cuantos {
@@ -6412,6 +6706,22 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
         let hueco = h::RELLENO_Y as f32 * e;
         let mut y = dentro.y as f32;
 
+        // Las versiones vinculadas (27-oct-2026): de quien es el original que
+        // esta copia cambio (lleva a el), y en el original cuantas versiones
+        // tiene (las lista).
+        if let Some(r) = &piezas.version {
+            let caja = pintar_rotulo_de_version(p, r, dentro.x as f32, y, tema.enviar, e);
+            if let Some(j) = r.ir {
+                a.zonas.borrow_mut().push((caja, Zona::Ir(j)));
+            }
+            y += r.alto + hueco;
+        }
+        if let Some(r) = &piezas.versiones {
+            let caja = pintar_rotulo_de_version(p, r, dentro.x as f32, y, tema.enviar, e);
+            a.zonas.borrow_mut().push((caja, Zona::Versiones(i)));
+            y += r.alto + hueco;
+        }
+
         // A que contesta: la banda con la barra de color de Telegram, del
         // ancho de la burbuja. Tocarla lleva al original.
         if let Some(j) = piezas.cita {
@@ -6526,9 +6836,11 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
                 escala,
             );
             let circulo = rf(fila.circulo);
-            // Un archivo, con el icono de su tipo (v0.98.4); lo demas, el
-            // boton redondo de siempre.
-            if let Some(nombre) = &f.archivo {
+            // Una cancion, con su portada; un archivo, con el icono de su
+            // tipo (v0.98.4); lo demas, el boton redondo de siempre.
+            if let Some(t) = &f.musica {
+                musica::pintar_portada(p, circulo, 10.0 * e, t, &m.id, previas);
+            } else if let Some(nombre) = &f.archivo {
                 icono_de_tipo::pintar(p, nombre, circulo);
             } else {
                 p.rellenar_redondeado(circulo, circulo.ancho / 2.0, tema.circulo);
@@ -6671,14 +6983,24 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
                         chat::FILA_ABRIR_RADIO as f32 * e,
                         con_alfa(color_hora, 0.156),
                     );
+                    // La de una cancion abre su karaoke (`musica`).
+                    let cancion = f.musica.is_some();
                     match boton {
+                        _ if cancion => icono_centrado(p, &mi::LYRICS, fila.abrir, 16.0 * e, tinta),
                         BotonDeTexto::Plegar | BotonDeTexto::Desplegar => {
                             pintar_flechita(p, abrir, boton == BotonDeTexto::Plegar, tinta, e)
                         }
                         _ => icono_centrado(p, &mi::SUBTITLES, fila.abrir, 16.0 * e, tinta),
                     }
                     if !trabajando {
-                        a.zonas.borrow_mut().push((fila.abrir, Zona::Texto(i)));
+                        a.zonas.borrow_mut().push((
+                            fila.abrir,
+                            if cancion {
+                                Zona::Musica(musica::Boton::Karaoke(i))
+                            } else {
+                                Zona::Texto(i)
+                            },
+                        ));
                     }
                 }
             }
@@ -6695,6 +7017,15 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
                 a.zonas.borrow_mut().push((c, Zona::Estudiar(i)));
             }
             y += chat::FILA_CIRCULO as f32 * e + hueco;
+        }
+        if let Some(c) = &piezas.chapas {
+            for (caja, que) in chapas::pintar(p, c, dentro.x, y as i32, dentro.ancho, color_hora, e)
+            {
+                if que == chapas::Que::LecturaVeloz {
+                    a.zonas.borrow_mut().push((caja, Zona::LecturaVeloz(i)));
+                }
+            }
+            y += c.alto + hueco;
         }
 
         // El texto de una nota de voz, pegado bajo su fila.
@@ -7001,6 +7332,18 @@ fn pintar_historial(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
         pintar_flecha_de_comentar(p, tema, burbuja, corrida, escala, e);
     }
     p.soltar_recorte();
+    // Subido: el «↓» que vuelve al ultimo mensaje (`al_final`).
+    let sin_ver = a.donde_se_dejo.sin_ver();
+    if al_final::se_ve(
+        a.scroll,
+        h::scroll_maximo(area, a.alto.get()),
+        area.alto,
+        sin_ver,
+    ) {
+        let caja = al_final::caja(area, e);
+        al_final::pintar(p, tema, caja, e, sin_ver);
+        a.zonas.borrow_mut().push((caja, Zona::AlFinal));
+    }
 }
 
 /// La onda de una nota de voz, en el sitio del nombre de su fila: las barras
@@ -7212,6 +7555,14 @@ fn tocar_la_burbuja(
     // 11-oct-2026). Antes se abrian en una hoja pintada dentro del historial.
     if let Some(a) = abierto.as_ref()
         && crate::hoja_pin::abrir_desde_chat(idioma, ubicacion, &a.ficha.id, &a.mensajes, indice)
+    {
+        return;
+    }
+    // **Lo de otra persona en un chat compartido se abre como version mia**
+    // (27-oct-2026): el editor trabaja sobre una copia y el original no se
+    // toca. Lo mio, y todo en un chat propio, sigue por aqui abajo.
+    if let Some(a) = abierto.as_ref()
+        && versiones::abrir_como_version(ubicacion, a, indice, textos, lienzo, idioma, identidad)
     {
         return;
     }
@@ -7610,7 +7961,7 @@ fn se_ve(a: &Abierto, m: &pixpin_proyecto::cuaderno::Mensaje) -> bool {
         return false;
     }
     // Los de sistema (`auto-*`: letras, figuras, automatizaciones) viajan
-    // pero no son conversacion: van en la franja de arriba (`linea_de_sistema`).
+    // pero no son conversacion: ni burbuja ni franja (ver `hay_barra`).
     if pixpin_proyecto::cuaderno::es_de_sistema(m) {
         return false;
     }
@@ -7644,146 +7995,36 @@ fn aviso_de_lecciones(a: &Abierto) -> Option<crate::lecciones::Aviso> {
     crate::lecciones::aviso(&a.raiz, &a.ficha.id, &a.ficha.nombre)
 }
 
-/// **La linea de lo del sistema** del chat «Asistente» (14-oct): los
-/// mensajes `auto-*` no son burbujas ([`cuaderno::es_de_sistema`]); en su
-/// lugar, una franja plegada «⚙️ Letras de planos: N · Figuras ·
-/// Automatizaciones» que al pulsarla los lista. Solo en el chat «Asistente»
-/// (es el unico donde nacen) y solo si hay alguno.
+/// **Las versiones de un original** («2 versiones ▾», 27-oct-2026): «Version
+/// 1 · tuya», «Version 2 · Ana»…, y cada una lleva a la suya.
+fn menu_de_versiones(a: &Abierto, i: usize, textos: &Catalogo) -> Vec<EntradaMenu> {
+    let Some(m) = a.mensajes.get(i) else {
+        return Vec::new();
+    };
+    versiones::rotulos(a, textos)
+        .chip
+        .remove(&m.id)
+        .map(|(_, lista)| {
+            lista
+                .into_iter()
+                .map(|(texto, j)| entrada(Some(&mi::EDIT), texto, Accion::Ir(j)))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Si hay franja bajo la cabecera: la del fijado o, sin el, la del aviso
+/// de lecciones. Van en el mismo sitio.
 ///
-/// [`cuaderno::es_de_sistema`]: pixpin_proyecto::cuaderno::es_de_sistema
-fn linea_de_sistema(a: &Abierto, textos: &Catalogo) -> Option<String> {
-    if !a.ficha.es_asistente() {
-        return None;
-    }
-    resumen_de_sistema(&a.mensajes, textos)
-}
-
-/// El texto de la franja, de los mensajes de sistema que haya. `None` sin ninguno.
-fn resumen_de_sistema(
-    mensajes: &[pixpin_proyecto::cuaderno::Mensaje],
-    textos: &Catalogo,
-) -> Option<String> {
-    let de_sistema: Vec<&pixpin_proyecto::cuaderno::Mensaje> = mensajes
-        .iter()
-        .filter(|m| pixpin_proyecto::cuaderno::es_de_sistema(m))
-        .collect();
-    if de_sistema.is_empty() {
-        return None;
-    }
-    let letras = de_sistema
-        .iter()
-        .filter(|m| m.id.starts_with("auto-letra-"))
-        .count();
-    let mut partes = Vec::new();
-    if letras > 0 {
-        partes.push(format!("{}: {letras}", textos.t("chat-sistema-letras")));
-    }
-    if de_sistema
-        .iter()
-        .any(|m| m.id == crate::biblioteca_figuras::ID_MENSAJE)
-    {
-        partes.push(textos.t("chat-sistema-figuras"));
-    }
-    if de_sistema
-        .iter()
-        .any(|m| m.id == crate::automatizaciones::ID_MENSAJE)
-    {
-        partes.push(textos.t("chat-sistema-automatizaciones"));
-    }
-    // La memoria del asistente (22-oct): un mensaje por fichero, una sola
-    // entrada en la franja.
-    let memoria = de_sistema
-        .iter()
-        .filter(|m| m.id.starts_with(crate::asistente::memoria::PREFIJO_ID))
-        .count();
-    if memoria > 0 {
-        partes.push(format!("{}: {memoria}", textos.t("chat-sistema-memoria")));
-    }
-    let otros = de_sistema.len()
-        - letras
-        - memoria
-        - de_sistema
-            .iter()
-            .filter(|m| {
-                m.id == crate::biblioteca_figuras::ID_MENSAJE
-                    || m.id == crate::automatizaciones::ID_MENSAJE
-            })
-            .count();
-    if otros > 0 {
-        partes.push(format!("{}: {otros}", textos.t("chat-sistema-otros")));
-    }
-    Some(format!("⚙️ {}  ▾", partes.join(" · ")))
-}
-
-/// **Lo que lista la franja al pulsarla**: cada letra con «Quitar» (borra
-/// su mensaje, y con el la letra en todos los aparatos, como borrar la
-/// burbuja antes), las figuras y las automatizaciones con donde se usan.
-fn menu_de_sistema(a: &Abierto, textos: &Catalogo) -> Vec<EntradaMenu> {
-    let mut v = Vec::new();
-    let mut con_memoria = false;
-    for (i, m) in a
-        .mensajes
-        .iter()
-        .enumerate()
-        .filter(|(_, m)| pixpin_proyecto::cuaderno::es_de_sistema(m))
-    {
-        if m.id.starts_with(crate::asistente::memoria::PREFIJO_ID) {
-            // Una entrada para toda la memoria: abre su carpeta, donde se lee
-            // y se cambia con cualquier editor.
-            if !con_memoria {
-                con_memoria = true;
-                v.push(
-                    entrada(
-                        None,
-                        textos.t("chat-sistema-memoria-menu"),
-                        Accion::AbrirMemoria,
-                    )
-                    .separada(),
-                );
-            }
-        } else if m.id.starts_with("auto-letra-") {
-            let mut e = entrada(
-                Some(&mi::DELETE),
-                format!("{} {}", textos.t("chat-sistema-quitar-letra"), m.nombre),
-                Accion::Borrar(vec![i]),
-            );
-            e.peligro = true;
-            v.push(e);
-        } else if m.id == crate::biblioteca_figuras::ID_MENSAJE {
-            v.push(
-                entrada(
-                    None,
-                    textos.t("chat-sistema-figuras-menu"),
-                    Accion::Aviso("chat-sistema-figuras-aviso"),
-                )
-                .separada(),
-            );
-        } else if m.id == crate::automatizaciones::ID_MENSAJE {
-            v.push(
-                entrada(
-                    None,
-                    textos.t("chat-sistema-automatizaciones-menu"),
-                    Accion::Ajustes,
-                )
-                .separada(),
-            );
-        } else {
-            v.push(entrada(None, m.nombre.clone(), Accion::Pinear(i)).separada());
-        }
-    }
-    v
-}
-
-/// Si hay franja bajo la cabecera: la del fijado o, sin el, la de lo del
-/// sistema (chat «Asistente») o la del aviso de lecciones. Van en el mismo
-/// sitio.
+/// La de lo del sistema del chat «Asistente» («⚙️ Letras de planos · N
+/// figuras · Otros») ya no sale (27-oct-2026, checklist del usuario, punto
+/// 3: «quitar la tira … que tapa el chat»; Android 00ac81c2): los mensajes
+/// `auto-*` siguen guardados y viajando, sin burbuja. Lo que daba esa lista
+/// sigue a mano: las letras, en el boton «Aa» del visor de planos («Quitar
+/// las mias»); las automatizaciones, en Ajustes → Asistente; la memoria, en
+/// los tres puntos del chat «Asistente» (`menu_de_asistente`).
 fn hay_barra(a: &Abierto) -> bool {
-    a.fijado.is_some()
-        || (a.ficha.es_asistente()
-            && a.mensajes
-                .iter()
-                .any(pixpin_proyecto::cuaderno::es_de_sistema))
-        || aviso_de_lecciones(a).is_some()
+    a.fijado.is_some() || aviso_de_lecciones(a).is_some()
 }
 
 /// El area de las burbujas, ya descontada la fila de chips si la hay.
@@ -7846,6 +8087,79 @@ fn aparato_corto(m: &pixpin_proyecto::cuaderno::Mensaje) -> Option<String> {
     }
 }
 
+/// **De quien es una foto de una grabacion** (28-oct-2026, colaboradores):
+/// su circulo con la inicial en su color arriba a la izquierda de `marco`
+/// (la foto) y, si su hora no se pudo comprobar, `aviso` en una pastilla al
+/// lado. Lo mio no lleva circulo (`quien` `None`).
+pub(crate) fn chapa_de_autor(
+    p: &Pintor,
+    marco: RectF,
+    quien: Option<&str>,
+    aviso: Option<&str>,
+    e: f32,
+) {
+    let lado = 20.0 * e;
+    let mut x = marco.x + 6.0 * e;
+    let y = marco.y + 6.0 * e;
+    if let Some(quien) = quien {
+        let circulo = RectF {
+            x,
+            y,
+            ancho: lado,
+            alto: lado,
+        };
+        p.rellenar_redondeado(
+            RectF {
+                x: x - 1.5 * e,
+                y: y - 1.5 * e,
+                ancho: lado + 3.0 * e,
+                alto: lado + 3.0 * e,
+            },
+            (lado + 3.0 * e) / 2.0,
+            Color::BLANCO,
+        );
+        p.rellenar_redondeado(circulo, lado / 2.0, color_de_persona(quien));
+        let letra = pixpin_ui::conversacion::inicial(quien);
+        let tam = lado * 0.55;
+        let (wl, hl) = p.medir_texto(&letra, tam);
+        p.texto(
+            &letra,
+            circulo.x + (lado - wl) / 2.0,
+            circulo.y + (lado - hl) / 2.0,
+            tam,
+            Color::BLANCO,
+        );
+        x += lado + 6.0 * e;
+    }
+    if let Some(aviso) = aviso {
+        let tam = 11.0 * e;
+        let (w, h) = p.medir_texto(aviso, tam);
+        let ancho = (w + 12.0 * e).min((marco.x + marco.ancho - x - 6.0 * e).max(0.0));
+        let chapa = RectF {
+            x,
+            y: y + (lado - h - 6.0 * e) / 2.0,
+            ancho,
+            alto: h + 6.0 * e,
+        };
+        p.rellenar_redondeado(
+            chapa,
+            chapa.alto / 2.0,
+            Color {
+                a: 0.65,
+                ..Color::NEGRO
+            },
+        );
+        p.texto_linea(
+            aviso,
+            chapa.x + 6.0 * e,
+            chapa.y + 3.0 * e,
+            tam,
+            (ancho - 12.0 * e).max(0.0),
+            Color::BLANCO,
+        );
+    }
+}
+
 /// El nombre de quien escribe sobre su tanda: su circulo con la inicial y el
 /// nombre, los dos de su color (como un grupo de Telegram).
 fn pintar_nombre_de_persona(p: &Pintor, sitio: Rect, quien: &str, e: f32) {
@@ -7897,6 +8211,9 @@ struct Medir<'a> {
     /// Si se habla con el asistente: lo del usuario va a la derecha
     /// (`asistente::a_la_derecha`).
     con_ia: bool,
+    /// Los rotulos de las versiones vinculadas del chat (27-oct-2026), una
+    /// vez por colocacion y no por mensaje.
+    versiones: &'a versiones::Rotulos,
 }
 
 /// Mide un mensaje y decide de que piezas se compone, como la `Burbuja` del
@@ -7917,9 +8234,16 @@ fn medir_mensaje(
     let vista = a.vistas.get(indice).and_then(|v| v.as_ref());
     let es_foto = matches!(vista, Some(Ojeada::Foto { .. }));
     let fila = fila_de(m, es_foto, textos).map(|(icono, nombre, detalle)| {
+        // Una cancion es su tarjeta: el titulo y el artista de sus etiquetas
+        // en vez del nombre del fichero y la onda (`musica`).
+        let musica = musica::tarjeta(a, m);
+        let (nombre, detalle) = match &musica {
+            Some(t) => (musica::titulo(t, m), musica::detalle(t, &detalle)),
+            None => (nombre, detalle),
+        };
         let (wn, _) = p.medir_texto(&nombre, FICHA_NOMBRE_TAM * e);
         let (wd, _) = p.medir_texto(&detalle, FICHA_DETALLE_TAM * e);
-        let onda = if m.clase == Some(pixpin_proyecto::cuaderno::Clase::Voz) {
+        let onda = if m.clase == Some(pixpin_proyecto::cuaderno::Clase::Voz) && musica.is_none() {
             pixpin_ui::chat::barras_de_onda(&picos_de_voz(m))
         } else {
             Vec::new()
@@ -7947,6 +8271,7 @@ fn medir_mensaje(
             ancho_texto,
             onda,
             archivo: icono_de_tipo::nombre_para_el_icono(m),
+            musica,
         }
     });
     let texto = texto_de(m, vista.is_some() || fila.is_some(), textos);
@@ -7970,7 +8295,34 @@ fn medir_mensaje(
             ancho: ancho.min(ancho_max),
         }
     });
-    let foto_sola = es_foto && texto.is_empty() && cita.is_none();
+    // «Version de Ana» encima de una version, y «2 versiones» en su
+    // original (las versiones vinculadas de un chat compartido): una linea
+    // cada una, encima de la cita, como en el movil.
+    let (cabecera, chip) = cx.versiones.de(m);
+    let version = cabecera.map(|(t, ir)| {
+        let (w, alto) = p.medir_texto(t, VERSION_TAM * e);
+        Rotulo {
+            texto: t.clone(),
+            ancho: (w + VERSION_ICONO * e).min(ancho_max),
+            alto: alto.max(VERSION_ICONO * e),
+            ir: *ir,
+        }
+    });
+    let versiones_chip = chip.map(|t| {
+        let t = format!("{t} ▾");
+        let (w, alto) = p.medir_texto(&t, VERSION_TAM * e);
+        Rotulo {
+            texto: t,
+            ancho: (w + VERSION_ICONO * e).min(ancho_max),
+            alto: alto.max(VERSION_ICONO * e),
+            ir: None,
+        }
+    });
+    let foto_sola = es_foto
+        && texto.is_empty()
+        && cita.is_none()
+        && version.is_none()
+        && versiones_chip.is_none();
     let vista_medida = vista.map(|v| {
         let vivo = a.vivo.as_ref().is_some_and(|v| v.indice == indice);
         // Vivo se dibuja sobre la foto ENTERA y sola (ver `pintar_foto`).
@@ -8033,8 +8385,14 @@ fn medir_mensaje(
             elegir: None,
             ia: None,
             rica: None,
+            version: None,
+            versiones: None,
+            chapas: None,
         };
         return (entrada, piezas);
+    }
+    for r in [&version, &versiones_chip].into_iter().flatten() {
+        sumar(&mut ancho, &mut alto, r.ancho, r.alto);
     }
     if cita.is_some() {
         sumar(
@@ -8068,6 +8426,11 @@ fn medir_mensaje(
             w as f32,
             pixpin_ui::chat::FILA_CIRCULO as f32 * e,
         );
+    }
+    // Sus chapas, debajo del nombre (`chapas`).
+    let chapas = chapas::medir(p, m, textos, e, ancho_max);
+    if let Some(c) = &chapas {
+        sumar(&mut ancho, &mut alto, c.ancho, c.alto);
     }
     // El texto de una nota de voz va pegado a su fila, debajo de la onda,
     // con el aire de `padding(top = 6.dp)` y no con el hueco de siempre.
@@ -8240,6 +8603,9 @@ fn medir_mensaje(
         elegir,
         ia,
         rica,
+        version,
+        versiones: versiones_chip,
+        chapas,
     };
     (entrada, piezas)
 }
@@ -8460,7 +8826,11 @@ fn pintar_cabecera(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     let mut centro = pil.centro;
     if a.ficha.es_asistente() {
         let eleccion = asistente_nube::eleccion_reciente(&a.raiz);
-        let rotulo_modelo = asistente_nube::nombre_corto(eleccion);
+        // Con Jev, el modelo que eligio para el ultimo pedido (`jev::modelo`).
+        let rotulo_jev = crate::jev::modelo::rotulo(&a.ficha.id);
+        let rotulo_modelo = rotulo_jev
+            .as_deref()
+            .unwrap_or(asistente_nube::nombre_corto(eleccion));
         let tam = PASTILLA_MODELO_TAM * e;
         let (w_modelo, alto_t) = p.medir_texto(rotulo_modelo, tam);
         let rotulo_nuevo = textos.t("asistente-nuevo-chat");
@@ -8526,8 +8896,10 @@ fn pintar_cabecera(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     }
 
     // El titulo: disco amarillo con la carpeta (el marcador en «Mensajes
-    // guardados»), el nombre con su flechita y debajo cuantas cosas guarda y
-    // cuanto ocupan, que es lo que se pregunta de un cajon de documentos.
+    // guardados») y el nombre con su flechita. Debajo ya no va «N cosas · X
+    // MB» (27-oct-2026, checklist 6, como el movil: «Cabecera del chat:
+    // quitar "N cosas · X MB"»): solo lo que hay que saber antes de
+    // escribir, si es compartido, y lo que no se pudo leer.
     // Escribiendolo, se mide lo escrito (o la invitacion) y se pinta con la
     // caja de una linea comun, que pone la rayita donde va.
     let (nombre, color_nombre) = if a.renombrando && a.nombre_escrito.is_empty() {
@@ -8537,28 +8909,20 @@ fn pintar_cabecera(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     } else {
         (a.ficha.nombre.clone(), tema.pildora_texto)
     };
-    let (se_ven, bytes) = crate::pdf_en_chat::cuenta_de_la_cabecera(&a.mensajes);
-    let mut args = fluent_bundle::FluentArgs::new();
-    args.set("n", se_ven);
-    let mut sub = textos.t_args("chat-cosas", &args);
-    // Un chat compartido lo dice delante, con cuantas personas son: es lo
-    // primero que hay que saber antes de escribir en el.
+    // Un chat compartido lo dice, con cuantas personas son: es lo primero
+    // que hay que saber antes de escribir en el.
     let compartido = crate::sincronizar::compartidos_ui::del_chat(&a.raiz, &a.ficha.id);
     let con_quien = compartido.as_ref().map(|c| {
         let mut args = fluent_bundle::FluentArgs::new();
         args.set("n", c.personas);
         textos.t_args("cc-chapa-personas", &args)
     });
-    if let Some(q) = &con_quien {
-        sub = format!("{q} · {sub}");
-    }
-    if bytes > 0 {
-        sub = format!("{sub} · {}", pixpin_ui::chat::tamano_corto(bytes as u64));
-    }
+    let mut partes: Vec<String> = con_quien.iter().cloned().collect();
     if a.rotas > 0 {
         // Lo que no se pudo leer se dice, no se calla.
-        sub.push_str(&format!(" · {} ?", a.rotas));
+        partes.push(format!("{} ?", a.rotas));
     }
+    let sub = partes.join(" · ");
     let (tam_nombre, tam_sub) = (15.0 * e, 12.0 * e);
     let disco = 28.0 * e;
     let flecha = 18.0 * e;
@@ -8576,7 +8940,12 @@ fn pintar_cabecera(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     }
     pildora(p, tema, rf(caja), e);
     let x0 = caja.x as f32 + 14.0 * e;
-    let y0 = caja.y as f32 + 4.0 * e;
+    // Sin nada debajo, el disco y el nombre van centrados en la pastilla.
+    let y0 = if sub.is_empty() {
+        caja.y as f32 + (caja.alto as f32 - disco) / 2.0
+    } else {
+        caja.y as f32 + 4.0 * e
+    };
     let circulo = RectF {
         x: x0,
         y: y0,
@@ -8937,6 +9306,39 @@ fn pintar_viene_de(
 
 /// La cita de una respuesta: barra de 3 del color de acento y su fondo al
 /// 10 %, con el numero, el nombre y el resumen del citado (`ReplyMessageLine`).
+/// **Un rotulo de las versiones vinculadas**: el lapiz y el texto, en el
+/// color de acento y en negrita como el de Android (`CabeceraDeVersion`).
+/// Devuelve su caja, que es lo que se pulsa.
+fn pintar_rotulo_de_version(p: &Pintor, r: &Rotulo, x: f32, y: f32, color: Color, e: f32) -> Rect {
+    let lado = 13.0 * e;
+    p.icono(
+        &mi::EDIT,
+        RectF {
+            x,
+            y: y + (r.alto - lado) / 2.0,
+            ancho: lado,
+            alto: lado,
+        },
+        color,
+    );
+    let ix = x + VERSION_ICONO * e;
+    let (_, alto_texto) = p.medir_texto(&r.texto, VERSION_TAM * e);
+    p.texto_linea(
+        &r.texto,
+        ix,
+        y + (r.alto - alto_texto) / 2.0,
+        VERSION_TAM * e,
+        (r.ancho - VERSION_ICONO * e).max(0.0) + 1.0,
+        color,
+    );
+    Rect {
+        x: x as i32,
+        y: y as i32,
+        ancho: r.ancho.ceil() as u32,
+        alto: r.alto.ceil() as u32,
+    }
+}
+
 fn pintar_cita(
     p: &Pintor,
     tema: &Tema,
@@ -9179,7 +9581,6 @@ fn abrir_proyecto(ubicacion: &Ubicacion, ficha: &pixpin_proyecto::almacen::Ficha
         hojas_uid: pixpin_proyecto::almacen::uids_de_hojas(ubicacion.raiz(), &ficha.id),
         anchos_pestanas: std::cell::RefCell::new(Vec::new()),
         nav_info: Default::default(),
-        proyectos_info: Vec::new(),
         info_abierta: None,
         raton_info: Punto { x: -1, y: -1 },
         respondiendo: None,
@@ -9191,6 +9592,7 @@ fn abrir_proyecto(ubicacion: &Ubicacion, ficha: &pixpin_proyecto::almacen::Ficha
         resaltado: None,
         alto_caja: std::cell::Cell::new(0),
         scroll: None,
+        donde_se_dejo: donde_se_dejo::Recuerdo::nuevo(ubicacion.raiz(), &ficha.id),
         alto: std::cell::Cell::new(0),
         colocado: std::cell::RefCell::new(Colocado::default()),
         mini: None,
@@ -9198,6 +9600,7 @@ fn abrir_proyecto(ubicacion: &Ubicacion, ficha: &pixpin_proyecto::almacen::Ficha
         grabando: None,
         transcribiendo: None,
         dictado: None,
+        anotar: dictado_a_chat::Anotar::default(),
         leyendo: None,
         vivo: None,
         busqueda: None,
@@ -9206,6 +9609,7 @@ fn abrir_proyecto(ubicacion: &Ubicacion, ficha: &pixpin_proyecto::almacen::Ficha
         barriendo: false,
         desplegados: Default::default(),
         letra: None,
+        sola: None,
         voz: Default::default(),
         salto_pendiente: None,
         hora_a_mano: None,
@@ -9744,6 +10148,12 @@ fn fotos_del_historial(a: &Abierto, d: &Disposicion, escala: u32) -> Vec<std::pa
             _ => foto_de(i).into_iter().collect(),
         })
         .chain(de_notas)
+        // Y las portadas de las canciones que se ven (`musica`).
+        .chain(
+            (primero..primero + cuantos)
+                .filter_map(|cual| c.mensaje(cual))
+                .filter_map(|i| musica::portada(a, i)),
+        )
         .collect()
 }
 
@@ -10871,9 +11281,20 @@ fn abrir_mensaje(
     _textos: &Catalogo,
     idioma: pixpin_store::Idioma,
 ) {
-    let Some(m) = a.mensajes.get(indice) else {
-        return;
-    };
+    if let Some(m) = a.mensajes.get(indice) {
+        abrir_el_mensaje(ubicacion, &a.ficha.id, m, idioma);
+    }
+}
+
+/// Lo de [`abrir_mensaje`] con el mensaje en la mano, este o no en el chat:
+/// la copia de una version vinculada se abre asi antes de ser mensaje
+/// (`versiones::abrir_como_version`).
+fn abrir_el_mensaje(
+    ubicacion: &Ubicacion,
+    proyecto: &str,
+    m: &pixpin_proyecto::cuaderno::Mensaje,
+    idioma: pixpin_store::Idioma,
+) {
     // Una hoja que ES una pagina del documento no llega aqui: se abre en el
     // lienzo con la pagina de fondo (`tocar_la_burbuja`), como en el movil.
     let Some(relativa) = m.ruta.as_deref().filter(|r| !r.is_empty()) else {
@@ -10882,8 +11303,7 @@ fn abrir_mensaje(
     // La ruta del mensaje es relativa a la carpeta del proyecto. Una que
     // venga del movil sera absoluta y de otro aparato: entonces no hay nada
     // que abrir aqui, y decirlo es mejor que abrir cualquier cosa.
-    let Some(ruta) = pixpin_proyecto::vista::ruta_real(ubicacion.raiz(), &a.ficha.id, relativa)
-    else {
+    let Some(ruta) = pixpin_proyecto::vista::ruta_real(ubicacion.raiz(), proyecto, relativa) else {
         return;
     };
     if !ruta.is_file() {
@@ -11348,6 +11768,8 @@ const VK_ABAJO: u32 = 0x28;
 /// la palabra (lo mismo que la lista de proyectos).
 const DOBLE_CLIC: std::time::Duration = std::time::Duration::from_millis(500);
 const VK_FIN: u32 = 0x23;
+const VK_RE_PAG: u32 = 0x21;
+const VK_AV_PAG: u32 = 0x22;
 const VK_INICIO: u32 = 0x24;
 const VK_A: u32 = 0x41;
 const VK_X: u32 = 0x58;
@@ -11485,6 +11907,19 @@ pub(crate) fn grabar_flotante(
     );
 }
 
+/// **Si se esta grabando una clase o reunion** (la barra de
+/// [`grabar_clase`], que sigue aunque el chat se cierre): para el
+/// «Grabando…» de la bandeja y para preguntar antes de salir.
+pub(crate) fn clase_grabandose() -> bool {
+    grabar_clase::grabando()
+}
+
+/// **Termina y guarda la clase que se graba** antes de salir de PixPin
+/// (sin pasar a texto). Devuelve si dio tiempo a guardarla.
+pub(crate) fn terminar_la_clase_para_salir(tope: std::time::Duration) -> bool {
+    grabar_clase::terminar_para_salir(tope)
+}
+
 /// **Graba una clase o una reunion** (24-oct-2026): la ventanita de
 /// [`grabar_clase`], que guarda en el proyecto elegido la nota con sus
 /// capturas y la pasa a texto. Sin proyectos, en «Guardados».
@@ -11517,6 +11952,24 @@ pub(crate) fn grabar_clase(
             proyectos,
         },
         grabar_clase::Rotulos::de(textos),
+    );
+}
+
+/// **Al arrancar**: si una clase o reunion se corto sin guardarse (PixPin
+/// murio, se fue la luz, el disco fallo), pregunta si recuperarla o
+/// descartarla (ver `grabar_clase::recuperar`). Sin nada cortado no cuesta
+/// mas que mirar si existe una carpeta.
+pub(crate) fn recuperar_grabaciones_cortadas(
+    textos: &Catalogo,
+    ubicacion: &Ubicacion,
+    idioma: pixpin_store::Idioma,
+    aparato: &str,
+) {
+    grabar_clase::recuperar_al_arrancar(
+        ubicacion.clone(),
+        idioma,
+        aparato.to_string(),
+        grabar_clase::TextosRecuperar::de(textos),
     );
 }
 
@@ -11893,6 +12346,7 @@ fn alternar_dictado(
     if !crate::voz::windows_sabe(idioma) {
         return Some(textos.t("chat-voz-sin-reconocedor"));
     }
+    a.anotar.empezar();
     a.dictado = Some(Dictando {
         oido: pixpin_voz::Dictado::empezar(crate::voz::idioma_de_voz(idioma)),
         provisional: String::new(),
@@ -11903,13 +12357,18 @@ fn alternar_dictado(
 }
 
 /// Recoge lo que haya dicho el dictado desde la ultima vuelta. Devuelve si
-/// hay que repintar y, si fallo, por que.
-fn latido_del_dictado(a: &mut Abierto, textos: &Catalogo) -> (bool, Option<String>) {
+/// hay que repintar, si fallo por que, y las frases cerradas con lo que
+/// habia escrito antes de cada una (para dictar al chat).
+fn latido_del_dictado(
+    a: &mut Abierto,
+    textos: &Catalogo,
+) -> (bool, Option<String>, Vec<(String, String)>) {
     let Some(d) = a.dictado.as_mut() else {
-        return (false, None);
+        return (false, None, Vec::new());
     };
     let mut cambio = false;
     let mut fallo = None;
+    let mut frases = Vec::new();
     for aviso in d.oido.recoger() {
         match aviso {
             pixpin_voz::AvisoDeDictado::Oyendo => {
@@ -11921,6 +12380,7 @@ fn latido_del_dictado(a: &mut Abierto, textos: &Catalogo) -> (bool, Option<Strin
                 cambio = true;
             }
             pixpin_voz::AvisoDeDictado::Frase(t) => {
+                frases.push((t.clone(), a.borrador.clone()));
                 a.borrador = juntar_dictado(&a.borrador, &t);
                 d.provisional.clear();
                 cambio = true;
@@ -11940,7 +12400,7 @@ fn latido_del_dictado(a: &mut Abierto, textos: &Catalogo) -> (bool, Option<Strin
         // La caja puede crecer una linea: se recoloca.
         a.colocado.borrow_mut().ancho = 0;
     }
-    (cambio, fallo)
+    (cambio, fallo, frases)
 }
 
 /// Pega una frase dictada detras de lo escrito, con un espacio si hace
@@ -12005,6 +12465,8 @@ fn latido_de_transcribir(
             a.mensajes[i] = m;
             // La burbuja crece: ahora ensena el texto bajo la onda.
             a.colocado.borrow_mut().ancho = 0;
+            // Lo importante de lo dicho (Jev, en su hilo; sin clave, nada).
+            crate::jev::reunion::lanzar(ubicacion, &a.ficha.id, &id, true);
             Some(textos.t("chat-transcribir-hecha"))
         }
         Err(e) => {
@@ -12247,6 +12709,10 @@ fn abrir_la_letra(a: &mut Abierto, i: usize) -> Efecto {
         altos: std::cell::RefCell::new(Vec::new()),
         seguido: None,
         captura: None,
+        sincronizando: None,
+        a_mano: None,
+        pintado: std::cell::Cell::new(0),
+        arrastre: None,
     });
     Efecto::Cambio
 }
@@ -12324,6 +12790,72 @@ fn ir_al_milisegundo(ms: i64) -> bool {
     true
 }
 
+/// Si la nota cuya letra esta abierta es la que suena ahora.
+fn suena_la_letra(a: &Abierto) -> bool {
+    let Some(m) = indice_de_la_letra(a).and_then(|i| a.mensajes.get(i)) else {
+        return false;
+    };
+    crate::audio::estado().sonando
+        && ruta_del_mensaje(&a.raiz, &a.ficha.id, m)
+            .is_some_and(|r| crate::audio::cargado().as_deref() == Some(r.as_path()))
+}
+
+/// **Mueve la letra a mano** `dy` pixeles (positivo, hacia abajo en el
+/// texto) y para un rato el seguir a la cancion. Empieza desde lo que se ve
+/// (siguiendo a la cancion no es `scroll`) y no pasa de los topes, aunque
+/// deja quedarse donde la cancion la tenia (la primera linea a un tercio de
+/// la altura, por encima del principio).
+///
+/// Era el fallo de la rueda en el karaoke (29-oct-2026): con tiempos, la
+/// vista se calculaba en cada fotograma desde la linea que suena y lo que
+/// la rueda escribia en `scroll` no se leia nunca.
+fn mover_la_letra(a: &mut Abierto, d: &Disposicion, escala: u32, dy: i32) {
+    let caja = caja_de_la_letra(a, d, escala).texto;
+    let sonando = suena_la_letra(a);
+    let Some(l) = a.letra.as_mut() else {
+        return;
+    };
+    if l.sincronizando.is_some() {
+        return;
+    }
+    let ahora = std::time::Instant::now();
+    let base = if sigue_a_la_cancion(l.a_mano, ahora, sonando) {
+        l.pintado.get()
+    } else {
+        l.scroll
+    };
+    let tope = pixpin_ui::chat::tope_de_la_letra(caja, &l.altos.borrow(), escala).max(base);
+    l.scroll = base.saturating_add(dy).clamp(base.min(0), tope);
+    l.a_mano = Some(ahora);
+}
+
+/// Si un clic en `p` empieza a arrastrar la letra: dentro del texto, sin
+/// sincronizar a toques y fuera de los botones. Devuelve la linea pulsada,
+/// si es una con minuto (`Some(None)`: en el hueco entre lineas).
+fn arrastre_de_la_letra(
+    a: &Abierto,
+    p: Punto,
+    d: &Disposicion,
+    escala: u32,
+) -> Option<Option<(usize, i64)>> {
+    let l = a.letra.as_ref()?;
+    if l.sincronizando.is_some() || !caja_de_la_letra(a, d, escala).texto.contiene(p) {
+        return None;
+    }
+    match a
+        .zonas
+        .borrow()
+        .iter()
+        .rev()
+        .find(|(r, _)| r.contiene(p))
+        .map(|(_, z)| *z)
+    {
+        None => Some(None),
+        Some(Zona::Trozo(i, ms)) => Some(Some((i, ms))),
+        Some(_) => None,
+    }
+}
+
 /// Lo que hace la letra en cada vuelta del bucle, sin eventos de por medio:
 /// saldar el salto que esperaba a la duracion y seguir al parrafo que suena.
 /// Devuelve si hay que repintar.
@@ -12356,12 +12888,31 @@ fn latido_de_la_letra(a: &mut Abierto, escala: u32, d: &Disposicion) -> bool {
     let Some(l) = a.letra.as_ref() else {
         return cambio;
     };
-    let Some(m) = a.mensajes.iter().find(|m| m.id == l.id) else {
-        return cambio;
-    };
     if !suena {
         return cambio;
     }
+    // Movida a mano hace poco: no se le quita de donde la dejo.
+    if !sigue_a_la_cancion(
+        l.a_mano,
+        std::time::Instant::now(),
+        crate::audio::estado().sonando,
+    ) {
+        return cambio;
+    }
+    if l.a_mano.is_some() {
+        // Se acabo la pausa: vuelve a seguir desde la linea que suena.
+        if let Some(l) = a.letra.as_mut() {
+            l.a_mano = None;
+            l.seguido = None;
+        }
+        cambio = true;
+    }
+    let Some(l) = a.letra.as_ref() else {
+        return cambio;
+    };
+    let Some(m) = a.mensajes.iter().find(|m| m.id == l.id) else {
+        return cambio;
+    };
     let trozos = trozos_de_la_letra(m);
     let Some(n) = crate::voz::por_donde_va(&trozos, crate::audio::estado().posicion_ms) else {
         return cambio;
@@ -12385,6 +12936,10 @@ fn latido_de_la_letra(a: &mut Abierto, escala: u32, d: &Disposicion) -> bool {
 /// y viaja (`[1:23] ...`): pegada en otra nota del movil, sigue sabiendo
 /// saltar; y leida por una persona, el minuto dice donde esta cada cosa.
 fn copiar_la_letra(a: &Abierto, textos: &Catalogo) -> Efecto {
+    // Una cancion con tiempos se lleva en LRC (`Copiar como LRC` del movil).
+    if let Some(hecho) = musica::copiar_lrc(a, textos) {
+        return hecho;
+    }
     let Some(texto) = a
         .letra
         .as_ref()
@@ -12415,13 +12970,30 @@ fn caja_de_la_letra(a: &Abierto, d: &Disposicion, escala: u32) -> pixpin_ui::cha
 }
 
 /// [`caja_de_la_letra`] sin apartar el sitio de las capturas de una clase.
+///
+/// **Una cancion no lleva la tira de arriba** (flecha, nombre del fichero y
+/// botones; peticion del usuario, 29-oct-2026): el karaoke pone arriba su
+/// portada, su titulo y sus botones, y el texto empieza donde empezaba la
+/// tira. Tampoco lleva la fila de banderitas: su boton es el reloj de
+/// sincronizar.
 fn caja_de_la_letra_entera(a: &Abierto, d: &Disposicion, escala: u32) -> pixpin_ui::chat::Letra {
-    let con_marcas = a
+    let m = a
         .letra
         .as_ref()
-        .and_then(|l| a.mensajes.iter().find(|m| m.id == l.id))
-        .is_some_and(|m| !crate::voz::marcas_de(m).is_empty());
-    pixpin_ui::chat::letra_con(hueco_hoja(d), crate::audio::hay_algo(), con_marcas, escala)
+        .and_then(|l| a.mensajes.iter().find(|m| m.id == l.id));
+    let cancion = m.is_some_and(crate::biblioteca_audio::es_musica);
+    let con_marcas = !cancion && m.is_some_and(|m| !crate::voz::marcas_de(m).is_empty());
+    let mut t =
+        pixpin_ui::chat::letra_con(hueco_hoja(d), crate::audio::hay_algo(), con_marcas, escala);
+    if cancion {
+        t.texto = Rect {
+            y: t.cabecera.y,
+            alto: (t.texto.abajo() - t.cabecera.y).max(0) as u32,
+            ..t.texto
+        };
+        t.cabecera.alto = 0;
+    }
+    t
 }
 
 /// **La letra de una clase con capturas** (24-oct-2026): el texto a la
@@ -12694,7 +13266,10 @@ fn latido_de_la_voz(
         }
         return match reescribir_mensaje(ubicacion, a, i, m, textos) {
             Efecto::Aviso(t) => Some(t),
-            _ => Some(textos.t("chat-letra-guardada")),
+            // La letra pegada de una cancion, sin tiempos: se sincroniza
+            // sola (29-oct-2026).
+            _ => musica::tras_pegar(ubicacion, a, &id, idioma, textos)
+                .or_else(|| Some(textos.t("chat-letra-guardada"))),
         };
     }
     if let Some(toma) = a.voz.toma() {
@@ -12820,6 +13395,15 @@ fn pintar_letra(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     let t = caja_de_la_letra(a, d, escala);
     p.rellenar(rf(t.panel), tema.papel);
     let m = a.mensajes.iter().enumerate().find(|(_, m)| m.id == l.id);
+    // Una cancion se canta: el karaoke (`musica`), con sus botones arriba y
+    // sin la tira de las notas.
+    if let Some((i, _)) = m.filter(|(_, m)| crate::biblioteca_audio::es_musica(m)) {
+        musica::pintar_karaoke(p, t.texto, c, a, i, l);
+        if t.barra.alto > 0 {
+            pintar_barra_del_reproductor(p, t.barra, c, a);
+        }
+        return;
+    }
     // La banderita solo con audio (`enabled = m?.ruta != null`).
     let con_audio = m.is_some_and(|(_, m)| m.ruta.is_some());
     icono_centrado(
@@ -12920,6 +13504,7 @@ fn pintar_letra(p: &Pintor, d: &Disposicion, c: &Pinta, a: &Abierto) {
     // Los parrafos. Sin texto se dice, en el centro, en vez de una pantalla
     // en blanco que parece rota (`letra_vacia`).
     let trozos = m.map(|(_, m)| trozos_de_la_letra(m)).unwrap_or_default();
+    l.pintado.set(l.scroll);
     if trozos.is_empty() {
         let vacio = textos.t("chat-letra-vacia");
         let tam = 14.0 * e;
@@ -13335,13 +13920,13 @@ fn abrir_mini(a: &mut Abierto, indice: usize, textos: &Catalogo) -> bool {
 
 /// Cierra el panel, guardandolo si se toco.
 fn cerrar_mini(ubicacion: &Ubicacion, a: &mut Abierto) {
-    let Some(m) = a.mini.take() else {
+    let Some(mut m) = a.mini.take() else {
         return;
     };
     if !m.tocada {
         return;
     }
-    if let Err(e) = guardar_mini(ubicacion, a, &m) {
+    if let Err(e) = guardar_mini(ubicacion, a, &mut m) {
         tracing::error!(?e, "no se pudo guardar la mini-app; sigue como estaba");
     }
 }
@@ -13351,7 +13936,20 @@ fn cerrar_mini(ubicacion: &Ubicacion, a: &mut Abierto) {
 /// Por `cuaderno::reemplazar`, que **copia tal cual las lineas que no
 /// entiende**: marcar una casilla no puede llevarse por delante lo que
 /// escribio una version mas nueva del movil.
-fn guardar_mini(ubicacion: &Ubicacion, a: &mut Abierto, m: &MiniAbierta) -> Result<()> {
+fn guardar_mini(ubicacion: &Ubicacion, a: &mut Abierto, m: &mut MiniAbierta) -> Result<()> {
+    // **La mini-app de otra persona en un chat compartido** (27-oct-2026):
+    // el primer cambio hace mi version, con el cambio ya hecho, y el panel
+    // sigue sobre ella; la suya no cambia. Lo de despues ya es mio.
+    let documento = m.documento.clone();
+    if let Some(hecho) = versiones::al_momento(ubicacion, a, m.indice, |mut v| {
+        v.texto = documento;
+        v
+    }) {
+        versiones::avisar_de_un_toque(&hecho);
+        m.indice = hecho?;
+        a.colocado.borrow_mut().ancho = 0;
+        return Ok(());
+    }
     let Some(mensaje) = a.mensajes.get_mut(m.indice) else {
         return Ok(());
     };
@@ -13509,7 +14107,7 @@ fn cumplir_mini(
         al_final = matches!(o, Orden::Anadir(_));
         if m.hacer(o, textos)
             && m.tocada
-            && let Err(e) = guardar_mini(ubicacion, a, &m)
+            && let Err(e) = guardar_mini(ubicacion, a, &mut m)
         {
             tracing::warn!(?e, "no se pudo guardar la mini-app; se reintenta al cerrar");
         }
@@ -14918,6 +15516,8 @@ enum Zona {
     ImagenDeNota(usize, usize),
     /// Ir a un mensaje: la cita de una respuesta o la barra del fijado.
     Ir(usize),
+    /// El «↓»: al ultimo mensaje, pegado al final (`al_final`).
+    AlFinal,
     /// «Ver en contexto»: quita el filtro y lleva al primer resultado, que es
     /// como se sale de una busqueda sin perder el sitio.
     EnContexto,
@@ -14930,6 +15530,9 @@ enum Zona {
     SelFijar,
     SelReenviar,
     SelBorrar,
+    /// La chapa de dictar al chat: anotarlo (o elegir el chat) y quitarla.
+    Anotar,
+    NoAnotar,
     /// Compartir lo elegido que tenga fichero, en el panel de Windows.
     SelCompartir,
     // La barra del reproductor, encima de la caja de escribir.
@@ -14963,6 +15566,8 @@ enum Zona {
     /// Una banderita de esa nota: clic, el audio a ese milisegundo; clic
     /// derecho, se quita (mantener pulsado en el movil).
     Marca(usize, i64),
+    /// La musica: abrir el karaoke de una cancion y sincronizar su letra.
+    Musica(musica::Boton),
     /// El aspa de la barra de teclear la hora de un recordatorio.
     CerrarHora,
     /// El aspa de la barra de teclear quien llama.
@@ -14973,8 +15578,6 @@ enum Zona {
     Renombrar(usize),
     /// La franja del aviso de lecciones: abre las de este proyecto.
     Lecciones,
-    /// La franja de lo del sistema del chat «Asistente»: la lista.
-    Sistema,
     /// «Sí» (`true`) o «No» en la tarjeta de confirmar del asistente dentro
     /// de la burbuja de ese mensaje.
     ConfirmarIa(usize, bool),
@@ -14989,6 +15592,11 @@ enum Zona {
     /// El altavoz de una respuesta del asistente: la lee o la calla
     /// (`voz_del_asistente`).
     LeerRespuesta(usize),
+    /// «2 versiones ▾» de un original (las versiones vinculadas): la lista
+    /// de sus versiones, cada una lleva a la suya.
+    Versiones(usize),
+    /// La chapa «Lectura veloz · N %»: seguir leyendo alli.
+    LecturaVeloz(usize),
     /// La pastilla del modelo en la cabecera del chat «Asistente»: abre la
     /// lista Claude Haiku / DeepSeek / Local (17-oct-2026).
     ModeloIa,
@@ -15009,6 +15617,8 @@ struct FilaDeArchivo {
     /// El nombre por el que se elige el icono de su tipo, si es un archivo
     /// (`icono_de_tipo`); `None` lleva el boton redondo.
     archivo: Option<String>,
+    /// La tarjeta de una cancion: su portada va en el sitio del boton.
+    musica: Option<std::rc::Rc<musica::Tarjeta>>,
 }
 
 /// Los picos del microfono que el movil anoto al grabar la nota.
@@ -15101,7 +15711,26 @@ struct Piezas {
     ia: Option<pensado::Pieza>,
     /// La nota con formato y fotos, ya medida: va en lugar de `texto`.
     rica: Option<nota_rica::Pieza>,
+    /// «Version de Ana»: esta burbuja es una version de otro mensaje.
+    version: Option<Rotulo>,
+    /// «2 versiones ▾»: esta burbuja es un original con versiones.
+    versiones: Option<Rotulo>,
+    /// Las chapas de debajo del nombre («Escaneado», «Lectura veloz · N %»).
+    chapas: Option<chapas::Chapas>,
 }
+
+/// Un rotulo de las versiones vinculadas, ya medido: el lapiz y su texto.
+struct Rotulo {
+    texto: String,
+    ancho: f32,
+    alto: f32,
+    /// Adonde lleva tocarlo (el original de una version), si esta.
+    ir: Option<usize>,
+}
+
+/// La letra de los rotulos de las versiones (12, la del movil) y su lapiz.
+const VERSION_TAM: f32 = 12.0;
+const VERSION_ICONO: f32 = 17.0;
 
 /// La letra de «Recibido de …» y de la tarjeta del enlace: 11 y 13, las del
 /// movil (`fontSize = 11.sp`, `13.sp`).
@@ -16621,6 +17250,9 @@ enum Accion {
     NuevoChat(bool),
     AdjArchivo,
     AdjImagen,
+    /// «Musica» de la hoja del «+» (27-oct-2026): elegir canciones, que
+    /// entran ya marcadas como musica (`musica::adjuntar`).
+    AdjMusica,
     AdjLienzo,
     AdjTabla,
     AdjDelMovil,
@@ -16650,8 +17282,6 @@ enum Accion {
     AdjPagina,
     AdjPaginaDe(String),
     AdjPaginaHoja(String, String),
-    /// Los ajustes de PixPin, los mismos de la bandeja.
-    Ajustes,
     /// La carpeta de la memoria del asistente, en el Explorador (22-oct).
     AbrirMemoria,
     /// Una de las siete del movil, por su palabra de `Mensaje.miniapp`. La
@@ -16673,6 +17303,9 @@ enum Accion {
     /// al reves (`soloLaFoto` del movil).
     AlternarRecorte(usize),
     AbrirCon(usize),
+    /// «⚡ Lectura veloz»: el archivo en la app de lectura rapida, desde el
+    /// 🟢 (`chapas::abrir`). Tambien al tocar su chapa.
+    LecturaVeloz(usize),
     Renombrar(usize),
     /// «Añadir descripción» / «Editar descripción» de una foto: la barra de
     /// renombrar, escribiendo su `texto` (`descripcion`).
@@ -16704,6 +17337,10 @@ enum Accion {
     Ir(usize),
     Reenviar(Vec<usize>),
     ReenviarA(Vec<usize>, String),
+    /// Dictar al chat: anotar lo propuesto (sin chat, elegirlo antes) y
+    /// anotarlo en el chat elegido de la lista.
+    Anotar,
+    AnotarEn(String),
     Elegir(usize),
     /// Meter el mensaje en las hojas del proyecto, y devolverle la que se le
     /// quito (`UnirAlProyecto` del movil).
@@ -16719,6 +17356,12 @@ enum Accion {
     /// «Estudiar la clase»: la nota de una clase (o una captura o el video
     /// de una) en su ventana, con el texto y las capturas al lado.
     Estudiar(usize),
+    /// «Adjuntar a la grabación…» (28-oct-2026, fotos por su hora): esa
+    /// foto en la grabacion del chat donde cae su hora (o la ultima).
+    AdjuntarAGrabacion(usize),
+    /// Que todos los del chat compartido aporten fotos a la grabacion de
+    /// esa nota (`true`), o solo las mias (`false`).
+    Colaboradores(usize, bool),
     /// Pronunciar (B9): hablar, oirse y repetir con una guia delante.
     Pronunciar,
     /// La conversacion por turnos (B10).
@@ -17547,7 +18190,7 @@ fn icono_de_miniapp(cual: &str) -> &'static Icono {
 fn menu_de_cabecera(
     textos: &Catalogo,
     en_guardados: bool,
-    asistente: Option<asistente_nube::Eleccion>,
+    asistente: Option<pixpin_ia::nube::Proveedor>,
 ) -> Vec<EntradaMenu> {
     let mut v = Vec::new();
     // En el chat «Asistente», lo suyo arriba: el modelo (lo mismo que la
@@ -17589,9 +18232,10 @@ fn menu_de_cabecera(
 }
 
 /// **Lo del chat «Asistente»** en los tres puntos: el modelo (submenu, con
-/// el elegido en el rotulo), «Conversación nueva» y «Borrar chat» en rojo.
+/// el elegido en el rotulo), «Conversación nueva», su memoria (abre la
+/// carpeta; antes estaba en la franja de sistema) y «Borrar chat» en rojo.
 /// Lo de siempre va debajo, apartado por una raya.
-fn menu_de_asistente(textos: &Catalogo, actual: asistente_nube::Eleccion) -> Vec<EntradaMenu> {
+fn menu_de_asistente(textos: &Catalogo, actual: pixpin_ia::nube::Proveedor) -> Vec<EntradaMenu> {
     let modelo = entrada(
         None,
         format!(
@@ -17615,6 +18259,11 @@ fn menu_de_asistente(textos: &Catalogo, actual: asistente_nube::Eleccion) -> Vec
             textos.t("asistente-nueva-conversacion"),
             Accion::NuevaConversacion,
         ),
+        entrada(
+            Some(&mi::FOLDER),
+            textos.t("chat-sistema-memoria-menu"),
+            Accion::AbrirMemoria,
+        ),
         borrar,
     ]
 }
@@ -17623,7 +18272,7 @@ fn menu_de_asistente(textos: &Catalogo, actual: asistente_nube::Eleccion) -> Vec
 /// con el elegido marcado como en la escala; debajo, separadas, empezar de
 /// cero y borrar el chat. Elegir cambia el MISMO ajuste que Ajustes →
 /// Asistente (`asistente::nube::elegir`).
-fn menu_de_modelo(textos: &Catalogo, actual: asistente_nube::Eleccion) -> Vec<EntradaMenu> {
+fn menu_de_modelo(textos: &Catalogo, actual: pixpin_ia::nube::Proveedor) -> Vec<EntradaMenu> {
     let mut v: Vec<EntradaMenu> = asistente_nube::OPCIONES
         .iter()
         .enumerate()
@@ -17633,11 +18282,11 @@ fn menu_de_modelo(textos: &Catalogo, actual: asistente_nube::Eleccion) -> Vec<En
             } else {
                 &mi::CHECK_BOX_OUTLINE_BLANK
             };
-            let rotulo = match e {
-                asistente_nube::Eleccion::Local => textos.t("ajustes2-asistente-local"),
-                asistente_nube::Eleccion::Nube(p) => p.nombre().to_string(),
-            };
-            entrada(Some(icono), rotulo, Accion::ElegirModeloIa(n))
+            entrada(
+                Some(icono),
+                e.nombre().to_string(),
+                Accion::ElegirModeloIa(n),
+            )
         })
         .collect();
     v.push(
@@ -17900,6 +18549,15 @@ fn menu_de_mensaje(a: &Abierto, i: usize, textos: &Catalogo) -> Vec<EntradaMenu>
             .con_tecla(Tecla::Letra('n')),
         );
     }
+    // Un PDF, un Word, un libro, una pagina o un texto, en Lectura Veloz,
+    // con el % de lo leido alli si ya se leyo (27-oct-2026, como el movil).
+    if chapas::se_ofrece_lectura_veloz(m) {
+        v.push(entrada(
+            Some(&mi::SPEED),
+            crate::lectura_veloz::rotulo(textos, chapas::porcentaje(m)),
+            Accion::LecturaVeloz(i),
+        ));
+    }
     if m.clase == Some(Clase::Voz) {
         // Con texto es VOLVER a pasarlo (`MensajesActivity.kt:2620-2626`).
         // Sin texto se ofrece tambien: la nota ya no se pasa a texto sola
@@ -17963,6 +18621,35 @@ fn menu_de_mensaje(a: &Abierto, i: usize, textos: &Catalogo) -> Vec<EntradaMenu>
             Accion::Estudiar(i),
         ));
     }
+    // **Por su hora** (28-oct-2026): una foto que no entro sola (sin hora,
+    // de alguien sin invitar, con el reloj roto) se adjunta a mano; y la
+    // nota de una clase en un chat compartido deja aportar a todos.
+    let es_clase = |x: &pixpin_proyecto::cuaderno::Mensaje| {
+        x.clase == Some(Clase::Voz)
+            && x.resto.get("grabacion").and_then(|g| g.as_str()) == Some("clase")
+    };
+    if m.clase == Some(Clase::Imagen)
+        && !m.resto.contains_key("enGrabacion")
+        && a.mensajes.iter().any(es_clase)
+    {
+        v.push(entrada(
+            Some(&mi::PHOTO_CAMERA),
+            textos.t("chat-adjuntar-a-la-grabacion"),
+            Accion::AdjuntarAGrabacion(i),
+        ));
+    }
+    if es_clase(m) && crate::sincronizar::compartidos_ui::del_chat(&a.raiz, &a.ficha.id).is_some() {
+        let todos = crate::sincronizar::por_su_hora::abierta_a_todos(m);
+        v.push(entrada(
+            Some(&mi::GROUP),
+            textos.t(if todos {
+                "chat-colaboradores-nadie"
+            } else {
+                "chat-colaboradores-todos"
+            }),
+            Accion::Colaboradores(i, !todos),
+        ));
+    }
     // La hora a la que avisar. Con una puesta, la entrada pasa a quitarla en
     // vez de volver a preguntar, como en el movil (`guardados_recordar_quitar`).
     // En una nota de voz, recordar es **llamarse** (B11).
@@ -17987,24 +18674,38 @@ fn menu_de_mensaje(a: &Abierto, i: usize, textos: &Catalogo) -> Vec<EntradaMenu>
             Accion::Recordar(i)
         },
     );
-    // Recordar abre las horas: lleva la flecha de submenu.
-    v.push(if recordado {
-        recordar
-    } else {
-        recordar.con_tecla(Tecla::Sub)
-    });
+    // Recordar abre las horas: lleva la flecha de submenu. **Solo donde
+    // tiene sentido** (29-oct-2026, como el movil: «un PDF con
+    // recordatorio o llamada falsa es absurdo»): ver `opciones_del_mensaje`.
+    let tipo = opciones_del_mensaje::tipo_de(m);
+    let a_su_sitio = |e: EntradaMenu, sitio| match sitio {
+        opciones_del_mensaje::Sitio::Vista => e,
+        opciones_del_mensaje::Sitio::Mas => e.en_mas(),
+    };
+    if let Some(sitio) = opciones_del_mensaje::recordar(tipo, recordado) {
+        let recordar = if recordado {
+            recordar
+        } else {
+            recordar.con_tecla(Tecla::Sub)
+        };
+        v.push(a_su_sitio(recordar, sitio));
+    }
     // **De un mensaje, una leccion** (`MensajesActivity.kt`, 3-oct). No de un
-    // archivo (8-oct-2026, el usuario: «las lecciones no aceptan archivos»):
-    // de su texto, su nota de voz o su foto.
-    if !crate::lecciones::almacen::es_leccion(m) && m.clase != Some(Clase::Archivo) {
-        v.push(
+    // archivo (8-oct-2026, el usuario: «las lecciones no aceptan archivos»)
+    // ni de un documento, un video, una cancion o una carpeta: de su texto,
+    // su nota de voz, su clase o su foto.
+    if !crate::lecciones::almacen::es_leccion(m)
+        && let Some(sitio) = opciones_del_mensaje::leccion(tipo)
+    {
+        v.push(a_su_sitio(
             entrada(
                 Some(&mi::LIGHTBULB),
                 textos.t("chat-hacer-leccion"),
                 Accion::HacerLeccion(i),
             )
             .con_tecla(Tecla::Letra('l')),
-        );
+            sitio,
+        ));
     }
 
     // Un lienzo (lo que hizo el asistente, o uno propio), a la biblioteca de
@@ -18190,8 +18891,10 @@ fn menu_de_mensaje(a: &Abierto, i: usize, textos: &Catalogo) -> Vec<EntradaMenu>
     {
         v.push(entrada(Some(&mi::FORUM), textos.t("chat-ver-hilo"), Accion::Hilo(i)).en_mas());
     }
-    // La letra, como en el movil, para toda nota con su audio detras.
-    if es_voz && ruta.is_some() {
+    // La letra, como en el movil, para toda nota con su audio detras. Menos
+    // en una clase: su letra es «Estudiar la clase», una sola pantalla para
+    // una misma clase (29-oct-2026, como el movil 4e830ea).
+    if es_voz && ruta.is_some() && tipo != opciones_del_mensaje::Tipo::Grabacion {
         v.push(entrada(Some(&mi::LYRICS), textos.t("chat-letra"), Accion::Letra(i)).en_mas());
     }
     v.push(
@@ -18381,6 +19084,12 @@ fn ejecutar(accion: Accion, a: &mut Abierto, cx: &Contexto) -> Efecto {
         // ya lo hace pulsar la burbuja. Se le pasa el fichero de verdad del
         // adjunto (un `.bin` del movil que es un PDF, como PDF, igual que al
         // tocar la burbuja) y, si no sale, el motivo con palabras.
+        Accion::LecturaVeloz(i) => match a.mensajes.get(i) {
+            Some(m) => {
+                chapas::abrir(raiz, &a.ficha.id, m, cx.textos).map_or(Efecto::Nada, Efecto::Aviso)
+            }
+            None => Efecto::Nada,
+        },
         Accion::AbrirCon(i) => match ruta_de(a, i) {
             Some(ruta) => {
                 let ruta = crate::recibir::ruta_para_abrir(&ruta);
@@ -18519,6 +19228,42 @@ fn ejecutar(accion: Accion, a: &mut Abierto, cx: &Contexto) -> Efecto {
                 Efecto::Menu(v)
             }
         }
+        Accion::Anotar => {
+            let Some(prop) = a.anotar.propuesta.clone() else {
+                return Efecto::Nada;
+            };
+            let Some((id, nombre)) = prop.chat.clone() else {
+                let v = menu_de_proyectos(cx.fichas, &a.ficha.id, Accion::AnotarEn);
+                return if v.is_empty() {
+                    Efecto::Aviso(cx.textos.t("chat-sin-proyectos-otros"))
+                } else {
+                    Efecto::Menu(v)
+                };
+            };
+            match dictado_a_chat::anotar(raiz, cx.identidad, &id, &prop.texto) {
+                Ok(()) => {
+                    a.anotar.propuesta = None;
+                    for t in &prop.quitar {
+                        a.borrador = dictado_a_chat::quitar_dicho(&a.borrador, t);
+                    }
+                    let n = a.borrador.len();
+                    a.cursor.poner(&a.borrador, n, false);
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("chat", nombre);
+                    Efecto::Aviso(cx.textos.t_args("chat-anotado-en", &args))
+                }
+                Err(e) => fallo(&e),
+            }
+        }
+        Accion::AnotarEn(destino) => {
+            let Some(f) = cx.fichas.iter().find(|f| f.id == destino) else {
+                return Efecto::Nada;
+            };
+            if let Some(p) = a.anotar.propuesta.as_mut() {
+                p.chat = Some((f.id.clone(), f.nombre.clone()));
+            }
+            ejecutar(Accion::Anotar, a, cx)
+        }
         Accion::ReenviarA(indices, destino) => {
             match reenviar(cx.ubicacion, a, &indices, &destino, cx.identidad) {
                 Ok(_) => {
@@ -18540,6 +19285,22 @@ fn ejecutar(accion: Accion, a: &mut Abierto, cx: &Contexto) -> Efecto {
                 Ok(_) => Efecto::Cambio,
                 Err(e) => fallo(&e),
             }
+        }
+        // La foto de otra persona en un chat compartido se dibuja en mi
+        // version, tambien desde el menu y tambien «aqui» (en la burbuja se
+        // pintaria encima de la suya): en el lienzo grande, sobre la copia.
+        Accion::FotoEnLienzo(i) | Accion::FotoAqui(i)
+            if versiones::abrir_como_version(
+                cx.ubicacion,
+                a,
+                i,
+                cx.textos,
+                cx.lienzo,
+                cx.idioma,
+                cx.identidad,
+            ) =>
+        {
+            Efecto::Nada
         }
         Accion::FotoEnLienzo(i) => {
             // Como al pulsarla: en su lienzo, estrenandolo si hace falta.
@@ -18666,18 +19427,6 @@ fn ejecutar(accion: Accion, a: &mut Abierto, cx: &Contexto) -> Efecto {
                     Efecto::Cambio
                 }
                 Err(e) => fallo(&e),
-            }
-        }
-        // Los ajustes viven en el hilo principal (vuelven a registrar los
-        // atajos al cerrarse): se le pide con el mismo `WM_COMMAND` que manda
-        // la bandeja. Si no hay nadie escuchando, se dice por donde ir.
-        Accion::Ajustes => {
-            if pixpin_shell::mensajero::pedir_ventana_principal(
-                pixpin_store::comandos::Comando::AbrirAjustes.id(),
-            ) {
-                Efecto::Nada
-            } else {
-                Efecto::Aviso(cx.textos.t("chat-ajustes-bandeja"))
             }
         }
         Accion::AbrirMemoria => match crate::asistente::memoria::abrir_carpeta(raiz) {
@@ -18810,10 +19559,44 @@ fn ejecutar(accion: Accion, a: &mut Abierto, cx: &Contexto) -> Efecto {
             }
         }
         Accion::Transcribir(i) => empezar_a_transcribir(cx.ubicacion, a, i, cx.textos, cx.idioma),
-        Accion::Letra(i) => abrir_la_letra(a, i),
+        // Una clase se estudia en su ventana (con el texto, las capturas y
+        // los marcadores), no en la letra: una sola pantalla para ella.
+        Accion::Letra(i) => match a.mensajes.get(i).and_then(estudiar_clase::de_una_clase) {
+            Some((id, ms)) => {
+                estudiar_clase::abrir(cx.idioma, cx.ubicacion.clone(), a.ficha.id.clone(), id, ms);
+                Efecto::Nada
+            }
+            None => abrir_la_letra(a, i),
+        },
         Accion::Estudiar(i) => {
             if let Some((id, ms)) = a.mensajes.get(i).and_then(clase_que_estudia) {
                 estudiar_clase::abrir(cx.idioma, cx.ubicacion.clone(), a.ficha.id.clone(), id, ms);
+            }
+            Efecto::Nada
+        }
+        Accion::AdjuntarAGrabacion(i) => {
+            let Some(id) = a.mensajes.get(i).map(|m| m.id.clone()) else {
+                return Efecto::Nada;
+            };
+            match crate::sincronizar::por_su_hora::a_mano(&a.raiz, &a.ficha.id, &id) {
+                Ok(Some(ms)) => {
+                    let mut args = fluent_bundle::FluentArgs::new();
+                    args.set("minuto", pixpin_proyecto::camara_del_movil::minuto(ms));
+                    Efecto::Aviso(cx.textos.t_args("chat-adjuntada-a-la-grabacion", &args))
+                }
+                Ok(None) => Efecto::Aviso(cx.textos.t("chat-sin-grabacion")),
+                Err(e) => {
+                    tracing::warn!(?e, "no se pudo adjuntar a la grabacion");
+                    Efecto::Aviso(cx.textos.t("chat-sin-grabacion"))
+                }
+            }
+        }
+        Accion::Colaboradores(i, si) => {
+            if let Some(id) = a.mensajes.get(i).map(|m| m.id.clone())
+                && let Err(e) =
+                    crate::sincronizar::por_su_hora::invitar_a_todos(&a.raiz, &a.ficha.id, &id, si)
+            {
+                tracing::warn!(?e, "no se pudo cambiar quien aporta fotos");
             }
             Efecto::Nada
         }
@@ -18885,6 +19668,7 @@ fn ejecutar(accion: Accion, a: &mut Abierto, cx: &Contexto) -> Efecto {
         | Accion::Mas
         | Accion::AdjCaptura
         | Accion::AdjImagen
+        | Accion::AdjMusica
         | Accion::AdjLienzo
         | Accion::AdjTabla
         | Accion::AdjDelMovil
@@ -19036,6 +19820,8 @@ fn reenviar(
         copia.fijado = false;
         copia.en_buzon = false;
         copia.responde_a = None;
+        // Reenviada deja de ser version: su original se queda en este chat.
+        pixpin_proyecto::versiones::sin_vinculo(&mut copia);
         match ruta_del_mensaje(raiz, &a.ficha.id, m) {
             Some(ruta) if ruta.is_file() => {
                 let bytes = std::fs::read(&ruta)?;
@@ -19609,6 +20395,16 @@ fn guardar_descripcion(ubicacion: &Ubicacion, a: &mut Abierto, i: usize, texto: 
     else {
         return;
     };
+    // De otra persona, en un chat compartido: la descripcion va en mi
+    // version y la suya no cambia (27-oct-2026, versiones vinculadas).
+    let nuevo = m.texto.clone();
+    if let Some(hecho) = versiones::al_momento(ubicacion, a, i, |mut v| {
+        v.texto = nuevo;
+        v
+    }) {
+        versiones::avisar_de_un_toque(&hecho);
+        return;
+    }
     let carpeta = pixpin_proyecto::almacen::carpeta(ubicacion.raiz(), &a.ficha.id);
     match pixpin_proyecto::cuaderno::reemplazar(&carpeta, &m) {
         Ok(_) => a.mensajes[i] = m,
@@ -20244,27 +21040,23 @@ mod pruebas_menu_sin_repetir {
     }
 
     /// La pastilla y los tres puntos del chat «Asistente» (17-oct-2026):
-    /// los tres modelos con el elegido marcado, y empezar de cero y borrar
-    /// apartados; en otro chat, nada de eso.
+    /// los dos de la nube con el elegido marcado (sin el local desde el
+    /// 27-oct-2026), y empezar de cero y borrar apartados; en otro chat,
+    /// nada de eso.
     #[test]
     fn el_menu_del_modelo_marca_el_elegido_y_aparta_borrar() {
-        use asistente_nube::Eleccion;
         use pixpin_ia::nube::Proveedor;
         let textos = Catalogo::nuevo(pixpin_store::Idioma::Espanol);
-        let v = menu_de_modelo(&textos, Eleccion::Nube(Proveedor::DeepSeek));
-        let marcados: Vec<bool> = v[..3]
+        let v = menu_de_modelo(&textos, Proveedor::DeepSeek);
+        let marcados: Vec<bool> = v[..2]
             .iter()
             .map(|e| format!("{:?}", e.icono.unwrap()) == format!("{:?}", mi::CHECK_BOX))
             .collect();
-        assert_eq!(
-            marcados,
-            vec![false, false, true],
-            "DeepSeek, el tercero, marcado"
-        );
-        assert_eq!(v[2].accion, Accion::ElegirModeloIa(2));
-        assert!(v[3].accion == Accion::NuevaConversacion && v[3].separada);
-        assert!(v[4].accion == Accion::BorrarChat && v[4].peligro);
-        let c = menu_de_cabecera(&textos, false, Some(Eleccion::Nube(Proveedor::Claude)));
+        assert_eq!(marcados, vec![false, true], "DeepSeek, el segundo, marcado");
+        assert_eq!(v[1].accion, Accion::ElegirModeloIa(1));
+        assert!(v[2].accion == Accion::NuevaConversacion && v[2].separada);
+        assert!(v[3].accion == Accion::BorrarChat && v[3].peligro);
+        let c = menu_de_cabecera(&textos, false, Some(Proveedor::Claude));
         assert!(c[0].texto.contains("Claude Haiku") && c[0].accion == Accion::MenuModeloIa);
         assert!(
             !menu_de_cabecera(&textos, false, None)
@@ -20489,10 +21281,7 @@ mod pruebas_ir_al_chat {
                 "estan en los botones de la lista, como en el movil"
             );
             // Ni los ajustes ni «Comenzar»: viven fuera del chat.
-            assert!(
-                !v.iter()
-                    .any(|e| matches!(e.accion, Accion::Ajustes | Accion::Aviso(_)))
-            );
+            assert!(!v.iter().any(|e| matches!(e.accion, Accion::Aviso(_))));
             // Caso negativo: lo del chat sigue, con el papel al final.
             assert_eq!(v.last().map(|e| e.accion.clone()), Some(Accion::Fondos));
         }
@@ -20518,7 +21307,20 @@ fn giro_de_rueda(delta: i32, por_muesca: i32) -> i32 {
 
 #[cfg(test)]
 mod pruebas_rueda {
-    use super::giro_de_rueda;
+    use super::{LETRA_A_MANO, giro_de_rueda, sigue_a_la_cancion};
+
+    #[test]
+    fn mover_la_letra_a_mano_para_un_rato_el_seguir_a_la_cancion() {
+        let t = std::time::Instant::now();
+        assert!(sigue_a_la_cancion(None, t, true));
+        assert!(sigue_a_la_cancion(None, t, false));
+        // Recien movida: ni sonando la sigue.
+        assert!(!sigue_a_la_cancion(Some(t), t, true));
+        // Pasado el rato, sonando, vuelve a seguirla.
+        assert!(sigue_a_la_cancion(Some(t), t + LETRA_A_MANO, true));
+        // Parada, lo movido a mano se queda donde se dejo.
+        assert!(!sigue_a_la_cancion(Some(t), t + LETRA_A_MANO * 10, false));
+    }
 
     #[test]
     fn una_muesca_mueve_lo_de_una_muesca_y_en_su_sentido() {

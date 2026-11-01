@@ -1621,6 +1621,7 @@ dependencies = [
  "flate2",
  "lyon_tessellation",
  "opencadcodec",
+ "pixpin-ui",
  "png",
  "serde",
  "serde_json",
@@ -1677,6 +1678,7 @@ dependencies = [
  "pixpin-frase",
  "pixpin-geom",
  "pixpin-motor2d",
+ "pixpin-paginas",
  "pixpin-pdf",
  "pixpin-voz",
  "roxmltree",
@@ -1785,6 +1787,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "pixpin-paginas"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "pixpin-pdf"
 version = "0.1.0"
 dependencies = [
@@ -1806,6 +1815,7 @@ dependencies = [
  "pixpin-motor2d",
  "pixpin-sincro",
  "pixpin-sistema",
+ "pixpin-ui",
  "serde",
  "serde_json",
  "thiserror",
@@ -1828,11 +1838,13 @@ version = "0.1.0"
 dependencies = [
  "aes-gcm",
  "base64",
+ "crc32fast",
  "flate2",
  "hmac",
  "p256",
  "pbkdf2",
  "pixpin-lecciones",
+ "pixpin-sistema",
  "rand_core 0.6.4",
  "serde",
  "serde_json",
@@ -1879,6 +1891,18 @@ dependencies = [
 [[package]]
 name = "pixpin-tinta"
 version = "0.1.0"
+
+[[package]]
+name = "pixpin-typesafe"
+version = "0.1.0"
+dependencies = [
+ "base64",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tracing",
+ "windows",
+]
 
 [[package]]
 name = "pixpin-ui"

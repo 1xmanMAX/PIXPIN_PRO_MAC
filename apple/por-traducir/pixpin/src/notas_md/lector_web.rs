@@ -164,6 +164,12 @@ pub enum DeLaPagina {
         si: bool,
     },
     Compartir,
+    /// «⚡ Lectura veloz» del ⋮ (27-oct-2026): la nota, ya guardada, en la
+    /// app de lectura rapida (`super::a_lectura_veloz`).
+    LecturaVeloz {
+        texto: String,
+        titulo: String,
+    },
     Cerrar,
     CerrarListo,
     EditorAnterior,
@@ -298,9 +304,81 @@ fn hwnd(h: isize) -> windows::Win32::Foundation::HWND {
     windows::Win32::Foundation::HWND(h as *mut _)
 }
 
+/// **Un lector de repuesto** (26-oct-2026, el usuario: «que sea casi al
+/// instante»): la ventana escondida con la pagina ya cargada, esperando
+/// nota. Arrancar el WebView2 y su pagina (800 KB) eran ~0,5-0,7 s en cada
+/// apertura; con el repuesto, abrir es ensenar la ventana y mandar el texto.
+pub struct Repuesto {
+    pin: PinLector,
+    ventana: VentanaOverlay,
+    pagina: Pagina,
+    actual: Rc<RefCell<Destino>>,
+    /// La pagina ya dijo `listo`.
+    listo: bool,
+}
+
+impl Repuesto {
+    /// Hace la ventana (escondida) y carga la pagina.
+    pub fn preparar(ubicacion: &Ubicacion) -> anyhow::Result<Repuesto> {
+        if !pixpin_web::VisorHtml::hay_runtime() {
+            anyhow::bail!("este equipo no tiene el runtime de WebView2");
+        }
+        let e = pixpin_capture::enumerar_monitores()
+            .ok()
+            .and_then(|m| m.principal().map(|p| p.escala_por_cien as f32 / 100.0))
+            .unwrap_or(1.0);
+        let (area_pin, _) = crate::lector_pin::area_inicial();
+        let pin = PinLector::nuevo(area_pin, e).con_extension("md");
+        let ventana = VentanaOverlay::nueva_llana(pin.area, "PixPin")
+            .map_err(|e| anyhow::anyhow!("no se pudo hacer la ventana de repuesto: {e:?}"))?;
+        let actual = Rc::new(RefCell::new(Destino::Nueva {
+            proyecto: String::new(),
+        }));
+        let (r_servir, a_servir) = (ubicacion.raiz().to_path_buf(), actual.clone());
+        // Escondida y a destiempo: no le quita el teclado a nadie.
+        pixpin_web::no_quitar_el_foco_durante(3000);
+        let pagina = Pagina::nueva(OpcionesPagina {
+            titulo: "PixPin".into(),
+            area: Some(pin.area_de_la_vista()),
+            maximizada: false,
+            fondo: fondo(pin.oscuro()),
+            pagina: PAGINA,
+            servir: Box::new(move |resto| servir(&r_servir, &a_servir.borrow(), resto)),
+            padre: Some(ventana.handle().0 as isize),
+            oscuro: Some(pin.oscuro()),
+        })
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+        Ok(Repuesto {
+            pin,
+            ventana,
+            pagina,
+            actual,
+            listo: false,
+        })
+    }
+
+    /// Atiende la pagina mientras espera (WebView2 necesita el bucle).
+    pub fn esperar(&mut self, ms: u32) {
+        for s in self.pagina.esperar(ms) {
+            if let Suceso::Mensaje(m) = s
+                && serde_json::from_str::<DeLaPagina>(&m).is_ok_and(|p| p == DeLaPagina::Listo)
+            {
+                self.listo = true;
+            }
+        }
+        let _ = pixpin_shell::overlay::tomar_eventos_pendientes();
+    }
+
+    /// Donde dice la pagina que esta la nota (lo que sirve sus fotos): quien
+    /// lo use le pone el destino de verdad.
+    pub fn actual(&self) -> Rc<RefCell<Destino>> {
+        self.actual.clone()
+    }
+}
+
 /// Abre la nota en el lector. `Err` si no se pudo (sin WebView2): quien
-/// llama abre el editor de antes.
-pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
+/// llama abre el editor de antes. Con `repuesto`, en su ventana ya hecha.
+pub fn correr(cx: Contexto, repuesto: Option<Repuesto>) -> anyhow::Result<Salida> {
     if !pixpin_web::VisorHtml::hay_runtime() {
         anyhow::bail!("este equipo no tiene el runtime de WebView2");
     }
@@ -316,6 +394,10 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
         cx.textos,
     );
     tracing::info!("abriendo el lector de notas");
+    // Abierta con el espacio (vista rapida) o un fichero de codigo: se lee,
+    // no se escribe (el codigo se ve coloreado, sin las vallas del bloque).
+    let leer_al_abrir = pixpin_shell::overlay::sin_quitar_el_foco_ahora()
+        || matches!(&*cx.actual.borrow(), Destino::Fichero { ruta } if guardar::lenguaje_de(ruta).is_some());
 
     // **La ventana es la de los visores como pin** (`lector_pin`): sale ya,
     // con el fondo de la nota, y la pagina llega dentro en cuanto el
@@ -324,10 +406,23 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
         .ok()
         .and_then(|m| m.principal().map(|p| p.escala_por_cien as f32 / 100.0))
         .unwrap_or(1.0);
-    let (area_pin, _) = crate::lector_pin::area_inicial();
-    let mut pin = PinLector::nuevo(area_pin, e).con_extension("md");
-    let mut ventana = VentanaOverlay::nueva_llana(pin.area, &titulo_de_ventana(&nombre, cx.textos))
-        .map_err(|e| anyhow::anyhow!("no se pudo abrir la ventana de la nota: {e:?}"))?;
+    let (mut pin, mut ventana, hecha, listo_ya) = match repuesto {
+        Some(r) => {
+            r.pagina
+                .poner_titulo(&titulo_de_ventana(&nombre, cx.textos));
+            (r.pin, r.ventana, Some(r.pagina), r.listo)
+        }
+        None => {
+            let (area_pin, _) = crate::lector_pin::area_inicial();
+            let pin = PinLector::nuevo(area_pin, e).con_extension("md");
+            let ventana =
+                VentanaOverlay::nueva_llana(pin.area, &titulo_de_ventana(&nombre, cx.textos))
+                    .map_err(|e| {
+                        anyhow::anyhow!("no se pudo abrir la ventana de la nota: {e:?}")
+                    })?;
+            (pin, ventana, None, false)
+        }
+    };
     let hwnd_pin = ventana.handle().0 as isize;
     pin.al_nacer(&ventana);
     ventana.mostrar();
@@ -366,18 +461,29 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
         pin.actualizar(m, &en_la_barra, &propios);
     }
 
-    let (r_servir, a_servir) = (raiz.clone(), cx.actual.clone());
-    let pagina = Pagina::nueva(OpcionesPagina {
-        titulo: titulo_de_ventana(&nombre, cx.textos),
-        area: Some(pin.area_de_la_vista()),
-        maximizada: false,
-        fondo: fondo(pin.oscuro()),
-        pagina: PAGINA,
-        servir: Box::new(move |resto| servir(&r_servir, &a_servir.borrow(), resto)),
-        padre: Some(hwnd_pin),
-        oscuro: Some(pin.oscuro()),
-    })
-    .map_err(|e| anyhow::anyhow!("{e}"))?;
+    let pagina = match hecha {
+        // La del repuesto: a la medida de donde quedo la ventana y con la
+        // luna/sol de ahora.
+        Some(p) => {
+            p.mover(pin.area_de_la_vista());
+            p.poner_oscuro(pin.oscuro(), fondo(pin.oscuro()));
+            p
+        }
+        None => {
+            let (r_servir, a_servir) = (raiz.clone(), cx.actual.clone());
+            Pagina::nueva(OpcionesPagina {
+                titulo: titulo_de_ventana(&nombre, cx.textos),
+                area: Some(pin.area_de_la_vista()),
+                maximizada: false,
+                fondo: fondo(pin.oscuro()),
+                pagina: PAGINA,
+                servir: Box::new(move |resto| servir(&r_servir, &a_servir.borrow(), resto)),
+                padre: Some(hwnd_pin),
+                oscuro: Some(pin.oscuro()),
+            })
+            .map_err(|e| anyhow::anyhow!("{e}"))?
+        }
+    };
     tracing::info!(
         ms = inicio.elapsed().as_millis() as u64,
         "lector de notas: pagina pedida"
@@ -402,6 +508,10 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
                 // La tinta, a la medida de la columna con que se anoto
                 // (`capa_web::Maqueta`): el texto de una nota se recoloca.
                 maqueta: true,
+                // Entera, con el imprimir de la pagina (la nota maquetada).
+                entero: Some(crate::visor_html::riel::Entero::Pagina(
+                    crate::marcos_doc::Entero::Documento,
+                )),
             },
             cx.textos,
         ),
@@ -412,6 +522,8 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
     let mut ultimo_conocido = cx.texto.clone();
     let mut firma = huella(&raiz, &cx.actual.borrow());
     let mut mirado = Instant::now();
+    // Lo ultimo de Lectura Veloz con que se puso su % en el ⋮.
+    let mut lectura_veloz = crate::lectura_veloz::generacion();
     let mut cerrando: Option<Instant> = None;
     let mut salida = Salida::Cerrada;
     let clave_vista = super::clave_de_vista(&cx.actual.borrow());
@@ -423,7 +535,11 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
         "texto": cx.texto,
         "nombre": nombre,
         "vista": {"cuerpo": vista.cuerpo, "titulos": vista.titulos, "px": vista.px, "soloEsta": solo_esta},
-        "capacidades": {"hojas": de_proyecto, "medios": true},
+        "capacidades": {
+            "hojas": de_proyecto,
+            "medios": true,
+            "lecturaVeloz": super::rotulo_de_lectura_veloz(&cx.actual.borrow(), cx.textos),
+        },
         // La cabecera propia no: la barra es la comun de los visores.
         "enPin": true,
     })
@@ -440,6 +556,18 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
             aparato: cx.aparato.to_string(),
         },
     );
+
+    // La pagina del repuesto ya estaba lista: la nota, ya.
+    if listo_ya {
+        tracing::info!(
+            ms = inicio.elapsed().as_millis() as u64,
+            "lector de notas: pagina lista (repuesto)"
+        );
+        pagina.mandar(&abrir);
+        if leer_al_abrir {
+            pagina.mandar(r#"{"tipo":"orden","que":"leer"}"#);
+        }
+    }
 
     'bucle: loop {
         // Atiende la cola del hilo: la pagina y, por `pixpin_shell`, la
@@ -481,7 +609,8 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
                     }
                     Some(AccionPin::Fijar) => pin.alternar_fijado(&ventana),
                     Some(AccionPin::Cerrar) => pedir_cierre(&mut cerrando, &pagina),
-                    None => {}
+                    // La nota no lleva «Guardar»: es del chat o se edita en su fichero.
+                    Some(AccionPin::Guardar) | None => {}
                 }
                 continue;
             }
@@ -559,6 +688,8 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
                 pin.fijado,
                 pin.oscuro(),
             );
+            // El riel se va y vuelve con la barra del pin.
+            r.con_barras(pin.barra_a_la_vista());
             r.tic(Some(&pagina));
         }
         for s in sucesos {
@@ -592,6 +723,9 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
                                 "lector de notas: pagina lista"
                             );
                             pagina.mandar(&abrir);
+                            if leer_al_abrir {
+                                pagina.mandar(r#"{"tipo":"orden","que":"leer"}"#);
+                            }
                         }
                         // Lo que encienden los botones de la barra.
                         DeLaPagina::Estado {
@@ -839,6 +973,15 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
                             let destino = cx.actual.borrow().clone();
                             super::compartir(cx.idioma, cx.ubicacion, &destino, cx.aparato);
                         }
+                        DeLaPagina::LecturaVeloz { texto, titulo } => {
+                            let destino = cx.actual.borrow().clone();
+                            if let Err(no) = super::a_lectura_veloz(&destino, &titulo, &texto) {
+                                pagina.mandar(
+                                    &json!({"tipo": "aviso", "texto": no.aviso(cx.textos)})
+                                        .to_string(),
+                                );
+                            }
+                        }
                         DeLaPagina::Cerrar => pedir_cierre(&mut cerrando, &pagina),
                         DeLaPagina::CerrarListo => break 'bucle,
                         DeLaPagina::EditorAnterior => {
@@ -858,6 +1001,14 @@ pub fn correr(cx: Contexto) -> anyhow::Result<Salida> {
         }
         if mirado.elapsed() >= MIRAR_FUERA {
             mirado = Instant::now();
+            // Llego un punto de Lectura Veloz: su % al dia en el ⋮.
+            if crate::lectura_veloz::generacion() != lectura_veloz {
+                lectura_veloz = crate::lectura_veloz::generacion();
+                let r = super::rotulo_de_lectura_veloz(&cx.actual.borrow(), cx.textos);
+                pagina.mandar(
+                    &json!({"tipo": "capacidades", "capacidades": {"lecturaVeloz": r}}).to_string(),
+                );
+            }
             let ahora = huella(&raiz, &cx.actual.borrow());
             if ahora != firma {
                 firma = ahora;
@@ -1136,6 +1287,16 @@ mod pruebas {
             serde_json::from_str::<DeLaPagina>(r#"{"tipo":"cerrar_listo"}"#).unwrap(),
             DeLaPagina::CerrarListo
         );
+        assert_eq!(
+            serde_json::from_str::<DeLaPagina>(
+                r##"{"tipo":"lectura_veloz","texto":"# Tema 3","titulo":"Tema 3"}"##
+            )
+            .unwrap(),
+            DeLaPagina::LecturaVeloz {
+                texto: "# Tema 3".into(),
+                titulo: "Tema 3".into()
+            }
+        );
         // Caso negativo: un tipo que no existe no se toma por otro.
         assert!(serde_json::from_str::<DeLaPagina>(r#"{"tipo":"borrar_todo"}"#).is_err());
     }
@@ -1315,6 +1476,7 @@ mod a_mano {
                 pixpin_store::Idioma::Espanol,
                 &ub,
                 super::Destino::Fichero { ruta: md },
+                None,
             );
             eprintln!("fin de correr");
         });

@@ -1,7 +1,7 @@
 // Pruebas del asistente con los ajustes (D6): la nube por URLSession con un
 // `URLProtocol` falso (nunca una API de pago), «Probar», las manos de la
-// app (pedidos de tareas, leer un PDF, «¿seguro?»), el historial y el
-// catalogo del modelo local.
+// app (pedidos de tareas, leer un PDF, «¿seguro?»), el historial y lo que
+// quedo bajado del modelo local.
 
 import AppKit
 import CoreText
@@ -107,20 +107,20 @@ final class AsistenteNubeTests: XCTestCase {
     }
 
     private func ajustes(_ motor: String) -> AjustesIa {
-        AjustesIa(motor: motor, modelo: "", pensar: false, respaldoLocal: false, mejorVista: false,
-                  documentosALaNube: "", carpetaModelos: "", puertoUsuario: 9)
+        AjustesIa(motor: motor, pensar: false, documentosALaNube: "")
     }
 
     func testUnTurnoConClaudeVaPorUrlSessionYLlegaEnVivo() throws {
         try conClave()
         defer { try? iaBorrarClave(proveedorId: "claude") }
         XCTAssertTrue(hayTransporte())
-        guard case let .nube(proveedor, _, modelo, conClave) = iaQueMotor(ajustes: ajustes("claude")) else {
-            return XCTFail("la nube")
-        }
-        XCTAssertEqual(proveedor, "claude")
-        XCTAssertTrue(conClave)
+        let visto = iaQueMotor(ajustes: ajustes("claude"))
+        let modelo = visto.modelo
+        XCTAssertEqual(visto.proveedor, "claude")
+        XCTAssertTrue(visto.conClave)
         XCTAssertTrue(modelo.hasPrefix("claude-"), modelo)
+        // El vacio (o el `local` de antes) es la nube que tenga clave.
+        XCTAssertEqual(iaQueMotor(ajustes: ajustes("local")).proveedor, "claude")
         let tandas = Tandas()
         let oyente = OyenteDelAsistente(alTexto: { tandas.meter($0) })
         let corte = CorteIa.nuevo()
@@ -168,13 +168,38 @@ final class AsistenteNubeTests: XCTestCase {
         var a = try almacen.nucleo.ajustes()
         a.asistenteMotor = "deepseek"
         try almacen.nucleo.guardarAjustes(nuevos: a)
-        let modelo = ModeloAsistente(almacen: almacen, puertoLlama: 9, usarApple: false)
+        let modelo = ModeloAsistente(almacen: almacen, usarApple: false)
         let motor = await modelo.comprobarMotor()
         XCTAssertEqual(motor, .nube("DeepSeek V4.1 Flash", conClave: false))
         await modelo.enviar("hola")
         XCTAssertEqual(modelo.burbujas.count, 2)
         XCTAssertTrue(modelo.burbujas[1].esAviso)
         XCTAssertTrue(modelo.burbujas[1].texto.contains("Falta la clave"), modelo.burbujas[1].texto)
+    }
+
+    /// La burbuja se llena en vivo con la nube y al final queda entera
+    /// (antes, con un `llama-server` falso).
+    @MainActor
+    func testLaNubeLlenaLaBurbujaEnVivoYAlFinalLaDejaEntera() async throws {
+        try conClave()
+        defer { try? iaBorrarClave(proveedorId: "claude") }
+        let modelo = ModeloAsistente(almacen: nil, usarApple: false)
+        await modelo.enviar("saluda")
+        XCTAssertEqual(modelo.motor, .nube("Claude Haiku 5.5", conClave: true))
+        XCTAssertEqual(modelo.burbujas.count, 2)
+        XCTAssertEqual(modelo.burbujas[1].texto, "Hola desde la nube.")
+        XCTAssertFalse(modelo.burbujas[1].esAviso)
+        XCTAssertFalse(modelo.ocupado)
+        XCTAssertFalse(modelo.sePuedeParar)
+        // Lo que llegue tarde por el oyente no se pega dos veces.
+        modelo.pegar("de mas", en: modelo.burbujas[1].id)
+        XCTAssertEqual(modelo.burbujas[1].texto, "Hola desde la nube.")
+    }
+
+    /// Una orden simple se hace sin clave (el camino rapido, sin modelo).
+    func testLasOrdenesSimplesNoPidenClave() {
+        XCTAssertTrue(iaEsOrdenRapida(pedido: "apunta comprar pan"))
+        XCTAssertFalse(iaEsOrdenRapida(pedido: "explícame la entropía"))
     }
 }
 
@@ -270,21 +295,31 @@ final class HistorialYModelosTests: XCTestCase {
         XCTAssertTrue(b2.citas.isEmpty && b2.herramientas.isEmpty)
     }
 
-    func testElCatalogoLocalEsElDeWindowsConElMotorDelMac() throws {
+    /// Lo que quedo bajado del modelo local: se avisa una vez y se libera
+    /// (Windows, `asistente/modelos_viejos.rs`).
+    @MainActor
+    func testLosModelosViejosSeAvisanUnaVezYSeLiberan() async throws {
         let dir = try carpetaTemporal("asistente-modelos")
-        let c = iaCatalogoLocal(carpeta: dir.path)
-        XCTAssertTrue(c.motor.url.contains("macos"))
-        XCTAssertFalse(c.motor.listo)
-        let qwen = try XCTUnwrap(c.modelos.first { $0.id == "qwen3.5-2b" })
-        XCTAssertFalse(qwen.opcional)
-        XCTAssertEqual(qwen.ficheros.count, 2)
-        XCTAssertTrue(c.modelos.contains { $0.id == "gemma-4-e2b" && $0.opcional })
-        // Sin nada bajado y sin servidor del usuario, no hay local.
-        let a = AjustesIa(motor: "", modelo: "", pensar: nil, respaldoLocal: true, mejorVista: false,
-                          documentosALaNube: "", carpetaModelos: dir.path, puertoUsuario: 9)
-        XCTAssertEqual(iaQueMotor(ajustes: a), .ninguno)
-        // Un pid apuntado que no es nuestro no se mata.
-        XCTAssertFalse(iaLimpiarHuerfanos(carpeta: dir.path))
+        let modelos = dir.appendingPathComponent("modelos", isDirectory: true)
+        // Sin carpeta, nada (el nucleo recuerda lo medido 30 s: otra ruta).
+        let nada = ModelosViejos(carpeta: dir.appendingPathComponent("no-esta", isDirectory: true))
+        await nada.mirar()
+        XCTAssertNil(nada.ocupan)
+        XCTAssertNil(nada.porAvisar)
+        let qwen = modelos.appendingPathComponent("qwen3.5-2b", isDirectory: true)
+        try FileManager.default.createDirectory(at: qwen, withIntermediateDirectories: true)
+        try Data(count: 2_000_000).write(to: qwen.appendingPathComponent("Qwen3.5-2B-Q4_K_M.gguf"))
+        let otra = ModelosViejos(carpeta: modelos)
+        await otra.mirar()
+        XCTAssertEqual(otra.porAvisar, 2_000_000)
+        XCTAssertEqual(ModelosViejos.tamano(2_000_000), "2 MB")
+        // «Dejarlos»: la tarjeta se calla; el boton de Ajustes sigue.
+        otra.dejarlos()
+        XCTAssertNil(otra.porAvisar)
+        await otra.liberar()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: modelos.path))
+        XCTAssertNil(otra.ocupan)
+        XCTAssertEqual(otra.aviso, "Listo: los modelos locales se borraron y el espacio quedó libre.")
     }
 
     @MainActor

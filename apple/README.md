@@ -152,8 +152,8 @@ hay que pasar a Swift). Después: resolver, `cargo test --workspace` y portar la
   - [x] Lecciones en la API (`src/lecciones.rs`, por paginas con cache por fechas), ajustes
         de `pixpinmax.toml` que valen en los dos sistemas (`src/ajustes.rs`: dias de las
         capturas, sincronizacion sola y presencia, con `guardar_conservando`) y el asistente
-        (`src/asistente.rs`: `ia_catalogo_para`/`ia_llamar` de `pixpin_ia::puente` y un turno
-        con un `llama-server` del usuario en `127.0.0.1:8080`).
+        (`src/asistente.rs`: `ia_catalogo_para`/`ia_llamar` de `pixpin_ia::puente`; el turno con
+        la nube en `src/asistente/turno.rs`).
   - [ ] Buscar en todo usa un recorrido propio (`src/buscar.rs`): pasar al de `pixpin-lanzador`
         cuando ese crate compile fuera de Windows.
   - [x] CI: `.github/workflows/apple.yml` (macOS 15, Xcode 16.4) compila el xcframework, pasa
@@ -270,11 +270,12 @@ hay que pasar a Swift). Después: resolver, `cargo test --workspace` y portar la
         elegir con un rayo en Rust. Se abren con doble clic en el chat y con «Abrir con» del
         Finder. Falta: anotar a mano (la tinta de la capa solo se ve), la caché `.pxcad` de
         Windows (aquí se lee por capas, sin caché) y las vistas guardadas del 3D.
-  - [x] Asistente (`Asistente/`): Foundation Models con las herramientas del puente si hay
-        macOS 26 (compila fuera con el SDK de macOS 15), si no un `llama-server` propio en
-        127.0.0.1:8080, si no «no hay motor». Con el `llama-server`, **en vivo**: Rust lee el
-        SSE y manda el texto a Swift por un `OyenteIa` (interfaz de UniFFI implementado en
-        Swift) en tandas de ≤60 ms, y «Parar» lo corta (`CorteIa`). Las claves de la nube, en
+  - [x] Asistente (`Asistente/`): **solo con la nube** como Windows desde el 27-oct-2026
+        (Claude o DeepSeek con la clave del Llavero; fuera el modelo local, su descarga y su
+        `llama-server`). Sin clave, Foundation Models con las herramientas del puente si hay
+        macOS 26 (compila fuera con el SDK de macOS 15). **En vivo**: Rust lee el SSE y manda el
+        texto a Swift por un `OyenteIa` (interfaz de UniFFI implementado en Swift) en tandas de
+        ≤60 ms, y «Parar» lo corta (`CorteIa`). Las claves de la nube, en
         el **Llavero** (`LlaveroDelSistema`: `SecItem*`, servicio `PixPinMax.asistente`),
         instalado al arrancar por el `LlaveroApp` del puente (`src/llavero.rs`).
   - [x] Galería de capturas (rejilla perezosa, caducidad, conservar, 7 días más, borrar con
@@ -353,13 +354,9 @@ hay que pasar a Swift). Después: resolver, `cargo test --workspace` y portar la
       `nube::claves::Llavero` para que Swift guarde las claves en el Llavero
       (`instalar_llavero`; sin él no se guarda nada, nunca en claro). Las herramientas en JSON
       para cualquier motor (Foundation Models desde Swift): `pixpin_ia::puente`.
-  - [ ] Swift: bajar modelos y motor con URLSession (luego `descarga::verificar`), HTTPS de la
-        nube con URLSession (el `Llavero` con Keychain ya esta), y Foundation Models con
-        `puente::catalogo_para`/`puente::llamar` (llama.cpp con Metal de respaldo; en iPad e
-        iPhone enlazado, sin `llama-server`).
-  - [ ] Catálogo del motor para Mac: `modelos::LLAMA_CPP` y `descarga` siguen siendo el zip de
-        Windows (`llama-server.exe`).
-  - [ ] Si PixPin muere de golpe en Mac, `llama-server` queda huérfano (no hay Job Objects).
+  - [x] Sin modelo local (Windows `f86732c`/`ab3632a`, 27-oct-2026): fuera `descarga`,
+        `modelos`, `relevo` y `servidor`; lo que quedó bajado en `<datos>/modelos` se ofrece
+        liberar una vez (`asistente/modelos_viejos.rs`, `ModelosViejos.swift`).
   - [ ] El banco (`tests/banco.rs`) no guarda PNG aquí (pintaba con `pixpin-pdf`/`pixpin-shell`).
 - [x] `por-adaptar/` → `nucleo/`: `pixpin-cad` y `pixpin-bim`. Lo de Windows (`gpu`, `gpu3d`:
       D3D11 + HLSL; `ventana`, `ventana3d`: Win32; el registro de fuentes de `texto`; el

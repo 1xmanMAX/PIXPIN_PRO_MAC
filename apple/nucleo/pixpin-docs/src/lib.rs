@@ -32,6 +32,8 @@ pub mod formulas;
 pub mod html;
 pub mod indice;
 pub mod lectura;
+/// El puente con Lectura Veloz (`docs/integracion-lectura-veloz.md`).
+pub mod lectura_veloz;
 pub mod md_bloques;
 pub mod md_comandos;
 pub mod md_comentarios;
@@ -79,6 +81,16 @@ pub enum Formato {
     Markdown,
 }
 
+/// Mas ficheros de texto llano que el visor ensena tal cual (25-oct-2026,
+/// el usuario: la vista rapida del espacio «tiene que funcionar para todos
+/// los documentos»): datos, ajustes, subtitulos y codigo.
+const TEXTOS: [&str; 42] = [
+    "tsv", "json", "jsonl", "xml", "yaml", "yml", "toml", "ini", "cfg", "conf", "env", "srt",
+    "vtt", "tex", "bib", "rst", "nfo", "rs", "py", "js", "mjs", "ts", "tsx", "jsx", "c", "h",
+    "cpp", "hpp", "cs", "java", "kt", "go", "rb", "php", "lua", "sql", "sh", "ps1", "bat", "cmd",
+    "css", "scss",
+];
+
 /// Que es este fichero por su nombre, o nada si no es de los que se abren.
 pub fn formato_de(nombre: &str) -> Option<Formato> {
     if docx::es_docx(nombre) {
@@ -89,6 +101,7 @@ pub fn formato_de(nombre: &str) -> Option<Formato> {
         "html" | "htm" | "xhtml" => Some(Formato::Html),
         "md" | "markdown" => Some(Formato::Markdown),
         "txt" | "log" | "csv" => Some(Formato::Texto),
+        e if TEXTOS.contains(&e) => Some(Formato::Texto),
         _ => None,
     }
 }
@@ -352,6 +365,8 @@ mod comprobaciones {
         assert_eq!(formato_de("a.htm"), Some(Formato::Html));
         assert_eq!(formato_de("a.md"), Some(Formato::Markdown));
         assert_eq!(formato_de("a.txt"), Some(Formato::Texto));
+        assert_eq!(formato_de("datos.JSON"), Some(Formato::Texto));
+        assert_eq!(formato_de("main.rs"), Some(Formato::Texto));
         assert_eq!(formato_de("a.pdf"), None, "el PDF lo abre pixpin-pdf");
         assert_eq!(formato_de("a.doc"), None);
         assert_eq!(formato_de("a.png"), None);

@@ -27,9 +27,11 @@
 //!
 //! Por eso se guardan las entradas crudas del ZIP y no solo lo interpretado.
 
+pub mod acta_viva;
 pub mod almacen;
 pub mod anotado;
 pub mod avatar;
+pub mod camara_del_movil;
 pub mod capas_del_pdf;
 pub mod carpeta_de_paginas;
 pub mod clase;
@@ -38,16 +40,21 @@ pub mod codigos;
 pub mod comentarios_de_notas;
 pub mod cuaderno;
 pub mod formula;
+pub mod grabacion_a_medias;
 pub mod identidad;
 pub mod importar_hojas;
 pub mod lienzo_de_la_foto;
 pub mod mini;
 pub mod para_el_movil;
+pub mod por_su_hora;
 pub mod portapapeles_tabla;
+pub mod presencial;
 pub mod tabla;
 pub mod tabla_web;
 pub mod tabla_xlsx;
+pub mod temas;
 pub mod ubicacion;
+pub mod versiones;
 pub mod vista;
 
 use std::collections::BTreeMap;

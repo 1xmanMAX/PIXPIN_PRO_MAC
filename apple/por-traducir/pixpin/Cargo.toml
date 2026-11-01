@@ -18,7 +18,7 @@ pixpin-ocr = { version = "0.1.0", path = "../../crates/pixpin-ocr" }
 # «Mi vocabulario» de los ajustes del OCR se parte con la misma regla que
 # usa el lector Indra.
 pixpin-indra = { path = "../../crates/pixpin-indra" }
-# El asistente local del chat: motor llama.cpp aparte, herramientas y bucle.
+# El asistente del chat: la nube (Claude o DeepSeek), herramientas y bucle.
 pixpin-ia = { path = "../../crates/pixpin-ia" }
 # Lo que se reconoce al escribir una tarea: el parser que comparten la app,
 # el pedido `anadir_tarea` y el plugin de Flow Launcher.
@@ -44,6 +44,9 @@ pixpin-motor-video = { version = "0.1.0", path = "../../crates/pixpin-motor-vide
 pixpin-render = { version = "0.1.0", path = "../../crates/pixpin-render" }
 pixpin-shell = { version = "0.1.0", path = "../../crates/pixpin-shell" }
 pixpin-sincro = { version = "0.1.0", path = "../../crates/pixpin-sincro" }
+# Si lo que dejo una grabacion cortada se puede abrir (`mp4::mirar`) y
+# cuanto cabe en el disco mientras se graba (`archivos::espacio_libre`).
+pixpin-sistema = { version = "0.1.0", path = "../../crates/pixpin-sistema" }
 # Lecciones aprendidas: la logica pura (ficha, repaso, buscador, etiquetas).
 pixpin-lecciones = { path = "../../crates/pixpin-lecciones" }
 pixpin-timeline = { path = "../../crates/pixpin-timeline" }
@@ -58,6 +61,10 @@ pixpin-web = { version = "0.1.0", path = "../../crates/pixpin-web" }
 pixpin-voz = { version = "0.1.0", path = "../../crates/pixpin-voz" }
 # Tarjetas de Anki de una clase, una foto o una nota (24-oct-2026).
 pixpin-anki = { version = "0.1.0", path = "../../crates/pixpin-anki" }
+# Jev de TypeSafe (28-oct-2026, docs/jev.md): lo importante de una clase, las
+# tarjetas que valen la pena, la prioridad de las tareas y el modelo de cada
+# pedido. Sin clave, nada cambia.
+pixpin-typesafe = { version = "0.1.0", path = "../../crates/pixpin-typesafe" }
 # El borrador de las imagenes pegadas en Flow (`[img 01]` -> fichero): el
 # mismo modulo que lee el plugin, asi el formato es uno solo. Solo serde y
 # `windows`, que ya estan; el plugin no depende de nada de PixPin.

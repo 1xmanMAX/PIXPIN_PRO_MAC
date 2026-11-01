@@ -62,6 +62,7 @@ mod al_frente;
 mod aligerar;
 mod croquis3d;
 mod globo_pista;
+mod guardar_de_paso;
 mod marco_imprimir;
 mod marcos_doc;
 // El asistente local del chat (modelo pequeno con llama.cpp, `pixpin-ia`).
@@ -104,6 +105,8 @@ mod grabador;
 mod grupos_ventanas;
 mod hoja_pin;
 mod imagenes_lienzo;
+/// Jev de TypeSafe: la clave, los ajustes y cada funcion que lo usa.
+mod jev;
 // Solo para desarrollar: `PIXPIN_INSTANCIA` (ver el modulo).
 /// Google Calendar, solo para ver: sus eventos en el horario y en los avisos.
 mod calendario_google;
@@ -116,6 +119,8 @@ mod lector_pdf_proyecto;
 /// Los lectores como un pin: su ventana y su barra de fuera.
 mod lector_pin;
 mod lector_tinta;
+/// Lectura Veloz, la app de lectura rapida: ida y vuelta (27-oct).
+mod lectura_veloz;
 mod leer_en_voz;
 mod letras_que_viajan;
 mod lista_del_icono;
@@ -245,6 +250,11 @@ const ID_ZONA_DE_LA_CLASE: u32 = 911;
 /// «Figuras…» (25-oct-2026): la ventana de las figuras guardadas, con su
 /// previsualizador.
 const ID_FIGURAS: u32 = 912;
+/// Una clase o reunion empezo o dejo de grabarse (27-oct-2026): no sale en
+/// ningun menu; lo manda la barra de grabar para que el icono de la bandeja
+/// diga «Grabando…» mientras tanto (la barra sigue aunque PixPin no este
+/// delante).
+const ID_CLASE_EN_MARCHA: u32 = 913;
 
 const _: () = assert!(
     ID_ABRIR_DOCUMENTO >= pixpin_shell::ventana::ID_MENU_GRUPO_TOPE,
@@ -574,6 +584,11 @@ fn arrancar(
     // 6. Idioma, antes de crear nada con texto.
     let lengua = idioma::resolver_idioma(&entorno::locale_del_sistema(), config.idioma);
     let textos = Catalogo::nuevo(lengua);
+    // Y un lector de notas con su pagina ya cargada, para que un Markdown o
+    // un texto (el espacio en el Explorador) salgan al instante (26-oct).
+    if decision.nivel == Nivel::Completo && hechos.ram_fisica_bytes >= 7 * 1024 * 1024 * 1024 {
+        notas_md::preparar_repuesto(lengua, ubicacion.clone(), std::time::Duration::from_secs(8));
+    }
     // El panel de propiedades del lienzo vive en el hilo del editor y no
     // recibe el catalogo: se le dice aqui el idioma elegido, o usaria el de
     // Windows aunque el usuario haya puesto otro en los ajustes.
@@ -805,6 +820,9 @@ fn arrancar(
     // cierre de golpe): se retoma o su burbuja dice que paso. Despues de
     // lanzar el chat, que asi ya consta como naciendo y se lo queda el.
     ventana_chat::sin_ventana::retomar_lo_cortado(lengua, ubicacion.clone(), opciones_lienzo);
+    // Y una clase o reunion que se corto sin guardarse (PixPin murio, se fue
+    // la luz): «Recuperar / Descartar», en su hilo.
+    ventana_chat::recuperar_grabaciones_cortadas(&textos, &ubicacion, lengua, &identidad_equipo);
 
     // 8e. Los recordatorios. Su hilo duerme hasta que vence el proximo y solo
     // da un toque a ESTA ventana: el pin y el globo los saca el bucle de
@@ -942,6 +960,18 @@ fn arrancar(
             tracing::debug!(%programa, "atajo ignorado: el programa esta en la lista");
             return Continuar::Si;
         }
+        // La barra de grabar clase empezo o termino: el titulo del icono.
+        if matches!(evento, Evento::Menu(id) if id == ID_CLASE_EN_MARCHA) {
+            let titulo = if ventana_chat::clase_grabandose() {
+                textos.t("bandeja-grabando")
+            } else if registrados.is_none() {
+                textos.t("bandeja-silenciada")
+            } else {
+                textos.t("app-nombre")
+            };
+            let _ = bandeja.poner_titulo(&titulo);
+            return Continuar::Si;
+        }
         if comando == Some(comandos::Comando::SilenciarAtajos) {
             match registrados.take() {
                 Some(guardia) => {
@@ -1013,8 +1043,29 @@ fn arrancar(
             },
         };
         let seguir = match evento {
+            // Salir a mitad de una grabacion: se pregunta antes. «Si»
+            // termina y guarda (sin pasar a texto) y sale; «No» sigue
+            // grabando (27-oct-2026: la reunion presencial no se puede
+            // perder por un clic en la bandeja).
+            _ if comando == Some(comandos::Comando::Salir)
+                && ventana_chat::clase_grabandose()
+                && !pixpin_shell::dialogo::preguntar_al_frente(
+                    &textos.t("salir-grabando-titulo"),
+                    &textos.t("salir-grabando-mensaje"),
+                ) =>
+            {
+                tracing::info!("salida cancelada: se sigue grabando la clase");
+                Continuar::Si
+            }
             _ if comando == Some(comandos::Comando::Salir) => {
                 tracing::info!("salida pedida por el usuario");
+                // Lo que se estuviera grabando se termina y se guarda.
+                if ventana_chat::clase_grabandose() {
+                    let a_tiempo = ventana_chat::terminar_la_clase_para_salir(
+                        std::time::Duration::from_secs(120),
+                    );
+                    tracing::info!(a_tiempo, "clase terminada para salir");
+                }
                 // El PDF que se estuviera aligerando se deja como estaba.
                 aligerar::cancelar_todo();
                 // Lo que se estuviera escuchando se calla y sus mandos se van.
@@ -2339,7 +2390,7 @@ enum DestinoDeFichero {
 }
 
 fn destino_de_fichero(ruta: &std::path::Path) -> DestinoDeFichero {
-    destino_con(ruta, pin_office::se_abre)
+    destino_con(ruta, pin_office::se_abre, pin_office::se_previsualiza)
 }
 
 /// [`destino_de_fichero`] con la pregunta del pin de Office aparte (si hay
@@ -2351,6 +2402,7 @@ fn destino_de_fichero(ruta: &std::path::Path) -> DestinoDeFichero {
 fn destino_con(
     ruta: &std::path::Path,
     office: impl Fn(&std::path::Path) -> bool,
+    previsualiza: impl Fn(&std::path::Path) -> bool,
 ) -> DestinoDeFichero {
     if notas_md::es_markdown(ruta) {
         DestinoDeFichero::Nota
@@ -2369,6 +2421,17 @@ fn destino_con(
         .is_some_and(|e| e.eq_ignore_ascii_case("pixpin"))
     {
         DestinoDeFichero::Proyecto
+    } else if notas_md::es_texto_para_nota(ruta) {
+        // Un texto, un CSV, un JSON, codigo...: al lector de notas, como un
+        // Markdown (el usuario, 26-oct-2026), no a la ficha del archivo.
+        // Va despues del Lector: un LandXML o unos puntos, al visor 3D.
+        DestinoDeFichero::Nota
+    } else if visor::se_abre(&pixpin_docs::nombre(ruta)) {
+        // Un HTML: al visor de documentos.
+        DestinoDeFichero::Lector
+    } else if previsualiza(ruta) {
+        // Lo demas con previsualizador de Windows: al pin de Office.
+        DestinoDeFichero::Office
     } else {
         DestinoDeFichero::Pin
     }
@@ -2406,11 +2469,15 @@ mod pruebas_abrir_ficheros {
     #[test]
     fn abrir_office_va_al_pin_de_office_si_hay_previsualizador() {
         let con = |r: &str| {
-            destino_con(Path::new(r), |p| {
-                pin_office::va_al_pin(&pixpin_shell::vista_previa::extension_de(p), true, false)
-            })
+            destino_con(
+                Path::new(r),
+                |p| {
+                    pin_office::va_al_pin(&pixpin_shell::vista_previa::extension_de(p), true, false)
+                },
+                |_| false,
+            )
         };
-        let sin = |r: &str| destino_con(Path::new(r), |_| false);
+        let sin = |r: &str| destino_con(Path::new(r), |_| false, |_| false);
         for f in [
             "viejo.xls",
             "g.xlsb",

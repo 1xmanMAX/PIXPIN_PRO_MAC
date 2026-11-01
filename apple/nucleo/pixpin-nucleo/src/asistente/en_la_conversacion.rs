@@ -891,19 +891,14 @@ pub fn ia_turno_en_chat(
             .ok_or_else(|| ErrorNucleo::NoExiste { que: inicio.pregunta_id.clone() })?;
         ia_chat::pregunta_de(m, nucleo.es_chat_del_asistente(&chat)).unwrap_or_default()
     };
-    let con_foto = {
-        let notas = nucleo.notas_de(&chat);
-        let hasta = notas.iter().position(|m| m.id == inicio.pregunta_id).map_or(notas.len(), |i| i + 1);
-        ia_chat::foto_reciente(&notas[..hasta]).is_some()
-    };
-    let motor = super::turno::motor_del_turno(&ajustes, &pregunta, con_foto);
+    let motor = super::turno::motor_del_turno(&ajustes, &pregunta);
     let pensar = pixpin_ia::complejidad::decidir(ajustes.pensar, &pregunta);
-    let preparado = motor.map(|(motor, nombre, nube)| {
+    let preparado = motor.map(|(motor, nombre)| {
         let entorno = Entorno {
             nombre,
-            nube,
+            nube: true,
             pensar,
-            ventana: if nube { VENTANA_NUBE } else { pixpin_ia::servidor::CONTEXTO },
+            ventana: VENTANA_NUBE,
             cada: Duration::from_millis(super::CADA_TANDA_MS),
             guardar_con: Some(motor.clone()),
         };

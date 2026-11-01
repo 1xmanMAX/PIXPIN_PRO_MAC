@@ -73,7 +73,7 @@ public final class AsistenteEnElChat: ObservableObject {
     @Published public private(set) var preguntas: [String: ModeloAsistente.Pregunta] = [:]
     /// Los chats donde esta contestando, con su corte.
     @Published public private(set) var contestando: [String: CorteIa] = [:]
-    /// Un aviso para la barra del chat (sin motor, ocupado...).
+    /// Un aviso para la barra del chat (sin clave, ocupado...).
     @Published public private(set) var aviso: (chat: String, texto: String)?
     /// Sube cuando cambian las recetas (la fila se relee).
     @Published public private(set) var recetasCambiadas = 0
@@ -209,19 +209,18 @@ public final class AsistenteEnElChat: ObservableObject {
         let modelo = self.modelo(almacen)
         let motor: ModeloAsistente.Motor
         if AsistenteEnElChat.turnoDePrueba != nil {
-            motor = .descargado("prueba")
+            motor = .nube("prueba", conClave: true)
         } else {
             motor = await modelo.comprobarMotor()
         }
-        // Sin motor no nace ninguna burbuja: lo dice la barra (Windows).
-        switch motor {
-        case .ninguno:
-            avisar(ModeloAsistente.textoSinMotor, en: chat)
+        // Las ordenes simples («apunta pan») las hace el nucleo sin modelo ni
+        // clave (Windows, `rapido::motor_o_sin`).
+        let orden = iaEsOrdenRapida(pedido: m.texto.replacingOccurrences(of: "@asistente", with: "",
+                                                                          options: .caseInsensitive))
+        // Sin clave no nace ninguna burbuja: lo dice la barra (Windows).
+        if case let .nube(nombre, conClave) = motor, !conClave, !orden {
+            avisar(ModeloAsistente.faltaLaClave(nombre), en: chat)
             return
-        case let .nube(nombre, conClave) where !conClave:
-            avisar("Falta la clave de \(nombre): pégala en Ajustes → Asistente.", en: chat)
-            return
-        default: break
         }
         let pregunta = m.id
         let inicio: InicioIa?
@@ -235,7 +234,7 @@ public final class AsistenteEnElChat: ObservableObject {
         }
         guard let inicio else { return }
         almacen.anadir([inicio.respuesta], en: chat)
-        if case .apple = motor {
+        if case .apple = motor, !orden {
             await conApple(inicio, pregunta: m, chat: chat, almacen: almacen)
             return
         }

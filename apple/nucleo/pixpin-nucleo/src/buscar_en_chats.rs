@@ -279,7 +279,9 @@ impl Indice {
             .map(|a| {
                 let l = self.lugar(self.orden[a.entrada]);
                 let e = &l.entrada;
-                let f = b::fragmento(&e.piezas[a.pieza].texto, aguja, ANTES, LARGO);
+                // Sin pieza (una pestana mirada sin escribir nada): sin trozo.
+                let pieza = a.pieza.and_then(|i| e.piezas.get(i)).map_or("", |p| p.texto.as_str());
+                let f = b::fragmento(pieza, aguja, ANTES, LARGO);
                 let tramos = f
                     .tramos
                     .iter()

@@ -53,6 +53,18 @@ pub struct ClaseParaExportar {
     /// Lo demas que cuelga de la grabacion (un PDF adjunto, una foto que no
     /// es captura).
     pub adjuntos: Vec<PathBuf>,
+    /// Lo importante que hallo Jev en la transcripcion (`importantes`, ver
+    /// `clase`): chapitas en cada renglon y un filtro arriba. Vacio, la
+    /// pagina es la de siempre.
+    pub importantes: Vec<clase::Importante>,
+    /// Los temas de la reunion (`temas`, ver `crate::temas`), en el orden
+    /// de la agenda: lo tratado con su minuto y lo que quedo sin tratar.
+    /// Vacio, la pagina es la de siempre.
+    pub temas: Vec<crate::temas::Tema>,
+    /// Lo que Jev saco mientras se grababa (`crate::acta_viva`): los
+    /// minutos de cada tema, las decisiones y las preguntas sin respuesta.
+    /// Vacio, la pagina es la de siempre.
+    pub acta: crate::acta_viva::Acta,
 }
 
 /// Si un mensaje es una grabacion: una nota de voz.
@@ -195,6 +207,9 @@ impl ClaseParaExportar {
             lineas,
             marcadores,
             adjuntos,
+            importantes: clase::importantes_de(&voz.resto).unwrap_or_default(),
+            temas: crate::temas::temas_de(&voz.resto),
+            acta: crate::acta_viva::de(&voz.resto),
         }
     }
 
@@ -332,6 +347,16 @@ pub struct Rotulos {
     pub cerrar: String,
     pub audio: String,
     pub video: String,
+    /// El filtro de lo importante: «Todo» y cada tipo (tarea, decision,
+    /// pregunta, examen), en el orden de `TipoImportante::TODOS`.
+    pub importante_todo: String,
+    pub importantes: [String; 4],
+    /// «Temas de la reunión» y la chapita de lo que quedo sin tratar.
+    pub temas: String,
+    pub sin_tratar: String,
+    /// «Decisiones» y «Preguntas sin respuesta» (`crate::acta_viva`).
+    pub decisiones: String,
+    pub preguntas_abiertas: String,
 }
 
 impl Default for Rotulos {
@@ -354,8 +379,54 @@ impl Default for Rotulos {
             cerrar: "Cerrar".into(),
             audio: "Audio".into(),
             video: "Vídeo".into(),
+            importante_todo: "Todo".into(),
+            importantes: [
+                "Tarea".into(),
+                "Decisión".into(),
+                "Pregunta".into(),
+                "Examen".into(),
+            ],
+            temas: "Temas de la reunión".into(),
+            sin_tratar: "Sin tratar".into(),
+            decisiones: "Decisiones".into(),
+            preguntas_abiertas: "Preguntas sin respuesta".into(),
         }
     }
+}
+
+impl Rotulos {
+    /// Lo que dice la chapita de un tipo.
+    pub fn importante(&self, t: clase::TipoImportante) -> &str {
+        let i = clase::TipoImportante::TODOS
+            .iter()
+            .position(|x| *x == t)
+            .unwrap_or(0);
+        &self.importantes[i]
+    }
+}
+
+/// Las chapitas de lo importante de un renglon (`ms`), y sus tipos para el
+/// filtro (`data-tipos`). Sin nada, cadenas vacias.
+fn chapitas_de(c: &ClaseParaExportar, r: &Rotulos, ms: i64) -> (String, String) {
+    let tipos = clase::tipos_en(&c.importantes, Some(ms));
+    if tipos.is_empty() {
+        return (String::new(), String::new());
+    }
+    let ids: Vec<&str> = tipos.iter().map(|t| t.id()).collect();
+    let chapas: String = tipos
+        .iter()
+        .map(|t| {
+            format!(
+                "<span class=\"chip {}\">{}</span>",
+                t.id(),
+                escapar(r.importante(*t))
+            )
+        })
+        .collect();
+    (
+        format!(" data-tipos=\"{}\"", ids.join(" ")),
+        format!("<span class=\"chips\">{chapas}</span>"),
+    )
 }
 
 // --- Escapar -------------------------------------------------------------------
@@ -574,6 +645,30 @@ pub fn html(c: &ClaseParaExportar, r: &Rotulos, medio: &dyn Fn(&Path) -> Option<
             escapar(&r.velocidad)
         ));
     }
+    // El filtro de lo importante (Jev): «Todo» y un boton por tipo hallado.
+    if !c.importantes.is_empty() && !c.lineas.is_empty() {
+        h.push_str(&format!(
+            "<div class=\"filtro-importante\" role=\"group\"><button type=\"button\" data-filtro=\"\" class=\"activo\">{}</button>",
+            escapar(&r.importante_todo)
+        ));
+        for t in clase::TipoImportante::TODOS {
+            let n = c
+                .importantes
+                .iter()
+                .filter(|i| i.tipo == t)
+                .map(|i| i.ms)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len();
+            if n > 0 {
+                h.push_str(&format!(
+                    "<button type=\"button\" data-filtro=\"{0}\" class=\"{0}\"><span class=\"punto-chip\" aria-hidden=\"true\"></span>{1} {n}</button>",
+                    t.id(),
+                    escapar(r.importante(t))
+                ));
+            }
+        }
+        h.push_str("</div>\n");
+    }
     if !c.lineas.is_empty() {
         h.push_str(&format!(
             "<div class=\"busqueda\"><input type=\"search\" id=\"buscar\" placeholder=\"{0}\" aria-label=\"{0}\" autocomplete=\"off\">{1}</div>\n",
@@ -590,7 +685,8 @@ pub fn html(c: &ClaseParaExportar, r: &Rotulos, medio: &dyn Fn(&Path) -> Option<
     }
     // Al lado: los marcadores y el indice de las capturas. Sin ellos, el
     // texto a lo ancho (una nota de voz sin mas).
-    let con_lado = !c.marcadores.is_empty() || n_capturas > 0;
+    let con_acta = !c.acta.decisiones.is_empty() || !c.acta.preguntas_abiertas.is_empty();
+    let con_lado = !c.marcadores.is_empty() || n_capturas > 0 || !c.temas.is_empty() || con_acta;
     h.push_str(if con_lado {
         "</section>\n<main class=\"cuerpo con-lado\">\n"
     } else {
@@ -598,6 +694,15 @@ pub fn html(c: &ClaseParaExportar, r: &Rotulos, medio: &dyn Fn(&Path) -> Option<
     });
     if con_lado {
         h.push_str("<aside class=\"lado\">\n");
+        if !c.temas.is_empty() {
+            h.push_str(&temas_html(c, r, con_medio));
+        }
+        for (titulo, dichos) in [
+            (&r.decisiones, &c.acta.decisiones),
+            (&r.preguntas_abiertas, &c.acta.preguntas_abiertas),
+        ] {
+            h.push_str(&dichos_html(titulo, dichos, con_medio));
+        }
         if !c.marcadores.is_empty() {
             h.push_str(&format!(
                 "<section class=\"bloque\"><h2>{}</h2>\n<ol class=\"lista-marcadores\">\n",
@@ -641,11 +746,14 @@ pub fn html(c: &ClaseParaExportar, r: &Rotulos, medio: &dyn Fn(&Path) -> Option<
             Fila::Linea(i) => {
                 let (ms, texto) = &c.lineas[i];
                 match ms {
-                    Some(ms) => h.push_str(&format!(
-                        "<p class=\"linea\" id=\"t-{ms}\" data-ms=\"{ms}\">{}<span class=\"dicho\">{}</span></p>\n",
-                        minuto_html(*ms, con_medio),
-                        texto_con_saltos(texto)
-                    )),
+                    Some(ms) => {
+                        let (tipos, chapas) = chapitas_de(c, r, *ms);
+                        h.push_str(&format!(
+                            "<p class=\"linea\" id=\"t-{ms}\" data-ms=\"{ms}\"{tipos}>{}{chapas}<span class=\"dicho\">{}</span></p>\n",
+                            minuto_html(*ms, con_medio),
+                            texto_con_saltos(texto)
+                        ))
+                    }
                     None => h.push_str(&format!(
                         "<p class=\"linea sin-tiempo\"><span class=\"dicho\">{}</span></p>\n",
                         texto_con_saltos(texto)
@@ -743,6 +851,80 @@ pub fn html(c: &ClaseParaExportar, r: &Rotulos, medio: &dyn Fn(&Path) -> Option<
     h
 }
 
+/// **La agenda con su estado**: cada tema con ✓ y su minuto (que salta
+/// ahi) o, si quedo sin tratar, resaltado con su chapita.
+fn temas_html(c: &ClaseParaExportar, r: &Rotulos, con_medio: bool) -> String {
+    let (hechos, total) = crate::temas::cuenta(&c.temas);
+    let mut h = format!(
+        "<section class=\"bloque\"><h2>{} <span class=\"cuenta\">{hechos}/{total}</span></h2>\n<ol class=\"lista-temas\">\n",
+        escapar(&r.temas)
+    );
+    for t in &c.temas {
+        if t.hecho {
+            let minuto =
+                t.ms.map(|ms| format!(" {}", minuto_html(ms, con_medio)))
+                    .unwrap_or_default();
+            let data =
+                t.ms.map(|ms| format!(" data-ms=\"{ms}\""))
+                    .unwrap_or_default();
+            h.push_str(&format!(
+                "<li class=\"tema hecho\"{data}><span class=\"casilla\" aria-hidden=\"true\">✓</span><span>{}</span>{minuto}{}</li>\n",
+                escapar(&t.texto),
+                tiempo_html(c, &t.id)
+            ));
+        } else {
+            h.push_str(&format!(
+                "<li class=\"tema pendiente\"><span class=\"casilla\" aria-hidden=\"true\"></span><span>{}</span> <span class=\"chip sin-tratar\">{}</span>{}</li>\n",
+                escapar(&t.texto),
+                escapar(&r.sin_tratar),
+                tiempo_html(c, &t.id)
+            ));
+        }
+    }
+    h.push_str("</ol></section>\n");
+    h
+}
+
+/// Lo que llevo un tema («· 6 min»), si se conto y fue algo.
+fn tiempo_html(c: &ClaseParaExportar, id: &str) -> String {
+    match tiempo_de(c, id) {
+        Some(t) => format!(" <span class=\"duracion\">{}</span>", escapar(&t)),
+        None => String::new(),
+    }
+}
+
+fn tiempo_de(c: &ClaseParaExportar, id: &str) -> Option<String> {
+    c.acta
+        .tiempo_por_tema
+        .as_ref()
+        .and_then(|t| t.de(id))
+        .filter(|ms| *ms > 0)
+        .map(crate::acta_viva::duracion_corta)
+}
+
+/// **Las decisiones o las preguntas sin respuesta**, cada una con su minuto
+/// (que salta ahi). Sin nada, nada.
+fn dichos_html(titulo: &str, v: &[crate::acta_viva::Dicho], con_medio: bool) -> String {
+    if v.is_empty() {
+        return String::new();
+    }
+    let mut h = format!(
+        "<section class=\"bloque\"><h2>{} <span class=\"cuenta\">{}</span></h2>\n<ol class=\"lista-marcadores lista-acta\">\n",
+        escapar(titulo),
+        v.len()
+    );
+    for d in v {
+        h.push_str(&format!(
+            "<li data-ms=\"{}\">{} <span>{}</span></li>\n",
+            d.ms,
+            minuto_html(d.ms, con_medio),
+            escapar(d.texto.trim())
+        ));
+    }
+    h.push_str("</ol></section>\n");
+    h
+}
+
 // --- Markdown y texto -----------------------------------------------------------
 
 fn md_escapar(s: &str) -> String {
@@ -817,6 +999,43 @@ pub fn markdown(
     if !medios.is_empty() {
         v.push_str(&medios.join("\n"));
         v.push_str("\n\n");
+    }
+    if !c.temas.is_empty() {
+        let (hechos, total) = crate::temas::cuenta(&c.temas);
+        v.push_str(&format!("## {} ({hechos}/{total})\n\n", r.temas));
+        for t in &c.temas {
+            let minuto =
+                t.ms.filter(|_| t.hecho)
+                    .map(|ms| format!(" · {}", minuto(ms)))
+                    .unwrap_or_default();
+            let marca = if t.hecho { "x" } else { " " };
+            let falta = if t.hecho {
+                String::new()
+            } else {
+                format!(" — *{}*", r.sin_tratar)
+            };
+            let tiempo = tiempo_de(c, &t.id)
+                .map(|t| format!(" ({t})"))
+                .unwrap_or_default();
+            v.push_str(&format!(
+                "- [{marca}] {}{minuto}{tiempo}{falta}\n",
+                md_escapar(&t.texto)
+            ));
+        }
+        v.push('\n');
+    }
+    for (titulo, dichos) in [
+        (&r.decisiones, &c.acta.decisiones),
+        (&r.preguntas_abiertas, &c.acta.preguntas_abiertas),
+    ] {
+        if dichos.is_empty() {
+            continue;
+        }
+        v.push_str(&format!("## {titulo}\n\n"));
+        for d in dichos {
+            v.push_str(&format!("- {} · {}\n", minuto(d.ms), md_escapar(&d.texto)));
+        }
+        v.push('\n');
     }
     if !c.marcadores.is_empty() {
         v.push_str(&format!("## {}\n\n", r.marcadores));

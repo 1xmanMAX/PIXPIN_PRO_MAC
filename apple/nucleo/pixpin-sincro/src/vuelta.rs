@@ -9,10 +9,13 @@
 use std::collections::{BTreeSet, HashMap};
 use std::io::{Read, Write};
 
+use crate::compartidos::CompartidosEnDisco;
+use crate::diferencia::Paso;
 use crate::disco::Disco;
 use crate::mensajes::{Aparato, Chat, LapidaDeChat};
 use crate::mezcla::Mando;
-use crate::protocolo::{Hecho, Resultado, Sesion};
+use crate::prioridad;
+use crate::protocolo::{Hecho, Preparado, PreparadoArchivos, Resultado, Sesion};
 
 /// Un chat en la lista de elegir: donde esta y cuando se toco en cada lado.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -411,7 +414,6 @@ fn con_alcance<D: Disco + ?Sized, F: Read + Write>(
     let mios: HashMap<String, Chat> = lista_mia.into_iter().map(|c| (c.id.clone(), c)).collect();
     let catalogo = s.catalogo()?;
     let suyos: HashMap<String, Chat> = catalogo.iter().map(|c| (c.id.clone(), c.clone())).collect();
-    let antes = disco.elegidos(&otro.id);
     let sus_lapidas = s.lapidas()?;
     let plan = plan_de_borrados(&disco.lapidas(), &sus_lapidas, &mios, &suyos, s.desfase);
     let mut ids: Vec<String> = Vec::new();
@@ -420,6 +422,10 @@ fn con_alcance<D: Disco + ?Sized, F: Read + Write>(
             ids.push(id.clone());
         }
     }
+    // Lo elegido la ultima vez y lo que ha nacido despues (26-oct-2026,
+    // como `SincronizarActivity` de Android): un chat creado tras elegir ya
+    // no se queda fuera para siempre. Ver [Disco::elegidos_ahora].
+    let antes = disco.elegidos_ahora(&otro.id, &ids);
     let filas: Vec<Fila> = ids
         .iter()
         .map(|id| {
@@ -467,7 +473,8 @@ fn con_alcance<D: Disco + ?Sized, F: Read + Write>(
                     // Lo mio manda es cosa de una vez: lo marcado entonces
                     // no se recuerda como lo de siempre.
                     if !puesto.lo_mio_manda {
-                        disco.guardar_elegidos(&otro.id, &puesto.elegidos)?;
+                        let ofrecidos: BTreeSet<String> = ids.iter().cloned().collect();
+                        disco.guardar_elegidos_de(&otro.id, &puesto.elegidos, &ofrecidos)?;
                     }
                     (puesto.elegidos, puesto.lo_mio_manda, true)
                 }
@@ -504,43 +511,118 @@ fn con_alcance<D: Disco + ?Sized, F: Read + Write>(
     };
 
     let empezo = std::time::Instant::now();
-    for chat in ids
+    // Los chats compartidos con otras personas (no otro aparato mio): van
+    // detras de los de tareas. Con una persona, todos lo son.
+    let compartidos: BTreeSet<String> = if s.acceso().is_some() {
+        ids.iter().cloned().collect()
+    } else {
+        CompartidosEnDisco::nuevo(&disco.raiz())
+            .leer()
+            .into_iter()
+            .filter(|c| crate::compartidos::nombres_dentro(c).len() > 1)
+            .map(|c| c.chat)
+            .collect()
+    };
+    let van: Vec<String> = ids
         .iter()
         .filter(|c| elegidos.contains(*c) && !decision.fuera.contains(*c))
         .filter(|c| solo.is_none_or(|x| x.contains(*c)))
-    {
-        let nombre = filas
+        .cloned()
+        .collect();
+    // **Por prioridad** (27-oct-2026, `Prioridad.ordenarChats` de Android):
+    // los chats con listas de tareas, los compartidos y luego del mas ligero
+    // (menos mensajes) al mas pesado.
+    let con_tareas = disco.chats_con_tareas();
+    let peso = |c: &str| {
+        mios.get(c)
+            .or(suyos.get(c))
+            .map_or(0, |x| i64::from(x.mensajes))
+    };
+    let orden = prioridad::ordenar_chats(&van, &con_tareas, &compartidos, peso);
+    let nombre_de_fila = |chat: &str| {
+        filas
             .iter()
-            .find(|f| f.id == *chat)
+            .find(|f| f.id == chat)
             .map(|f| f.nombre.clone())
-            .unwrap_or_default();
+            .unwrap_or_default()
+    };
+    // 1. **Los mensajes de todos los chats** (con ellos, las tareas: son
+    // mensajes). Lo que sigue como quedo en los dos lados ni se mira (el
+    // diario: `Sesion::preparar`).
+    let mut preps: Vec<(Preparado, String)> = Vec::new();
+    for chat in &orden {
+        let nombre = nombre_de_fila(chat);
         progreso(Trabajo::solo(format!(
             "{rotulo}Comparando «{nombre}» con {}…",
             otro.nombre
         )));
         let prep = s.preparar(chat)?;
-        progreso(Trabajo::solo(format!("{rotulo}Juntando «{nombre}»…")));
+        if !prep.quieto {
+            progreso(Trabajo::solo(format!("{rotulo}Juntando «{nombre}»…")));
+        }
         s.aplicar(&prep, hecho)?;
+        preps.push((prep, nombre));
+    }
+    // Cada chat sin archivos que mover se cierra ya; los demas tambien, con
+    // lo que queda igual: si la vuelta se corta despues en un video, lo
+    // acordado de los mensajes no se pierde y la vuelta siguiente no tiene
+    // que adivinar lo borrado.
+    let mut pendientes: Vec<(Preparado, PreparadoArchivos, String)> = Vec::new();
+    for (prep, nombre) in preps.into_iter().filter(|(p, _)| !p.quieto) {
         let archivos = s.preparar_archivos(&prep)?;
-        let total = archivos.bytes();
+        progreso(Trabajo::solo(format!("{rotulo}Terminando «{nombre}»…")));
+        s.cerrar(&prep, ahora())?;
+        if !archivos.pasos.is_empty() {
+            pendientes.push((prep, archivos, nombre));
+        }
+    }
+    // 2. **Los archivos de todos, por prioridad** (`Prioridad.ordenar`): lo
+    // de las listas de tareas, lo de los chats compartidos, documentos,
+    // lienzos y notas, y al final video y audio; por grupos (una clase
+    // grabada va junta, con lo que pesa entera) y dentro, lo mas ligero
+    // primero. El orden no cambia lo que queda, solo lo que ya esta si la
+    // vuelta se corta.
+    if !pendientes.is_empty() {
+        let mut todos: Vec<(usize, &Paso)> = Vec::new();
+        for (i, (_, a, _)) in pendientes.iter().enumerate() {
+            for p in &a.pasos {
+                todos.push((i, p));
+            }
+        }
+        let orden = prioridad::ordenar(todos, |(i, p)| {
+            let a = &pendientes[*i].1;
+            a.pieza(p, compartidos.contains(&a.chat))
+        });
+        let total: u64 = pendientes.iter().map(|(_, a, _)| a.bytes()).sum();
         let mut hechos = 0u64;
         let t0 = std::time::Instant::now();
         let mut ultimo = std::time::Instant::now() - std::time::Duration::from_secs(1);
-        s.aplicar_archivos(&archivos, hecho, &mut |n| {
-            hechos += n;
-            if ultimo.elapsed().as_millis() > 150 {
-                ultimo = std::time::Instant::now();
-                let seg = t0.elapsed().as_secs_f64().max(0.001);
-                progreso(Trabajo {
-                    texto: format!("{rotulo}Pasando archivos de «{nombre}»"),
-                    hechos,
-                    total,
-                    velocidad: format!("{}/s", tamano_legible((hechos as f64 / seg) as i64)),
-                });
-            }
-        })?;
-        progreso(Trabajo::solo(format!("{rotulo}Terminando «{nombre}»…")));
-        s.cerrar(&prep, ahora())?;
+        for (i, paso) in orden {
+            let (_, archivos, nombre) = &pendientes[i];
+            s.aplicar_pasos(archivos, &[paso], hecho, &mut |n| {
+                hechos += n;
+                if ultimo.elapsed().as_millis() > 150 {
+                    ultimo = std::time::Instant::now();
+                    let seg = t0.elapsed().as_secs_f64().max(0.001);
+                    progreso(Trabajo {
+                        texto: format!("{rotulo}Pasando archivos de «{nombre}»"),
+                        hechos,
+                        total,
+                        velocidad: format!("{}/s", tamano_legible((hechos as f64 / seg) as i64)),
+                    });
+                }
+            })?;
+        }
+        // 3. Y otra vez cada chat, ya con sus archivos.
+        for (prep, _, nombre) in &pendientes {
+            progreso(Trabajo::solo(format!("{rotulo}Terminando «{nombre}»…")));
+            s.cerrar(prep, ahora())?;
+        }
+    }
+    // **Se cuenta la vuelta** para la verificacion entera del diario: las
+    // recortadas de tareas no cuentan.
+    if solo.is_none() {
+        s.contar_vuelta();
     }
     // **La galeria de capturas**, con sus fechas de irse (Android v0.107.0).
     // Si el otro no sabe de galerias, no pasa nada.
@@ -583,6 +665,12 @@ fn con_alcance<D: Disco + ?Sized, F: Read + Write>(
         avisos.push(format!(
             "No se pasó {} porque se estaba guardando en ese momento. Vuelve a sincronizar.",
             lista.join(", ")
+        ));
+    }
+    if hecho.sin_espacio {
+        avisos.push(format!(
+            "No queda espacio en este aparato: algo de {} no se pudo recibir.",
+            otro.nombre
         ));
     }
     if let Some(a) = aviso_del_reloj(&otro, s.desfase) {
