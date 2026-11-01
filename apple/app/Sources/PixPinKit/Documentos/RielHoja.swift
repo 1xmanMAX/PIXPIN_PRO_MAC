@@ -51,7 +51,10 @@ final class RielHoja {
         let isla = NSHostingView(rootView: VStack(alignment: .trailing, spacing: 10) {
             IslaRiel(modelo: modelo, marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
                      lapiz: url == nil ? nil : { [weak self] in self?.alternarLapiz() },
-                     imprimir: { [weak self] in self?.alternarMarcos() })
+                     imprimir: { [weak self] in self?.alternarMarcos() },
+                     menuMarco: ImprimirDelMarco.menu(marcos, cuantos: { $0.lista.count }, entero: ImprimirDelMarco.enteroHoja,
+                                                      marcos: { [weak self] in self?.imprimirMarcos() },
+                                                      todo: { [weak self] in self?.imprimirEntera() }))
             PuntosDeMarcas(modelo: modelo) { [weak self] m in self?.ir(a: m) }
         }.fixedSize())
         let tira = NSHostingView(rootView: TiraMarcas(modelo: modelo) { [weak self] e in self?.ponerMarca(e) }.fixedSize())
@@ -65,6 +68,7 @@ final class RielHoja {
             tira.centerXAnchor.constraint(equalTo: raiz.centerXAnchor),
             tira.bottomAnchor.constraint(equalTo: raiz.bottomAnchor, constant: -40),
         ])
+        raiz.taparDerecho(bajo: isla)
         tinta.montar(en: raiz, modelo: modelo)
         raiz.ponerFichasDeMarcos(marcos) { [weak self] i in self?.irAMarco(i) }
         leerMarcas()
@@ -112,6 +116,25 @@ final class RielHoja {
         modelo.enmarcando = marcos.activo
         capaMarcos.needsDisplay = true
         capaMarcos.window?.invalidateCursorRects(for: capaMarcos)
+    }
+
+    /// Los marcos de la hoja abierta en grupo, una hoja de papel por marco.
+    func imprimirMarcos() {
+        guard !marcos.lista.isEmpty else { return }
+        capaMarcos.imprimir(ventana: capaMarcos.window)
+    }
+
+    /// **La hoja entera** (el menu del boton del marco; Windows
+    /// `visor_hoja`): lo usado de la hoja abierta, con su tinta, en trozos de
+    /// papel tumbado.
+    func imprimirEntera() {
+        guard let rejilla = capaMarcos.documento,
+              let info = NSPrintInfo.shared.copy() as? NSPrintInfo else { return }
+        info.orientation = .landscape
+        info.horizontalPagination = .automatic
+        info.verticalPagination = .automatic
+        let op = NSPrintOperation(view: rejilla, printInfo: info)
+        if let w = rejilla.window { op.runModal(for: w, delegate: nil, didRun: nil, contextInfo: nil) } else { op.run() }
     }
 
     /// La ficha de un marco: a su hoja y a el.

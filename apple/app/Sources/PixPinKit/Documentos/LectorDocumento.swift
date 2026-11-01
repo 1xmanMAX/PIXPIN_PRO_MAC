@@ -189,6 +189,18 @@ final class VistaPDFLector: PDFView {
         }
         return super.hitTest(point)
     }
+
+    /// **El clic derecho en el documento**: sin el menu de PDFKit («Una
+    /// página continua», «Dos páginas», «Tamaño real», «Ampliar»…), que
+    /// Windows no tiene; con texto elegido, solo «Copiar».
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard let texto = currentSelection?.string, !texto.isEmpty else { return nil }
+        let menu = NSMenu()
+        let copiar = NSMenuItem(title: "Copiar", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        copiar.target = self
+        menu.addItem(copiar)
+        return menu
+    }
 }
 
 /// **La capa de la tinta**, dentro de la vista del documento de PDFKit.
@@ -375,13 +387,17 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
             lapiz: { [weak self] in self?.alternarEditar() },
-            imprimir: { [weak self] in self?.alternarMarcos() }))
+            imprimir: { [weak self] in self?.alternarMarcos() },
+            menuMarco: ImprimirDelMarco.menu(marcos, cuantos: { $0.lista.count }, entero: ImprimirDelMarco.entero(de: url),
+                                             marcos: { [weak self] in self?.imprimirMarcos() },
+                                             todo: { [weak self] in self?.imprimirEntero() })))
         isla.translatesAutoresizingMaskIntoConstraints = false
         contenedor.addSubview(isla)
         NSLayoutConstraint.activate([
             isla.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor, constant: -16),
             isla.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
         ])
+        contenedor.taparDerecho(bajo: isla)
         riel.ir = { [weak self] m in self?.ir(a: m) }
         // El riel sigue a los marcadores, los ponga quien los ponga.
         modelo.$marcas.sink { [weak riel] m in riel?.marcas = m }.store(in: &suscripciones)
@@ -1379,16 +1395,35 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     func imprimir() {
-        guard let doc = vistaPDF.document else { return }
         // Con marcos, se imprimen ellos en grupo (una hoja por marco).
-        if !marcos.lista.isEmpty {
-            // Con la tinta encima, como en Windows (lo anotado sale impreso).
-            var fuente = doc
-            if !conTinta.isEmpty || !editores.isEmpty, let u = pdfConTinta(), let d = PDFDocument(url: u) { fuente = d }
-            CapaMarcosPDF.imprimir(marcos, documento: fuente, ventana: ventana)
+        if !marcos.lista.isEmpty { imprimirMarcos() } else { imprimirEntero() }
+    }
+
+    /// Los marcos en grupo, una hoja por marco, con la tinta encima como en
+    /// Windows (lo anotado sale impreso).
+    func imprimirMarcos() {
+        guard !marcos.lista.isEmpty, let doc = vistaPDF.document else { return }
+        CapaMarcosPDF.imprimir(marcos, documento: conSuTinta(doc), ventana: ventana)
+    }
+
+    /// **El documento entero** (el menu del boton del marco y ⌘P sin
+    /// marcos; Windows `lector_pdf/entero.rs`): todas las hojas, con lo
+    /// anotado encima.
+    func imprimirEntero() {
+        guard let doc = vistaPDF.document else { return }
+        let fuente = conSuTinta(doc)
+        if fuente === doc {
+            vistaPDF.print(with: NSPrintInfo.shared, autoRotate: true, pageScaling: .pageScaleToFit)
             return
         }
-        vistaPDF.print(with: NSPrintInfo.shared, autoRotate: true, pageScaling: .pageScaleToFit)
+        guard let op = fuente.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true) else { return }
+        op.runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil)
+    }
+
+    /// El documento con su tinta quemada si la tiene; si no, el mismo.
+    private func conSuTinta(_ doc: PDFDocument) -> PDFDocument {
+        guard !conTinta.isEmpty || !editores.isEmpty, let u = pdfConTinta(), let d = PDFDocument(url: u) else { return doc }
+        return d
     }
 
     /// ⇧⌘S: compartir el documento con la hoja comun (D1: el original, su

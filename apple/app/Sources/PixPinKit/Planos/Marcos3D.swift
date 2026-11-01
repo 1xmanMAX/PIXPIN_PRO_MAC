@@ -144,6 +144,21 @@ struct CapaMarcos3D: View {
 }
 
 extension VisorModelo3D {
+    /// **«Imprimir la vista del modelo»** (el clic derecho en el boton del
+    /// marco; Windows: la vista de ahora entera, sin la interfaz): lo que se
+    /// ve, en una hoja.
+    func imprimirVista3D() {
+        guard let v = vista else { return NSSound.beep() }
+        v.foto { img in
+            guard let img,
+                  let p = PDFPage(image: NSImage(cgImage: img, size: NSSize(width: img.width, height: img.height))) else { return }
+            let salida = PDFDocument()
+            salida.insert(p, at: 0)
+            guard let op = salida.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true) else { return }
+            if let w = v.window { op.runModal(for: w, delegate: nil, didRun: nil, contextInfo: nil) } else { op.run() }
+        }
+    }
+
     /// **Imprimir los marcos**: cada uno con su vista, fotografiado y
     /// recortado a su recuadro; una hoja por marco.
     func imprimirMarcos3D() {

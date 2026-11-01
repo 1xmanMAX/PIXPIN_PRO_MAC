@@ -12,6 +12,10 @@ struct IslaRiel: View {
     /// Sin el (un visor sin tinta todavia), no sale el lapiz.
     var lapiz: (() -> Void)?
     let imprimir: () -> Void
+    /// El clic derecho en el boton del marco (`ImprimirDelMarco.menu`):
+    /// imprimir los marcos o el documento entero, como Windows. Sin el, el
+    /// boton no tiene menu.
+    var menuMarco: AnyView? = nil
 
     /// Lo que ocupa a lo alto (para poner los puntos debajo).
     /// Tres botones de 28, dos huecos de 2 y el margen de 3 arriba y abajo
@@ -25,12 +29,23 @@ struct IslaRiel: View {
                           encendido: modelo.anotando, accion: lapiz)
             }
             BotonRiel(simbolo: "bookmark", ayuda: "Poner un marcador (⌘M)", encendido: modelo.poniendoMarca, accion: marcar)
-            BotonRiel(simbolo: "printer", ayuda: "Marcos para imprimir (I) · ⌘P los imprime", encendido: modelo.enmarcando, accion: imprimir)
+            botonMarco
         }
         .padding(3)
         .background(RoundedRectangle(cornerRadius: 7).fill(Color(nsColor: .windowBackgroundColor)))
         .shadow(color: .black.opacity(0.16), radius: 6, y: 2)
         .fixedSize()
+    }
+
+    /// El del marco, con su menu del clic derecho si lo tiene.
+    @ViewBuilder private var botonMarco: some View {
+        let marco = BotonRiel(simbolo: "printer", ayuda: "Marcos para imprimir (I) · ⌘P los imprime",
+                              encendido: modelo.enmarcando, accion: imprimir)
+        if let menuMarco {
+            marco.contextMenu { menuMarco }
+        } else {
+            marco
+        }
     }
 }
 
@@ -58,6 +73,95 @@ struct BotonRiel: View {
     }
 }
 
+/// **El menu del boton del marco** (Windows, 27-oct-2026,
+/// `marcos_doc::menu_de_imprimir`): «Imprimir los marcos (N)», en gris y
+/// con la pista si aun no hay ninguno, e «Imprimir el … entero» con el
+/// nombre de lo que es. Los textos son los del catalogo (`marcos-menu-*`).
+@MainActor
+enum ImprimirDelMarco {
+    static let sinMarcos = "Imprimir los marcos (aún no hay: pulsa el marco y arrastra)"
+    static func losMarcos(_ n: Int) -> String { "Imprimir los marcos (\(n))" }
+    static let enteroHoja = "Imprimir la hoja entera"
+    static let enteroPlano = "Imprimir el plano entero"
+    static let enteroModelo = "Imprimir la vista del modelo"
+
+    /// «El … entero» de un fichero por su extension (`Entero::de_fichero`):
+    /// lo que no se reconoce es «el documento».
+    static func entero(de url: URL?) -> String {
+        switch url?.pathExtension.lowercased() ?? "" {
+        case "pdf": return "Imprimir el PDF entero"
+        case "doc", "docx", "docm", "dot", "dotx", "rtf", "odt": return "Imprimir el Word entero"
+        case "ppt", "pptx", "pptm", "pps", "ppsx", "odp": return "Imprimir el PowerPoint entero"
+        case "xls", "xlsx", "xlsm", "xlsb", "ods", "csv", "tsv": return enteroHoja
+        case "html", "htm", "xhtml", "mht", "mhtml": return "Imprimir la página entera"
+        default: return "Imprimir el documento entero"
+        }
+    }
+
+    /// Las dos entradas, para `IslaRiel.menuMarco`: `cuantos` lee los
+    /// marcos de `fuente` (y el menu cambia con ella).
+    static func menu<Fuente: ObservableObject>(_ fuente: Fuente, cuantos: @escaping (Fuente) -> Int, entero: String,
+                                               marcos: @escaping () -> Void, todo: @escaping () -> Void) -> AnyView {
+        AnyView(MenuDelMarco(fuente: fuente, cuantos: cuantos, entero: entero, marcos: marcos, todo: todo))
+    }
+}
+
+/// Las entradas del menu del boton del marco (ver `ImprimirDelMarco`).
+struct MenuDelMarco<Fuente: ObservableObject>: View {
+    @ObservedObject var fuente: Fuente
+    let cuantos: (Fuente) -> Int
+    let entero: String
+    let marcos: () -> Void
+    let todo: () -> Void
+
+    @ViewBuilder var body: some View {
+        let n = cuantos(fuente)
+        Button(n == 0 ? ImprimirDelMarco.sinMarcos : ImprimirDelMarco.losMarcos(n), action: marcos)
+            .disabled(n == 0)
+        Button(entero, action: todo)
+    }
+}
+
+/// **Debajo de una isla de SwiftUI montada sobre un documento**: el clic
+/// derecho que SwiftUI deja pasar (en un boton sin menu, el lapiz o el
+/// marcador) se queda aqui y no llega al documento de debajo, que sacaba
+/// su menu (el de PDFKit: «Una página continua», «Tamaño real»…). En
+/// Windows esos botones no hacen nada con el derecho. El resto de clics
+/// pasan.
+final class TapaDerecho: NSView {
+    /// La isla de encima: el derecho se le ofrece a ella (su menu del
+    /// boton del marco), y si no lo quiere, se acaba aqui.
+    weak var isla: NSView?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let t = NSApp.currentEvent?.type, t == .rightMouseDown || t == .rightMouseUp || t == .rightMouseDragged
+        else { return nil }
+        return super.hitTest(point)
+    }
+
+    override func rightMouseDown(with event: NSEvent) { isla?.rightMouseDown(with: event) }
+    override func rightMouseUp(with event: NSEvent) {}
+    override func rightMouseDragged(with event: NSEvent) {}
+    override func menu(for event: NSEvent) -> NSMenu? { nil }
+}
+
+extension NSView {
+    /// Pone una `TapaDerecho` justo debajo de `isla` (que ya esta en esta
+    /// vista), del mismo tamano.
+    func taparDerecho(bajo isla: NSView) {
+        let t = TapaDerecho()
+        t.isla = isla
+        t.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(t, positioned: .below, relativeTo: isla)
+        NSLayoutConstraint.activate([
+            t.leadingAnchor.constraint(equalTo: isla.leadingAnchor),
+            t.trailingAnchor.constraint(equalTo: isla.trailingAnchor),
+            t.topAnchor.constraint(equalTo: isla.topAnchor),
+            t.bottomAnchor.constraint(equalTo: isla.bottomAnchor),
+        ])
+    }
+}
+
 /// **El riel montado sobre una vista** (los visores web): la isla, los
 /// puntos de los marcadores y la tira de emoticonos para poner uno.
 @MainActor
@@ -69,10 +173,10 @@ final class RielSobreVista {
     var alCambiar: (([MarcaDocumento]) -> Void)?
     private var suscripcion: Any?
 
-    func montar(en contenedor: NSView, lapiz: (() -> Void)? = nil, imprimir: @escaping () -> Void) {
+    func montar(en contenedor: NSView, lapiz: (() -> Void)? = nil, menuMarco: AnyView? = nil, imprimir: @escaping () -> Void) {
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
-            lapiz: lapiz, imprimir: imprimir))
+            lapiz: lapiz, imprimir: imprimir, menuMarco: menuMarco))
         let tira = NSHostingView(rootView: TiraMarcas(modelo: modelo) { [weak self] e in self?.poner(e) }.fixedSize())
         puntos.paginas = 1
         puntos.rotulo = { m in "\(m.emoji)  \(Int((m.y * 100).rounded())) %" }
@@ -92,6 +196,7 @@ final class RielSobreVista {
             tira.centerXAnchor.constraint(equalTo: contenedor.centerXAnchor),
             tira.bottomAnchor.constraint(equalTo: contenedor.bottomAnchor, constant: -22),
         ])
+        contenedor.taparDerecho(bajo: isla)
         suscripcion = modelo.$marcas.sink { [weak self] m in self?.puntos.marcas = m }
     }
 
@@ -199,11 +304,13 @@ struct RielDeVistas: View {
     let marcar: () -> Void
     let marco: () -> Void
     let ir: (MarcadorDeVista) -> Void
+    /// El clic derecho en el boton del marco (ver `IslaRiel.menuMarco`).
+    var menuMarco: AnyView? = nil
     @State private var encima: String?
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 10) {
-            IslaRiel(modelo: modelo, marcar: marcar, lapiz: lapiz, imprimir: marco)
+            IslaRiel(modelo: modelo, marcar: marcar, lapiz: lapiz, imprimir: marco, menuMarco: menuMarco)
             ForEach(Array(marcadores.lista.enumerated()), id: \.element.id) { i, m in
                 Button { ir(m) } label: {
                     Text("\(i + 1)")

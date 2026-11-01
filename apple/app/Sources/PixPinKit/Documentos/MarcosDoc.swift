@@ -239,7 +239,8 @@ final class CapaMarcosVista: NSView {
     override func resetCursorRects() { if marcos?.activo == true { addCursorRect(visibleRect, cursor: .crosshair) } }
 
     override func draw(_ sucio: NSRect) {
-        guard let m = marcos else { return }
+        // Al imprimir el documento entero (o sacar su PDF), sin las rayas.
+        guard let m = marcos, NSGraphicsContext.currentContextDrawingToScreen() else { return }
         for (i, marco) in m.lista.enumerated() where Int(marco.parte) == parte && marco.rect.intersects(sucio) {
             let r = marco.rect
             CapaMarcosPDF.azul.setStroke()

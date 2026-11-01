@@ -891,7 +891,11 @@ struct RielModelo: View {
         VStack(alignment: .trailing, spacing: 8) {
             IslaRiel(modelo: visor.riel, marcar: { visor.ponerMarcador() },
                      lapiz: visor.nucleoDeMarcadores == nil ? nil : { visor.alternarAnotar() },
-                     imprimir: { visor.alternarMarcos3D() })
+                     imprimir: { visor.alternarMarcos3D() },
+                     menuMarco: ImprimirDelMarco.menu(visor.marcos3d, cuantos: { $0.lista.count },
+                                                      entero: ImprimirDelMarco.enteroModelo,
+                                                      marcos: { visor.imprimirMarcos3D() },
+                                                      todo: { visor.imprimirVista3D() }))
             ForEach(Array(marcadores.del3d.enumerated()), id: \.element.id) { i, m in
                 Button { visor.irAMarcador(i) } label: {
                     Text("\(i + 1)").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)

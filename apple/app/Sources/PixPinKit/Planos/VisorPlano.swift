@@ -299,10 +299,26 @@ public final class VisorPlano: ObservableObject {
                            tinta: tinta, encaje: encaje)
     }
 
+    /// ⌘P: con marcos, ellos (una lamina por marco); sin ellos, el plano
+    /// entero (Windows).
     public func imprimir() {
+        if anotado.marcos.isEmpty { imprimirEntero() } else { imprimirMarcos() }
+    }
+
+    /// «Imprimir los marcos (N)» del boton del marco y ⌘P con marcos.
+    func imprimirMarcos() {
+        guard let d = datos, let v = vista, !anotado.marcos.isEmpty else { return }
+        if anotador != nil { terminarDeAnotar() }
+        ImpresionPlano.imprimir(d, visibles: visibles, regiones: anotado.marcos,
+                                titulo: titulo, encima: encimaParaPapel(), ventana: v.window)
+    }
+
+    /// «Imprimir el plano entero» del boton del marco y ⌘P sin marcos: el
+    /// plano entero en una lamina.
+    func imprimirEntero() {
         guard let d = datos, let v = vista else { return }
         if anotador != nil { terminarDeAnotar() }
-        ImpresionPlano.imprimir(d, visibles: visibles, region: anotado.marcos.last ?? v.cajaVisible(),
+        ImpresionPlano.imprimir(d, visibles: visibles, region: d.resumen.cajaUtil,
                                 titulo: titulo, encima: encimaParaPapel(), ventana: v.window)
     }
 
@@ -1095,7 +1111,11 @@ public struct VentanaPlanoView: View {
                         RielDeVistas(modelo: visor.riel, marcadores: visor.marcadores,
                                      lapiz: { visor.alternarAnotar() }, marcar: { visor.ponerMarcador() },
                                      marco: { visor.alternarMarcos() },
-                                     ir: { visor.ir(a: $0) })
+                                     ir: { visor.ir(a: $0) },
+                                     menuMarco: ImprimirDelMarco.menu(visor, cuantos: { $0.anotado.marcos.count },
+                                                                      entero: ImprimirDelMarco.enteroPlano,
+                                                                      marcos: { visor.imprimirMarcos() },
+                                                                      todo: { visor.imprimirEntero() }))
                     }
 
                     // Las fichas 1, 2, 3… de los marcos, abajo a la izquierda.

@@ -533,13 +533,17 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         let isla = NSHostingView(rootView: IslaRiel(modelo: modelo,
             marcar: { [weak self] in self?.modelo.poniendoMarca.toggle() },
             lapiz: { [weak self] in self?.alternarEditar() },
-            imprimir: { [weak self] in self?.alternarMarcos() }))
+            imprimir: { [weak self] in self?.alternarMarcos() },
+            menuMarco: ImprimirDelMarco.menu(marcos, cuantos: { $0.lista.count }, entero: ImprimirDelMarco.entero(de: url),
+                                             marcos: { [weak self] in self?.imprimirMarcos() },
+                                             todo: { [weak self] in self?.imprimirEntero() })))
         isla.translatesAutoresizingMaskIntoConstraints = false
         contenedor.addSubview(isla)
         NSLayoutConstraint.activate([
             isla.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor, constant: -16),
             isla.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
         ])
+        contenedor.taparDerecho(bajo: isla)
         NSLayoutConstraint.activate([
             desplazar.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
             desplazar.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
@@ -1658,8 +1662,19 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     }
 
     func imprimir() {
+        if !marcos.lista.isEmpty { imprimirMarcos() } else { imprimirEntero() }
+    }
+
+    /// Los marcos en grupo (los de la parte que se ve), una hoja por marco.
+    func imprimirMarcos() {
+        guard maqueta != nil, !marcos.lista.isEmpty else { return }
+        capaMarcos.imprimir(ventana: ventana)
+    }
+
+    /// **El documento entero** (el menu del boton del marco y ⌘P sin
+    /// marcos): el texto como se ve, en las hojas que toquen.
+    func imprimirEntero() {
         guard maqueta != nil else { return }
-        if !marcos.lista.isEmpty { capaMarcos.imprimir(ventana: ventana); return }
         let info = NSPrintInfo.shared
         info.horizontalPagination = .fit
         info.verticalPagination = .automatic

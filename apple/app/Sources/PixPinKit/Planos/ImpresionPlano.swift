@@ -12,6 +12,7 @@
 import AppKit
 import CoreText
 import Metal
+import PDFKit
 import PixPinCore
 
 @MainActor
@@ -39,6 +40,37 @@ enum ImpresionPlano {
         } else {
             op.run()
         }
+    }
+}
+
+@MainActor
+extension ImpresionPlano {
+    /// **Los marcos, una lamina por marco** (Windows: Ctrl+P con marcos):
+    /// cada uno en su hoja, tumbada si es mas ancho que alto, todas juntas
+    /// en el dialogo de imprimir.
+    static func imprimir(_ d: PlanoEnTarjeta, visibles: Set<UInt32>, regiones: [CajaPlano], titulo: String,
+                         encima: EncimaPapel? = nil, ventana: NSWindow?) {
+        let buenas = regiones.filter { $0.x1 > $0.x0 && $0.y1 > $0.y0 }
+        if buenas.count == 1 {
+            return imprimir(d, visibles: visibles, region: buenas[0], titulo: titulo, encima: encima, ventana: ventana)
+        }
+        let papel = NSPrintInfo.shared.paperSize
+        let corto = max(min(papel.width, papel.height), 100), largo = max(papel.width, papel.height, 100)
+        let salida = PDFDocument()
+        for r in buenas {
+            let tumbada = (r.x1 - r.x0) >= (r.y1 - r.y0)
+            let tam = tumbada ? NSSize(width: largo - 72, height: corto - 72) : NSSize(width: corto - 72, height: largo - 72)
+            let vista = VistaImpresionPlano(frame: NSRect(origin: .zero, size: tam), datos: d, visibles: visibles, region: r)
+            vista.encima = encima
+            if let p = PDFDocument(data: vista.dataWithPDF(inside: vista.bounds))?.page(at: 0) {
+                salida.insert(p, at: salida.pageCount)
+            }
+        }
+        guard salida.pageCount > 0,
+              let op = salida.printOperation(for: NSPrintInfo.shared, scalingMode: .pageScaleToFit, autoRotate: true)
+        else { return }
+        op.jobTitle = titulo
+        if let ventana { op.runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil) } else { op.run() }
     }
 }
 

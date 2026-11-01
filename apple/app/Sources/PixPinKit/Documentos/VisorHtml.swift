@@ -291,7 +291,11 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
 
     private func montarRiel(en contenedor: NSView, nucleo: Nucleo?) {
         nucleoTinta = nucleo
-        riel.montar(en: contenedor, lapiz: nucleo == nil ? nil : { [weak self] in self?.alternarLapiz() }) { [weak self] in self?.alternarMarcos() }
+        let menuMarco = ImprimirDelMarco.menu(marcos, cuantos: { $0.lista.count }, entero: ImprimirDelMarco.entero(de: url),
+                                              marcos: { [weak self] in self?.imprimirMarcos() },
+                                              todo: { [weak self] in self?.imprimirEntera() })
+        riel.montar(en: contenedor, lapiz: nucleo == nil ? nil : { [weak self] in self?.alternarLapiz() },
+                    menuMarco: menuMarco) { [weak self] in self?.alternarMarcos() }
         capa.marcos = marcos
         contenedor.ponerFichasDeMarcos(marcos) { [weak self] i in
             guard let self, i < self.marcos.lista.count else { return }
@@ -331,6 +335,12 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     /// El boton de imprimir del riel: la pagina como se ve.
     func imprimir() {
         if !marcos.lista.isEmpty { imprimirMarcos(); return }
+        imprimirEntera()
+    }
+
+    /// **La pagina entera** (el menu del boton del marco y ⌘P sin marcos):
+    /// el imprimir de la pagina, como Windows (`window.print()`).
+    func imprimirEntera() {
         let op = web.printOperation(with: NSPrintInfo.shared)
         op.view?.frame = web.bounds
         op.runModal(for: ventana, delegate: nil, didRun: nil, contextInfo: nil)
