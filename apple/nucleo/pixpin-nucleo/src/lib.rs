@@ -61,17 +61,19 @@ pub mod asistente;
 pub mod automatizaciones;
 pub mod burbujas;
 pub mod buscar;
+/// El iPhone/iPad como camara de la reunion que graba el PC (1-nov-2026).
+pub mod camara_del_pc;
 pub mod chats;
 /// Grabar una clase o una reunion: lo que se guarda en el chat (Windows edd0ffa).
 pub mod clase;
 pub mod compartidos;
 pub mod compartir;
-/// Compartir una grabacion: su pagina web, sus hojas A4, Word, Markdown,
-/// texto y Anki (Windows 2921a1d).
-pub mod compartir_grabacion;
 /// Compartir igual en toda la app: el orden y el nombre de los formatos y
 /// los cuadernos con todos sus formatos (Windows 5df1ecde y 4a6112d4).
 pub mod compartir_formatos;
+/// Compartir una grabacion: su pagina web, sus hojas A4, Word, Markdown,
+/// texto y Anki (Windows 2921a1d).
+pub mod compartir_grabacion;
 pub mod conversacion;
 pub mod copias;
 pub mod diapositivas;

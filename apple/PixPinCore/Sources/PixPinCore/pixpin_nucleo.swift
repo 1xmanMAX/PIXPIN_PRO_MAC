@@ -8300,6 +8300,24 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func calendarioLeer() throws  -> Bool
     
     /**
+     * **Manda fotos (o clips) a la grabacion de un PC**, una detras de otra
+     * en la misma conexion. Devuelve como quedo cada una: un «no» del PC
+     * antes del «vale» no corta las demas; si se corta la red, las que
+     * faltan salen con su error (para reintentar). Falla entera solo si no
+     * se pudo ni saludar, o si el PC no sabe de la camara.
+     */
+    func mandarFotosALaGrabacion(host: String, puerto: UInt16, fotos: [FotoParaLaGrabacion]) throws  -> [FotoSubida]
+    
+    /**
+     * **Pregunta a un aparato del grupo como va su grabacion**
+     * (`camara_remota`, §2.1 de la guia) y mide de paso el desfase de los
+     * relojes. `None` si el otro no sabe de la camara (`camara1`): un
+     * telefono, otro iPad o un PixPin de antes. Apunta donde escucha.
+     * Bloquea (red): desde una `Task` fuera del hilo principal.
+     */
+    func preguntarCamara(host: String, puerto: UInt16) throws  -> RespuestaDeCamara?
+    
+    /**
      * **«Adjuntar a la clase»** (`carpetas::adjuntar_a_la_clase` de
      * Windows): el fichero `ruta` entra en el chat como si se soltara (se
      * copia) y en la carpeta `carpeta` de la grabacion como adjunto, con su
@@ -10942,6 +10960,43 @@ open func calendarioLeer()throws  -> Bool  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_nucleo_calendario_leer(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Manda fotos (o clips) a la grabacion de un PC**, una detras de otra
+     * en la misma conexion. Devuelve como quedo cada una: un «no» del PC
+     * antes del «vale» no corta las demas; si se corta la red, las que
+     * faltan salen con su error (para reintentar). Falla entera solo si no
+     * se pudo ni saludar, o si el PC no sabe de la camara.
+     */
+open func mandarFotosALaGrabacion(host: String, puerto: UInt16, fotos: [FotoParaLaGrabacion])throws  -> [FotoSubida]  {
+    return try  FfiConverterSequenceTypeFotoSubida.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_mandar_fotos_a_la_grabacion(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),
+        FfiConverterSequenceTypeFotoParaLaGrabacion.lower(fotos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pregunta a un aparato del grupo como va su grabacion**
+     * (`camara_remota`, §2.1 de la guia) y mide de paso el desfase de los
+     * relojes. `None` si el otro no sabe de la camara (`camara1`): un
+     * telefono, otro iPad o un PixPin de antes. Apunta donde escucha.
+     * Bloquea (red): desde una `Task` fuera del hilo principal.
+     */
+open func preguntarCamara(host: String, puerto: UInt16)throws  -> RespuestaDeCamara?  {
+    return try  FfiConverterOptionTypeRespuestaDeCamara.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_preguntar_camara(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(host),
+        FfiConverterUInt16.lower(puerto),uniffiCallStatus
     )
 })
 }
@@ -16234,6 +16289,210 @@ public func FfiConverterTypeReceptorHttp_lower(_ value: ReceptorHttp) -> UInt64 
 
 
 /**
+ * **El reloj de la grabacion del PC, llevado aqui** (`RelojDelMovil` de
+ * Android). `ahora` es siempre un reloj que solo avanza (en el iPhone,
+ * `ProcessInfo.systemUptime` en ms; en las pruebas, el que se quiera).
+ */
+public protocol RelojDeCamaraProtocol: AnyObject, Sendable {
+    
+    func acabado()  -> Bool
+    
+    /**
+     * **Al dia con otro anuncio.** De otra grabacion, o acabada, empieza
+     * de nuevo; de la misma, se corrige sin saltos pequenos
+     * ([`TOLERANCIA_MS`]).
+     */
+    func alDia(anuncio: AnuncioDeCamara, ahora: Int64, ida: Int64) 
+    
+    func enPausa()  -> Bool
+    
+    func grabacion()  -> String
+    
+    /**
+     * El milisegundo de la grabacion en `ahora`.
+     */
+    func ms(ahora: Int64)  -> Int64
+    
+}
+/**
+ * **El reloj de la grabacion del PC, llevado aqui** (`RelojDelMovil` de
+ * Android). `ahora` es siempre un reloj que solo avanza (en el iPhone,
+ * `ProcessInfo.systemUptime` en ms; en las pruebas, el que se quiera).
+ */
+open class RelojDeCamara: RelojDeCamaraProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_relojdecamara(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_relojdecamara(handle, $0) }
+    }
+
+    
+    /**
+     * El reloj de lo que dice `anuncio`, recibido en `ahora`.
+     */
+public static func nuevo(anuncio: AnuncioDeCamara, ahora: Int64, ida: Int64) -> RelojDeCamara  {
+    return try!  FfiConverterTypeRelojDeCamara_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_constructor_relojdecamara_nuevo(
+        FfiConverterTypeAnuncioDeCamara_lower(anuncio),
+        FfiConverterInt64.lower(ahora),
+        FfiConverterInt64.lower(ida),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+open func acabado() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojdecamara_acabado(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Al dia con otro anuncio.** De otra grabacion, o acabada, empieza
+     * de nuevo; de la misma, se corrige sin saltos pequenos
+     * ([`TOLERANCIA_MS`]).
+     */
+open func alDia(anuncio: AnuncioDeCamara, ahora: Int64, ida: Int64)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojdecamara_al_dia(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeAnuncioDeCamara_lower(anuncio),
+        FfiConverterInt64.lower(ahora),
+        FfiConverterInt64.lower(ida),uniffiCallStatus
+    )
+}
+}
+    
+open func enPausa() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojdecamara_en_pausa(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+open func grabacion() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojdecamara_grabacion(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El milisegundo de la grabacion en `ahora`.
+     */
+open func ms(ahora: Int64) -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_relojdecamara_ms(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(ahora),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRelojDeCamara: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = RelojDeCamara
+
+    public static func lift(_ handle: UInt64) throws -> RelojDeCamara {
+        return RelojDeCamara(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: RelojDeCamara) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RelojDeCamara {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: RelojDeCamara, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRelojDeCamara_lift(_ handle: UInt64) throws -> RelojDeCamara {
+    return try FfiConverterTypeRelojDeCamara.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRelojDeCamara_lower(_ value: RelojDeCamara) -> UInt64 {
+    return FfiConverterTypeRelojDeCamara.lower(value)
+}
+
+
+
+
+
+
+/**
  * **El [`Reloj`] para Swift**: lo guarda el `Sincronizador` y le pregunta
  * que toca. Todo es puro y rapido: se puede llamar en el hilo principal.
  */
@@ -18997,6 +19256,142 @@ public func FfiConverterTypeAnuncioBonjour_lower(_ value: AnuncioBonjour) -> Rus
 
 
 /**
+ * **Como va la grabacion de un PC** (el `Anuncio` de Windows, sin lo que
+ * el iPad no usa).
+ */
+public struct AnuncioDeCamara: Equatable, Hashable {
+    /**
+     * El id de la grabacion. Vacio: el PC no graba nada.
+     */
+    public var grabacion: String
+    /**
+     * «Clase 27-10 10h05».
+     */
+    public var titulo: String
+    /**
+     * El nombre del PC.
+     */
+    public var aparato: String
+    /**
+     * Grabando (aunque sea en pausa). `false` con `grabacion`: ya acabo, y
+     * lo pendiente de esa grabacion aun entra.
+     */
+    public var activa: Bool
+    public var enPausa: Bool
+    /**
+     * En que milisegundo de la grabacion iba al escribirlo.
+     */
+    public var msActual: Int64
+    /**
+     * Lo que duro, cuando ya acabo.
+     */
+    public var duracion: Int64
+    /**
+     * El reloj del PC al escribirlo (0 si no lo dijo).
+     */
+    public var reloj: Int64
+    /**
+     * Los codecs de video que el PC sabe ver (vacio: solo fotos).
+     */
+    public var codecs: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El id de la grabacion. Vacio: el PC no graba nada.
+         */grabacion: String, 
+        /**
+         * «Clase 27-10 10h05».
+         */titulo: String, 
+        /**
+         * El nombre del PC.
+         */aparato: String, 
+        /**
+         * Grabando (aunque sea en pausa). `false` con `grabacion`: ya acabo, y
+         * lo pendiente de esa grabacion aun entra.
+         */activa: Bool, enPausa: Bool, 
+        /**
+         * En que milisegundo de la grabacion iba al escribirlo.
+         */msActual: Int64, 
+        /**
+         * Lo que duro, cuando ya acabo.
+         */duracion: Int64, 
+        /**
+         * El reloj del PC al escribirlo (0 si no lo dijo).
+         */reloj: Int64, 
+        /**
+         * Los codecs de video que el PC sabe ver (vacio: solo fotos).
+         */codecs: [String]) {
+        self.grabacion = grabacion
+        self.titulo = titulo
+        self.aparato = aparato
+        self.activa = activa
+        self.enPausa = enPausa
+        self.msActual = msActual
+        self.duracion = duracion
+        self.reloj = reloj
+        self.codecs = codecs
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AnuncioDeCamara: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAnuncioDeCamara: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AnuncioDeCamara {
+        return
+            try AnuncioDeCamara(
+                grabacion: FfiConverterString.read(from: &buf), 
+                titulo: FfiConverterString.read(from: &buf), 
+                aparato: FfiConverterString.read(from: &buf), 
+                activa: FfiConverterBool.read(from: &buf), 
+                enPausa: FfiConverterBool.read(from: &buf), 
+                msActual: FfiConverterInt64.read(from: &buf), 
+                duracion: FfiConverterInt64.read(from: &buf), 
+                reloj: FfiConverterInt64.read(from: &buf), 
+                codecs: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AnuncioDeCamara, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.grabacion, into: &buf)
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterString.write(value.aparato, into: &buf)
+        FfiConverterBool.write(value.activa, into: &buf)
+        FfiConverterBool.write(value.enPausa, into: &buf)
+        FfiConverterInt64.write(value.msActual, into: &buf)
+        FfiConverterInt64.write(value.duracion, into: &buf)
+        FfiConverterInt64.write(value.reloj, into: &buf)
+        FfiConverterSequenceString.write(value.codecs, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAnuncioDeCamara_lift(_ buf: RustBuffer) throws -> AnuncioDeCamara {
+    return try FfiConverterTypeAnuncioDeCamara.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAnuncioDeCamara_lower(_ value: AnuncioDeCamara) -> RustBuffer {
+    return FfiConverterTypeAnuncioDeCamara.lower(value)
+}
+
+
+/**
  * Un archivo suelto que llego a este Mac.
  */
 public struct ArchivoLlegado: Equatable, Hashable {
@@ -19271,6 +19666,77 @@ public func FfiConverterTypeAutoriaDeMensaje_lift(_ buf: RustBuffer) throws -> A
 #endif
 public func FfiConverterTypeAutoriaDeMensaje_lower(_ value: AutoriaDeMensaje) -> RustBuffer {
     return FfiConverterTypeAutoriaDeMensaje.lower(value)
+}
+
+
+/**
+ * **El aviso de un PC** que atendio la escucha de este aparato.
+ */
+public struct AvisoDeCamara: Equatable, Hashable {
+    public var anuncio: AnuncioDeCamara
+    public var pcId: String
+    public var pcNombre: String
+    /**
+     * La hora de aqui (ms desde 1970) al llegar: la que se le contesto.
+     */
+    public var llegoEn: Int64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(anuncio: AnuncioDeCamara, pcId: String, pcNombre: String, 
+        /**
+         * La hora de aqui (ms desde 1970) al llegar: la que se le contesto.
+         */llegoEn: Int64) {
+        self.anuncio = anuncio
+        self.pcId = pcId
+        self.pcNombre = pcNombre
+        self.llegoEn = llegoEn
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AvisoDeCamara: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAvisoDeCamara: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AvisoDeCamara {
+        return
+            try AvisoDeCamara(
+                anuncio: FfiConverterTypeAnuncioDeCamara.read(from: &buf), 
+                pcId: FfiConverterString.read(from: &buf), 
+                pcNombre: FfiConverterString.read(from: &buf), 
+                llegoEn: FfiConverterInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AvisoDeCamara, into buf: inout [UInt8]) {
+        FfiConverterTypeAnuncioDeCamara.write(value.anuncio, into: &buf)
+        FfiConverterString.write(value.pcId, into: &buf)
+        FfiConverterString.write(value.pcNombre, into: &buf)
+        FfiConverterInt64.write(value.llegoEn, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAvisoDeCamara_lift(_ buf: RustBuffer) throws -> AvisoDeCamara {
+    return try FfiConverterTypeAvisoDeCamara.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAvisoDeCamara_lower(_ value: AvisoDeCamara) -> RustBuffer {
+    return FfiConverterTypeAvisoDeCamara.lower(value)
 }
 
 
@@ -27975,6 +28441,135 @@ public func FfiConverterTypeFotoNueva_lower(_ value: FotoNueva) -> RustBuffer {
 
 
 /**
+ * **Una foto (o un clip) para la grabacion del PC**, ya en el disco.
+ */
+public struct FotoParaLaGrabacion: Equatable, Hashable {
+    /**
+     * El fichero (JPEG, PNG, WebP o MP4: HEIC no).
+     */
+    public var ruta: String
+    /**
+     * El nombre con que llega al PC (`IMG_20261101_100512.jpg`).
+     */
+    public var nombre: String
+    /**
+     * La grabacion del PC (vacia: por su hora, `tomada_en`).
+     */
+    public var grabacion: String
+    /**
+     * El minuto de la grabacion al disparar, calculado aqui.
+     */
+    public var ms: Int64?
+    /**
+     * La hora de aqui al disparar (ms desde 1970).
+     */
+    public var tomadaEn: Int64
+    /**
+     * Lo que va adelantado el reloj de aqui sobre el del PC.
+     */
+    public var reloj: Int64
+    /**
+     * Un clip: lo que dura (su `ms` es donde empezo). 0 una foto.
+     */
+    public var duracionMs: Int64
+    /**
+     * El id de la toma, el mismo en cada intento.
+     */
+    public var clave: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El fichero (JPEG, PNG, WebP o MP4: HEIC no).
+         */ruta: String, 
+        /**
+         * El nombre con que llega al PC (`IMG_20261101_100512.jpg`).
+         */nombre: String, 
+        /**
+         * La grabacion del PC (vacia: por su hora, `tomada_en`).
+         */grabacion: String, 
+        /**
+         * El minuto de la grabacion al disparar, calculado aqui.
+         */ms: Int64?, 
+        /**
+         * La hora de aqui al disparar (ms desde 1970).
+         */tomadaEn: Int64, 
+        /**
+         * Lo que va adelantado el reloj de aqui sobre el del PC.
+         */reloj: Int64, 
+        /**
+         * Un clip: lo que dura (su `ms` es donde empezo). 0 una foto.
+         */duracionMs: Int64, 
+        /**
+         * El id de la toma, el mismo en cada intento.
+         */clave: String) {
+        self.ruta = ruta
+        self.nombre = nombre
+        self.grabacion = grabacion
+        self.ms = ms
+        self.tomadaEn = tomadaEn
+        self.reloj = reloj
+        self.duracionMs = duracionMs
+        self.clave = clave
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FotoParaLaGrabacion: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFotoParaLaGrabacion: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FotoParaLaGrabacion {
+        return
+            try FotoParaLaGrabacion(
+                ruta: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf), 
+                grabacion: FfiConverterString.read(from: &buf), 
+                ms: FfiConverterOptionInt64.read(from: &buf), 
+                tomadaEn: FfiConverterInt64.read(from: &buf), 
+                reloj: FfiConverterInt64.read(from: &buf), 
+                duracionMs: FfiConverterInt64.read(from: &buf), 
+                clave: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FotoParaLaGrabacion, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ruta, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterString.write(value.grabacion, into: &buf)
+        FfiConverterOptionInt64.write(value.ms, into: &buf)
+        FfiConverterInt64.write(value.tomadaEn, into: &buf)
+        FfiConverterInt64.write(value.reloj, into: &buf)
+        FfiConverterInt64.write(value.duracionMs, into: &buf)
+        FfiConverterString.write(value.clave, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoParaLaGrabacion_lift(_ buf: RustBuffer) throws -> FotoParaLaGrabacion {
+    return try FfiConverterTypeFotoParaLaGrabacion.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoParaLaGrabacion_lower(_ value: FotoParaLaGrabacion) -> RustBuffer {
+    return FfiConverterTypeFotoParaLaGrabacion.lower(value)
+}
+
+
+/**
  * Una foto elegida, lista para recortarla: un PNG entero (reducido a
  * [`LADO_DE_TRABAJO`]) y sus medidas, que son las del recorte.
  */
@@ -28033,6 +28628,93 @@ public func FfiConverterTypeFotoPreparada_lift(_ buf: RustBuffer) throws -> Foto
 #endif
 public func FfiConverterTypeFotoPreparada_lower(_ value: FotoPreparada) -> RustBuffer {
     return FfiConverterTypeFotoPreparada.lower(value)
+}
+
+
+/**
+ * Como quedo cada foto mandada.
+ */
+public struct FotoSubida: Equatable, Hashable {
+    public var clave: String
+    /**
+     * El minuto donde quedo en la grabacion; `None` si no entro.
+     */
+    public var ms: Int64?
+    /**
+     * Por que no entro.
+     */
+    public var error: String?
+    /**
+     * **Un «no» para siempre** (la grabacion ya no esta, no es una foto,
+     * pesa demasiado, no cae en ninguna): no se vuelve a intentar. Lo
+     * demas (un corte, la camara apagada en el PC, ocupado) se reintenta.
+     */
+    public var paraSiempre: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(clave: String, 
+        /**
+         * El minuto donde quedo en la grabacion; `None` si no entro.
+         */ms: Int64?, 
+        /**
+         * Por que no entro.
+         */error: String?, 
+        /**
+         * **Un «no» para siempre** (la grabacion ya no esta, no es una foto,
+         * pesa demasiado, no cae en ninguna): no se vuelve a intentar. Lo
+         * demas (un corte, la camara apagada en el PC, ocupado) se reintenta.
+         */paraSiempre: Bool) {
+        self.clave = clave
+        self.ms = ms
+        self.error = error
+        self.paraSiempre = paraSiempre
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FotoSubida: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFotoSubida: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FotoSubida {
+        return
+            try FotoSubida(
+                clave: FfiConverterString.read(from: &buf), 
+                ms: FfiConverterOptionInt64.read(from: &buf), 
+                error: FfiConverterOptionString.read(from: &buf), 
+                paraSiempre: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FotoSubida, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.clave, into: &buf)
+        FfiConverterOptionInt64.write(value.ms, into: &buf)
+        FfiConverterOptionString.write(value.error, into: &buf)
+        FfiConverterBool.write(value.paraSiempre, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoSubida_lift(_ buf: RustBuffer) throws -> FotoSubida {
+    return try FfiConverterTypeFotoSubida.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoSubida_lower(_ value: FotoSubida) -> RustBuffer {
+    return FfiConverterTypeFotoSubida.lower(value)
 }
 
 
@@ -37395,6 +38077,95 @@ public func FfiConverterTypeRejillaTinta_lift(_ buf: RustBuffer) throws -> Rejil
 #endif
 public func FfiConverterTypeRejillaTinta_lower(_ value: RejillaTinta) -> RustBuffer {
     return FfiConverterTypeRejillaTinta.lower(value)
+}
+
+
+/**
+ * **Lo que contesto un PC al preguntarle**, con lo medido de paso.
+ */
+public struct RespuestaDeCamara: Equatable, Hashable {
+    public var anuncio: AnuncioDeCamara
+    /**
+     * Lo que va adelantado el reloj de aqui sobre el del PC
+     * (`-desfase(t0, t1, t2)`): va en cada foto (`reloj`).
+     */
+    public var adelanto: Int64
+    /**
+     * La mitad de la vuelta: lo que hace que el PC escribio su anuncio.
+     */
+    public var ida: Int64
+    /**
+     * El PC, tal como se presento.
+     */
+    public var pcId: String
+    public var pcNombre: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(anuncio: AnuncioDeCamara, 
+        /**
+         * Lo que va adelantado el reloj de aqui sobre el del PC
+         * (`-desfase(t0, t1, t2)`): va en cada foto (`reloj`).
+         */adelanto: Int64, 
+        /**
+         * La mitad de la vuelta: lo que hace que el PC escribio su anuncio.
+         */ida: Int64, 
+        /**
+         * El PC, tal como se presento.
+         */pcId: String, pcNombre: String) {
+        self.anuncio = anuncio
+        self.adelanto = adelanto
+        self.ida = ida
+        self.pcId = pcId
+        self.pcNombre = pcNombre
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RespuestaDeCamara: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRespuestaDeCamara: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RespuestaDeCamara {
+        return
+            try RespuestaDeCamara(
+                anuncio: FfiConverterTypeAnuncioDeCamara.read(from: &buf), 
+                adelanto: FfiConverterInt64.read(from: &buf), 
+                ida: FfiConverterInt64.read(from: &buf), 
+                pcId: FfiConverterString.read(from: &buf), 
+                pcNombre: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RespuestaDeCamara, into buf: inout [UInt8]) {
+        FfiConverterTypeAnuncioDeCamara.write(value.anuncio, into: &buf)
+        FfiConverterInt64.write(value.adelanto, into: &buf)
+        FfiConverterInt64.write(value.ida, into: &buf)
+        FfiConverterString.write(value.pcId, into: &buf)
+        FfiConverterString.write(value.pcNombre, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRespuestaDeCamara_lift(_ buf: RustBuffer) throws -> RespuestaDeCamara {
+    return try FfiConverterTypeRespuestaDeCamara.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRespuestaDeCamara_lower(_ value: RespuestaDeCamara) -> RustBuffer {
+    return FfiConverterTypeRespuestaDeCamara.lower(value)
 }
 
 
@@ -49075,6 +49846,30 @@ fileprivate struct FfiConverterOptionTypeAnuncioBonjour: FfiConverterRustBuffer 
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeAvisoDeCamara: FfiConverterRustBuffer {
+    typealias SwiftType = AvisoDeCamara?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeAvisoDeCamara.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeAvisoDeCamara.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeAvisoHorario: FfiConverterRustBuffer {
     typealias SwiftType = AvisoHorario?
 
@@ -50363,6 +51158,30 @@ fileprivate struct FfiConverterOptionTypeRejillaTinta: FfiConverterRustBuffer {
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeRejillaTinta.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeRespuestaDeCamara: FfiConverterRustBuffer {
+    typealias SwiftType = RespuestaDeCamara?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeRespuestaDeCamara.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeRespuestaDeCamara.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -52718,6 +53537,56 @@ fileprivate struct FfiConverterSequenceTypeFotoNueva: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeFotoNueva.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFotoParaLaGrabacion: FfiConverterRustBuffer {
+    typealias SwiftType = [FotoParaLaGrabacion]
+
+    public static func write(_ value: [FotoParaLaGrabacion], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFotoParaLaGrabacion.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FotoParaLaGrabacion] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FotoParaLaGrabacion]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFotoParaLaGrabacion.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeFotoSubida: FfiConverterRustBuffer {
+    typealias SwiftType = [FotoSubida]
+
+    public static func write(_ value: [FotoSubida], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFotoSubida.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FotoSubida] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FotoSubida]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFotoSubida.read(from: &buf))
         }
         return seq
     }
@@ -55368,6 +56237,80 @@ public func rotulosDeBuscarEnChats(locale: String, total: UInt64, mas: UInt64) -
         FfiConverterString.lower(locale),
         FfiConverterUInt64.lower(total),
         FfiConverterUInt64.lower(mas),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El desfase entre dos relojes, como NTP** ([`camara::desfase`]): lo que
+ * va adelantado el otro.
+ */
+public func camaraDesfase(t0: Int64, t1: Int64, t2: Int64) -> Int64  {
+    return try!  FfiConverterInt64.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_camara_desfase(
+        FfiConverterInt64.lower(t0),
+        FfiConverterInt64.lower(t1),
+        FfiConverterInt64.lower(t2),uniffiCallStatus
+    )
+})
+}
+/**
+ * `CamaraRemota.esNoParaSiempre` de Android.
+ */
+public func camaraEsNoParaSiempre(error: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_camara_es_no_para_siempre(
+        FfiConverterString.lower(error),uniffiCallStatus
+    )
+})
+}
+/**
+ * Si hay una grabacion a la que mandar fotos ahora mismo.
+ */
+public func camaraGrabando(anuncio: AnuncioDeCamara) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_camara_grabando(
+        FfiConverterTypeAnuncioDeCamara_lower(anuncio),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El minuto como en el pie de las capturas del PC**: `12:34` o
+ * `1:02:03`.
+ */
+public func camaraMinuto(ms: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_camara_minuto(
+        FfiConverterInt64.lower(ms),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Lo que ensena arriba la pantalla de la camara**: «● 12:34 grabando en
+ * el PC», en pausa «‖ 12:34 en pausa», y al acabar «■ 12:34 · la grabación
+ * del PC terminó» (`RelojDelMovil.rotulo` de Android).
+ */
+public func camaraRotulo(ms: Int64, enPausa: Bool, acabado: Bool) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_camara_rotulo(
+        FfiConverterInt64.lower(ms),
+        FfiConverterBool.lower(enPausa),
+        FfiConverterBool.lower(acabado),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El siguiente aviso de un PC** que llego por la escucha (el mas viejo
+ * primero), o `None`. Swift lo pregunta tras cada conexion atendida.
+ */
+public func siguienteAvisoDeCamara() -> AvisoDeCamara?  {
+    return try!  FfiConverterOptionTypeAvisoDeCamara.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_siguiente_aviso_de_camara(uniffiCallStatus
     )
 })
 }
@@ -58232,6 +59175,24 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_rotulos_de_buscar_en_chats() != 9855) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_camara_desfase() != 21435) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_camara_es_no_para_siempre() != 55162) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_camara_grabando() != 51054) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_camara_minuto() != 43909) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_camara_rotulo() != 44621) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_siguiente_aviso_de_camara() != 44400) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_dentro_de_carpetas() != 63864) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -59063,6 +60024,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_calendario_leer() != 39044) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_mandar_fotos_a_la_grabacion() != 11488) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_preguntar_camara() != 29589) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar_a_la_clase() != 25091) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -59790,6 +60757,21 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_buscadorenchats_buscar() != 7672) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojdecamara_acabado() != 2615) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojdecamara_al_dia() != 16603) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojdecamara_en_pausa() != 37661) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojdecamara_grabacion() != 31997) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_relojdecamara_ms() != 22670) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_invitacion_anuncio() != 30446) {
@@ -60636,6 +61618,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_busqueda_nueva() != 3141) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_constructor_relojdecamara_nuevo() != 54449) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_documentoreflujo_abrir() != 27311) {

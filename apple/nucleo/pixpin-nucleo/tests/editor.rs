@@ -152,19 +152,39 @@ fn un_lienzo_nuevo_con_dibujo_es_un_lienzo_del_chat() {
          "strokeStyle":"solid","roughness":0,"opacity":100,"isDeleted":false}],
         "appState":{"viewBackgroundColor":"#ffffff"},"files":{}}"##;
     let m = n
-        .crear_lienzo_con_dibujo(chat.id.clone(), Some("Lienzo del asistente".into()), json.into())
+        .crear_lienzo_con_dibujo(
+            chat.id.clone(),
+            Some("Lienzo del asistente".into()),
+            json.into(),
+        )
         .unwrap();
     assert_eq!(m.clase, "DIBUJO");
     assert_eq!(m.nombre, "Lienzo del asistente");
     let dibujo = m.referencia.clone().unwrap();
-    assert_eq!(m.ruta.as_deref(), Some(format!("lienzos/{dibujo}.excalidraw").as_str()));
+    assert_eq!(
+        m.ruta.as_deref(),
+        Some(format!("lienzos/{dibujo}.excalidraw").as_str())
+    );
     let ed = n.editar_lienzo(chat.id.clone(), dibujo).unwrap();
     assert_eq!(ed.cuantos_elementos(), 1);
     assert_eq!(tipos(&ed.ruta()), vec!["rectangle"]);
     // Caso negativo: lo que no es un lienzo no deja ni mensaje ni fichero.
-    let antes = n.ultimos_mensajes(chat.id.clone(), 10).unwrap().mensajes.len();
-    assert!(n.crear_lienzo_con_dibujo(chat.id.clone(), None, "[]".into()).is_err());
-    assert_eq!(n.ultimos_mensajes(chat.id.clone(), 10).unwrap().mensajes.len(), antes);
+    let antes = n
+        .ultimos_mensajes(chat.id.clone(), 10)
+        .unwrap()
+        .mensajes
+        .len();
+    assert!(
+        n.crear_lienzo_con_dibujo(chat.id.clone(), None, "[]".into())
+            .is_err()
+    );
+    assert_eq!(
+        n.ultimos_mensajes(chat.id.clone(), 10)
+            .unwrap()
+            .mensajes
+            .len(),
+        antes
+    );
 }
 
 #[test]
