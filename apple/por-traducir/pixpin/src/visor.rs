@@ -353,6 +353,8 @@ struct Estado {
     /// **Como un pin** (`lector_pin`): fuera de pantalla completa la pastilla
     /// de arriba no se pinta (lo suyo va en la barra de fuera).
     en_pin: bool,
+    /// Si la barra de fuera (la del pin) se ve: el riel se va con ella.
+    barra_del_pin: bool,
     /// Se pidio pantalla completa (o volver a pin) desde dentro: la pastilla
     /// o Esc. Lo hace el bucle, que es quien tiene la ventana.
     pedir_pantalla_completa: bool,
@@ -393,7 +395,9 @@ pub fn abrir(
     let (area_pin, _) = crate::lector_pin::area_inicial();
     let mut pin =
         crate::lector_pin::PinLector::nuevo(area_pin, monitor.escala_por_cien as f32 / 100.0)
-            .con_extension(&pixpin_docs::extension(&pixpin_docs::nombre(ruta)));
+            .con_extension(&pixpin_docs::extension(&pixpin_docs::nombre(ruta)))
+            // Abierto de fuera (de paso): «Guardar» en un chat.
+            .con_guardar(crate::guardar_de_paso::es_de_paso(ubicacion.raiz(), ruta));
     let mut area = pin.area;
     let mut marco = Marco {
         ancho: area.ancho as f32,
@@ -485,6 +489,7 @@ pub fn abrir(
         elegir_voz: false,
         cursor: None,
         en_pin: true,
+        barra_del_pin: true,
         pedir_pantalla_completa: false,
         voz: None,
         // Si se esta escuchando este documento (con su lector cerrado), se
@@ -509,10 +514,19 @@ pub fn abrir(
     // vuelta trabaja con la de ahora.
     let mut ruta_viva = ruta.to_path_buf();
     let mut ruta_nueva: Option<PathBuf> = None;
+    // Abierto para Lectura Veloz, que mueve el verde mientras se lee alli.
+    let _para_lectura_veloz = crate::lectura_veloz::abierto(ruta);
     while vivo {
         let ruta_de_la_vuelta = ruta_viva.clone();
         let ruta: &Path = &ruta_de_la_vuelta;
         pixpin_shell::overlay::bombear_pendientes();
+        // Lo leido en Lectura Veloz (de fondo): el verde y la vista, ahi.
+        if let Some(p) = crate::lectura_veloz::tomar(ruta) {
+            if let Some(f) = al_dia_de_lectura_veloz(&mut e, &p) {
+                ir_a = Some(f);
+            }
+            hay_que_pintar = true;
+        }
         for (hwnd, evento) in pixpin_shell::overlay::tomar_eventos_pendientes() {
             if pin.es_de_la_barra(hwnd) {
                 let (accion, _) = pin.evento_barra(&evento, &mut ventana);
@@ -524,6 +538,21 @@ pub fn abrir(
                     }
                     Some(crate::lector_pin::AccionPin::Nombre) => {
                         hacer(&mut e, Accion::Renombrar, textos, ruta, ubicacion, marco)
+                    }
+                    Some(crate::lector_pin::AccionPin::Guardar) => {
+                        // Lo anotado, al disco antes de llevarlo al chat.
+                        guardar_capa(&mut e, ruta);
+                        guardar_ajustes(&e, ruta);
+                        if crate::guardar_de_paso::preguntar_y_guardar(
+                            ventana.handle(),
+                            ubicacion.raiz(),
+                            ruta,
+                            crate::guardar_de_paso::Visor::Documento,
+                            &[],
+                            textos,
+                        ) {
+                            pin.poner_guardar(false);
+                        }
                     }
                     Some(crate::lector_pin::AccionPin::PantallaCompleta) => {
                         pin.alternar_pantalla_completa(&mut ventana)
@@ -700,7 +729,8 @@ pub fn abrir(
                 }
                 EventoOverlay::BotonDerechoPulsado(p) => {
                     e.raton = local(p);
-                    pulsar_derecho(&mut e, ruta, marco);
+                    pulsar_derecho(&mut e, ruta, marco, textos);
+                    hay_que_pintar = true;
                 }
                 EventoOverlay::Rueda(delta) => {
                     rueda(&mut e, delta, marco);
@@ -820,6 +850,11 @@ pub fn abrir(
             hay_que_pintar = true;
         }
         e.en_pin = !pin.pantalla_completa;
+        // El riel se va y vuelve con la barra del pin.
+        if pin.barra_a_la_vista() != e.barra_del_pin {
+            e.barra_del_pin = pin.barra_a_la_vista();
+            hay_que_pintar = true;
+        }
         if pin.actualizar(
             &motor,
             &crate::lector_pin::nombre_limpio(&nombre_del_pin(&e)),
@@ -1403,23 +1438,25 @@ fn pintar(e: &mut Estado, p: &Pintor, m: Marco, textos: &Catalogo) {
     // Los del usuario y, entre ellos, el verde de donde se dejo de escuchar.
     let lista = lista_del_riel(e);
     let emojis: Vec<&str> = lista.iter().map(|x| x.emoji.as_str()).collect();
-    let riel = lector::riel(
-        m.ancho,
-        m.alto,
-        m.escala_por_cien,
-        emojis.len(),
-        e.poniendo_marca,
-    );
-    lector::pintar_riel_con(
-        p,
-        &riel,
-        &emojis,
-        e.encima,
-        e.poniendo_marca,
-        e.anotando,
-        e.marcos.activo,
-        &textos.t("marca-elige"),
-    );
+    if riel_a_la_vista(e, m) {
+        let riel = lector::riel(
+            m.ancho,
+            m.alto,
+            m.escala_por_cien,
+            emojis.len(),
+            e.poniendo_marca,
+        );
+        lector::pintar_riel_con(
+            p,
+            &riel,
+            &emojis,
+            e.encima,
+            e.poniendo_marca,
+            e.anotando,
+            e.marcos.activo,
+            &textos.t("marca-elige"),
+        );
+    }
 
     if e.anotando {
         // La barra y el panel del lienzo (`lector_tinta::Tinta`).
@@ -1861,6 +1898,9 @@ fn filas_del_panel(e: &Estado, textos: &Catalogo) -> Vec<(String, Accion)> {
     }
     filas.extend([
         (textos.t("visor-letra"), Accion::Letra),
+        // Sin «⚡ Lectura veloz» (29-oct-2026, como el movil 442eadf; el
+        // usuario: «Lectura veloz se abre solo desde el menu del mensaje»):
+        // va en el menu del mensaje del chat y en el ⋮ de la nota.
         (textos.t("compartir-lector"), Accion::Compartir),
         (textos.t("visor-guardar-pagina"), Accion::GuardarPagina),
         (textos.t("visor-guardar-pdf"), Accion::GuardarPdf),
@@ -1912,6 +1952,37 @@ fn riel_de(e: &Estado, m: Marco) -> pixpin_ui::riel_marcas::Riel {
     )
 }
 
+/// **Si el riel se ve** (`pixpin_ui::riel_a_la_vista`): con la pastilla de
+/// arriba (o la barra del pin), mientras se anota, se enmarca o se pone un
+/// marcador, o con el raton cerca de su borde.
+fn riel_a_la_vista(e: &Estado, m: Marco) -> bool {
+    let barras = if e.en_pin {
+        e.barra_del_pin
+    } else {
+        e.nombre.editando.is_some()
+            || (!e.hallar.caja.abierto
+                && (e.pastilla_hasta > ahora_ms() || e.panel || e.viendo_indice))
+    };
+    lector::riel_a_la_vista(
+        barras,
+        e.anotando,
+        e.marcos.activo,
+        e.poniendo_marca,
+        e.raton,
+        m.ancho,
+        m.alto,
+        m.e,
+    )
+}
+
+/// Lo que hay del riel bajo el raton: nada si esta escondido.
+fn destino_del_riel(e: &Estado, m: Marco) -> DestinoRiel {
+    if !riel_a_la_vista(e, m) {
+        return DestinoRiel::Fuera;
+    }
+    riel_de(e, m).destino(lector::punto(e.raton.0, e.raton.1))
+}
+
 /// La camara del documento: la misma transformada con la que `pintar` pone
 /// la vista (`poner_vista((0,0), s, (-x*s, -y*s))`), para que la tinta
 /// traduzca el raton exactamente donde se pinta.
@@ -1934,10 +2005,8 @@ fn a_la_tinta(e: &mut Estado, ev: &EventoOverlay, m: Marco) -> lector_tinta::Hec
 /// Si el clic es del lector aunque se este anotando: el riel (marcas y
 /// dejar de anotar), sus botones, o cerrar lo que hubiera abierto.
 fn el_lector_primero(e: &Estado, m: Marco) -> bool {
-    !matches!(
-        riel_de(e, m).destino(lector::punto(e.raton.0, e.raton.1)),
-        DestinoRiel::Fuera
-    ) || que_hay_debajo(e).is_some()
+    !matches!(destino_del_riel(e, m), DestinoRiel::Fuera)
+        || que_hay_debajo(e).is_some()
         || e.panel
         || e.viendo_indice
         || e.poniendo_marca
@@ -1957,10 +2026,7 @@ fn imagen_bajo_raton(e: &Estado, m: Marco) -> Option<usize> {
     if e.anotando || e.panel || e.viendo_indice || e.poniendo_marca || que_hay_debajo(e).is_some() {
         return None;
     }
-    if !matches!(
-        riel_de(e, m).destino(lector::punto(e.raton.0, e.raton.1)),
-        DestinoRiel::Fuera
-    ) {
+    if !matches!(destino_del_riel(e, m), DestinoRiel::Fuera) {
         return None;
     }
     let s = px(e, m);
@@ -2005,7 +2071,7 @@ fn cursor_leyendo(e: &mut Estado, m: Marco) -> Option<pixpin_shell::overlay::For
 }
 
 fn mover_raton(e: &mut Estado, m: Marco) {
-    let destino = riel_de(e, m).destino(lector::punto(e.raton.0, e.raton.1));
+    let destino = destino_del_riel(e, m);
     e.encima = destino;
     match e.arrastre {
         Some(Arrastre::Mover {
@@ -2045,8 +2111,7 @@ fn pulsar(e: &mut Estado, textos: &Catalogo, ruta: &Path, ubicacion: &Ubicacion,
     if e.nombre.editando.is_some() && que_hay_debajo(e) != Some(Accion::Renombrar) {
         e.nombre.editando = None;
     }
-    let riel = riel_de(e, m);
-    match riel.destino(lector::punto(e.raton.0, e.raton.1)) {
+    match destino_del_riel(e, m) {
         DestinoRiel::PonerMarca => {
             e.poniendo_marca = !e.poniendo_marca;
             return false;
@@ -2130,10 +2195,26 @@ fn soltar(e: &mut Estado, m: Marco) {
     }
 }
 
-fn pulsar_derecho(e: &mut Estado, ruta: &Path, m: Marco) {
+fn pulsar_derecho(e: &mut Estado, ruta: &Path, m: Marco, textos: &Catalogo) {
+    // **El boton del marco**: que imprimir, los marcos o el documento entero
+    // (27-oct-2026; el clic izquierdo sigue poniendo y quitando el modo).
+    if destino_del_riel(e, m) == DestinoRiel::Imprimir {
+        let entero = crate::marcos_doc::Entero::de_fichero(ruta);
+        match crate::marcos_doc::menu_de_imprimir(
+            e.hwnd,
+            textos,
+            e.marcos.lista.len(),
+            Some(entero),
+        ) {
+            Some(crate::marcos_doc::QueImprimir::Marcos) => empezar_fotos(e, ruta),
+            Some(crate::marcos_doc::QueImprimir::Entero) => imprimir_entero(e, ruta, m),
+            None => {}
+        }
+        return;
+    }
     // Quitar un marcador: clic derecho en su punto del riel (el toque largo
     // del movil, que un raton no tiene).
-    if let DestinoRiel::Marca(i) = riel_de(e, m).destino(lector::punto(e.raton.0, e.raton.1))
+    if let DestinoRiel::Marca(i) = destino_del_riel(e, m)
         && let Some(quitado) = lista_del_riel(e).get(i).cloned()
     {
         // El verde es el de la voz: se quita su sitio, no un marcador.
@@ -2391,7 +2472,7 @@ fn alternar_marcos(e: &mut Estado, ruta: &Path, m: Marco) {
 }
 
 fn sobre_la_interfaz(e: &Estado, m: Marco, q: (f32, f32)) -> bool {
-    riel_de(e, m).contiene(lector::punto(q.0, q.1))
+    (riel_a_la_vista(e, m) && riel_de(e, m).contiene(lector::punto(q.0, q.1)))
         || e.botones.iter().any(|(r, _)| lector::dentro(r, q.0, q.1))
 }
 
@@ -2429,6 +2510,43 @@ fn empezar_fotos(e: &mut Estado, ruta: &Path) {
     ));
 }
 
+/// **Imprimir el documento entero** (el clic derecho en el boton del marco):
+/// el ancho que se lee (la columna y lo que se abra a los lados) en trozos
+/// de papel, de arriba abajo, fotografiados como los marcos. Cada trozo es
+/// como un A4 en vertical, o mas apaisado si la ventana lo es (asi cabe
+/// entero en ella sin alejarse mas de lo que deja el lector).
+fn imprimir_entero(e: &mut Estado, ruta: &Path, m: Marco) {
+    let (izq, der) = limites(e);
+    let ancho = (der - izq) as f64;
+    if ancho <= 0.0 || e.alto_doc <= 0.0 {
+        return;
+    }
+    if e.anotando {
+        alternar_anotar(e, ruta, m);
+    }
+    e.poniendo_marca = false;
+    let forma = (m.alto as f64 / m.ancho.max(1.0) as f64).min(std::f64::consts::SQRT_2);
+    let mut trozos = crate::marcos_doc::trozos(
+        ancho,
+        e.alto_doc as f64 + renglon(e) as f64,
+        (ancho, ancho * forma),
+        0,
+    );
+    for t in &mut trozos {
+        t.caja[0] += izq as f64;
+        t.caja[2] += izq as f64;
+    }
+    let titulo = ruta
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    e.fotos = Some(crate::lector_pdf::FotosDeMarcos::de_trozos(
+        (e.x, e.y, e.zoom),
+        &titulo,
+        trozos,
+    ));
+}
+
 /// Un paso de las fotos de los marcos (como `lector_pdf`): acercarse hasta
 /// que el marco llena la ventana, pintar solo el documento con sus colores,
 /// fotografiarlo y, con el ultimo, volver e imprimir todos juntos.
@@ -2436,7 +2554,7 @@ fn paso_de_las_fotos(e: &mut Estado, m: Marco) -> bool {
     let Some(mut f) = e.fotos.take() else {
         return false;
     };
-    let Some(marco) = e.marcos.lista.get(f.i).cloned() else {
+    let Some(marco) = f.lista(&e.marcos.lista).get(f.i).cloned() else {
         terminar_fotos(e, f);
         return true;
     };
@@ -2462,7 +2580,7 @@ fn paso_de_las_fotos(e: &mut Estado, m: Marco) -> bool {
         ((q[0] as f32 - ex) * s, (q[1] as f32 - ey) * s)
     });
     f.fotografiar(e.hwnd, r);
-    if f.i >= e.marcos.lista.len() {
+    if f.i >= f.lista(&e.marcos.lista).len() {
         terminar_fotos(e, f);
     } else {
         e.fotos = Some(f);
@@ -3053,6 +3171,33 @@ fn hacer(
     }
 }
 
+/// **Lo que llego de Lectura Veloz con el lector abierto**: el verde de la
+/// voz y el sitio, en memoria (al cerrar se guarda esto y no lo de antes).
+/// Con el documento medido, el parrafo del verde es el de verdad (el que
+/// empieza mas cerca de esa fraccion). Devuelve a que fraccion llevar la
+/// vista (de corrido).
+fn al_dia_de_lectura_veloz(
+    e: &mut Estado,
+    p: &pixpin_docs::lectura_veloz::Progreso,
+) -> Option<f32> {
+    use pixpin_docs::lectura_veloz::Destino;
+    crate::lectura_veloz::aplicar(&mut e.ajustes, p, ahora_ms() as i64);
+    if p.destino() != Destino::Corrido {
+        return None;
+    }
+    let f = p.fraccion.clamp(0.0, 1.0);
+    let idx = para_leer(&e.colocados);
+    if !idx.is_empty() && e.alto_doc > 0.0 {
+        let fracciones = fracciones_de(e, &idx);
+        if let Some(i) =
+            voz_alta::parrafo_de_la_marca(&fracciones, (voz_alta::PARRAFO_DESCONOCIDO, f))
+        {
+            e.ajustes.voz = Some((i, f));
+        }
+    }
+    Some(f)
+}
+
 fn guardar_ajustes(e: &Estado, ruta: &Path) {
     if let Err(err) = crate::anotado_del_adjunto::escribir(ruta, &e.ajustes) {
         // Un documento en un sitio de solo lectura no tiene por que
@@ -3442,6 +3587,7 @@ mod pruebas {
             elegir_voz: false,
             cursor: None,
             en_pin: false,
+            barra_del_pin: false,
             pedir_pantalla_completa: false,
             voz: None,
             engancharse: false,
@@ -3452,6 +3598,33 @@ mod pruebas {
             },
             pdf_de_origen: None,
         }
+    }
+
+    #[test]
+    fn lectura_veloz_ya_no_esta_en_el_menu_pero_lo_que_llega_mueve_el_verde() {
+        let textos = Catalogo::nuevo(pixpin_store::Idioma::Espanol);
+        let mut e = estado_de_prueba();
+        // Se abre desde el menu del mensaje del chat (29-oct-2026).
+        let lv = crate::lectura_veloz::rotulo(&textos, None);
+        assert!(!filas_del_panel(&e, &textos).iter().any(|(t, _)| *t == lv));
+        e.ajustes.voz = Some((10, 0.1));
+        e.ajustes.tamano = 130;
+        let campos = [
+            ("doc", "uid-1"),
+            ("ruta", r"C:\x\libro.epub"),
+            ("tipo", "texto"),
+            ("fraccion", "0.3"),
+        ]
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+        let p = pixpin_docs::lectura_veloz::Progreso::de_campos(&campos).unwrap();
+        assert_eq!(al_dia_de_lectura_veloz(&mut e, &p), Some(0.3));
+        // Sin medir, el parrafo que no se sabe (`-1`, como el movil): el
+        // lector lo busca por la fraccion al escuchar.
+        assert_eq!(e.ajustes.voz, Some((voz_alta::PARRAFO_DESCONOCIDO, 0.3)));
+        assert_eq!(e.ajustes.sitio, 0.3);
+        assert_eq!(e.ajustes.tamano, 130);
     }
 
     // ---- La pagina que sube sola y el PDF leido como texto ----
@@ -3470,6 +3643,39 @@ mod pruebas {
                 .collect(),
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn el_riel_se_va_con_la_pastilla_y_vuelve_con_el_raton_en_su_borde() {
+        let m = marco();
+        let mut e = estado_de_prueba();
+        e.raton = (400.0, 400.0);
+        e.pastilla_hasta = 0;
+        assert!(!riel_a_la_vista(&e, m), "sin barras, se va");
+        assert_eq!(destino_del_riel(&e, m), DestinoRiel::Fuera);
+        // Con la pastilla, su isla se pulsa.
+        let isla = riel_de(&e, m).isla;
+        e.raton = (
+            isla.x as f32 + isla.ancho as f32 / 2.0,
+            isla.y as f32 + isla.alto as f32 / 2.0,
+        );
+        e.pastilla_hasta = u64::MAX;
+        assert_ne!(destino_del_riel(&e, m), DestinoRiel::Fuera);
+        // Con el raton en su borde vuelve aunque las barras sigan fuera.
+        e.pastilla_hasta = 0;
+        assert!(riel_a_la_vista(&e, m));
+        // Anotando se queda, lejos del borde y sin barras.
+        e.raton = (400.0, 400.0);
+        assert!(!riel_a_la_vista(&e, m));
+        e.anotando = true;
+        assert!(riel_a_la_vista(&e, m));
+        // Como pin, va con la barra de fuera.
+        e.anotando = false;
+        e.en_pin = true;
+        e.barra_del_pin = true;
+        assert!(riel_a_la_vista(&e, m));
+        e.barra_del_pin = false;
+        assert!(!riel_a_la_vista(&e, m));
     }
 
     #[test]

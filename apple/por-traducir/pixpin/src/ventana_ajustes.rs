@@ -330,16 +330,13 @@ enum Clave {
     VozSegundo,
     VozModo,
     // Asistente (13-oct-2026)
-    /// El modelo del asistente local: 2B o 0.8B (`[asistente] modelo`).
-    AsistenteModelo,
     /// Si el asistente piensa antes de contestar (`[asistente] pensar`).
     AsistentePensar,
-    /// Quien contesta: local, Claude o DeepSeek (`[asistente] motor`).
+    /// Quien contesta: Claude o DeepSeek (`[asistente] motor`).
     AsistenteMotor,
-    /// Seguir con el local si la nube falla (`[asistente] respaldo_local`).
-    AsistenteRespaldo,
-    /// Gemma 4 E2B para mirar fotos (`[asistente] mejor_vista`).
-    AsistenteMejorVista,
+    /// Borrar los modelos del asistente local que quedaron bajados
+    /// (27-oct-2026, `asistente::modelos_viejos`). Solo mientras queden.
+    AsistenteBorrarLocales,
     /// Si lo hallado en los documentos puede ir a la nube
     /// (`[asistente] documentos_a_la_nube`).
     AsistenteDocsNube,
@@ -351,6 +348,9 @@ enum Clave {
     ClaveNube(u8),
     /// Borrar la clave guardada de un proveedor.
     BorrarClave(u8),
+    /// Encender o apagar una funcion de Jev (`[jev]`, indice en
+    /// `FUNCIONES_JEV`). La clave de TypeSafe va en `ClaveNube(CLAVE_JEV)`.
+    JevFuncion(u8),
     /// La caja del ID de cliente de una conexion (indice en
     /// `conexiones::SERVICIOS`). Va cifrado a su fichero, nunca al TOML.
     ClienteConexion(u8),
@@ -410,6 +410,7 @@ impl Clave {
                 | Clave::OcrBorrar
                 | Clave::VozQwen3Licencia
                 | Clave::VozQwen3Borrar
+                | Clave::AsistenteBorrarLocales
         )
     }
 
@@ -420,6 +421,107 @@ impl Clave {
             self,
             Clave::PalabrasDe(_) | Clave::PalabrasUrgencia(_) | Clave::OcrVocabulario
         )
+    }
+}
+
+/// La caja de la clave de TypeSafe (Jev, 28-oct-2026) es una
+/// `Clave::ClaveNube` mas, con este indice fuera de `Proveedor::TODOS`: asi
+/// se pinta tapada, se guarda y se prueba por el mismo camino que las de
+/// Claude y DeepSeek (y `BorrarClave(CLAVE_JEV)` la borra).
+const CLAVE_JEV: u8 = u8::MAX;
+
+/// Las funciones de Jev de Ajustes, en orden: la funcion, su rotulo y su
+/// ayuda.
+const FUNCIONES_JEV: [(crate::jev::Funcion, &str, &str); 14] = [
+    (
+        crate::jev::Funcion::Reunion,
+        "ajustes2-jev-reunion",
+        "ajustes2-ayuda-jev-reunion",
+    ),
+    (
+        crate::jev::Funcion::Anki,
+        "ajustes2-jev-anki",
+        "ajustes2-ayuda-jev-anki",
+    ),
+    (
+        crate::jev::Funcion::Urgencia,
+        "ajustes2-jev-urgencia",
+        "ajustes2-ayuda-jev-urgencia",
+    ),
+    (
+        crate::jev::Funcion::Modelo,
+        "ajustes2-jev-modelo",
+        "ajustes2-ayuda-jev-modelo",
+    ),
+    (
+        crate::jev::Funcion::Temas,
+        "ajustes2-jev-temas",
+        "ajustes2-ayuda-jev-temas",
+    ),
+    (
+        crate::jev::Funcion::TareasDichas,
+        "ajustes2-jev-tareas-dichas",
+        "ajustes2-ayuda-jev-tareas-dichas",
+    ),
+    (
+        crate::jev::Funcion::UrgenciaEnVivo,
+        "ajustes2-jev-urgencia-en-vivo",
+        "ajustes2-ayuda-jev-urgencia-en-vivo",
+    ),
+    (
+        crate::jev::Funcion::TemaOlvidado,
+        "ajustes2-jev-tema-olvidado",
+        "ajustes2-ayuda-jev-tema-olvidado",
+    ),
+    (
+        crate::jev::Funcion::TiempoPorTema,
+        "ajustes2-jev-tiempo-por-tema",
+        "ajustes2-ayuda-jev-tiempo-por-tema",
+    ),
+    (
+        crate::jev::Funcion::Decisiones,
+        "ajustes2-jev-decisiones",
+        "ajustes2-ayuda-jev-decisiones",
+    ),
+    (
+        crate::jev::Funcion::PreguntasPendientes,
+        "ajustes2-jev-preguntas-pendientes",
+        "ajustes2-ayuda-jev-preguntas-pendientes",
+    ),
+    (
+        crate::jev::Funcion::FechasAlHorario,
+        "ajustes2-jev-fechas-al-horario",
+        "ajustes2-ayuda-jev-fechas-al-horario",
+    ),
+    (
+        crate::jev::Funcion::Dictado,
+        "ajustes2-jev-dictado",
+        "ajustes2-ayuda-jev-dictado",
+    ),
+    (
+        crate::jev::Funcion::Repaso,
+        "ajustes2-jev-repaso",
+        "ajustes2-ayuda-jev-repaso",
+    ),
+];
+
+/// El interruptor de una funcion de Jev en los ajustes.
+fn jev_de(a: &mut pixpin_store::ajustes::Jev, f: crate::jev::Funcion) -> &mut bool {
+    match f {
+        crate::jev::Funcion::Reunion => &mut a.reunion,
+        crate::jev::Funcion::Anki => &mut a.anki,
+        crate::jev::Funcion::Urgencia => &mut a.urgencia,
+        crate::jev::Funcion::Modelo => &mut a.modelo,
+        crate::jev::Funcion::Temas => &mut a.temas,
+        crate::jev::Funcion::TareasDichas => &mut a.tareas_dichas,
+        crate::jev::Funcion::UrgenciaEnVivo => &mut a.urgencia_en_vivo,
+        crate::jev::Funcion::TemaOlvidado => &mut a.tema_olvidado,
+        crate::jev::Funcion::TiempoPorTema => &mut a.tiempo_por_tema,
+        crate::jev::Funcion::Decisiones => &mut a.decisiones,
+        crate::jev::Funcion::PreguntasPendientes => &mut a.preguntas_pendientes,
+        crate::jev::Funcion::FechasAlHorario => &mut a.fechas_al_horario,
+        crate::jev::Funcion::Dictado => &mut a.dictado,
+        crate::jev::Funcion::Repaso => &mut a.repaso,
     }
 }
 
@@ -1197,35 +1299,21 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                 grupo(t, "ajustes2-g-asistente"),
                 // Quien contesta en el chat «Asistente» y con @asistente
                 // (13-oct-2026). Los modelos de la nube ya vienen elegidos:
-                // solo se pide la clave.
+                // solo se pide la clave. Sin modelo local desde el 27-oct.
                 op(
                     a,
                     Clave::AsistenteMotor,
                     tt("ajustes2-asistente-motor"),
                     tt("ajustes2-ayuda-asistente-motor"),
                     opcion(
-                        vec![
-                            tt("ajustes2-asistente-local"),
-                            Proveedor::Claude.nombre().to_string(),
-                            Proveedor::DeepSeek.nombre().to_string(),
-                        ],
+                        ia_nube::OPCIONES
+                            .iter()
+                            .map(|p| p.nombre().to_string())
+                            .collect(),
                         ia_nube::OPCIONES
                             .iter()
                             .position(|e| *e == eleccion)
                             .unwrap_or(0),
-                    ),
-                ),
-                // El asistente local del chat: el modelo que se baja y se
-                // usa. Cambiarlo no baja nada: lo pide la tarjeta del chat
-                // «Asistente».
-                op(
-                    a,
-                    Clave::AsistenteModelo,
-                    tt("ajustes-asistente-modelo"),
-                    tt("ajustes2-ayuda-asistente-modelo"),
-                    opcion(
-                        vec![tt("asistente-modelo-normal"), tt("asistente-modelo-ligero")],
-                        usize::from(a.asistente.modelo == pixpin_ia::modelos::QWEN35_08B.id),
                     ),
                 ),
                 // Que piense antes de contestar: lo que piensa se ve, plegable,
@@ -1247,23 +1335,6 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                             Some(false) => 2,
                         },
                     ),
-                ),
-                op(
-                    a,
-                    Clave::AsistenteRespaldo,
-                    tt("ajustes2-asistente-respaldo"),
-                    tt("ajustes2-ayuda-asistente-respaldo"),
-                    Control::Interruptor(a.asistente.respaldo_local),
-                ),
-                // El modelo de mejor vista (Gemma 4 E2B): opcional, se baja
-                // aparte desde el chat «Asistente» y solo se usa para MIRAR
-                // una foto (`seleccion::pide_mejor_vista`).
-                op(
-                    a,
-                    Clave::AsistenteMejorVista,
-                    tt("ajustes2-asistente-mejor-vista"),
-                    crate::asistente::motor::estado_mejor_vista(t),
-                    Control::Interruptor(a.asistente.mejor_vista),
                 ),
                 // Lo hallado en los documentos del usuario, ¿a la nube?
                 // (`buscar_en_mis_cosas`; por omision se pregunta la
@@ -1301,6 +1372,26 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                 ),
                 grupo(t, "ajustes2-g-claves"),
             ];
+            // Lo que quedo bajado del asistente local (27-oct-2026): el boton
+            // para liberarlo, mientras quede algo.
+            if let Some(bytes) = crate::asistente::modelos_viejos::ocupan() {
+                let mut args = FluentArgs::new();
+                args.set("tamano", crate::asistente::modelos_viejos::tamano(bytes));
+                let i = v
+                    .iter()
+                    .position(|(c, _)| *c == Clave::AsistenteDocsNube)
+                    .map_or(v.len(), |i| i + 1);
+                v.insert(
+                    i,
+                    op(
+                        a,
+                        Clave::AsistenteBorrarLocales,
+                        tt("ajustes2-asistente-borrar-locales"),
+                        t.t_args("ajustes2-ayuda-asistente-borrar-locales", &args),
+                        Control::Boton(t.t_args("asistente-viejos-liberar", &args)),
+                    ),
+                );
+            }
             for (i, p) in Proveedor::TODOS.into_iter().enumerate() {
                 let mut args = FluentArgs::new();
                 args.set("proveedor", p.nombre());
@@ -1323,6 +1414,39 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                         Control::Boton(tt("ajustes2-clave-borrar")),
                     ));
                 }
+            }
+            // Jev de TypeSafe (28-oct-2026, docs/jev.md): su clave, por el
+            // mismo camino que las de arriba, y un interruptor por funcion.
+            v.push(grupo(t, "ajustes2-g-jev"));
+            let mut args = FluentArgs::new();
+            args.set("proveedor", t.t("ajustes2-jev-proveedor"));
+            v.push(op(
+                a,
+                Clave::ClaveNube(CLAVE_JEV),
+                t.t_args("ajustes2-clave-de", &args),
+                crate::jev::estado(t),
+                Control::Entrada {
+                    marcador: t.t("ajustes2-clave-marcador"),
+                    boton: tt("ajustes2-clave-probar"),
+                },
+            ));
+            if crate::jev::hay_clave() {
+                v.push(op(
+                    a,
+                    Clave::BorrarClave(CLAVE_JEV),
+                    t.t_args("ajustes2-clave-borrar-de", &args),
+                    tt("ajustes2-ayuda-clave-borrar"),
+                    Control::Boton(tt("ajustes2-clave-borrar")),
+                ));
+            }
+            for (i, (f, rotulo, ayuda)) in FUNCIONES_JEV.into_iter().enumerate() {
+                v.push(op(
+                    a,
+                    Clave::JevFuncion(i as u8),
+                    tt(rotulo),
+                    tt(ayuda),
+                    Control::Interruptor(f.encendida_en(&a.jev)),
+                ));
             }
             // Conexiones (17-oct-2026): Google Drive y los que vengan, un
             // par de filas por servicio con las mismas piezas que las claves.
@@ -1759,15 +1883,18 @@ fn restablecer(clave: Clave, a: &mut Ajustes) {
         Clave::VozSegundo => a.voz.segundo_idioma = d.voz.segundo_idioma,
         Clave::VozModo => a.voz.modo_de_idiomas = d.voz.modo_de_idiomas,
         Clave::VozMotor => a.voz.motor = d.voz.motor,
-        Clave::AsistenteModelo => a.asistente.modelo = d.asistente.modelo.clone(),
         Clave::AsistentePensar => a.asistente.pensar = d.asistente.pensar,
         Clave::AsistenteMotor => a.asistente.motor = d.asistente.motor.clone(),
-        Clave::AsistenteRespaldo => a.asistente.respaldo_local = d.asistente.respaldo_local,
-        Clave::AsistenteMejorVista => a.asistente.mejor_vista = d.asistente.mejor_vista,
         Clave::AsistenteDocsNube => {
             a.asistente.documentos_a_la_nube = d.asistente.documentos_a_la_nube.clone()
         }
         Clave::AsistenteRevisarVoz => a.asistente.revisar_lo_dicho = d.asistente.revisar_lo_dicho,
+        Clave::JevFuncion(i) => {
+            if let Some((f, _, _)) = FUNCIONES_JEV.get(i as usize) {
+                let mut de_fabrica = d.jev;
+                *jev_de(&mut a.jev, *f) = *jev_de(&mut de_fabrica, *f);
+            }
+        }
         Clave::Presencia => a.sincro.presencia = d.sincro.presencia,
         Clave::LoMioManda => a.sincro.lo_mio_manda = d.sincro.lo_mio_manda,
         Clave::AbrirCon => a.abrir_con = d.abrir_con,
@@ -1809,7 +1936,8 @@ fn restablecer(clave: Clave, a: &mut Ajustes) {
         | Clave::OcrLicencia
         | Clave::OcrBorrar
         | Clave::VozQwen3Licencia
-        | Clave::VozQwen3Borrar => {}
+        | Clave::VozQwen3Borrar
+        | Clave::AsistenteBorrarLocales => {}
     }
 }
 
@@ -1951,15 +2079,13 @@ fn aplicar_interruptor(a: &mut Ajustes, clave: Clave) {
     match clave {
         Clave::Arranque => a.arranque_con_windows = !a.arranque_con_windows,
         Clave::TemaCosmos => a.tema_cosmos = !a.tema_cosmos,
-        Clave::AsistenteRespaldo => a.asistente.respaldo_local = !a.asistente.respaldo_local,
-        Clave::AsistenteMejorVista => {
-            a.asistente.mejor_vista = !a.asistente.mejor_vista;
-            // Apagado, Gemma no se queda ocupando memoria.
-            if !a.asistente.mejor_vista {
-                crate::asistente::motor::soltar_mejor_vista();
+        Clave::AsistenteRevisarVoz => a.asistente.revisar_lo_dicho = !a.asistente.revisar_lo_dicho,
+        Clave::JevFuncion(i) => {
+            if let Some((f, _, _)) = FUNCIONES_JEV.get(i as usize) {
+                let s = jev_de(&mut a.jev, *f);
+                *s = !*s;
             }
         }
-        Clave::AsistenteRevisarVoz => a.asistente.revisar_lo_dicho = !a.asistente.revisar_lo_dicho,
         Clave::PdfAligerar => a.pdf.aligerar_al_entrar = !a.pdf.aligerar_al_entrar,
         Clave::Apilar => {
             // Cero apaga la pila; encenderla vuelve a su numero de fabrica
@@ -2037,11 +2163,11 @@ fn aplicar_opcion(a: &mut Ajustes, clave: Clave, cual: usize) {
                 .unwrap_or_default();
         }
         Clave::AsistenteMotor => {
-            let e = crate::asistente::nube::OPCIONES
+            let p = crate::asistente::nube::OPCIONES
                 .get(cual)
                 .copied()
-                .unwrap_or(crate::asistente::nube::Eleccion::Local);
-            a.asistente.motor = crate::asistente::nube::id_de(e).to_string();
+                .unwrap_or(pixpin_ia::nube::Proveedor::Claude);
+            a.asistente.motor = p.id().to_string();
         }
         Clave::AsistenteDocsNube => {
             use crate::asistente::documentos::PermisoNube;
@@ -2050,15 +2176,6 @@ fn aplicar_opcion(a: &mut Ajustes, clave: Clave, cual: usize) {
                 .copied()
                 .unwrap_or(PermisoNube::Preguntar);
             a.asistente.documentos_a_la_nube = p.clave().to_string();
-        }
-        Clave::AsistenteModelo => {
-            a.asistente.modelo = if cual == 1 {
-                pixpin_ia::modelos::QWEN35_08B.id.to_string()
-            } else {
-                pixpin_ia::modelos::QWEN35_2B.id.to_string()
-            };
-            // El motor del otro modelo se suelta ya (su memoria vuelve).
-            crate::asistente::motor::soltar_todo();
         }
         Clave::AsistentePensar => {
             a.asistente.pensar = match cual {
@@ -2231,6 +2348,10 @@ fn es_clave(filas: &[(Clave, Fila)], i: usize) -> bool {
 /// «Guardar y probar» la clave del proveedor `n`: lo escrito, o la guardada
 /// si no se escribio nada. Vuelve en seguida; la prueba va en su hilo.
 fn probar_clave(n: u8, escrito: &str, despertar: std::sync::Arc<dyn Fn() + Send + Sync>) {
+    if n == CLAVE_JEV {
+        crate::jev::guardar_y_probar(escrito, despertar);
+        return;
+    }
     let Some(p) = pixpin_ia::nube::Proveedor::TODOS.get(n as usize).copied() else {
         return;
     };
@@ -2302,7 +2423,9 @@ fn pulsar(clave: Clave, a: &Ajustes, ubicacion: &Ubicacion) {
             Ok(())
         }
         Clave::BorrarClave(i) => {
-            if let Some(p) = pixpin_ia::nube::Proveedor::TODOS.get(i as usize) {
+            if i == CLAVE_JEV {
+                crate::jev::borrar();
+            } else if let Some(p) = pixpin_ia::nube::Proveedor::TODOS.get(i as usize) {
                 crate::asistente::nube::borrar(*p);
             }
             Ok(())
@@ -2346,6 +2469,12 @@ fn pulsar(clave: Clave, a: &Ajustes, ubicacion: &Ubicacion) {
         )),
         Clave::VozQwen3Borrar => {
             crate::voz_motor::borrar(ubicacion.raiz());
+            Ok(())
+        }
+        Clave::AsistenteBorrarLocales => {
+            if let Err(e) = crate::asistente::modelos_viejos::borrar() {
+                tracing::warn!(?e, "ajustes: no se pudieron borrar los modelos locales");
+            }
             Ok(())
         }
         _ => Ok(()),
@@ -2550,8 +2679,9 @@ fn abrir(
     let zona = contenido(ancho, alto);
     // La prueba de una clave acaba en otro hilo: cuando cambia esto, se
     // repinta su linea de estado.
-    let mut novedades_claves =
-        crate::asistente::nube::novedades() + crate::asistente::conexiones::novedades();
+    let mut novedades_claves = crate::asistente::nube::novedades()
+        + crate::asistente::conexiones::novedades()
+        + crate::jev::novedades();
     let hwnd_ventana = ventana.handle().0 as isize;
     let despertar_ventana: std::sync::Arc<dyn Fn() + Send + Sync> =
         std::sync::Arc::new(move || pixpin_shell::overlay::despertar(hwnd_ventana));
@@ -2575,6 +2705,7 @@ fn abrir(
         pixpin_shell::overlay::bombear_pendientes();
         let n = crate::asistente::nube::novedades()
             + crate::asistente::conexiones::novedades()
+            + crate::jev::novedades()
             + crate::ocr_motor::novedades()
             + crate::voz_motor::novedades();
         if n != novedades_claves {
@@ -4188,8 +4319,6 @@ mod pruebas {
             Clave::VozMotor,
             Clave::VozSegundo,
             Clave::VozModo,
-            Clave::AsistenteModelo,
-            Clave::AsistenteMejorVista,
             Clave::AsistenteDocsNube,
             Clave::AsistentePensar,
             Clave::Presencia,

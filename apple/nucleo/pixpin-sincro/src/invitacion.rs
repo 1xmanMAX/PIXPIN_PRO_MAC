@@ -387,6 +387,9 @@ pub struct ConPersona {
     pub chats: Vec<String>,
     pub hecho: crate::protocolo::Hecho,
     pub bytes: u64,
+    /// Lo que va adelantado el reloj del otro, medido al saludar (para
+    /// poner sus fotos por su hora, `pixpin_proyecto::por_su_hora`).
+    pub desfase: i64,
 }
 
 impl ConPersona {
@@ -428,6 +431,11 @@ pub fn vuelta_con_persona<D: Disco + ?Sized, F: Read + Write>(
         .map(|c| (c.id, c.nombre))
         .collect();
     let mut hecho = crate::protocolo::Hecho::default();
+    // **Por prioridad** (27-oct-2026, `Sesion.vuelta` de Android): los
+    // mensajes de todos los chats primero, luego sus archivos juntos por
+    // niveles y grupos, y al final lo acordado. Lo que sigue como quedo en
+    // los dos lados ni se mira (el diario).
+    let mut preps = Vec::new();
     for chat in &chats {
         let nombre = nombres
             .iter()
@@ -436,13 +444,33 @@ pub fn vuelta_con_persona<D: Disco + ?Sized, F: Read + Write>(
         estado(&format!("Juntando «{nombre}» con {}…", s.otro.nombre));
         let prep = s.preparar(chat)?;
         s.aplicar(&prep, &mut hecho)?;
-        let arch = s.preparar_archivos(&prep)?;
-        s.aplicar_archivos(&arch, &mut hecho, &mut |_| {})?;
-        s.cerrar(&prep, ahora())?;
+        preps.push(prep);
+    }
+    let mut archivos = Vec::new();
+    for prep in preps.into_iter().filter(|p| !p.quieto) {
+        let a = s.preparar_archivos(&prep)?;
+        archivos.push((prep, a));
+    }
+    let todos: Vec<(usize, &crate::diferencia::Paso)> = archivos
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (_, a))| a.pasos.iter().map(move |p| (i, p)))
+        .collect();
+    let orden = crate::prioridad::ordenar(todos, |(i, p)| archivos[*i].1.pieza(p, true));
+    for (i, p) in orden {
+        s.aplicar_pasos(&archivos[i].1, &[p], &mut hecho, &mut |_| {})?;
+    }
+    for (prep, _) in &archivos {
+        s.cerrar(prep, ahora())?;
+    }
+    // Las recortadas (`solo_estos`) no cuentan para la verificacion entera.
+    if solo_estos.is_none() {
+        s.contar_vuelta();
     }
     let bytes = s.enviados() + s.recibidos();
     let quien = s.otro.clone();
     let puerto = s.puerto_del_otro;
+    let desfase = s.desfase;
     s.adios();
     Ok(ConPersona {
         quien,
@@ -450,6 +478,7 @@ pub fn vuelta_con_persona<D: Disco + ?Sized, F: Read + Write>(
         chats,
         hecho,
         bytes,
+        desfase,
     })
 }
 

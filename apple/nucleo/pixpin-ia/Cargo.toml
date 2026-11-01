@@ -19,9 +19,13 @@ tracing = "0.1.44"
 # El protocolo con el modelo es JSON de punta a punta (peticiones al estilo
 # OpenAI, llamadas a herramientas, elementos de Excalidraw para el lienzo).
 serde_json = "1.0"
-# La huella de cada fichero bajado (modelo y motor). Ya estaba en el arbol
-# por pixpin-sincro y pdfsqueeze-core.
+# La huella del indice de documentos y el PKCE de las conexiones. Ya estaba
+# en el arbol por pixpin-sincro y pdfsqueeze-core.
 sha2 = "0.10.9"
+# Leer la web para el asistente con DeepSeek (`web.rs`): direcciones seguras,
+# texto legible y buscadores, sin red (la red la pone `nube::http`).
+pixpin-paginas = { path = "../pixpin-paginas" }
+
 # El motor (llama.cpp) llega en un .zip de su pagina de versiones; de el se
 # sacan solo los ficheros que hacen falta. Mismo crate y rasgos que
 # pixpin-docs, pixpin-hojas y pixpin-office.
@@ -61,8 +65,6 @@ windows = { version = "0.62.2", features = [
     # Hablar con Claude y DeepSeek por HTTPS con lo que ya trae Windows
     # (nube/http.rs), sin un cliente HTTP ni TLS propios en el ejecutable.
     "Win32_Networking_WinHttp",
-    "Win32_System_JobObjects",
-    "Win32_System_Threading",
 ] }
 
 [dev-dependencies]

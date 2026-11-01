@@ -398,6 +398,10 @@ struct Estado<'l> {
     anotando: bool,
     poniendo_marca: bool,
     encima: pixpin_ui::riel_marcas::DestinoRiel,
+    /// Si la barra del pin se ve: el riel se va y vuelve con ella
+    /// (`riel::riel_a_la_vista`); y si se veia en el ultimo pintado.
+    barras: bool,
+    riel_visto: bool,
     marcas: Vec<pixpin_motor2d::marcas::Marca>,
     recuerdo: riel::Recuerdo,
     /// La tinta cambio algo en el gesto en curso (se guarda al acabarlo).
@@ -1769,7 +1773,13 @@ fn abrir(
         .map(|r| pixpin_docs::extension(&pixpin_docs::nombre(r)))
         .filter(|x| !x.is_empty())
         .unwrap_or_else(|| "xlsx".into());
-    let pin = PinLector::nuevo(area_pin, e).con_extension(&ext);
+    // Abierto de fuera (de paso): «Guardar» en un chat.
+    let de_paso = ruta.is_some_and(|r| {
+        crate::oscuro::ubicacion().is_some_and(|u| crate::guardar_de_paso::es_de_paso(u.raiz(), r))
+    });
+    let pin = PinLector::nuevo(area_pin, e)
+        .con_extension(&ext)
+        .con_guardar(de_paso);
     let area = pin.area;
     let ventana = VentanaOverlay::nueva_normal(area, nombre)
         .context("no se pudo abrir la ventana del visor de hojas")?;
@@ -1859,6 +1869,8 @@ fn ver_en(
         anotando: false,
         poniendo_marca: false,
         encima: pixpin_ui::riel_marcas::DestinoRiel::Fuera,
+        barras: true,
+        riel_visto: true,
         marcas,
         recuerdo,
         tinta_cambio: false,
@@ -1879,6 +1891,8 @@ fn ver_en(
     let mut vivo = true;
     // Ctrl+P: los marcos (o lo que se ve), en grupo al dialogo de imprimir.
     let mut imprimir_marcos = false;
+    // El clic derecho en el boton del marco: la hoja abierta entera.
+    let mut imprimir_entera = false;
     // Para que modo estan puestas las pistas de la barra (ver o editar).
     let mut pistas_de: Option<bool> = None;
     // Pruebas: imprimir los marcos solo, a los 2 s de abrir (con
@@ -1978,6 +1992,20 @@ fn ver_en(
                         }
                     }
                     Some(AccionPin::Propio(BOTON_EDITAR)) => quiere_editar = true,
+                    Some(AccionPin::Guardar) => {
+                        if let (Some(r), Some(u)) = (ruta, crate::oscuro::ubicacion())
+                            && crate::guardar_de_paso::preguntar_y_guardar(
+                                ventana.handle(),
+                                u.raiz(),
+                                r,
+                                crate::guardar_de_paso::Visor::Libro,
+                                &[],
+                                textos,
+                            )
+                        {
+                            pin.poner_guardar(false);
+                        }
+                    }
                     Some(AccionPin::PantallaCompleta) => {
                         pin.alternar_pantalla_completa(&mut ventana)
                     }
@@ -2005,11 +2033,24 @@ fn ver_en(
             match evento {
                 EventoOverlay::Cerrar => vivo = false,
                 EventoOverlay::Despierta => {}
-                // El derecho en un punto del riel quita su marca; en lo demas,
-                // con marcos puestos, su menu (imprimirlos o borrarlos).
+                // El derecho en un punto del riel quita su marca; en el boton
+                // del marco, que imprimir (los marcos o la hoja entera); en lo
+                // demas, con marcos puestos, su menu (imprimirlos o borrarlos).
                 EventoOverlay::BotonDerechoPulsado(p) => {
                     est.raton = local(p);
-                    if est.pulsar_derecho_riel() {
+                    if est.destino_del_riel() == pixpin_ui::riel_marcas::DestinoRiel::Imprimir {
+                        match crate::marcos_doc::menu_de_imprimir(
+                            est.hwnd,
+                            textos,
+                            est.marcos.lista.len(),
+                            Some(crate::marcos_doc::Entero::Hoja),
+                        ) {
+                            Some(crate::marcos_doc::QueImprimir::Marcos) => imprimir_marcos = true,
+                            Some(crate::marcos_doc::QueImprimir::Entero) => imprimir_entera = true,
+                            None => {}
+                        }
+                        hay_que_pintar = true;
+                    } else if est.pulsar_derecho_riel() {
                         hay_que_pintar = true;
                     } else if let Some(pedido) = est.menu_de_marcos(textos) {
                         imprimir_marcos |= pedido == crate::marcos_doc::Pedido::Imprimir;
@@ -2311,6 +2352,11 @@ fn ver_en(
         if pin.actualizar(motor, &nombre, &botones) {
             hay_que_pintar = true;
         }
+        // El riel se va y vuelve con la barra del pin.
+        est.barras = pin.barra_a_la_vista();
+        if est.riel_a_la_vista() != est.riel_visto {
+            hay_que_pintar = true;
+        }
         if est
             .aviso
             .as_ref()
@@ -2330,6 +2376,14 @@ fn ver_en(
                 ventana.soltar_raton();
             }
             marcos::imprimir(&superficie, motor, &mut est, textos);
+            hay_que_pintar = true;
+        }
+        if std::mem::take(&mut imprimir_entera) {
+            if est.gesto.is_some() {
+                est.gesto = None;
+                ventana.soltar_raton();
+            }
+            marcos::imprimir_entera(&superficie, motor, &mut est, textos);
             hay_que_pintar = true;
         }
         if hay_que_pintar {

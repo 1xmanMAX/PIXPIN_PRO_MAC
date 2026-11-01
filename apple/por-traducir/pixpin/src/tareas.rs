@@ -99,6 +99,10 @@ pub struct Fila {
     /// Los enlaces de sus imagenes (`pixpin:files/…`), en orden. Se
     /// resuelven con [`ruta_de_imagen`].
     pub imagenes: Vec<String>,
+    /// Su prioridad segun su contexto (Jev, 28-oct-2026,
+    /// `jev::urgencia`). `None`: sin Jev, o aun no se sabe; entonces todo
+    /// va como siempre.
+    pub prioridad: Option<pixpin_typesafe::urgencia::Prioridad>,
 }
 
 /// Una lista de tareas de un chat.
@@ -118,6 +122,9 @@ pub struct Lista {
     pub cuando: i64,
     /// Todas sus tareas, en el orden del documento.
     pub filas: Vec<Fila>,
+    /// El codigo corto (`K7Q2`) del aparato donde nacio el mensaje de la
+    /// lista: en un chat compartido dice quien la apunto ([`autor`]).
+    pub aparato: Option<String>,
 }
 
 impl Lista {
@@ -145,11 +152,20 @@ impl Lista {
     }
 }
 
-/// Como se ordena lo pendiente: primero lo que tiene fecha, de la mas vieja
-/// a la mas nueva; detras lo que no la tiene. A igualdad, el orden del
-/// documento, que es el que el usuario le dio en el chat.
-pub fn orden_de_pendiente(f: &Fila) -> (bool, Option<mini::Fecha>, usize) {
-    (f.creada.is_none(), f.creada, f.indice)
+/// Como se ordena lo pendiente: con Jev, primero por su prioridad (urgente,
+/// alta, normal, baja; lo que aun no se sabe cuenta como normal); luego lo
+/// que tiene fecha, de la mas vieja a la mas nueva, y detras lo que no la
+/// tiene. A igualdad, el orden del documento, que es el que el usuario le
+/// dio en el chat. Sin Jev todas son «normal» y el orden es el de siempre.
+pub fn orden_de_pendiente(f: &Fila) -> (u8, bool, Option<mini::Fecha>, usize) {
+    use pixpin_typesafe::urgencia::Prioridad;
+    let rango = match f.prioridad.unwrap_or(Prioridad::Normal) {
+        Prioridad::Urgente => 0,
+        Prioridad::Alta => 1,
+        Prioridad::Normal => 2,
+        Prioridad::Baja => 3,
+    };
+    (rango, f.creada.is_none(), f.creada, f.indice)
 }
 
 /// Las tareas de un documento, con su texto partido de su fecha.
@@ -167,6 +183,7 @@ pub fn filas_de(documento: &str) -> Vec<Fila> {
                 creada,
                 hecha: t.hecha,
                 crudo: t.texto,
+                prioridad: None,
             }
         })
         .collect()
@@ -188,7 +205,33 @@ pub fn lista_de(ficha: &almacen::Ficha, m: &cuaderno::Mensaje) -> Option<Lista> 
         titulo: pedidos::nombre_de_lista(m),
         cuando: m.cuando,
         filas,
+        aparato: m.aparato.as_deref().map(aparato_corto),
     })
+}
+
+/// El codigo corto de un aparato: unos mensajes se guardaron con el id
+/// entero, y de ese sale el corto por el mismo camino que en el movil (como
+/// `ventana_chat::aparato_corto`, el de las burbujas).
+fn aparato_corto(a: &str) -> String {
+    let a = a.trim();
+    if a.chars().count() > 6 {
+        pixpin_proyecto::codigos::de_aparato(a)
+    } else {
+        a.to_string()
+    }
+}
+
+/// **Quien apunto la lista `l`**, si fue otra persona de su chat compartido
+/// (27-oct-2026, Android `TareasCompartidas.autor`): su nombre, leido como
+/// las burbujas del chat (`conversacion::Lados::quien`, la misma regla de
+/// «mio»). `None` si fui yo o uno de mis aparatos, o si no se sabe. Es de la
+/// lista entera y no de cada tarea: el documento no guarda quien escribio
+/// cada linea.
+pub fn autor(l: &Lista, lados: &pixpin_ui::conversacion::Lados) -> Option<String> {
+    lados
+        .quien(l.aparato.as_deref())
+        .nombre()
+        .map(str::to_string)
 }
 
 /// El orden de las listas: el Inbox el primero (es donde cae todo lo
@@ -841,7 +884,40 @@ mod pruebas {
             titulo: "Compra".into(),
             cuando,
             filas: filas_de(documento),
+            aparato: None,
         }
+    }
+
+    #[test]
+    fn quien_apunto_la_lista_sigue_la_regla_de_las_burbujas() {
+        use pixpin_ui::conversacion::Lados;
+        let lados = Lados::nuevo(
+            ["PC01".to_string(), "MOV1".to_string()],
+            [
+                ("MOV1".to_string(), "Max".to_string()),
+                ("ANA1".to_string(), "Ana".to_string()),
+            ],
+        );
+        let de = |aparato: Option<&str>| {
+            let mut l = lista(1, "- [ ] pan");
+            l.aparato = aparato.map(str::to_string);
+            autor(&l, &lados)
+        };
+        assert_eq!(de(Some("ANA1")).as_deref(), Some("Ana"));
+        // Casos negativos: lo de mis aparatos (tambien mi movil, que esta en
+        // la lista del chat), lo que no lleva codigo y lo que nadie reclama
+        // es mio, y lo mio no lleva inicial.
+        assert_eq!(de(Some("PC01")), None);
+        assert_eq!(de(Some("MOV1")), None);
+        assert_eq!(de(None), None);
+        assert_eq!(de(Some("ZZZZ")), None);
+        // El id entero de un aparato se lee por su codigo corto.
+        assert_eq!(aparato_corto(" ANA1 "), "ANA1");
+        let largo = "aparato-de-ana-0123456789";
+        assert_eq!(
+            aparato_corto(largo),
+            pixpin_proyecto::codigos::de_aparato(largo)
+        );
     }
 
     fn textos(v: &[&Fila]) -> Vec<String> {
@@ -956,6 +1032,11 @@ mod pruebas {
                 .unwrap()
         };
         assert_eq!(de(false).chat, "Obra");
+        assert_eq!(
+            de(false).aparato.as_deref(),
+            Some("PC01"),
+            "quien la apunto"
+        );
         assert_eq!(
             textos(&de(false).filas.iter().collect::<Vec<_>>()),
             ["yeso"]

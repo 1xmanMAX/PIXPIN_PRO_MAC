@@ -14,8 +14,10 @@
 //!
 //! Capa 0: no depende de ningun crate de PixPin.
 
+pub mod archivos;
 pub mod atajo;
 pub mod entorno;
+pub mod mp4;
 pub mod union;
 
 pub use atajo::{Atajo, ErrorAtajo, Modificadores, Tecla};

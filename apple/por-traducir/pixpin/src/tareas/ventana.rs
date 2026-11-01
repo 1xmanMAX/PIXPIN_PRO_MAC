@@ -720,6 +720,13 @@ struct Estado {
     /// Las listas que se ensenan: las que tienen alguna tarea, el Inbox el
     /// primero.
     listas: Vec<Lista>,
+    /// Los chats (por su `id`) que son compartidos: sus listas llevan la
+    /// insignia verde de las dos personas, como en la lista de chats.
+    compartidos: HashSet<String>,
+    /// Quien apunto cada lista de un chat compartido, si fue otra persona
+    /// (por la clave de la lista, `tareas::autor`): su inicial y su color van
+    /// detras de la insignia, como encima de sus burbujas en el chat.
+    autores: HashMap<String, String>,
     /// Adonde se puede mover lo del Inbox: todas las demas listas, tambien
     /// las vacias.
     destinos: Vec<Lista>,
@@ -852,13 +859,45 @@ impl Estado {
             apuntar_en: None,
             asignatura: None,
             selector: false,
+            compartidos: HashSet::new(),
+            autores: HashMap::new(),
         }
+    }
+
+    /// Quien apunto la lista `li`, si es de un chat compartido y no fui yo.
+    fn autor(&self, li: usize) -> Option<&str> {
+        self.listas
+            .get(li)
+            .and_then(|l| self.autores.get(&l.clave()))
+            .map(String::as_str)
+    }
+
+    /// Si la lista `li` viene de un chat compartido.
+    fn compartida(&self, li: usize) -> bool {
+        self.listas
+            .get(li)
+            .is_some_and(|l| self.compartidos.contains(&l.proyecto))
     }
 
     fn recargar(&mut self, ubicacion: &Ubicacion) {
         let raiz = ubicacion.raiz();
-        let (todas, proyectos) = super::reunir(raiz);
+        let (mut todas, proyectos) = super::reunir(raiz);
+        // La prioridad de cada tarea por su contexto (Jev; sin clave, nada).
+        crate::jev::urgencia::aplicar(ubicacion, &mut todas);
         self.firma = super::firma(raiz, &proyectos);
+        self.compartidos = todas
+            .iter()
+            .map(|l| l.proyecto.clone())
+            .filter(|id| crate::sincronizar::compartidos_ui::personas_del_chat(raiz, id).is_some())
+            .collect();
+        self.autores = todas
+            .iter()
+            .filter(|l| self.compartidos.contains(&l.proyecto))
+            .filter_map(|l| {
+                let cc = crate::sincronizar::compartidos_ui::del_chat(raiz, &l.proyecto)?;
+                Some((l.clave(), super::autor(l, &cc.lados)?))
+            })
+            .collect();
         // Las imagenes de las tareas, resueltas una vez por lectura y no en
         // cada fotograma (resolver un enlace lee el indice). Lo que ya se
         // encontro no se vuelve a buscar.
@@ -1012,6 +1051,7 @@ impl Estado {
                     texto,
                     cuando,
                     color: degradado_de_lista(self, li).0,
+                    compartida: self.compartida(li),
                 });
                 sitios.push((li, f.indice));
             }
@@ -1889,7 +1929,7 @@ fn hacer(
         }
         Accion::BuscarChapa(li, fi, k) => {
             let q = e.fila(li, fi).and_then(|(_, f)| {
-                super::frase::a_la_vista(&f.texto, None)
+                super::frase::a_la_vista_con(&f.texto, None, f.prioridad)
                     .chapas
                     .get(k)
                     .map(super::frase::Chapa::busqueda)
@@ -3450,6 +3490,21 @@ fn pintar_encabezado(
     let derecha = cw.max(2.0 * ASPA * s + 4.0 * s);
     let libre = (ancho - derecha - 34.0 * s).max(0.0);
     let con_chat = !super::es_inbox(&l);
+    // De un chat compartido: la insignia verde detras del nombre (como en
+    // la lista de chats), en Tarjetas y en Kanban.
+    let compartida = e.compartida(g.lista);
+    let insignia = if compartida { th * 0.9 } else { 0.0 };
+    let libre = (libre - if compartida { insignia + 6.0 * s } else { 0.0 }).max(0.0);
+    // Y si la apunto otra persona, su inicial en su color detras (checklist
+    // 26, Android `TareasCompartidas.autor`).
+    let autor = e.autor(g.lista).map(str::to_string);
+    let libre = (libre
+        - if autor.is_some() {
+            insignia + 4.0 * s
+        } else {
+            0.0
+        })
+    .max(0.0);
     let (nw, _) = ui::medir_negrita(p, &l.titulo, tam, libre);
     let nw = if con_chat {
         nw.min(libre * 0.7)
@@ -3479,6 +3534,36 @@ fn pintar_encabezado(
         },
         |p| ui::negrita(p, &l.titulo, x + 4.0 * s, ty, tam, 100_000.0, TEXTO),
     );
+    let x = if compartida {
+        crate::ventana_chat::pintar_insignia_compartido(
+            p,
+            RectF {
+                x: x + 4.0 * s + nw + 6.0 * s,
+                y: ty + (th - insignia) / 2.0,
+                ancho: insignia,
+                alto: insignia,
+            },
+        );
+        x + insignia + 6.0 * s
+    } else {
+        x
+    };
+    let x = match &autor {
+        Some(nombre) => {
+            pintar_inicial_de_persona(
+                p,
+                RectF {
+                    x: x + 4.0 * s + nw + 2.0 * s,
+                    y: ty + (th - insignia) / 2.0,
+                    ancho: insignia,
+                    alto: insignia,
+                },
+                nombre,
+            );
+            x + insignia + 4.0 * s
+        }
+        None => x,
+    };
     if con_chat {
         p.texto_linea(
             &format!("·  {}", l.chat),
@@ -3489,6 +3574,26 @@ fn pintar_encabezado(
             GRIS,
         );
     }
+}
+
+/// El circulo de una persona con su inicial, en su color: el mismo que lleva
+/// su nombre encima de sus burbujas en el chat compartido.
+fn pintar_inicial_de_persona(p: &Pintor, caja: RectF, nombre: &str) {
+    p.rellenar_redondeado(
+        caja,
+        caja.ancho / 2.0,
+        crate::ventana_chat::color_de_persona(nombre),
+    );
+    let letra = pixpin_ui::conversacion::inicial(nombre);
+    let tam = caja.alto * 0.58;
+    let (wl, hl) = p.medir_texto(&letra, tam);
+    p.texto(
+        &letra,
+        caja.x + (caja.ancho - wl) / 2.0,
+        caja.y + (caja.alto - hl) / 2.0,
+        tam,
+        Color::BLANCO,
+    );
 }
 
 /// «Hechas (N)» con su flecha: abre y cierra lo hecho de la lista. Buscando
@@ -3958,7 +4063,7 @@ fn alto_de_cuadrado(e: &Estado, p: &Pintor, li: usize, fi: usize, lado: f32, s: 
         texto,
         emos,
         chapas,
-    } = super::frase::a_la_vista(&f.texto, Some(super::frase::ahora()));
+    } = super::frase::a_la_vista_con(&f.texto, Some(super::frase::ahora()), f.prioridad);
     // Una fila de las hechas (`lado` es entonces todo el ancho): su texto
     // entero entre la casilla y la edad, con su aire arriba y abajo.
     if lado > LADO_CUADRADO * s * 1.5 {
@@ -4029,7 +4134,7 @@ fn pintar_cuadrado(
         texto,
         emos,
         chapas,
-    } = super::frase::a_la_vista(&f.texto, Some(super::frase::ahora()));
+    } = super::frase::a_la_vista_con(&f.texto, Some(super::frase::ahora()), f.prioridad);
     let partes = rejilla::partes(r, s, !emos.is_empty());
     let encima = e.encima == Some(tarjetas::Pieza::Tarjeta(li, fi));
     let foco = e.foco == Foco::Tarjeta(li, fi);
@@ -4640,6 +4745,7 @@ mod pruebas {
             titulo: titulo.into(),
             cuando,
             filas: super::super::filas_de(doc),
+            aparato: None,
         };
         let mut e = Estado::nuevo();
         e.hoy = pixpin_proyecto::mini::Fecha {
@@ -4706,21 +4812,59 @@ mod pruebas {
 
     /// Las piezas colocadas como lo haria un fotograma, con tarjetas de alto
     /// fijo: para probar el teclado sin pintar.
+    /// Las tarjetas como las pinta la vista de siempre (Tarjetas, una
+    /// rejilla desde que se quito la Lista el 25-oct): `colocadas` y
+    /// `celdas`, que es por donde andan las flechas.
     fn colocar(e: &mut Estado) {
         let palabras = tarjetas::palabras(e.buscar.texto());
         let g = tarjetas::agrupar(&e.listas, &palabras, e.hoy, &|_, _| false);
-        e.colocadas = tarjetas::disponer(
+        let (c, _) = rejilla::disponer(
             &g,
             &|_| false,
-            &mut |_, _| 60.0,
-            tarjetas::Medidas {
+            &mut |_, _, l| l,
+            &rejilla::Medidas {
+                ancho: 628.0,
+                lado: 200.0,
+                hueco: 12.0,
                 encabezado: 40.0,
                 pliegue: 40.0,
-                hueco: 8.0,
                 entre_grupos: 18.0,
+                respiro: 8.0,
+                fila_hecha: 44.0,
             },
-        )
-        .0;
+        );
+        e.colocadas = rejilla::colocadas(&c);
+        e.celdas = c;
+    }
+
+    #[test]
+    fn las_listas_de_un_chat_compartido_llevan_su_insignia_tambien_en_el_horario() {
+        let mut e = muestra_estado();
+        assert!(
+            !(0..e.listas.len()).any(|li| e.compartida(li)),
+            "nada compartido"
+        );
+        e.compartidos.insert("o".into());
+        let li = e.listas.iter().position(|l| l.proyecto == "o").unwrap();
+        assert!(e.compartida(li));
+        // Caso negativo: las demas siguen sin ella, y una lista que no esta
+        // tampoco.
+        assert!(!e.compartida(0) && !e.compartida(99));
+        // Quien la apunto: solo si fue otra persona (lo mio no lleva inicial).
+        assert_eq!(e.autor(li), None);
+        e.autores.insert(e.listas[li].clave(), "Ana".into());
+        assert_eq!(e.autor(li), Some("Ana"));
+        assert_eq!(e.autor(0), None);
+        assert_eq!(e.autor(99), None);
+        // Una tarea con hora de esa lista sale en el horario con su insignia.
+        e.listas[li]
+            .filas
+            .push(super::super::filas_de("- [ ] reunion ⏰ 2026-10-05 10:00")[0].clone());
+        let (tareas, sitios) = e.tareas_con_hora();
+        assert!(sitios.iter().any(|(de, _)| *de == li), "{sitios:?}");
+        for (t, (de, _)) in tareas.iter().zip(&sitios) {
+            assert_eq!(t.compartida, *de == li, "{}", t.texto);
+        }
     }
 
     #[test]
@@ -4754,18 +4898,24 @@ mod pruebas {
         assert!(t(&mut e, VK_ESCAPE, false));
         assert!(e.buscar.texto().is_empty());
         colocar(&mut e);
-        // Sin buscar: la caja, y bajando las tarjetas en orden.
+        // Sin buscar: la caja, abajo a la primera tarjeta y a la derecha la
+        // siguiente (en la rejilla, abajo es la de debajo).
         t(&mut e, VK_TAB, false);
         assert_eq!(e.foco, Foco::Apuntar);
         t(&mut e, VK_ABAJO, false);
         let orden = tarjetas::en_orden(&e.colocadas);
         assert_eq!(e.foco, Foco::Tarjeta(orden[0].0, orden[0].1));
-        t(&mut e, VK_ABAJO, false);
+        t(&mut e, VK_DERECHA, false);
         assert_eq!(e.foco, Foco::Tarjeta(orden[1].0, orden[1].1));
-        // Intro en una del Inbox abre «Mover a…» y las flechas eligen.
-        assert!(e.se_reparte(orden[1].0, orden[1].1));
+        // Intro en una del Inbox sin fotos abre «Mover a…» y las flechas
+        // eligen (en un cuadrado con foto, Intro la pinea).
+        let sin_fotos = *orden
+            .iter()
+            .find(|(l, f)| e.se_reparte(*l, *f) && !e.con_fotos(*l, *f))
+            .expect("una del Inbox sin fotos");
+        e.foco = Foco::Tarjeta(sin_fotos.0, sin_fotos.1);
         t(&mut e, VK_ENTRAR, false);
-        assert_eq!(e.repartiendo, Some(orden[1]));
+        assert_eq!(e.repartiendo, Some(sin_fotos));
         t(&mut e, VK_ABAJO, false);
         t(&mut e, VK_ABAJO, false);
         assert_eq!(e.destino_elegido, 1, "no se pasa del ultimo");

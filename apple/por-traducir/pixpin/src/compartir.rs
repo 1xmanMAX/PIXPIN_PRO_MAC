@@ -171,8 +171,8 @@ pub(crate) struct Preparado {
     pub excalidraw: Option<String>,
     /// Lo marcado al abrir; `None`, todo.
     pub marcadas: Option<BTreeSet<String>>,
-    /// Si lo natural es mandar el original (una foto, un PDF, un Word): va
-    /// el primero de la fila.
+    /// Si lo natural es mandar el original (una foto, un PDF, un Word): la
+    /// hoja se abre con el puesto (la fila va siempre en el mismo orden).
     pub original_primero: bool,
     /// **Los documentos que se leen** (un Word, un libro, un PDF) con la
     /// clave de sus filas: su «Pagina web» no son dibujos de sus paginas
@@ -989,6 +989,35 @@ fn de_mensajes(
     mensajes: &[Mensaje],
     t: &Catalogo,
 ) -> Preparado {
+    // **Un cuaderno** (29-oct-2026, como el movil 201d327): solo, con todos
+    // sus formatos (`carpeta::preparar`); la carpeta de una grabacion, como
+    // la grabacion que es; y entre otros mensajes, con sus paginas en vez
+    // del JSON de su documento.
+    if mensajes
+        .iter()
+        .any(pixpin_proyecto::carpeta_de_paginas::es_carpeta)
+    {
+        let todos = pixpin_proyecto::cuaderno::Cuaderno::leer_de(
+            &pixpin_proyecto::almacen::carpeta(raiz, proyecto),
+        )
+        .map(|c| c.mensajes)
+        .unwrap_or_default();
+        if let [m] = mensajes
+            && let Some(c) = pixpin_proyecto::carpeta_de_paginas::Carpeta::de_mensaje(m)
+        {
+            if c.es_grabacion() {
+                if let Some(voz) = todos.iter().find(|x| !c.voz.is_empty() && x.id == c.voz) {
+                    return de_mensajes(raiz, proyecto, titulo, std::slice::from_ref(voz), t);
+                }
+            } else if let Some(p) = carpeta::preparar(raiz, proyecto, m, &todos, t) {
+                return p;
+            }
+        }
+        let abiertos = carpeta::con_sus_paginas(mensajes, &todos);
+        if !abiertos.is_empty() {
+            return de_mensajes(raiz, proyecto, titulo, &abiertos, t);
+        }
+    }
     let solo = mensajes.len() == 1;
     let titulo = match mensajes {
         [m] if matches!(
@@ -1035,25 +1064,7 @@ fn de_mensajes(
         };
         anadir_original(&mut p, id, clave, rutas);
     }
-    // El proyecto entero del chat, para abrirlo en otro PixPin o el movil.
-    if pixpin_proyecto::almacen::Indice::leer(raiz)
-        .buscar(proyecto)
-        .is_some()
-    {
-        let nombre = pixpin_proyecto::almacen::Indice::leer(raiz)
-            .buscar(proyecto)
-            .map(|f| f.nombre.clone())
-            .unwrap_or_default();
-        p.extras.push(Extra {
-            id: exportable::PIXPIN,
-            clave: "compartir-pixpin",
-            que: Entero::Proyectos(vec![(
-                raiz.to_path_buf(),
-                proyecto.to_string(),
-                format!("{}.pixpin", exportar_html::nombre_de_fichero(&nombre)),
-            )]),
-        });
-    }
+    anadir_pixpin_del_chat(&mut p, raiz, proyecto);
     // Una foto o un fichero solos: lo que se suele querer es mandarlos tal
     // cual. Una grabacion no: lo suyo es su pagina web.
     p.original_primero = solo
@@ -1123,6 +1134,25 @@ fn de_proyectos(raiz: &Path, ids: &[String], t: &Catalogo) -> Result<Preparado> 
         que: Entero::Proyectos(paquetes),
     });
     Ok(p)
+}
+
+/// **El proyecto entero del chat**, para abrirlo en otro PixPin o el movil.
+fn anadir_pixpin_del_chat(p: &mut Preparado, raiz: &Path, proyecto: &str) {
+    let Some(nombre) = pixpin_proyecto::almacen::Indice::leer(raiz)
+        .buscar(proyecto)
+        .map(|f| f.nombre.clone())
+    else {
+        return;
+    };
+    p.extras.push(Extra {
+        id: exportable::PIXPIN,
+        clave: "compartir-pixpin",
+        que: Entero::Proyectos(vec![(
+            raiz.to_path_buf(),
+            proyecto.to_string(),
+            format!("{}.pixpin", exportar_html::nombre_de_fichero(&nombre)),
+        )]),
+    });
 }
 
 fn anadir_original(p: &mut Preparado, id: &'static str, clave: &'static str, rutas: Vec<PathBuf>) {
@@ -1755,14 +1785,16 @@ fn caja_de_orden(o: &Orden) -> Option<(f32, f32, f32, f32)> {
 // La hoja: formatos y paginas
 
 /// **Lo que ensena la hoja** para lo preparado: las paginas y los formatos
-/// que tocan. Con paginas: pagina web, PDF, PNG, JPG y SVG (los de una
+/// que tocan. Con paginas: PNG, JPG, SVG, PDF y pagina web (los de una
 /// pagina solo con una marcada, lo decide la hoja); detras, lo que va
-/// entero. Una foto, un PDF o un Word llevan el original delante: es lo que
-/// se suele querer mandar.
+/// entero. **El orden y el nombre son los de toda la app**
+/// ([`pixpin_ui::hoja_compartir::FORMATOS_EN_ORDEN`], como el movil):
+/// una foto, un PDF o un Word no ponen el original delante sino que la
+/// hoja se abre con el puesto, que es lo que se suele querer mandar.
 pub(crate) fn compartible(p: &Preparado, t: &Catalogo) -> Compartible {
     let formato = |id: &str, clave: &str, cuantas: Cuantas| Formato {
         id: id.into(),
-        nombre: t.t(clave),
+        nombre: t.t(pixpin_ui::hoja_compartir::clave_del_formato(id, clave)),
         cuantas,
         admite: None,
         interruptor: None,
@@ -1822,16 +1854,18 @@ pub(crate) fn compartible(p: &Preparado, t: &Catalogo) -> Compartible {
         .iter()
         .map(|e| formato(e.id, e.clave, Cuantas::Ninguna))
         .collect();
-    let formatos = if p.original_primero {
+    let mut formatos: Vec<Formato> = if p.original_primero {
         enteros.into_iter().chain(de_paginas).collect()
     } else {
         de_paginas.into_iter().chain(enteros).collect()
     };
+    let inicial = pixpin_ui::hoja_compartir::ordenar(&mut formatos);
     Compartible {
         titulo: p.titulo.clone(),
         paginas: p.piezas.iter().map(|x| x.pagina.clone()).collect(),
         formatos,
         marcadas: p.marcadas.clone(),
+        inicial,
     }
 }
 

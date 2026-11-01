@@ -99,10 +99,10 @@
 //!
 //! ## Reparto del crate
 //!
-//! - [`tiempos`], [`credibilidad`], [`idiomas`], [`cortes`] y
-//!   [`telepronter`]: aritmetica y texto, sin Windows y sin sonido. Es donde
-//!   estan las pruebas de verdad. Tambien las partes puras de [`qwen3`]
-//!   (mel, tokens, guion, catalogo).
+//! - [`tiempos`], [`credibilidad`], [`idiomas`], [`cortes`],
+//!   [`letra_de_cancion`] y [`telepronter`]: aritmetica y texto, sin
+//!   Windows y sin sonido. Es donde estan las pruebas de verdad. Tambien
+//!   las partes puras de [`qwen3`] (mel, tokens, guion, catalogo).
 //! - [`ort`] y [`qwen3::motor`]: hablan con ONNX Runtime; compilan tambien
 //!   en Linux (con `libonnxruntime.so`) para probar Qwen3-ASR con el modelo
 //!   de verdad en la maquina de desarrollo.
@@ -110,12 +110,24 @@
 //!   C, con su `unsafe` acotado y comentado.
 #![deny(clippy::undocumented_unsafe_blocks)]
 
+/// «Sincronizar sola»: el minuto de cada linea de una letra pegada,
+/// alineandola con lo que el reconocedor oye en la cancion (29-oct-2026).
+pub mod alinear_letra;
 pub mod cortes;
 pub mod credibilidad;
 pub mod dos_idiomas;
 /// Las voces de Microsoft Edge para leer en voz alta (los lectores).
 pub mod edge;
+/// Pasar a texto en vivo, por tramos, lo que oye una reunion que se graba
+/// (los temas de la reunion, 28-oct-2026).
+pub mod en_vivo;
+/// Titulo, artista y portada de una cancion, leidos de sus etiquetas
+/// (ID3v2, MPEG-4 y FLAC): la tarjeta de musica del chat (27-oct-2026).
+pub mod etiquetas;
 pub mod idiomas;
+/// La letra de una cancion: leer LRC, guardarla como la leen el PC y el
+/// movil, la linea que suena y sincronizarla a toques (27-oct-2026).
+pub mod letra_de_cancion;
 /// Qwen3-ASR-0.6B, el motor opcional de las grabaciones (ver `qwen3`).
 pub mod qwen3;
 pub mod telepronter;
@@ -127,11 +139,12 @@ pub mod motor;
 /// El enlace a ONNX Runtime (Whisper, Indra y Qwen3-ASR). Compila tambien
 /// fuera de Windows, solo para las pruebas (ver `ort`).
 pub mod ort;
-#[cfg(windows)]
+/// Fuera de Windows, solo las cuentas de tiempo (ver `pcm`).
 pub mod pcm;
 #[cfg(windows)]
 pub mod sapi;
-#[cfg(windows)]
+/// Compila tambien en Linux (sin bajar ni decodificar: eso es de
+/// Windows) para los prototipos sin interfaz de `examples/`.
 pub mod whisper;
 
 pub use credibilidad::creible;

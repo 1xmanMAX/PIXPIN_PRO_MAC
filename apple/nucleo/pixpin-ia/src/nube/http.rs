@@ -18,7 +18,7 @@
 //!
 //! **Fuera de Windows** solo se habla `http://` con este mismo equipo, con
 //! un cliente HTTP/1.1 minimo sobre `TcpStream` (el mismo lector que
-//! `llama-server`, [`crate::servidor::LectorHttp`]): sirve para las pruebas
+//! `llama-server`, [`LectorHttp`]): sirve para las pruebas
 //! con el servidor falso y para cualquier motor local. `https://` devuelve
 //! un [`Fallo::Red`] claro mientras la app no instale su [`Transporte`]: en
 //! Apple la nube la habla URLSession desde Swift (TLS, proxy y certificados
@@ -303,7 +303,6 @@ pub fn enviar(p: &Pedido, al_trozo: &mut dyn FnMut(&[u8]) -> Seguir) -> Result<b
     use std::io::{Read, Write};
     use std::net::{TcpStream, ToSocketAddrs};
 
-    use crate::servidor::LectorHttp;
 
     let d = partir(p.url).ok_or_else(|| Fallo::Red(format!("direccion no valida: {}", p.url)))?;
     if d.segura {
@@ -616,7 +615,6 @@ fn pedir_local(
     use std::io::{Read, Write};
     use std::net::{TcpStream, ToSocketAddrs};
 
-    use crate::servidor::LectorHttp;
 
     let red = |que: &str, e: std::io::Error| Fallo::Red(format!("{que}: {e}"));
     let direccion = (d.servidor.as_str(), d.puerto)
@@ -679,6 +677,170 @@ fn pedir_local(
     });
     let ubicacion = lector.cabecera("location").map(str::to_string);
     terminar(estado, Ok(()), todo, ubicacion, grande, limite)
+}
+
+/// Lo que contesto una pagina web ([`bajar_web`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RespuestaWeb {
+    pub codigo: u32,
+    pub cuerpo: Vec<u8>,
+    /// La cabecera `Content-Type`.
+    pub tipo: Option<String>,
+    /// A donde manda una redireccion (3xx), sin seguirla.
+    pub ubicacion: Option<String>,
+}
+
+/// **Un GET a una pagina cualquiera de internet** (el asistente con
+/// DeepSeek que lee la web, `crate::web`). En Windows va por WinHTTP sin
+/// cookies ni credenciales y **sin seguir redirecciones** (quien llama
+/// comprueba cada una con `pixpin_paginas::direccion`). Fuera de Windows el
+/// HTTPS lo hace la app y su transporte aun no sabe pedir sin seguir las
+/// redirecciones: seguirlas a ciegas dejaria que una pagina mandara al
+/// asistente a la red local. Hasta que lo sepa, no se baja nada (con
+/// Claude la web la hace su API: `nube::claude::herramientas_web`).
+#[cfg(not(windows))]
+pub fn bajar_web(
+    url: &str,
+    _cabeceras: &[(&'static str, String)],
+    _limite: usize,
+    _plazo: Duration,
+) -> Result<RespuestaWeb, Fallo> {
+    Err(Fallo::Red(format!(
+        "en el Mac el asistente con DeepSeek aun no lee paginas web ({url}); con Claude si"
+    )))
+}
+
+// ---------------------------------------------------------------------------
+// El protocolo HTTP/1.1 a mano (fuera de Windows): era de `servidor`, el
+// motor local que Windows quito (f86732c); aqui lo usan las peticiones a
+// este equipo (las pruebas).
+/// La respuesta HTTP/1.1 por partes: la cabecera y luego el cuerpo, que
+/// `llama-server` manda troceado (`Transfer-Encoding: chunked`).
+/// El codigo de la primera linea de una respuesta (`HTTP/1.1 200 OK`).
+#[cfg(not(windows))]
+fn estado_http(cabecera: &[u8]) -> Option<u16> {
+    let t = std::str::from_utf8(cabecera.get(..cabecera.len().min(32))?).ok()?;
+    t.strip_prefix("HTTP/1.")?
+        .get(2..)?
+        .split_whitespace()
+        .next()?
+        .parse()
+        .ok()
+}
+
+#[cfg(not(windows))]
+pub struct LectorHttp {
+    pendiente: Vec<u8>,
+    pub estado: Option<u16>,
+    /// La cabecera de la respuesta tal cual (sin la linea en blanco final).
+    pub cabeceras: String,
+    troceado: bool,
+    en_cuerpo: bool,
+    /// Bytes que faltan del trozo actual (troceado).
+    falta: usize,
+    /// Falta el CRLF que cierra el trozo.
+    cola: bool,
+    pub terminado: bool,
+}
+
+#[cfg(not(windows))]
+impl LectorHttp {
+    pub fn nuevo() -> LectorHttp {
+        LectorHttp {
+            pendiente: Vec::new(),
+            estado: None,
+            cabeceras: String::new(),
+            troceado: false,
+            en_cuerpo: false,
+            falta: 0,
+            cola: false,
+            terminado: false,
+        }
+    }
+
+    /// Mete bytes y devuelve los del cuerpo que ya se pueden leer.
+    pub fn meter(&mut self, bytes: &[u8]) -> Result<Vec<u8>, crate::ErrorIa> {
+        self.pendiente.extend_from_slice(bytes);
+        if !self.en_cuerpo {
+            let Some(fin) = self.pendiente.windows(4).position(|v| v == b"\r\n\r\n") else {
+                if self.pendiente.len() > 64 * 1024 {
+                    return Err(crate::ErrorIa::Protocolo("cabecera HTTP interminable".into()));
+                }
+                return Ok(Vec::new());
+            };
+            let cabecera = String::from_utf8_lossy(&self.pendiente[..fin]).to_string();
+            self.pendiente.drain(..fin + 4);
+            self.estado = estado_http(cabecera.as_bytes());
+            if self.estado.is_none() {
+                return Err(crate::ErrorIa::Protocolo("respuesta que no es HTTP".into()));
+            }
+            self.troceado = cabecera.lines().any(|l| {
+                l.to_ascii_lowercase().starts_with("transfer-encoding:")
+                    && l.to_ascii_lowercase().contains("chunked")
+            });
+            self.en_cuerpo = true;
+            self.cabeceras = cabecera;
+        }
+        if !self.troceado {
+            return Ok(std::mem::take(&mut self.pendiente));
+        }
+        let mut salida = Vec::new();
+        loop {
+            if self.terminado {
+                self.pendiente.clear();
+                break;
+            }
+            if self.cola {
+                // Tras los datos de cada trozo va un «\r\n».
+                if self.pendiente.len() < 2 {
+                    break;
+                }
+                self.pendiente.drain(..2);
+                self.cola = false;
+            }
+            if self.falta > 0 {
+                let n = self.falta.min(self.pendiente.len());
+                salida.extend(self.pendiente.drain(..n));
+                self.falta -= n;
+                if self.falta > 0 {
+                    break;
+                }
+                self.cola = true;
+                continue;
+            }
+            let Some(fin) = self.pendiente.windows(2).position(|v| v == b"\r\n") else {
+                break;
+            };
+            let linea = String::from_utf8_lossy(&self.pendiente[..fin]).to_string();
+            let tam = usize::from_str_radix(linea.split(';').next().unwrap_or("").trim(), 16)
+                .map_err(|_| crate::ErrorIa::Protocolo(format!("trozo HTTP ilegible: {linea:.40}")))?;
+            self.pendiente.drain(..fin + 2);
+            if tam == 0 {
+                self.terminado = true;
+                continue;
+            }
+            self.falta = tam;
+        }
+        Ok(salida)
+    }
+}
+
+#[cfg(not(windows))]
+impl LectorHttp {
+    /// El valor de una cabecera de la respuesta (sin distinguir mayusculas).
+    pub fn cabecera(&self, nombre: &str) -> Option<&str> {
+        self.cabeceras.lines().skip(1).find_map(|l| {
+            let (k, v) = l.split_once(':')?;
+            k.trim().eq_ignore_ascii_case(nombre).then(|| v.trim())
+        })
+    }
+}
+
+#[cfg(not(windows))]
+impl Default for LectorHttp {
+    fn default() -> Self {
+        LectorHttp::nuevo()
+    }
 }
 
 #[cfg(test)]

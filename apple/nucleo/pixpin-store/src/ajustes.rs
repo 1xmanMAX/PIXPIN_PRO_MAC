@@ -292,6 +292,76 @@ pub struct Ajustes {
     /// Con que se reconoce el texto de las imagenes (`[ocr]`). Tabla: al
     /// final.
     pub ocr: Ocr,
+    /// Que funciones usan Jev, de TypeSafe (`[jev]`, 28-oct-2026). La clave
+    /// NO va aqui: va cifrada en su fichero (`pixpin_typesafe::claves`).
+    /// Tabla: al final.
+    pub jev: Jev,
+}
+
+/// Seccion `[jev]`: que funciones le preguntan a Jev (`docs/jev.md`). Todas
+/// encendidas de fabrica: sin la clave de TypeSafe ninguna hace nada y todo
+/// sigue como siempre, asi que encenderlas solo cuenta cuando hay clave.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Jev {
+    /// Las partes importantes de una clase o reunion (tareas, decisiones,
+    /// preguntas, examen) al acabar de pasarla a texto.
+    pub reunion: bool,
+    /// Mandar a Anki solo las tarjetas de una clase que valen la pena.
+    pub anki: bool,
+    /// La prioridad de cada tarea segun su contexto, en Tareas.
+    pub urgencia: bool,
+    /// Elegir el modelo del asistente segun lo dificil del pedido.
+    pub modelo: bool,
+    /// Marcar los temas de la reunion que ya se trataron, mientras se graba
+    /// (lo oido se pasa a texto en vivo, por tramos).
+    pub temas: bool,
+    // Lo que se oye en la reunion, frase a frase y en una sola peticion por
+    // frase (29-oct-2026, `pixpin_typesafe::en_la_reunion`). Todo se propone
+    // y se acepta o descarta en la barra; solo la urgencia se aplica sola,
+    // con «Deshacer».
+    /// «Yo me encargo de mandar la cotización el viernes» → una tarea
+    /// propuesta.
+    pub tareas_dichas: bool,
+    /// «Esto es para hoy» → sube la prioridad de una tarea que ya existe.
+    pub urgencia_en_vivo: bool,
+    /// Avisar cerca del final previsto si quedan temas sin tratar.
+    pub tema_olvidado: bool,
+    /// Los minutos de cada tema de la agenda.
+    pub tiempo_por_tema: bool,
+    /// Las decisiones, con su minuto.
+    pub decisiones: bool,
+    /// Las preguntas que nadie contesto.
+    pub preguntas_pendientes: bool,
+    /// «Nos vemos el martes a las 3» → un evento propuesto para el horario.
+    pub fechas_al_horario: bool,
+    /// **Dictar al chat** (29-oct-2026): al dictar en la caja del chat,
+    /// «anota en el chat de la obra que…» propone anotarlo en ese chat.
+    pub dictado: bool,
+    /// **Repasar en voz alta** (29-oct-2026): en «Estudiar la clase», se
+    /// explica la clase de viva voz y se ve que puntos clave se cubren.
+    pub repaso: bool,
+}
+
+impl Default for Jev {
+    fn default() -> Self {
+        Jev {
+            reunion: true,
+            anki: true,
+            urgencia: true,
+            modelo: true,
+            temas: true,
+            tareas_dichas: true,
+            urgencia_en_vivo: true,
+            tema_olvidado: true,
+            tiempo_por_tema: true,
+            decisiones: true,
+            preguntas_pendientes: true,
+            fechas_al_horario: true,
+            dictado: true,
+            repaso: true,
+        }
+    }
 }
 
 /// Que motor lee el texto de las capturas, los pines, la galeria, los PDF
@@ -601,33 +671,29 @@ impl Tareas {
     }
 }
 
-// --- Asistente local (13-oct-2026) ---------------------------------------
+// --- Asistente (13-oct-2026) ---------------------------------------------
 
-/// Seccion `[asistente]`: el modelo de lenguaje local del chat
-/// (`crates/pixpin-ia`).
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// Seccion `[asistente]`: el asistente del chat (`crates/pixpin-ia`), que
+/// desde el 27-oct-2026 contesta solo con la nube.
+///
+/// El modelo local se quito ese dia (como en Android): `modelo`,
+/// `respaldo_local` y `mejor_vista` ya no existen. Un TOML viejo que los
+/// traiga se sigue leyendo (sin `deny_unknown_fields`) y al guardar
+/// desaparecen; un `motor` vacio o `local` pasa a la nube (ver `motor`).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Asistente {
-    /// El id del modelo (`qwen3.5-2b`, `qwen3.5-0.8b`). Vacio: el 2B, el
-    /// recomendado.
-    pub modelo: String,
     /// Si piensa antes de contestar (lo que piensa se ve, plegable, en la
     /// burbuja del chat). `None`: automatico, solo en las tareas complejas
-    /// (`pixpin_ia::complejidad`, 15-oct), el local y la nube igual.
+    /// (`pixpin_ia::complejidad`, 15-oct).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pensar: Option<bool>,
-    /// Quien contesta (13-oct-2026): vacio o `local` (el modelo de este PC),
-    /// `claude` (Claude Haiku 5.5) o `deepseek` (DeepSeek V4.1 Flash). Las
-    /// claves de la nube NO van aqui: van cifradas en su fichero propio
-    /// (`pixpin_ia::nube::claves`).
+    /// Quien contesta (13-oct-2026): `claude` (Claude Haiku 5.5) o
+    /// `deepseek` (DeepSeek V4.1 Flash). Vacio —o `local`, de cuando habia
+    /// modelo en este PC— es «el que tenga clave», y sin ninguna, Claude
+    /// (`asistente::nube::eleccion` en la app). Las claves NO van aqui: van
+    /// cifradas en su fichero propio (`pixpin_ia::nube::claves`).
     pub motor: String,
-    /// Si la nube falla (red, clave, saldo), seguir con el modelo local si
-    /// esta bajado.
-    pub respaldo_local: bool,
-    /// **Mejor vista con fotos** (13-oct-2026): con el modelo local, usar
-    /// Gemma 4 E2B (opcional, ~4,1 GB que se bajan aparte) cuando se pide
-    /// MIRAR una foto: describirla, leer lo que pone. Apagado de fabrica.
-    pub mejor_vista: bool,
     /// Si con un motor de la nube se le pueden mandar trozos de los
     /// documentos propios (`buscar_en_mis_cosas`): vacio = preguntar la
     /// primera vez, `si` o `no` (13-oct-2026).
@@ -638,20 +704,6 @@ pub struct Asistente {
     // `leer_respuestas` (leer cada respuesta sola al acabar) se quito el
     // 17-oct-2026 a peticion del usuario: el TOML viejo que lo traiga se
     // sigue leyendo (sin `deny_unknown_fields`) y al guardar desaparece.
-}
-
-impl Default for Asistente {
-    fn default() -> Self {
-        Self {
-            modelo: String::new(),
-            motor: String::new(),
-            respaldo_local: true,
-            mejor_vista: false,
-            documentos_a_la_nube: String::new(),
-            pensar: None,
-            revisar_lo_dicho: false,
-        }
-    }
 }
 
 impl Default for Ajustes {
@@ -688,6 +740,7 @@ impl Default for Ajustes {
             asistente: Asistente::default(),
             tareas: Tareas::default(),
             ocr: Ocr::default(),
+            jev: Jev::default(),
         }
     }
 }
@@ -1209,6 +1262,26 @@ arranque_con_windows = true
 
         assert!(a.arranque_con_windows);
         assert_eq!(a.atajos, Atajos::default());
+    }
+
+    /// **La automatica, encendida salvo que el usuario la apague**
+    /// (27-oct-2026, guia de Android §5): sin nada guardado —instalacion
+    /// nueva o un fichero de antes, con o sin `[sincro]`— vale `true`, para
+    /// los aparatos y para las personas de los chats compartidos; un `false`
+    /// escrito a mano se respeta y sobrevive a guardar.
+    #[test]
+    fn la_automatica_sin_guardar_esta_encendida_y_apagada_a_mano_se_respeta() {
+        assert!(Ajustes::default().sincro.automatica);
+        let viejo: Ajustes = toml::from_str("idioma = \"es\"\n").unwrap();
+        assert!(viejo.sincro.automatica, "sin [sincro]");
+        let viejo: Ajustes = toml::from_str("[sincro]\npresencia = true\n").unwrap();
+        assert!(viejo.sincro.automatica, "con [sincro] pero sin la clave");
+        let u = temporal("automatica-apagada");
+        fs::write(u.fichero_ajustes(), "[sincro]\nautomatica = false\n").unwrap();
+        let a = cargar(&u).unwrap();
+        assert!(!a.sincro.automatica, "caso negativo: la apago el usuario");
+        guardar(&u, &a).unwrap();
+        assert!(!cargar(&u).unwrap().sincro.automatica);
     }
 
     #[test]
