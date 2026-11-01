@@ -35,8 +35,6 @@
 //! - `camara`: el movil como camara de la reunion que graba el PC
 //!   (`camara_remota` y las fotos y clips con `destino: "grabacion"`).
 //! - `galeria`: la galeria de capturas que viaja, con sus fechas de irse.
-//! - `camara`: el movil como camara de la reunion que graba el PC
-//!   (`camara_remota` y las fotos y clips con `destino: "grabacion"`).
 //! - `compartidos`, `valla` e `invitacion`: los chats compartidos con otras
 //!   personas (Android v0.122.0): llaves P-256, listas firmadas, la valla de
 //!   archivos, la invitacion `PXI1` y la vuelta entre personas `PXC1`.

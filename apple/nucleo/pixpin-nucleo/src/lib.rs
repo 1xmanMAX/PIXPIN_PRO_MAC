@@ -69,12 +69,12 @@ pub mod clase;
 pub mod cola_de_texto;
 pub mod compartidos;
 pub mod compartir;
-/// Compartir igual en toda la app: el orden y el nombre de los formatos y
-/// los cuadernos con todos sus formatos (Windows 5df1ecde y 4a6112d4).
-pub mod compartir_formatos;
 /// Compartir una grabacion: su pagina web, sus hojas A4, Word, Markdown,
 /// texto y Anki (Windows 2921a1d).
 pub mod compartir_grabacion;
+/// Compartir igual en toda la app: el orden y el nombre de los formatos y
+/// los cuadernos con todos sus formatos (Windows 5df1ecde y 4a6112d4).
+pub mod compartir_formatos;
 pub mod conversacion;
 pub mod copias;
 pub mod diapositivas;

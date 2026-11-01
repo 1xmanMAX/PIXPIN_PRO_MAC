@@ -133,7 +133,12 @@ fn ordenar_listas(v: &mut [ListaTareas]) {
 }
 
 impl Nucleo {
-    pub(crate) fn lista_de(&self, ficha: &almacen::Ficha, m: &Mensaje, hoy: mini::Fecha) -> ListaTareas {
+    pub(crate) fn lista_de(
+        &self,
+        ficha: &almacen::Ficha,
+        m: &Mensaje,
+        hoy: mini::Fecha,
+    ) -> ListaTareas {
         let tareas: Vec<Tarea> = mini::leer_tareas(&m.texto)
             .into_iter()
             .enumerate()
@@ -204,7 +209,13 @@ fn marca_en(texto: &str) -> Option<(usize, usize, i64)> {
     let resto = tras.trim_start();
     let blancos = tras.len() - resto.len();
     let num = |a: usize, b: usize| resto.get(a..b).and_then(|s| s.parse::<i64>().ok());
-    let (y, mo, d, h, mi) = (num(0, 4)?, num(5, 7)?, num(8, 10)?, num(11, 13)?, num(14, 16)?);
+    let (y, mo, d, h, mi) = (
+        num(0, 4)?,
+        num(5, 7)?,
+        num(8, 10)?,
+        num(11, 13)?,
+        num(14, 16)?,
+    );
     let sep = resto.as_bytes();
     if sep.get(4) != Some(&b'-') || sep.get(7) != Some(&b'-') || sep.get(13) != Some(&b':') {
         return None;
@@ -301,7 +312,11 @@ pub fn tarea_con_nota(crudo: String, nota: String) -> String {
 #[uniffi::export]
 pub fn tarea_entendida(texto: String, desfase_ms: i64) -> String {
     let f = frase::leer(&texto, frase::ahora(desfase_ms));
-    if f.titulo.is_empty() { texto } else { f.texto() }
+    if f.titulo.is_empty() {
+        texto
+    } else {
+        f.texto()
+    }
 }
 
 /// El texto sin la hora (el nombre de Windows, para `frase`).
@@ -311,7 +326,11 @@ pub fn sin_hora(texto: &str) -> String {
 
 /// El texto con la hora `local_ms` (cambiando la que tuviera).
 pub fn con_hora(texto: &str, local_ms: i64) -> String {
-    format!("{} {}", sin_marca(texto).trim_end(), marca_de_hora(local_ms))
+    format!(
+        "{} {}",
+        sin_marca(texto).trim_end(),
+        marca_de_hora(local_ms)
+    )
 }
 
 /// El texto crudo de una tarea con la hora `local_ms` (cambiando la que
@@ -478,7 +497,11 @@ impl Nucleo {
             frase::fijar(a.tareas.palabras());
         }
         let entendida = frase::leer(&texto, frase::ahora(desfase_ms));
-        let texto = if entendida.titulo.is_empty() { texto } else { entendida.texto() };
+        let texto = if entendida.titulo.is_empty() {
+            texto
+        } else {
+            entendida.texto()
+        };
         let ficha = {
             let g = self.chat_guardados()?;
             Indice::leer_si_esta(self.ruta())?
@@ -513,7 +536,11 @@ impl Nucleo {
             frase::fijar(a.tareas.palabras());
         }
         let entendida = frase::leer(&texto, frase::ahora(desfase_ms));
-        let texto = if entendida.titulo.is_empty() { texto } else { entendida.texto() };
+        let texto = if entendida.titulo.is_empty() {
+            texto
+        } else {
+            entendida.texto()
+        };
         let raiz = self.ruta();
         let ficha = Indice::leer_si_esta(raiz)?
             .proyectos
@@ -522,14 +549,24 @@ impl Nucleo {
             .ok_or(ErrorNucleo::NoExiste { que: chat.clone() })?;
         let carpeta = almacen::carpeta(raiz, &ficha.id);
         let fichero = carpeta.join("guardados.jsonl");
-        if !listas_del_cuaderno(&fichero)?.iter().any(|m| m.id == mensaje) {
+        if !listas_del_cuaderno(&fichero)?
+            .iter()
+            .any(|m| m.id == mensaje)
+        {
             return Err(ErrorNucleo::NoExiste { que: mensaje });
         }
         let mut enlaces = Vec::with_capacity(imagenes.len());
         for (i, r) in imagenes.iter().enumerate() {
-            enlaces.push((i as u32 + 1, guardar_imagen_de_tarea(raiz, &ficha.id, Path::new(r))?));
+            enlaces.push((
+                i as u32 + 1,
+                guardar_imagen_de_tarea(raiz, &ficha.id, Path::new(r))?,
+            ));
         }
-        let texto = if enlaces.is_empty() { texto } else { mini::fichas_a_imagenes(mini::saneado(&texto).as_str(), &enlaces) };
+        let texto = if enlaces.is_empty() {
+            texto
+        } else {
+            mini::fichas_a_imagenes(mini::saneado(&texto).as_str(), &enlaces)
+        };
         let ahora = crate::ahora_ms();
         let hoy = mini::Fecha::de_ms_locales(ahora + desfase_ms);
         let nuevo = cuaderno::cambiar(&carpeta, &mensaje, |m| {
@@ -539,7 +576,9 @@ impl Nucleo {
             m.texto = mini::anadir_el(&m.texto, &texto, hoy);
             true
         })?
-        .ok_or(ErrorNucleo::NoExiste { que: mensaje.clone() })?;
+        .ok_or(ErrorNucleo::NoExiste {
+            que: mensaje.clone(),
+        })?;
         self.cache_tomada().quitar(&fichero);
         let mut indice = Indice::leer_si_esta(raiz)?;
         if let Some(f) = indice.proyectos.iter_mut().find(|f| f.id == ficha.id) {
@@ -566,9 +605,16 @@ impl Nucleo {
         let raiz = self.ruta();
         let mut enlaces = Vec::with_capacity(imagenes.len());
         for (i, r) in imagenes.iter().enumerate() {
-            enlaces.push((i as u32 + 1, guardar_imagen_de_tarea(raiz, &ficha.id, Path::new(r))?));
+            enlaces.push((
+                i as u32 + 1,
+                guardar_imagen_de_tarea(raiz, &ficha.id, Path::new(r))?,
+            ));
         }
-        let texto = if enlaces.is_empty() { texto } else { mini::fichas_a_imagenes(mini::saneado(&texto).as_str(), &enlaces) };
+        let texto = if enlaces.is_empty() {
+            texto
+        } else {
+            mini::fichas_a_imagenes(mini::saneado(&texto).as_str(), &enlaces)
+        };
         let carpeta = almacen::carpeta(raiz, &ficha.id);
         let fichero = carpeta.join("guardados.jsonl");
         let ahora = crate::ahora_ms();
@@ -595,21 +641,28 @@ impl Nucleo {
     /// La lista de tareas `nombre_lista` del chat `ficha` (sin mirar
     /// mayusculas ni tildes), creandola vacia si no esta (`pedidos::nueva_lista`
     /// de Windows).
-    pub(crate) fn lista_o_nueva(&self, ficha: &almacen::Ficha, nombre_lista: &str) -> Result<Mensaje, ErrorNucleo> {
+    pub(crate) fn lista_o_nueva(
+        &self,
+        ficha: &almacen::Ficha,
+        nombre_lista: &str,
+    ) -> Result<Mensaje, ErrorNucleo> {
         let carpeta = almacen::carpeta(self.ruta(), &ficha.id);
         let fichero = carpeta.join("guardados.jsonl");
         let buscada = pindesk_ia::acciones::normalizar(nombre_lista.trim());
-        let inbox = listas_del_cuaderno(&fichero)?
-            .into_iter()
-            .find(|m| !m.en_buzon && pindesk_ia::acciones::normalizar(nombre_de_lista(m).trim()) == buscada);
+        let inbox = listas_del_cuaderno(&fichero)?.into_iter().find(|m| {
+            !m.en_buzon && pindesk_ia::acciones::normalizar(nombre_de_lista(m).trim()) == buscada
+        });
         Ok(match inbox {
             Some(m) => m,
             None => {
                 // Una lista nueva y vacia, como `pedidos::nueva_lista`.
                 let aparato = self.identidad()?.yo.codigo();
-                let documento =
-                    mini::documento_nuevo(mini::TAREAS, nombre_lista, &mini::gastos::Moneda::euro())
-                        .unwrap_or_default();
+                let documento = mini::documento_nuevo(
+                    mini::TAREAS,
+                    nombre_lista,
+                    &mini::gastos::Moneda::euro(),
+                )
+                .unwrap_or_default();
                 let mut cache = self.cache_tomada();
                 let numero = cache.indice(&fichero)?.map_or(0, |i| i.mayor_numero) + 1;
                 let m = Mensaje::miniapp(
@@ -714,10 +767,25 @@ mod pruebas {
 /// (`pixpin:files/…/archivos/tarea-<ms>-<n>.<ext>`), como `guardar_imagen`
 /// de Windows: con nombre propio, porque el enlace va dentro de un `![](…)`
 /// y la sincronizacion corta la ruta en el primer `)` o blanco.
-fn guardar_imagen_de_tarea(raiz: &Path, proyecto: &str, origen: &Path) -> Result<String, ErrorNucleo> {
-    let ext = origen.extension().and_then(|e| e.to_str()).unwrap_or("png").to_ascii_lowercase();
-    if !origen.is_file() || !matches!(ext.as_str(), "png" | "jpg" | "jpeg" | "gif" | "webp" | "heic" | "bmp" | "tif" | "tiff") {
-        return Err(ErrorNucleo::Argumento { detalle: format!("no es una imagen: {}", origen.display()) });
+fn guardar_imagen_de_tarea(
+    raiz: &Path,
+    proyecto: &str,
+    origen: &Path,
+) -> Result<String, ErrorNucleo> {
+    let ext = origen
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_ascii_lowercase();
+    if !origen.is_file()
+        || !matches!(
+            ext.as_str(),
+            "png" | "jpg" | "jpeg" | "gif" | "webp" | "heic" | "bmp" | "tif" | "tiff"
+        )
+    {
+        return Err(ErrorNucleo::Argumento {
+            detalle: format!("no es una imagen: {}", origen.display()),
+        });
     }
     let carpeta = almacen::carpeta(raiz, proyecto).join("archivos");
     std::fs::create_dir_all(&carpeta)?;
@@ -725,9 +793,12 @@ fn guardar_imagen_de_tarea(raiz: &Path, proyecto: &str, origen: &Path) -> Result
     let nombre = (1..10_000)
         .map(|n| format!("tarea-{ahora}-{n:02}.{ext}"))
         .find(|n| !carpeta.join(n).exists())
-        .ok_or_else(|| ErrorNucleo::Argumento { detalle: "demasiadas imagenes a la vez".into() })?;
+        .ok_or_else(|| ErrorNucleo::Argumento {
+            detalle: "demasiadas imagenes a la vez".into(),
+        })?;
     std::fs::copy(origen, carpeta.join(&nombre))?;
-    let chat = pindesk_proyecto::vista::chat_de_ficha(raiz, proyecto).unwrap_or_else(|| proyecto.to_string());
+    let chat = pindesk_proyecto::vista::chat_de_ficha(raiz, proyecto)
+        .unwrap_or_else(|| proyecto.to_string());
     Ok(format!(
         "{}{}",
         pindesk_sincro::disco::PORTATIL,

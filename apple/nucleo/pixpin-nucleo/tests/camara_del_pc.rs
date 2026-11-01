@@ -8,9 +8,9 @@ use std::time::Duration;
 
 use pixpin_nucleo::camara_del_pc::siguiente_aviso_de_camara;
 use pixpin_nucleo::{Atendido, Escucha, Nucleo};
-use pixpin_sincro::al_lienzo::Conexion;
-use pixpin_sincro::camara::Anuncio;
-use pixpin_sincro::mensajes::{Aparato, Hola};
+use pindesk_sincro::al_lienzo::Conexion;
+use pindesk_sincro::camara::Anuncio;
+use pindesk_sincro::mensajes::{Aparato, Hola};
 
 struct Temporal(PathBuf);
 

@@ -1056,7 +1056,7 @@ mod pruebas {
                 camara: PcQueGraba { fotos },
             };
             let carpeta =
-                std::env::temp_dir().join(format!("pixpin-camara-pc-{}", std::process::id()));
+                std::env::temp_dir().join(format!("pindesk-camara-pc-{}", std::process::id()));
             loop {
                 let Ok((_, datos)) = c.recibir() else { return };
                 let v: serde_json::Value = serde_json::from_slice(&datos).unwrap();
@@ -1121,7 +1121,7 @@ mod pruebas {
         assert_eq!(a.titulo, "Clase");
         // Aqui va 7 s por detras del PC (con el margen de la vuelta).
         assert!((adelanto + ADELANTO_DEL_PC).abs() < 1_000, "{adelanto}");
-        let dir = std::env::temp_dir().join(format!("pixpin-camara-ipad-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pindesk-camara-ipad-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("IMG_0001.jpg");
         let mut jpeg = vec![0xFF, 0xD8, 0xFF, 0xE0];

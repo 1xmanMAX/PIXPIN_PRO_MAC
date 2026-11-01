@@ -2,7 +2,7 @@
 //! como Android v0.152.0: `CamaraDelPc.kt`, `ConexionDeCamara.kt`,
 //! `RelojDeGrabacion.kt`; la guia es `docs/movil-como-camara.md` de Windows).
 //!
-//! El cable es el de Windows tal cual ([`pixpin_sincro::camara`]): aqui solo
+//! El cable es el de Windows tal cual ([`pindesk_sincro::camara`]): aqui solo
 //! esta lo que Swift necesita para hacer de movil:
 //!
 //! - [`Nucleo::preguntar_camara`]: `camara_remota` a un aparato del grupo
@@ -23,11 +23,11 @@
 
 use std::sync::Mutex;
 
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::al_lienzo::{Conexion, ErrorAlLienzo};
-use pixpin_sincro::camara::{self, Anuncio, Camara, FotoDeCamara, Reloj};
-use pixpin_sincro::disco::Disco;
-use pixpin_sincro::mensajes::{Aparato, Hola};
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::al_lienzo::{Conexion, ErrorAlLienzo};
+use pindesk_sincro::camara::{self, Anuncio, Camara, FotoDeCamara, Reloj};
+use pindesk_sincro::disco::Disco;
+use pindesk_sincro::mensajes::{Aparato, Hola};
 
 use crate::red::{conectar, nonce};
 use crate::{ErrorNucleo, Nucleo};
@@ -337,14 +337,14 @@ impl Camara for CamaraDeEsteAparato {
         None
     }
 
-    fn aceptar_foto(&mut self, _p: &pixpin_sincro::al_lienzo::Suelto) -> Result<(), String> {
+    fn aceptar_foto(&mut self, _p: &pindesk_sincro::al_lienzo::Suelto) -> Result<(), String> {
         // Este aparato no graba para que otro le mande capturas (aun).
         Err("Este aparato no está grabando".into())
     }
 
     fn guardar_foto(
         &mut self,
-        _p: &pixpin_sincro::al_lienzo::Suelto,
+        _p: &pindesk_sincro::al_lienzo::Suelto,
         _fichero: &std::path::Path,
     ) -> Result<i64, String> {
         Err("Este aparato no está grabando".into())
@@ -388,7 +388,7 @@ impl Nucleo {
             yo: i.yo.clone(),
             reloj: crate::ahora_ms(),
             puerto: self.mi_puerto(),
-            capacidades: pixpin_sincro::CAPACIDADES_DEL_IPAD
+            capacidades: pindesk_sincro::CAPACIDADES_DEL_IPAD
                 .iter()
                 .map(|c| c.to_string())
                 .collect(),

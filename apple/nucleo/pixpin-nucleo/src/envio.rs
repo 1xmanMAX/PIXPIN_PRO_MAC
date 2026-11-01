@@ -169,7 +169,7 @@ impl<'a> RecibeAlFrente<'a> {
 }
 
 impl Recibe for RecibeAlFrente<'_> {
-    fn camara(&mut self) -> Option<&mut dyn pixpin_sincro::camara::Camara> {
+    fn camara(&mut self) -> Option<&mut dyn pindesk_sincro::camara::Camara> {
         Some(&mut self.camara)
     }
 
