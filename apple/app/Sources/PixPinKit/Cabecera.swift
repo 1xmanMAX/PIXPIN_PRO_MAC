@@ -290,6 +290,11 @@ struct ModificadorVentanaConCabecera: ViewModifier {
     func body(content: Content) -> some View {
         content
             .environment(\.ventanaDeLaVista, ref)
+            // Estas ventanas son oscuras siempre (abajo, `darkAqua`), pero
+            // SwiftUI se quedaba con el `colorScheme` del sistema: con el Mac
+            // en claro, `.primary` y los campos salian negros sobre el fondo
+            // oscuro. Lo mismo que hace ya la barra (`Cabecera`).
+            .environment(\.colorScheme, .dark)
             .background(Paleta.v2.fondo)
             .ignoresSafeArea(.container, edges: .top)
             .toolbar(removing: .title)

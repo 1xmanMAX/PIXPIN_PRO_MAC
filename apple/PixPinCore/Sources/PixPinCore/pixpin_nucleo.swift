@@ -28606,6 +28606,121 @@ public func FfiConverterTypeGrupoPlano_lower(_ value: GrupoPlano) -> RustBuffer 
 
 
 /**
+ * Una lista como se ensena en Tarjetas y en Kanban.
+ */
+public struct GrupoTareas: Equatable, Hashable {
+    /**
+     * El sitio de la lista en las listas leidas.
+     */
+    public var lista: UInt32
+    /**
+     * Su clave (`chat/mensaje`).
+     */
+    public var clave: String
+    /**
+     * Lo pendiente que sale, ya ordenado (los `indice` de sus tareas).
+     */
+    public var arriba: [UInt32]
+    /**
+     * Lo hecho que sale, en el orden del documento.
+     */
+    public var hechas: [UInt32]
+    /**
+     * Cuantas quedan pendientes (lo del encabezado).
+     */
+    public var pendientes: UInt32
+    /**
+     * Su degradado (`0xRRGGBB`), de arriba a la izquierda a abajo a la
+     * derecha; `desde` es tambien la marca de su encabezado.
+     */
+    public var desde: UInt32
+    public var hasta: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El sitio de la lista en las listas leidas.
+         */lista: UInt32, 
+        /**
+         * Su clave (`chat/mensaje`).
+         */clave: String, 
+        /**
+         * Lo pendiente que sale, ya ordenado (los `indice` de sus tareas).
+         */arriba: [UInt32], 
+        /**
+         * Lo hecho que sale, en el orden del documento.
+         */hechas: [UInt32], 
+        /**
+         * Cuantas quedan pendientes (lo del encabezado).
+         */pendientes: UInt32, 
+        /**
+         * Su degradado (`0xRRGGBB`), de arriba a la izquierda a abajo a la
+         * derecha; `desde` es tambien la marca de su encabezado.
+         */desde: UInt32, hasta: UInt32) {
+        self.lista = lista
+        self.clave = clave
+        self.arriba = arriba
+        self.hechas = hechas
+        self.pendientes = pendientes
+        self.desde = desde
+        self.hasta = hasta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension GrupoTareas: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGrupoTareas: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GrupoTareas {
+        return
+            try GrupoTareas(
+                lista: FfiConverterUInt32.read(from: &buf), 
+                clave: FfiConverterString.read(from: &buf), 
+                arriba: FfiConverterSequenceUInt32.read(from: &buf), 
+                hechas: FfiConverterSequenceUInt32.read(from: &buf), 
+                pendientes: FfiConverterUInt32.read(from: &buf), 
+                desde: FfiConverterUInt32.read(from: &buf), 
+                hasta: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: GrupoTareas, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.lista, into: &buf)
+        FfiConverterString.write(value.clave, into: &buf)
+        FfiConverterSequenceUInt32.write(value.arriba, into: &buf)
+        FfiConverterSequenceUInt32.write(value.hechas, into: &buf)
+        FfiConverterUInt32.write(value.pendientes, into: &buf)
+        FfiConverterUInt32.write(value.desde, into: &buf)
+        FfiConverterUInt32.write(value.hasta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrupoTareas_lift(_ buf: RustBuffer) throws -> GrupoTareas {
+    return try FfiConverterTypeGrupoTareas.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGrupoTareas_lower(_ value: GrupoTareas) -> RustBuffer {
+    return FfiConverterTypeGrupoTareas.lower(value)
+}
+
+
+/**
  * Una accion de la tabla, para elegirla en el editor.
  */
 public struct HerramientaAutomatizacion: Equatable, Hashable {
@@ -52245,6 +52360,31 @@ fileprivate struct FfiConverterSequenceTypeGrupoPlano: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeGrupoTareas: FfiConverterRustBuffer {
+    typealias SwiftType = [GrupoTareas]
+
+    public static func write(_ value: [GrupoTareas], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeGrupoTareas.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [GrupoTareas] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [GrupoTareas]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeGrupoTareas.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeHerramientaAutomatizacion: FfiConverterRustBuffer {
     typealias SwiftType = [HerramientaAutomatizacion]
 
@@ -57181,6 +57321,23 @@ public func tareaEntendida(texto: String, desfaseMs: Int64) -> String  {
 })
 }
 /**
+ * **Los grupos de Tarjetas y Kanban** (`tarjetas::agrupar` de Windows):
+ * en el orden de las listas, con lo que sale con `busqueda` (vacia: todo),
+ * y una lista sin nada que salga no sale. Los colores se reparten entre
+ * TODAS las listas con tareas, busques o no, asi no cambian al buscar.
+ * `desfase_ms` es el huso de quien mira (para «hoy» y «ayer»).
+ */
+public func gruposDeTareas(listas: [ListaTareas], busqueda: String, desfaseMs: Int64) -> [GrupoTareas]  {
+    return try!  FfiConverterSequenceTypeGrupoTareas.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grupos_de_tareas(
+        FfiConverterSequenceTypeListaTareas.lower(listas),
+        FfiConverterString.lower(busqueda),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+/**
  * **Los turnos de la conversacion** a partir de sus teclas: lo que Swift
  * guarda al terminar (sin los ratos de nadie, con el tope de los tropiezos).
  */
@@ -58049,6 +58206,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_tarea_entendida() != 12070) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grupos_de_tareas() != 62351) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_turnos_de_la_conversacion() != 47376) {

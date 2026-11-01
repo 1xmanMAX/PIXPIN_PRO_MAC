@@ -779,3 +779,50 @@ fn una_tarea_con_imagen_va_a_una_lista_de_un_proyecto() {
             .is_err()
     );
 }
+
+/// El fallo del Mac (1-nov-2026): la lista «hoy sábado» de «Mensajes
+/// guardados», con sus 3 tareas, se abria desde el chat en Tareas vacia: la
+/// ventana la buscaba por su nombre y buscar solo miraba el texto de cada
+/// tarea. Se lee, sale entera sin buscar y tambien buscandola por su nombre,
+/// como en Windows; y lo apuntado alli va a ella.
+#[test]
+fn una_lista_de_mensajes_guardados_abierta_desde_el_chat_sale_entera() {
+    use pixpin_nucleo::tareas::tablero::grupos_de_tareas;
+    let tmp = Temporal::nueva("sabado");
+    let n = tmp.nucleo();
+    let g = n.chat_guardados().unwrap();
+    let id = lista(
+        &n,
+        &tmp.datos(),
+        &g.id,
+        "hoy sábado",
+        &[
+            t("comprar pan", false),
+            t("lavar el coche", false),
+            t("llamar a mamá", false),
+        ],
+    );
+    let listas = n.tareas(0).unwrap();
+    let l = listas
+        .iter()
+        .position(|l| l.titulo == "hoy sábado")
+        .expect("se lee");
+    assert!(listas[l].guardados);
+    assert_eq!(listas[l].tareas.len(), 3);
+    for busqueda in ["", "hoy sábado", "HOY sabado"] {
+        let grupos = grupos_de_tareas(listas.clone(), busqueda.into(), 0);
+        let grupo = grupos
+            .iter()
+            .find(|x| x.lista as usize == l)
+            .expect(busqueda);
+        assert_eq!(grupo.arriba.len(), 3, "{busqueda:?}");
+        assert_eq!(
+            grupo.clave,
+            format!("{}/{}", listas[l].chat, listas[l].mensaje)
+        );
+    }
+    let otra = n
+        .apuntar_tarea_con_imagenes_en(g.id.clone(), id.clone(), "regar".into(), vec![], 0)
+        .unwrap();
+    assert_eq!((otra.mensaje.as_str(), otra.tareas.len()), (id.as_str(), 4));
+}
