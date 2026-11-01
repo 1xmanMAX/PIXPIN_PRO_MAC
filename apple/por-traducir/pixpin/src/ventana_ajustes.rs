@@ -19,7 +19,7 @@
 
 use std::cell::Cell;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicIsize, AtomicUsize, Ordering};
 
 use windows::Win32::Foundation::HWND;
 
@@ -896,17 +896,15 @@ fn filas_de_seccion(s: Seccion, a: &Ajustes, cx: &Contexto) -> Vec<(Clave, Fila)
                 Clave::Idioma,
                 tt("ajustes-idioma"),
                 tt("ajustes2-ayuda-idioma"),
-                opcion(
-                    vec![
-                        tt("ajustes-idioma-sistema"),
-                        "Español".into(),
-                        "English".into(),
-                    ],
-                    match a.idioma {
-                        PreferenciaIdioma::Sistema => 0,
-                        PreferenciaIdioma::Espanol => 1,
-                        PreferenciaIdioma::Ingles => 2,
-                    },
+                // Catorce idiomas no caben en botones seguidos: «−» y «+»
+                // los recorren, cada uno con su nombre en su lengua («日本語»,
+                // «العربية»): quien no entiende el actual encuentra el suyo.
+                numero(
+                    indice_de_idioma(a.idioma),
+                    0,
+                    PreferenciaIdioma::opciones().count() as u32 - 1,
+                    1,
+                    nombre_de_preferencia(a.idioma, cx.t),
                 ),
             ),
             grupo(t, "ajustes2-g-ventanas"),
@@ -2135,13 +2133,6 @@ fn aplicar_opcion(a: &mut Ajustes, clave: Clave, cual: usize) {
             }
         }
         Clave::SitioHerramientas => SITIO_HERRAMIENTAS.with(|c| c.set(cual.min(SITIOS.len()))),
-        Clave::Idioma => {
-            a.idioma = match cual {
-                1 => PreferenciaIdioma::Espanol,
-                2 => PreferenciaIdioma::Ingles,
-                _ => PreferenciaIdioma::Sistema,
-            }
-        }
         Clave::Color => {
             a.formato_color = match cual {
                 1 => FormatoColor::Rgb,
@@ -2235,8 +2226,29 @@ fn aplicar_opcion(a: &mut Ajustes, clave: Clave, cual: usize) {
     }
 }
 
+/// La posicion de una preferencia de idioma en el selector (0, «el de
+/// Windows»; despues `Idioma::TODOS`).
+fn indice_de_idioma(p: PreferenciaIdioma) -> u32 {
+    PreferenciaIdioma::opciones()
+        .position(|o| o == p)
+        .unwrap_or(0) as u32
+}
+
+/// Lo que se lee en el selector de idioma: el nombre en su lengua.
+fn nombre_de_preferencia(p: PreferenciaIdioma, t: &Catalogo) -> String {
+    match p.idioma() {
+        Some(i) => i.nombre_propio().to_string(),
+        None => t.t("ajustes-idioma-sistema"),
+    }
+}
+
 fn aplicar_numero(a: &mut Ajustes, clave: Clave, n: u32) {
     match clave {
+        Clave::Idioma => {
+            a.idioma = PreferenciaIdioma::opciones()
+                .nth(n as usize)
+                .unwrap_or(PreferenciaIdioma::Sistema)
+        }
         Clave::RetardoCaptura => a.retardo_captura_s = n,
         Clave::LimiteScroll => a.limite_scroll_px = n,
         Clave::GifRitmo => a.gif.por_segundo = n,
@@ -2581,6 +2593,29 @@ pub fn lanzar(idioma: Idioma, actual: Ajustes, ubicacion: Ubicacion, app: isize)
     }
 }
 
+/// La seccion que se pidio desde fuera, para la proxima vez que la ventana
+/// mire (al abrirse o en su siguiente vuelta); `usize::MAX`: ninguna.
+static SECCION_PEDIDA: AtomicUsize = AtomicUsize::new(usize::MAX);
+
+/// **Abrir en las claves de la IA** (1-nov-2026, los puntitos del estado de
+/// las IA del chat): la proxima vez que se abra la ventana, o ya si esta
+/// abierta, ensena «Asistente», donde van las claves de Claude, DeepSeek y
+/// TypeSafe (Jev). Quien llama pide despues abrir los ajustes como siempre.
+pub fn ir_a_las_claves() {
+    if let Some(i) = SECCIONES.iter().position(|s| *s == Seccion::Asistente) {
+        SECCION_PEDIDA.store(i, Ordering::SeqCst);
+    }
+    let ya = ABIERTA.load(Ordering::SeqCst);
+    if ya > 0 {
+        pixpin_shell::overlay::despertar(ya);
+    }
+}
+
+fn tomar_seccion_pedida() -> Option<usize> {
+    let i = SECCION_PEDIDA.swap(usize::MAX, Ordering::SeqCst);
+    (i < SECCIONES.len()).then_some(i)
+}
+
 /// Los ajustes que dejo la ventana al cerrarse con cambios, una sola vez.
 /// Lo mira el hilo principal en cada vuelta de su bucle.
 pub fn tomar_cambios() -> Option<Ajustes> {
@@ -2633,7 +2668,7 @@ fn abrir(
     let ancho = ANCHO.min(monitor.area.ancho as f32 / e - 40.0).max(760.0);
     let alto = ALTO.min(monitor.area.alto as f32 / e - 60.0).max(520.0);
     let (fisico_ancho, fisico_alto) = ((ancho * e) as u32, (alto * e) as u32);
-    let marco = Rect {
+    let mut marco = Rect {
         x: monitor.area.x + (monitor.area.ancho as i32 - fisico_ancho as i32) / 2,
         y: monitor.area.y + (monitor.area.alto as i32 - fisico_alto as i32) / 2,
         ancho: fisico_ancho,
@@ -2669,6 +2704,9 @@ fn abrir(
         historial: Vec::new(),
     };
     let mut estado = Estado::default();
+    if let Some(i) = tomar_seccion_pedida() {
+        estado.seccion = i;
+    }
     // Las dos cajas de escribir (el buscador y la de la fila con el foco),
     // con el componente comun de la app. `Estado` (de `pixpin-ui`) sigue
     // guardando el texto como `String` para su logica; ver `Cajas`.
@@ -2703,6 +2741,26 @@ fn abrir(
 
     loop {
         pixpin_shell::overlay::bombear_pendientes();
+        // Donde esta la ventana AHORA: si otro la movio (AltSnap, o el
+        // arrastre por la cabecera), los clics se reparten desde ahi y no
+        // desde donde se abrio (docs/ventanas.md).
+        ventana.seguir_sitio(&mut marco);
+        // La cabecera vacia arrastra la ventana; su boton sigue siendo boton.
+        {
+            let restablecer = (!estado.buscando())
+                .then(|| boton_restablecer_seccion(ancho, &rotulo_restablecer(&estado, textos)));
+            let (zonas, botones) = pixpin_ui::ajustes::zonas_de_arrastre(ancho, restablecer);
+            let fisico = |r: &Recta| Rect {
+                x: (r.x * e).round() as i32,
+                y: (r.y * e).round() as i32,
+                ancho: (r.ancho * e).round().max(0.0) as u32,
+                alto: (r.alto * e).round().max(0.0) as u32,
+            };
+            ventana.poner_arrastre(
+                zonas.iter().map(fisico).collect(),
+                botones.iter().map(fisico).collect(),
+            );
+        }
         let n = crate::asistente::nube::novedades()
             + crate::asistente::conexiones::novedades()
             + crate::jev::novedades()
@@ -3106,6 +3164,12 @@ fn abrir(
                 }
                 version += 1;
             }
+        }
+        // Los puntitos del estado de las IA del chat piden ir a las claves.
+        if let Some(i) = tomar_seccion_pedida() {
+            estado.seccion = i;
+            estado.busqueda.clear();
+            estado.desplazamiento = 0;
         }
         GRABANDO.store(estado.capturando.is_some(), Ordering::SeqCst);
         if cerrar {
@@ -4093,6 +4157,117 @@ fn dibujar_fila(
 #[cfg(test)]
 mod pruebas {
     use super::*;
+
+    /// **Movida por otro, «Captura» se sigue pulsando** (1-nov-2026: «muevo
+    /// los ajustes con AltSnap y Capturas ya no se pulsa»). Se abre una
+    /// ventana como la de los ajustes, se lleva a otro sitio con
+    /// `SetWindowPos` (lo que hace AltSnap), se pulsa con un clic de mentira
+    /// en el centro de la seccion, en coordenadas de su cliente, y el clic
+    /// se reparte por el mismo camino que el bucle de `abrir`. Tambien que
+    /// la cabecera vacia arrastra y su boton no.
+    #[test]
+    #[ignore = "necesita sesion de escritorio; ejecutar con --ignored"]
+    fn movida_con_altsnap_la_seccion_se_sigue_pulsando_donde_se_ve() {
+        let e = 1.0;
+        let mut marco = Rect {
+            x: 100,
+            y: 80,
+            ancho: ANCHO as u32,
+            alto: ALTO as u32,
+        };
+        let ventana = VentanaOverlay::nueva(marco).expect("ventana");
+        ventana.mostrar();
+        let hwnd = ventana.handle().0 as isize;
+        pixpin_shell::overlay::simular_traslado(hwnd, 640, 360);
+        assert!(
+            ventana.seguir_sitio(&mut marco),
+            "no se entero de que la movieron"
+        );
+        assert_eq!((marco.x, marco.y), (640, 360));
+        assert_eq!((ventana.area().x, ventana.area().y), (640, 360));
+
+        let captura = SECCIONES
+            .iter()
+            .position(|s| *s == Seccion::Captura)
+            .expect("seccion Captura");
+        let r = rect_de_seccion(captura);
+        let (cx, cy) = ((r.x + r.ancho / 2.0) as i32, (r.y + r.alto / 2.0) as i32);
+        let _ = pixpin_shell::overlay::tomar_eventos_pendientes();
+        pixpin_shell::overlay::simular_raton(hwnd, 0, cx, cy);
+        pixpin_shell::overlay::simular_raton(hwnd, 2, cx, cy);
+        pixpin_shell::overlay::bombear_pendientes();
+        let pulsado = pixpin_shell::overlay::tomar_eventos_pendientes()
+            .into_iter()
+            .find_map(|(h, ev)| match ev {
+                EventoOverlay::BotonPulsado(p) if h == ventana.handle() => Some(p),
+                _ => None,
+            })
+            .expect("el clic no llego");
+        let estado = Estado::default();
+        let golpe = golpe_en(
+            punto_logico(
+                pulsado,
+                Punto {
+                    x: marco.x,
+                    y: marco.y,
+                },
+                e,
+            ),
+            ANCHO,
+            ALTO,
+            SECCIONES.len(),
+            &[],
+            &estado,
+            false,
+            None,
+        );
+        assert_eq!(golpe, Some(Golpe::Seccion(captura)));
+        // Con el origen de cuando se abrio, el fallo de antes: el clic se
+        // iba 540 pixeles a la derecha, fuera de la columna.
+        let viejo = golpe_en(
+            punto_logico(pulsado, Punto { x: 100, y: 80 }, e),
+            ANCHO,
+            ALTO,
+            SECCIONES.len(),
+            &[],
+            &estado,
+            false,
+            None,
+        );
+        assert_ne!(viejo, Some(Golpe::Seccion(captura)));
+
+        // La cabecera vacia arrastra; su boton, no. WM_NCHITTEST trae el
+        // punto en la pantalla, con la ventana ya movida.
+        let boton = boton_restablecer_seccion(ANCHO, "Restablecer Captura");
+        let (zonas, botones) = pixpin_ui::ajustes::zonas_de_arrastre(ANCHO, Some(boton));
+        let entero = |r: &Recta| Rect {
+            x: r.x as i32,
+            y: r.y as i32,
+            ancho: r.ancho as u32,
+            alto: r.alto as u32,
+        };
+        ventana.poner_arrastre(
+            zonas.iter().map(entero).collect(),
+            botones.iter().map(entero).collect(),
+        );
+        let en_pantalla = |x: f32, y: f32| Punto {
+            x: marco.x + x as i32,
+            y: marco.y + y as i32,
+        };
+        assert!(pixpin_shell::overlay::es_barra_de_titulo(
+            hwnd,
+            en_pantalla(NAV_ANCHO + 40.0, 40.0)
+        ));
+        assert!(!pixpin_shell::overlay::es_barra_de_titulo(
+            hwnd,
+            en_pantalla(boton.x + 10.0, boton.y + 10.0)
+        ));
+        // Y la lista, debajo, sigue siendo cliente.
+        assert!(!pixpin_shell::overlay::es_barra_de_titulo(
+            hwnd,
+            en_pantalla(NAV_ANCHO + 40.0, 200.0)
+        ));
+    }
 
     #[test]
     fn encender_en_un_sitio_una_apagada_en_todos_la_deja_solo_ahi() {

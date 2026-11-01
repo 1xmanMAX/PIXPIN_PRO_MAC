@@ -95,11 +95,11 @@ pub fn nombre_corto(p: Proveedor) -> &'static str {
 
 /// El aviso de que falta la clave de `p`: que hacer y donde se saca.
 pub fn falta_la_clave(p: Proveedor) -> String {
-    format!(
-        "Falta la clave de {}: pégala en Ajustes → Asistente (se saca en {}).",
-        p.nombre(),
-        p.pagina_de_claves()
-    )
+    let textos = pixpin_store::Catalogo::nuevo(crate::salida::idioma_actual());
+    let mut args = fluent_bundle::FluentArgs::new();
+    args.set("proveedor", p.nombre());
+    args.set("pagina", p.pagina_de_claves());
+    textos.t_args("ia-nube-falta-la-clave", &args)
 }
 
 /// **El motor de la nube** con la clave guardada. `Err`: el aviso para el
@@ -245,6 +245,9 @@ pub fn guardar_y_probar(p: Proveedor, escrito: &str, despertar: Arc<dyn Fn() + S
         f.guardada = Some(claves::enmascarar(&clave));
         f.prueba = Some(None);
     });
+    // El puntito del chat: clave nueva, aun sin saber si vale (la prueba de
+    // aqui abajo lo dira).
+    crate::estado_ia::clave_cambiada_nube(p);
     avisar(despertar.as_ref());
     let lanzado = std::thread::Builder::new()
         .name("asistente-probar-clave".into())
@@ -274,6 +277,7 @@ pub fn borrar(p: Proveedor) {
         f.guardada = None;
         f.prueba = r.err().map(|e| Some(Err(e)));
     });
+    crate::estado_ia::clave_cambiada_nube(p);
     NOVEDADES.fetch_add(1, Ordering::SeqCst);
 }
 

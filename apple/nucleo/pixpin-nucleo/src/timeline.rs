@@ -789,7 +789,7 @@ impl Nucleo {
             ),
             nota_de_voz: SIN_TITULO_VOZ.into(),
             desfase: desfase_ms,
-            ingles: false,
+            lengua: pixpin_timeline::Lengua::Es,
             pestanas: ["Línea".into(), "Momentos".into(), "Calendario".into()],
             sobre_todo: "Sobre todo".into(),
         };

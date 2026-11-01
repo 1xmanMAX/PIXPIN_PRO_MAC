@@ -74,19 +74,33 @@ pub const GIF_RITMO_MAXIMO: u32 = 30;
 pub const GIF_RETARDO_MAXIMO: u32 = 10;
 
 fn texto_idioma(i: PreferenciaIdioma) -> &'static str {
+    // Los mismos codigos que el fichero de ajustes de Windows (`serde`).
     match i {
         PreferenciaIdioma::Sistema => "sistema",
         PreferenciaIdioma::Espanol => "es",
         PreferenciaIdioma::Ingles => "en",
+        PreferenciaIdioma::ChinoSimplificado => "zh-CN",
+        PreferenciaIdioma::Hindi => "hi",
+        PreferenciaIdioma::Arabe => "ar",
+        PreferenciaIdioma::Portugues => "pt-BR",
+        PreferenciaIdioma::Frances => "fr",
+        PreferenciaIdioma::Aleman => "de",
+        PreferenciaIdioma::Japones => "ja",
+        PreferenciaIdioma::Ruso => "ru",
+        PreferenciaIdioma::Coreano => "ko",
+        PreferenciaIdioma::Italiano => "it",
+        PreferenciaIdioma::Indonesio => "id",
+        PreferenciaIdioma::Turco => "tr",
     }
 }
 
 fn idioma_de(t: &str) -> Option<PreferenciaIdioma> {
-    Some(match t {
-        "sistema" => PreferenciaIdioma::Sistema,
-        "es" => PreferenciaIdioma::Espanol,
-        "en" => PreferenciaIdioma::Ingles,
-        _ => return None,
+    if t == "sistema" {
+        return Some(PreferenciaIdioma::Sistema);
+    }
+    PreferenciaIdioma::opciones().find(|&i| texto_idioma(i) == t).or_else(|| {
+        // Las etiquetas largas que tambien acepta el fichero (`es-ES`, `ja-JP`…).
+        serde_json::from_value(serde_json::Value::String(t.to_string())).ok()
     })
 }
 
@@ -410,7 +424,7 @@ mod pruebas {
                 ..f.clone()
             },
             AjustesMac {
-                idioma: "fr".into(),
+                idioma: "xx".into(),
                 ..f.clone()
             },
             AjustesMac {
