@@ -82,6 +82,22 @@ impl Nucleo {
         self.apuntar_en_lista(&ficha, nombre, texto, &imagenes, desfase_ms)
     }
 
+    /// **El grupo de tareas de una asignatura nueva**, ya (el «+» del
+    /// Horario, `asignaturas::asegurar_lista` de Windows): su lista vacia en
+    /// el chat «Asignaturas» (los dos se crean si no estan), para que salga
+    /// en el desplegable de Tareas y en el chat. Si ya estaba, la de antes.
+    pub fn asegurar_lista_de_asignatura(&self, asignatura: String, desfase_ms: i64) -> Result<ListaTareas, ErrorNucleo> {
+        let nombre = asignatura.trim();
+        if nombre.is_empty() {
+            return Err(ErrorNucleo::Argumento { detalle: "falta la asignatura".into() });
+        }
+        let aparato = self.identidad()?.yo.codigo();
+        let ficha = asegurar_ficha(self.ruta(), &aparato)?;
+        let m = self.lista_o_nueva(&ficha, nombre)?;
+        let hoy = pixpin_proyecto::mini::Fecha::de_ms_locales(crate::ahora_ms() + desfase_ms);
+        Ok(self.lista_de(&ficha, &m, hoy))
+    }
+
     /// **La lista de la asignatura** `asignatura` entre `listas` (las de
     /// Tareas): la del chat «Asignaturas» que se llama asi, sin tildes ni
     /// mayusculas (`asignaturas::de` de Windows). No crea nada: `None` si
@@ -123,6 +139,23 @@ mod pruebas {
         assert_ne!(l.chat, otro.id);
         assert_eq!(l.tareas.len(), 1);
         assert_eq!(n.lista_de_asignatura(listas, "Física".into()), None);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn anadir_una_asignatura_le_da_su_lista_vacia_una_sola_vez() {
+        let d = std::env::temp_dir().join(format!("pixpin-asignaturas-nueva-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let n = Nucleo::abrir(d.display().to_string(), "Mac".into()).unwrap();
+        let l = n.asegurar_lista_de_asignatura(" Física ".into(), 0).unwrap();
+        assert_eq!((l.titulo.as_str(), l.tareas.len()), ("Física", 0));
+        // Otra vez (o sin tildes): la misma, no otra.
+        let otra = n.asegurar_lista_de_asignatura("fisica".into(), 0).unwrap();
+        assert_eq!((otra.chat.as_str(), otra.mensaje.as_str()), (l.chat.as_str(), l.mensaje.as_str()));
+        let listas = n.tareas(0).unwrap();
+        assert_eq!(n.lista_de_asignatura(listas, "FÍSICA".into()).map(|x| x.mensaje), Some(l.mensaje.clone()));
+        // Caso negativo: sin nombre no se crea nada.
+        assert!(n.asegurar_lista_de_asignatura("  ".into(), 0).is_err());
         let _ = std::fs::remove_dir_all(&d);
     }
 }

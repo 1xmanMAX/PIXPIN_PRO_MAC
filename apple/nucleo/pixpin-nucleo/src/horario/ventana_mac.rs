@@ -43,16 +43,49 @@ pub struct FichaDeClase {
     pub antelacion: Option<u32>,
 }
 
+/// **Lo que paso al pulsar «+»** con lo escrito en «Nueva asignatura»
+/// (el `Accion::Anadir` de Windows).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum AsignaturaAnadida {
+    /// Nueva, en el puesto `indice` (Windows: «Arrastra «X» a la semana»).
+    Nueva { indice: u32, nombre: String },
+    /// Ya estaba en el puesto `indice` (Windows: «X» ya está en la lista).
+    Repetida { indice: u32, nombre: String },
+    /// No habia nombre: nada.
+    Nada,
+}
+
 /// La semana abierta en la ventana.
 #[derive(uniffi::Object)]
 pub struct SemanaHorario {
     nucleo: Arc<Nucleo>,
     semana: Mutex<Semana>,
+    /// Lo ultimo escrito en `horario.md` y lo de antes del ultimo cambio
+    /// guardado («Deshacer», el `deshacer` del panel de Windows).
+    guardada: Mutex<(Semana, Option<Semana>)>,
 }
 
 impl SemanaHorario {
     fn tomar(&self) -> std::sync::MutexGuard<'_, Semana> {
         self.semana.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn tomar_guardada(&self) -> std::sync::MutexGuard<'_, (Semana, Option<Semana>)> {
+        self.guardada.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Escribe `s` en `horario.md` (solo las lineas de clases y
+    /// asignaturas), como `Panel::guardar` de Windows.
+    fn escribir(&self, s: &Semana) -> Result<(), ErrorNucleo> {
+        let ruta = self.nucleo.fichero_del_horario()?;
+        let original = std::fs::read_to_string(&ruta).unwrap_or_else(|_| super::PLANTILLA.to_string());
+        let nuevo = semana::reescribir(&original, s);
+        if nuevo != original {
+            let tmp = format!("{ruta}.parte");
+            std::fs::write(&tmp, nuevo)?;
+            std::fs::rename(&tmp, &ruta)?;
+        }
+        Ok(())
     }
 }
 
@@ -64,7 +97,8 @@ impl SemanaHorario {
         let ruta = nucleo.fichero_del_horario()?;
         let texto = std::fs::read_to_string(&ruta)?;
         let h = super::leer(&texto, Momento::de_ms_locales(crate::ahora_ms()));
-        Ok(Arc::new(SemanaHorario { nucleo, semana: Mutex::new(Semana::de_horario(&h)) }))
+        let s = Semana::de_horario(&h);
+        Ok(Arc::new(SemanaHorario { nucleo, semana: Mutex::new(s.clone()), guardada: Mutex::new((s, None)) }))
     }
 
     pub fn asignaturas(&self) -> Vec<AsignaturaHorario> {
@@ -93,6 +127,17 @@ impl SemanaHorario {
     /// Una asignatura nueva («Geometría @A-12»). `false`: ya estaba.
     pub fn anadir_asignatura(&self, escrito: String) -> bool {
         matches!(self.tomar().anadir_asignatura(&escrito), Ok(Some(_)))
+    }
+
+    /// **«+» de «Nueva asignatura»**: la anade (con el aula detras si se
+    /// pone) o dice cual era la repetida.
+    pub fn anadir_asignatura_escrita(&self, escrito: String) -> AsignaturaAnadida {
+        let mut s = self.tomar();
+        match s.anadir_asignatura(&escrito) {
+            Ok(Some(i)) => AsignaturaAnadida::Nueva { indice: i as u32, nombre: s.asignaturas[i].nombre.clone() },
+            Err(i) => AsignaturaAnadida::Repetida { indice: i as u32, nombre: s.asignaturas[i].nombre.clone() },
+            Ok(None) => AsignaturaAnadida::Nada,
+        }
     }
 
     pub fn borrar_asignatura(&self, i: u32) {
@@ -168,16 +213,34 @@ impl SemanaHorario {
     }
 
     /// **Guarda** en `horario.md` (solo las lineas de clases y asignaturas).
+    /// Si cambio algo, lo de antes queda para «Deshacer».
     pub fn guardar(&self) -> Result<(), ErrorNucleo> {
-        let ruta = self.nucleo.fichero_del_horario()?;
-        let original = std::fs::read_to_string(&ruta)?;
-        let nuevo = semana::reescribir(&original, &self.tomar());
-        if nuevo != original {
-            let tmp = format!("{ruta}.parte");
-            std::fs::write(&tmp, nuevo)?;
-            std::fs::rename(&tmp, &ruta)?;
+        let s = self.tomar().clone();
+        let mut g = self.tomar_guardada();
+        self.escribir(&s)?;
+        if g.0 != s {
+            let antes = std::mem::replace(&mut g.0, s);
+            g.1 = Some(antes);
         }
         Ok(())
+    }
+
+    /// Si hay un cambio que deshacer.
+    pub fn puede_deshacer(&self) -> bool {
+        self.tomar_guardada().1.is_some()
+    }
+
+    /// **«Deshacer»**: la semana de antes del ultimo cambio, otra vez en
+    /// `horario.md` (una sola vez, como en Windows). `false`: no habia nada.
+    pub fn deshacer(&self) -> Result<bool, ErrorNucleo> {
+        let mut g = self.tomar_guardada();
+        let Some(antes) = g.1.take() else {
+            return Ok(false);
+        };
+        self.escribir(&antes)?;
+        *self.tomar() = antes.clone();
+        g.0 = antes;
+        Ok(true)
     }
 }
 
@@ -220,6 +283,77 @@ mod pruebas {
         // Borrar un bloque.
         s.borrar(0);
         assert_eq!(s.bloques().len(), 6);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// Lo que deja Windows en `horario.md` al anadir «Geometría @A-12» con
+    /// el «+» a un horario nuevo (la plantilla) y soltarla el lunes y el
+    /// miercoles a las 8 (`semana::reescribir` del panel de Windows).
+    const COMO_WINDOWS: &str = "# Horario de clases
+
+Una línea por clase: los días, la hora y la asignatura (el aula con @).
+Debajo de una clase, lo que empieza por > lo lee la voz al contestar.
+También puedes pegar una tabla (de Excel o de la web).
+
+<!-- Ejemplo (quita estas dos líneas de comentario para usarlo):
+Lun Mie 8:00-10:00 Geometría @A-12
+> traer el compás
+Mar Jue 10:15-12:00 Física
+Evaluación Geometría 23/10
+-->
+
+avisar 10 min antes
+
+## Asignaturas
+Asignatura Geometría @A-12
+";
+
+    #[test]
+    fn anadir_una_asignatura_deja_el_horario_como_windows_y_se_deshace() {
+        let d = std::env::temp_dir().join(format!("pixpin-semana-anadir-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let n = Nucleo::abrir(d.display().to_string(), "Mac".into()).unwrap();
+        let ruta = n.fichero_del_horario().unwrap();
+        let s = SemanaHorario::abrir(n.clone()).unwrap();
+        assert!(!s.puede_deshacer(), "recien abierto, nada que deshacer");
+        assert_eq!(s.anadir_asignatura_escrita("   ".into()), AsignaturaAnadida::Nada);
+        assert_eq!(
+            s.anadir_asignatura_escrita("Geometría @A-12".into()),
+            AsignaturaAnadida::Nueva { indice: 0, nombre: "Geometría".into() }
+        );
+        s.guardar().unwrap();
+        assert_eq!(std::fs::read_to_string(&ruta).unwrap(), COMO_WINDOWS);
+        // Repetida (sin tildes ni mayusculas): no se anade otra.
+        assert_eq!(
+            s.anadir_asignatura_escrita("GEOMETRIA".into()),
+            AsignaturaAnadida::Repetida { indice: 0, nombre: "Geometría".into() }
+        );
+        assert_eq!(s.asignaturas().len(), 1);
+        // Y lo que lee el horario de ahi es la asignatura con su aula.
+        let leido = SemanaHorario::abrir(n.clone()).unwrap();
+        assert_eq!(
+            leido.asignaturas(),
+            [AsignaturaHorario { nombre: "Geometría".into(), aula: Some("A-12".into()), color: s.asignaturas()[0].color }]
+        );
+        // Dos clases: el lunes y el miercoles de 8 a 9, en una linea.
+        s.soltar(0, 0, 8 * 60);
+        s.soltar(0, 2, 8 * 60);
+        s.guardar().unwrap();
+        let con_clases = std::fs::read_to_string(&ruta).unwrap();
+        assert_eq!(
+            con_clases,
+            format!("{COMO_WINDOWS}\n## Clases\nLun Mié 8:00-9:00 Geometría @A-12\n"),
+        );
+        // «Deshacer»: el fichero vuelve a como estaba, una sola vez.
+        assert!(s.puede_deshacer());
+        assert!(s.deshacer().unwrap());
+        assert_eq!(std::fs::read_to_string(&ruta).unwrap(), COMO_WINDOWS);
+        assert!(s.bloques().is_empty());
+        assert!(!s.deshacer().unwrap(), "caso negativo: no hay dos deshacer");
+        // Quitar la asignatura la quita del fichero (sus tareas siguen).
+        s.borrar_asignatura(0);
+        s.guardar().unwrap();
+        assert!(!std::fs::read_to_string(&ruta).unwrap().contains("Asignatura Geometría"));
         let _ = std::fs::remove_dir_all(&d);
     }
 }
