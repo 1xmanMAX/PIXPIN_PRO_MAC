@@ -11,11 +11,9 @@
 // - **Las pestanas**, texto con la rayita de color bajo la activa y su
 //   cuenta apagada detras. Solo salen las que tienen algo; si sobran, el
 //   sitio se reparte; si no caben, la tira se desplaza y la activa se ve.
-// - **Los proyectos viven aqui** (2439c5c): la primera pestana, con la que
-//   se abre, lista los de la lista de chats con su avatar, su nombre,
-//   cuantas hojas tiene, su ultima linea y cuando se toco. Pulsar otro
-//   proyecto cierra la isla y el chat pasa a el; pulsar el de este chat
-//   lleva a su «Galeria».
+// - **Sin la pestana «Proyectos»** (Windows e16087a, como Android): la isla
+//   se abre en la primera pestana con algo (la «Galeria»; en un chat vacio,
+//   «Todo»). Para pasar de un proyecto a otro queda la lista de chats.
 // - **El contenido, por meses** («Octubre de 2026»), lo mas nuevo arriba:
 //   lo que se mira en una rejilla de borde a borde de tres a cinco columnas
 //   (con el recuadro neutro mientras carga y, en los videos, el triangulo y
@@ -34,7 +32,7 @@
 //
 // Que pestanas salen, que cuenta cada una, que hay en ella, el orden y a
 // donde va el foco son de Rust (`ficha_del_chat.rs`: `Nucleo.fichaDelChat`,
-// `cosasDeLaFicha`, `proyectosDeLaFicha`, `vecinaEnLaFicha`).
+// `cosasDeLaFicha`, `vecinaEnLaFicha`).
 
 import AppKit
 import PixPinCore
@@ -85,7 +83,6 @@ enum MedidasFicha {
 enum TextosFicha {
     static func rotulo(_ s: SeccionFicha) -> String {
         switch s {
-        case .proyectos: "Proyectos"
         case .galeria: "Galería"
         case .todo: "Todo"
         case .fotos: "Fotos"
@@ -108,7 +105,6 @@ enum TextosFicha {
         case .voz: "mic"
         case .dibujos: "scribble.variable"
         case .fijados: "pin"
-        case .proyectos: "folder"
         default: "doc.text"
         }
     }
@@ -126,7 +122,6 @@ enum TextosFicha {
         case .fijados: "Lo que fijes saldrá aquí"
         case .buzon: "El buzón está vacío"
         case .todo: "Aquí no hay nada todavía"
-        case .proyectos: "Aún no hay proyectos"
         }
     }
 
@@ -139,9 +134,6 @@ enum TextosFicha {
     /// «24 cosas» (`chat-cosas`), debajo del nombre en la cabecera.
     static func cosas(_ n: UInt64) -> String { n == 1 ? "1 cosa" : "\(n) cosas" }
 
-    /// «12 hojas» (`chat-hojas`).
-    static func hojas(_ n: UInt32) -> String { n == 1 ? "1 hoja" : "\(n) hojas" }
-
     static let nada = "Nada con eso"
     static let buscar = "Buscar"
     static let abrir = "Abrir"
@@ -149,8 +141,6 @@ enum TextosFicha {
     static let reproducir = "Reproducir"
     static let verEnElChat = "Ver en el chat"
     static let notaDeVoz = "Nota de voz"
-    static let esteChat = "Este chat"
-    static let noDisponible = "Ubicación no disponible"
 
     /// «3 de 24» (`info-previa-posicion`).
     static func posicion(_ k: Int, de n: Int) -> String { "\(k) de \(n)" }
@@ -256,14 +246,12 @@ final class ModeloFichaDelChat: ObservableObject {
     @Published private(set) var leida: FichaDelChatLeida?
     @Published private(set) var seccion: SeccionFicha = .todo
     @Published private(set) var cosas: [CosaDeLaFicha] = []
-    /// Los de la pestana «Proyectos», en el orden de la lista de chats.
-    @Published private(set) var proyectos: [ProyectoDeLaFicha] = []
     /// Las cosas por meses, lo mas nuevo arriba.
     @Published private(set) var porMeses: [MesDeLaFicha] = []
     @Published private(set) var cargando = false
     /// La cosa que se ve en grande (su sitio en `cosas`); `nil`, la rejilla.
     @Published var enPrevia: Int?
-    /// La cosa (o el proyecto) con el foco del teclado, por su sitio.
+    /// La cosa con el foco del teclado, por su sitio.
     @Published private(set) var foco: Int?
     @Published var buscando = false
     @Published var buscado = "" { didSet { if buscado != oldValue { leerCosas() } } }
@@ -290,8 +278,8 @@ final class ModeloFichaDelChat: ObservableObject {
 
     var previa: CosaDeLaFicha? { enPrevia.flatMap { cosas[safe: $0] } }
 
-    /// Cuantas cosas (o proyectos) ensena la pestana puesta.
-    var cuantas: Int { seccion == .proyectos ? proyectos.count : cosas.count }
+    /// Cuantas cosas ensena la pestana puesta.
+    var cuantas: Int { cosas.count }
 
     /// Si lo que se teclea es para la lupa (`teclado_en_la_lupa`): con la
     /// isla abierta y en su rejilla. En la previa la caja no se ve.
@@ -301,7 +289,7 @@ final class ModeloFichaDelChat: ObservableObject {
     /// en una nota, que foto suya es.
     nonisolated static func clave(_ c: CosaDeLaFicha) -> String { "\(c.mensaje.id)#\(c.foto.map { String($0) } ?? "")" }
 
-    /// **Abre la ficha** en la primera pestana que tenga algo (los proyectos,
+    /// **Abre la ficha** en la primera pestana que tenga algo (la galeria,
     /// casi siempre), sin la busqueda de la vez anterior.
     func abrir() {
         enPrevia = nil
@@ -326,7 +314,6 @@ final class ModeloFichaDelChat: ObservableObject {
         guard s != seccion else { return }
         seccion = s
         cosas = []
-        proyectos = []
         porMeses = []
         visibles = []
         leerCosas()
@@ -348,7 +335,6 @@ final class ModeloFichaDelChat: ObservableObject {
             if primera, seccion != r.primera {
                 seccion = r.primera
                 cosas = []
-                proyectos = []
                 porMeses = []
             }
             leerCosas()
@@ -361,20 +347,6 @@ final class ModeloFichaDelChat: ObservableObject {
         let nucleo = almacen.nucleo
         let (chat, seccion, buscado) = (self.chat, self.seccion, self.buscado)
         cargando = true
-        if seccion == .proyectos {
-            Task {
-                let r = await Task.detached(priority: .userInitiated) { () -> [ProyectoDeLaFicha] in
-                    (try? nucleo.proyectosDeLaFicha(chat: chat, buscado: buscado)) ?? []
-                }.value
-                guard mia == vuelta else { return }
-                cargando = false
-                if r.map(\.ficha.id) != proyectos.map(\.ficha.id) { foco = nil }
-                proyectos = r
-                cosas = []
-                porMeses = []
-            }
-            return
-        }
         Task {
             let r = await Task.detached(priority: .userInitiated) { () -> [CosaDeLaFicha] in
                 (try? nucleo.cosasDeLaFicha(chat: chat, seccion: seccion, buscado: buscado)) ?? []
@@ -387,7 +359,6 @@ final class ModeloFichaDelChat: ObservableObject {
             let vista = previa.map(Self.clave)
             if r.map(Self.clave) != cosas.map(Self.clave) { foco = nil }
             cosas = r
-            proyectos = []
             porMeses = Self.agrupar(r)
             enPrevia = vista.flatMap { v in r.firstIndex { Self.clave($0) == v } }
         }
@@ -442,24 +413,6 @@ final class ModeloFichaDelChat: ObservableObject {
         enPrevia = i
     }
 
-    /// **Pulsar un proyecto** (`pulsar_proyecto`): el de este chat no sale de
-    /// la isla, lleva a su «Galeria» (sus hojas, lo que ensenaba su
-    /// tarjeta); otro es salir a proposito: la isla se cierra y el chat pasa
-    /// a el. La lupa se apaga en los dos casos: lo buscado era un nombre de
-    /// proyecto.
-    func pulsarProyecto(_ i: Int) {
-        guard let p = proyectos[safe: i] else { return }
-        apagarLupa()
-        foco = nil
-        if p.este {
-            elegir(.galeria)
-            releer()
-            return
-        }
-        cerrar()
-        PeticionDeChat.compartida.chat = p.ficha.id
-    }
-
     /// «Abrir» de la previa; lo que no tiene con que abrirse aparte se ve en
     /// el chat.
     func abrirLaPrevia() {
@@ -502,7 +455,7 @@ final class ModeloFichaDelChat: ObservableObject {
         case (.escape, nil):
             cerrar()
         case let (.intro, .some(n)):
-            if seccion == .proyectos { pulsarProyecto(n) } else { pulsar(n) }
+            pulsar(n)
         case (.izquierda, nil), (.derecha, nil):
             let lista = pestanas.map(\.seccion)
             let k = (lista.firstIndex(of: seccion) ?? 0) + (t == .izquierda ? -1 : 1)
@@ -517,9 +470,7 @@ final class ModeloFichaDelChat: ObservableObject {
             case .arriba: (0, -1)
             default: (0, 1)
             }
-            let meses: [Int64] = seccion == .proyectos
-                ? Array(repeating: 0, count: proyectos.count)
-                : cosas.map { TextosFicha.claveDelMes($0.mensaje.cuando) }
+            let meses: [Int64] = cosas.map { TextosFicha.claveDelMes($0.mensaje.cuando) }
             if let k = vecinaEnLaFicha(meses: meses, cuadricula: cuadricula,
                                        ancho: UInt32(max(anchoContenido, 1)),
                                        actual: UInt32(n), dx: dx, dy: dy) {
@@ -663,7 +614,7 @@ struct CabeceraDelChat: View {
             }
             .buttonStyle(.plain)
             .onHover { encima = $0 }
-            .help("Proyectos, fotos, vídeos, archivos y enlaces del chat")
+            .help("Fotos, vídeos, archivos y enlaces del chat")
             Spacer(minLength: 0)
             Button {
                 if buscador.abierto { buscador.cerrar() } else { buscador.abrir() }
@@ -983,9 +934,8 @@ private struct PestanaDeLaFicha: View {
 
 // MARK: - El contenido
 
-/// **El contenido de la pestana**: los proyectos en filas; lo demas por
-/// meses, en rejilla o en filas. El foco del teclado lleva su filete y se
-/// mantiene a la vista.
+/// **El contenido de la pestana**: por meses, en rejilla o en filas. El
+/// foco del teclado lleva su filete y se mantiene a la vista.
 private struct ContenidoDeLaFicha: View {
     @ObservedObject var ficha: ModeloFichaDelChat
 
@@ -996,11 +946,7 @@ private struct ContenidoDeLaFicha: View {
             GeometryReader { g in
                 ScrollViewReader { proxy in
                     ScrollView {
-                        if ficha.seccion == .proyectos {
-                            proyectos
-                        } else {
-                            porMeses(ancho: g.size.width)
-                        }
+                        porMeses(ancho: g.size.width)
                     }
                     .onChange(of: ficha.foco) { _, f in
                         guard let f else { return }
@@ -1015,7 +961,6 @@ private struct ContenidoDeLaFicha: View {
     }
 
     private func clave(_ n: Int) -> String {
-        if ficha.seccion == .proyectos { return ficha.proyectos[safe: n]?.ficha.id ?? "" }
         return ficha.cosas[safe: n].map(ModeloFichaDelChat.clave) ?? ""
     }
 
@@ -1040,22 +985,6 @@ private struct ContenidoDeLaFicha: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    // Los proyectos, sin rotulos de mes: van en el orden de la lista.
-    private var proyectos: some View {
-        LazyVStack(spacing: 0) {
-            ForEach(Array(ficha.proyectos.enumerated()), id: \.element.ficha.id) { i, p in
-                FilaDeProyecto(proyecto: p, buscado: ficha.buscado)
-                    .overlay { if ficha.foco == i { MarcaDelFoco(radio: 10) } }
-                    .onTapGesture { ficha.pulsarProyecto(i) }
-                    .onAppear { ficha.visibles.insert(i) }
-                    .onDisappear { ficha.visibles.remove(i) }
-                    .id(p.ficha.id)
-            }
-        }
-        .padding(.horizontal, MedidasFicha.relleno / 2)
-        .padding(.vertical, MedidasFicha.pieDeLista)
     }
 
     // Cada mes bajo su rotulo; en la rejilla, de borde a borde.
@@ -1396,62 +1325,6 @@ private struct FilaDeLaFicha: View {
             .overlay {
                 Image(systemName: simbolo).font(.system(size: 18)).foregroundStyle(.white)
             }
-    }
-}
-
-/// **Un proyecto de su pestana**: su avatar, su nombre en seminegrita con lo
-/// buscado resaltado y, a la derecha, cuando se toco; debajo, cuantas hojas
-/// tiene y su ultima linea. El de este chat va marcado como la fila elegida
-/// de la lista y lo dice delante.
-private struct FilaDeProyecto: View {
-    let proyecto: ProyectoDeLaFicha
-    let buscado: String
-    @State private var encima = false
-
-    private var f: FichaChat { proyecto.ficha }
-
-    var body: some View {
-        let (texto, apagado) = proyecto.este ? (Color.white, Color.white) : (Paleta.proyectos.texto, Paleta.proyectos.apagado)
-        HStack(spacing: 12) {
-            AvatarDelChat(id: f.id, nombre: f.nombre, lado: MedidasFicha.miniaturaFila, foto: f.foto)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 8) {
-                    Text(TextosFicha.conNegritas(f.nombre, buscado: buscado, tam: 13.5, peso: .semibold))
-                        .foregroundStyle(texto)
-                    Spacer(minLength: 0)
-                    Text(TextosFicha.hora(f.tocado))
-                        .font(.system(size: 12))
-                        .foregroundStyle(apagado)
-                }
-                Text(debajo)
-                    .font(.system(size: 12))
-                    .foregroundStyle(apagado)
-            }
-            .lineLimit(1)
-            .truncationMode(.tail)
-        }
-        .padding(.horizontal, 8)
-        .frame(height: MedidasFicha.fila)
-        .background(proyecto.este ? Paleta.proyectos.filaElegida : encima ? Paleta.proyectos.filaEncima : .clear,
-                    in: RoundedRectangle(cornerRadius: 10))
-        .contentShape(Rectangle())
-        .onHover { encima = $0 }
-    }
-
-    /// «Este chat · 12 hojas · lo ultimo que se dijo». Guardado en un disco
-    /// que ahora no esta, eso manda: es lo que explica por que no abre.
-    private var debajo: String {
-        var partes: [String] = []
-        if proyecto.este { partes.append(TextosFicha.esteChat) }
-        if !proyecto.disponible {
-            partes.append(TextosFicha.noDisponible)
-        } else {
-            partes.append(TextosFicha.hojas(f.hojas))
-            let resumen = f.resumen.split(separator: "\n", maxSplits: 1).first
-                .map { $0.trimmingCharacters(in: .whitespaces) } ?? ""
-            if !resumen.isEmpty { partes.append(resumen) }
-        }
-        return partes.joined(separator: "  ·  ")
     }
 }
 

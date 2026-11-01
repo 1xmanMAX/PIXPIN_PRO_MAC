@@ -54,6 +54,34 @@ extension Notification.Name {
     static let pixpinAbrirVistaTareas = Notification.Name("PixPinAbrirVistaTareas")
 }
 
+/// **Lo que hace cada funcion** (`hacer` de Windows): aparte de la vista
+/// para que una prueba ate cada mosaico a lo suyo.
+enum AccionDeFuncion: Equatable {
+    /// La barra de grabar una clase o reunion.
+    case grabarClase
+    /// Un lienzo en blanco en el chat abierto.
+    case nuevoLienzo
+    /// Una ventana de la app, por su id.
+    case ventana(String)
+    /// Tareas en una de sus vistas.
+    case vistaDeTareas(VistaPedidaDeTareas)
+    /// La biblioteca de figuras.
+    case figuras
+
+    static func de(_ f: FuncionDeLaLista) -> AccionDeFuncion {
+        switch f {
+        case .grabar: .grabarClase
+        case .lienzo: .nuevoLienzo
+        case .tareas: .ventana(IdVentana.tareas)
+        // Con las lecciones dentro, en su pestana.
+        case .timeline: .ventana(IdVentana.timeline)
+        case .horario: .vistaDeTareas(.horario)
+        case .galeria: .ventana(IdVentana.galeria)
+        case .figuras: .figuras
+        }
+    }
+}
+
 /// La rejilla de Funciones, en el sitio de la lista de chats.
 struct FuncionesDeLaLista: View {
     @ObservedObject var almacen: Almacen
@@ -85,6 +113,9 @@ struct FuncionesDeLaLista: View {
                         .frame(width: CGFloat(g.titulo.ancho), height: CGFloat(g.titulo.alto), alignment: .leading)
                         .offset(x: CGFloat(g.titulo.x), y: CGFloat(g.titulo.y))
                 }
+                // Cada mosaico en su caja (con `position`, que mueve tambien
+                // su marco, no solo lo pintado). No lleva gestos propios: el
+                // clic y el raton los mira la rejilla entera con el punto.
                 ForEach(textos.mosaicos.indices, id: \.self) { i in
                     if i < g.mosaicos.count {
                         let caja = g.mosaicos[i]
@@ -92,24 +123,36 @@ struct FuncionesDeLaLista: View {
                                        soloIconos: g.soloIconos, conDetalle: g.conDetalle,
                                        elegido: foco && elegida == UInt32(i), sobre: sobre == i)
                             .frame(width: CGFloat(caja.ancho), height: CGFloat(caja.alto))
-                            .offset(x: CGFloat(caja.x), y: CGFloat(caja.y))
-                            .onHover { dentro in
-                                if dentro { sobre = i } else if sobre == i { sobre = nil }
-                            }
-                            .onTapGesture {
-                                elegida = UInt32(i)
-                                foco = true
-                                hacer(textos.mosaicos[i].funcion)
-                            }
+                            // La ayuda antes de colocarlo: despues ocuparia
+                            // la rejilla entera.
                             .help(textos.mosaicos[i].detalle)
+                            .position(x: CGFloat(caja.x) + CGFloat(caja.ancho) / 2,
+                                      y: CGFloat(caja.y) + CGFloat(caja.alto) / 2)
                     }
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             .clipped()
             .contentShape(Rectangle())
-            // Pulsar en la rejilla (fuera de un mosaico) tambien le da el teclado.
-            .onTapGesture { foco = true }
+            // **Lo pulsado es lo que hay en ese punto** (`funcion_en` de
+            // Windows): Rust dice que mosaico cae bajo el raton con la misma
+            // rejilla con que se pinta. Antes cada mosaico llevaba su gesto
+            // sobre un `offset`, que deja el marco de todos en la esquina de
+            // arriba: el ultimo pintado (Figuras) se quedaba los clics de
+            // Grabar. Pulsar fuera de un mosaico solo le da el teclado.
+            .onTapGesture(coordinateSpace: .local) { p in
+                foco = true
+                guard let i = indice(en: p, ancho: geo.size.width, alto: geo.size.height) else { return }
+                elegida = UInt32(i)
+                hacer(textos.mosaicos[i].funcion)
+            }
+            .onContinuousHover(coordinateSpace: .local) { fase in
+                if case let .active(p) = fase {
+                    sobre = indice(en: p, ancho: geo.size.width, alto: geo.size.height)
+                } else {
+                    sobre = nil
+                }
+            }
             .focusable()
             .focusEffectDisabled()
             .focused($foco)
@@ -120,6 +163,15 @@ struct FuncionesDeLaLista: View {
         }
         // Al elegir la pestana el teclado es suyo.
         .onAppear { foco = true }
+    }
+
+    /// El mosaico (su sitio en `textos.mosaicos`) bajo el punto `p` de la
+    /// columna, por la funcion que Rust dice que hay ahi.
+    private func indice(en p: CGPoint, ancho: CGFloat, alto: CGFloat) -> Int? {
+        guard let f = funcionEnElPunto(ancho: UInt32(max(0, ancho)), alto: UInt32(max(0, alto)),
+                                       x: Int32(p.x.rounded(.down)), y: Int32(p.y.rounded(.down)))
+        else { return nil }
+        return textos.mosaicos.firstIndex { $0.funcion == f }
     }
 
     private func tecla(_ k: KeyPress, columnas: UInt32) -> KeyPress.Result {
@@ -150,14 +202,11 @@ struct FuncionesDeLaLista: View {
     /// **Hace la funcion**: cada una abre su ventana, como hacian sus botones
     /// de la cabecera de la lista y la bandeja; el chat sigue a lo suyo.
     private func hacer(_ f: FuncionDeLaLista) {
-        switch f {
-        case .grabar: GrabarClase.compartida.abrir()
-        case .lienzo: Task { await nuevoLienzo() }
-        case .tareas: abrirVentana(id: IdVentana.tareas)
-        // Con las lecciones dentro, en su pestana.
-        case .timeline: abrirVentana(id: IdVentana.timeline)
-        case .horario: VentanaTareas.abrir(vista: .horario)
-        case .galeria: abrirVentana(id: IdVentana.galeria)
+        switch AccionDeFuncion.de(f) {
+        case .grabarClase: GrabarClase.compartida.abrir()
+        case .nuevoLienzo: Task { await nuevoLienzo() }
+        case let .ventana(id): abrirVentana(id: id)
+        case let .vistaDeTareas(vista): VentanaTareas.abrir(vista: vista)
         case .figuras: VentanaFiguras.abrir(nucleo: almacen.nucleo, destino: nil)
         }
     }

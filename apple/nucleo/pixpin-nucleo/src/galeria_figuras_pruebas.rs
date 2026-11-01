@@ -345,3 +345,156 @@ fn las_de_serie_se_ponen_una_vez_y_no_pisan_las_propias() {
     assert!(!crate::editor_figuras::instalar_de_serie(&r, &ruta));
     let _ = std::fs::remove_dir_all(&r);
 }
+
+/// La caja de los puntos de las ordenes de un plano (lo que se pinta).
+fn caja_de_lo_pintado(plano: &LienzoPlano) -> (f32, f32, f32, f32) {
+    use pixpin_motor2d::pintado::Orden;
+    let (_, ordenes) = crate::lienzo::decodificar(plano).unwrap();
+    let mut c = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
+    for o in &ordenes {
+        let puntos = match o {
+            Orden::Poligono { puntos, .. }
+            | Orden::Polilinea { puntos, .. }
+            | Orden::Relleno { puntos, .. } => puntos,
+            Orden::Tinta { contorno, .. } => contorno,
+            _ => continue,
+        };
+        for p in puntos {
+            c = (c.0.min(p.x), c.1.min(p.y), c.2.max(p.x), c.3.max(p.y));
+        }
+    }
+    c
+}
+
+#[test]
+fn la_miniatura_es_solo_la_zona_de_la_figura() {
+    let r = raiz("miniatura");
+    let n = nucleo(&r);
+    let g = n.clone().galeria_de_figuras().unwrap();
+    // Una plantilla de pagina (alta) y unos simbolos de la rejilla: todos
+    // encuadrados a lo que tienen.
+    let mut ids = vec!["serie-lista-de-tareas".to_string()];
+    ids.extend(
+        g.visibles(None, String::new())
+            .into_iter()
+            .skip(40)
+            .take(3)
+            .map(|f| f.id),
+    );
+    for id in ids {
+        let f = g.figura(&id).unwrap();
+        let plano = g.miniatura(id.clone(), 180).expect("su miniatura");
+        let (cab, _) = crate::lienzo::decodificar(&plano).unwrap();
+        let (x0, y0, x1, y1) = cab.caja.expect("con su caja");
+        // La caja es la de lo dibujado: la de sus elementos (con medio trazo
+        // a cada lado), no la del lienzo ni desde el origen.
+        let e = escena_de_miniatura(&f, 180);
+        assert_eq!(Some((x0, y0, x1, y1)), e.caja(), "{id}");
+        let (w, h) = f.tamano();
+        assert!(
+            (x1 - x0) >= w - 0.5 && (x1 - x0) <= w * 1.1 + 4.0,
+            "{id}: {w} y {}",
+            x1 - x0
+        );
+        assert!(
+            (y1 - y0) >= h - 0.5 && (y1 - y0) <= h * 1.1 + 4.0,
+            "{id}: {h} y {}",
+            y1 - y0
+        );
+        // Lo que se pinta cae dentro (los trazos a mano tiemblan un poco) y
+        // la llena: ningun lado se queda en blanco.
+        let p = caja_de_lo_pintado(&plano);
+        let holgura = 0.04 * (x1 - x0).max(y1 - y0) + 2.0;
+        assert!(p.0 >= x0 - holgura && p.1 >= y0 - holgura, "{id}: {p:?}");
+        assert!(p.2 <= x1 + holgura && p.3 <= y1 + holgura, "{id}: {p:?}");
+        assert!(p.0 <= x0 + holgura && p.2 >= x1 - holgura, "{id}: {p:?}");
+        assert!(p.1 <= y0 + holgura && p.3 >= y1 - holgura, "{id}: {p:?}");
+        // Encajada en una celda, cae centrada y entera.
+        let caja = crate::lienzo::CajaLienzo { x0, y0, x1, y1 };
+        let enc = encuadre_de_figura(caja, 176.0, 156.0, 4.0);
+        let (ax, ay) = (x0 * enc.escala + enc.dx, y0 * enc.escala + enc.dy);
+        let (bx, by) = (x1 * enc.escala + enc.dx, y1 * enc.escala + enc.dy);
+        assert!(
+            ax >= 3.99 && ay >= 3.99 && bx <= 172.01 && by <= 152.01,
+            "{id}"
+        );
+        assert!((ax - (176.0 - bx)).abs() < 0.01 && (ay - (156.0 - by)).abs() < 0.01);
+        assert!(
+            (ax - 4.0).abs() < 0.01 || (ay - 4.0).abs() < 0.01,
+            "toca dos lados"
+        );
+    }
+    // Encogida, un trazo fino de una hoja entera sigue viendose.
+    let f = g.figura("serie-lista-de-tareas").unwrap();
+    let e = escena_de_miniatura(&f, 120);
+    let (x0, y0, x1, y1) = e.caja().unwrap();
+    let k = 120.0 / (x1 - x0).max(y1 - y0);
+    assert!(e.elementos.iter().all(|e| e.grosor * k >= 0.85));
+    // Caso negativo: la que no esta no tiene miniatura.
+    assert!(g.miniatura("no-esta".into(), 180).is_none());
+    let _ = std::fs::remove_dir_all(&r);
+}
+
+#[test]
+fn la_vista_previa_se_acerca_se_aleja_y_se_mueve() {
+    // 100 x 50 en una vista de 200 x 200 sin aire: escala 2, centrada.
+    let caja = crate::lienzo::CajaLienzo {
+        x0: 10.0,
+        y0: 20.0,
+        x1: 110.0,
+        y1: 70.0,
+    };
+    let (w, h) = (200.0, 200.0);
+    let en = |v: VistaDeFigura, x: f32, y: f32| {
+        let e = encuadre_con_zoom(caja, w, h, 0.0, v);
+        (x * e.escala + e.dx, y * e.escala + e.dy)
+    };
+    let v0 = vista_encajada(caja);
+    assert_eq!(encuadre_de_figura(caja, w, h, 0.0).escala, 2.0);
+    assert_eq!(en(v0, 10.0, 20.0), (0.0, 50.0));
+    assert_eq!(en(v0, 110.0, 70.0), (200.0, 150.0));
+    // Acercar con el raton en (40, 100): el punto bajo el raton se queda.
+    let bajo = (30.0, 45.0);
+    assert_eq!(en(v0, bajo.0, bajo.1), (40.0, 100.0));
+    let v1 = acercar_figura(caja, w, h, 0.0, v0, 2.0, 40.0, 100.0);
+    assert_eq!(v1.zoom, 2.0);
+    let (px, py) = en(v1, bajo.0, bajo.1);
+    assert!(
+        (px - 40.0).abs() < 1e-3 && (py - 100.0).abs() < 1e-3,
+        "{px} {py}"
+    );
+    // Mover: la figura va con el raton.
+    let v2 = mover_figura(caja, w, h, 0.0, v1, 20.0, -10.0);
+    let (qx, qy) = en(v2, bajo.0, bajo.1);
+    assert!(
+        (qx - 60.0).abs() < 1e-3 && (qy - 90.0).abs() < 1e-3,
+        "{qx} {qy}"
+    );
+    // Pero no se pierde: el centro no sale de la caja.
+    let lejos = mover_figura(caja, w, h, 0.0, v1, 10_000.0, 10_000.0);
+    assert_eq!((lejos.centro_x, lejos.centro_y), (10.0, 20.0));
+    // Con tope: ni mas de 32 veces ni menos de la mitad.
+    let mucho = acercar_figura(caja, w, h, 0.0, v0, 1_000.0, 100.0, 100.0);
+    assert_eq!(mucho.zoom, ZOOM_MAXIMO);
+    let poco = acercar_figura(caja, w, h, 0.0, v1, 0.001, 0.0, 0.0);
+    assert_eq!(poco.zoom, ZOOM_MINIMO);
+    // Alejada (o encajada) vuelve al centro: no hay nada que buscar.
+    assert_eq!((poco.centro_x, poco.centro_y), (60.0, 45.0));
+    let quieta = mover_figura(caja, w, h, 0.0, v0, 30.0, 30.0);
+    assert_eq!(quieta, v0);
+    // Caso negativo: un factor sin sentido no cambia nada.
+    assert_eq!(acercar_figura(caja, w, h, 0.0, v1, 0.0, 1.0, 1.0), v1);
+    assert_eq!(acercar_figura(caja, w, h, 0.0, v1, f32::NAN, 1.0, 1.0), v1);
+    // Una figura de una raya (sin alto) no divide entre cero.
+    let raya = crate::lienzo::CajaLienzo {
+        x0: 0.0,
+        y0: 5.0,
+        x1: 80.0,
+        y1: 5.0,
+    };
+    assert!(
+        encuadre_de_figura(raya, 100.0, 100.0, 4.0)
+            .escala
+            .is_finite()
+    );
+}

@@ -125,10 +125,9 @@ final class CajaDelChatTests: XCTestCase {
         XCTAssertNil(TextosFicha.clase("NOTA"), "una nota es solo su texto")
         XCTAssertEqual(TextosFicha.clase("VOZ"), "Nota de voz")
         XCTAssertEqual(TextosFicha.clase("CROQUIS"), "CROQUIS", "lo que no se conoce, con su palabra")
-        XCTAssertEqual(TextosFicha.rotulo(.proyectos), "Proyectos")
-        XCTAssertEqual(TextosFicha.vacia(.proyectos), "Aún no hay proyectos")
-        XCTAssertEqual(TextosFicha.hojas(1), "1 hoja")
-        XCTAssertEqual(TextosFicha.hojas(12), "12 hojas")
+        // Sin la pestana «Proyectos» (Windows e16087a): la galeria va delante.
+        XCTAssertEqual(TextosFicha.rotulo(.galeria), "Galería")
+        XCTAssertEqual(TextosFicha.vacia(.galeria), "Las hojas del proyecto saldrán aquí")
     }
 
     func testLosMesesDeLaFichaYSuRotulo() {

@@ -13,6 +13,12 @@
 //!
 //! Las miniaturas son el bufer plano de siempre (`lienzo.rs`): Swift las
 //! pinta con `PintorLienzo`, como la vista previa de un lienzo en el chat.
+//! Van **encuadradas a la caja de lo dibujado** (`miniatura`, como
+//! `exportar::miniaturas` de Windows: la caja de sus elementos, con cada
+//! trazo lo bastante grueso para que se vea encogido), y la cuenta de donde
+//! cae la figura en la vista, con o sin zoom, es de aqui
+//! ([`encuadre_de_figura`], [`acercar_figura`], [`mover_figura`]): la
+//! vista previa grande se acerca, se aleja y se mueve.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -298,6 +304,184 @@ fn escena_con(f: &FiguraGuardada) -> pixpin_motor2d::Escena {
     escena
 }
 
+/// **La escena de la miniatura** de `lado` puntos: la de [`escena_con`]
+/// con cada trazo de al menos 0,9 puntos ya encogido (Windows: «encogida,
+/// una raya de 1 px de una hoja entera no llega a un pixel y la miniatura
+/// de un bloc saldria en blanco»).
+fn escena_de_miniatura(f: &FiguraGuardada, lado: u32) -> pixpin_motor2d::Escena {
+    let mut escena = escena_con(f);
+    if let Some((x0, y0, x1, y1)) = escena.caja() {
+        let k = lado.max(1) as f32 / (x1 - x0).max(y1 - y0).max(1.0);
+        for e in &mut escena.elementos {
+            e.grosor = e.grosor.max(0.9 / k);
+        }
+    }
+    escena
+}
+
+/// El plano de una escena con la caja de lo que se ve en ella.
+fn plano_de(escena: &pixpin_motor2d::Escena) -> Option<LienzoPlano> {
+    let caja = escena.caja()?;
+    Some(crate::lienzo::empaquetar(
+        &crate::grafito_plano::ordenes_de_escena(escena),
+        escena.fondo,
+        Some(caja),
+    ))
+}
+
+// ---------------------------------------------------------------------------
+// Donde cae la figura en su vista (miniatura y vista previa con zoom)
+// ---------------------------------------------------------------------------
+
+/// Lo mas que se acerca la vista previa (por encima de la figura encajada).
+pub const ZOOM_MAXIMO: f32 = 32.0;
+/// Lo mas que se aleja: la mitad de encajada.
+pub const ZOOM_MINIMO: f32 = 0.5;
+
+/// **Como se pinta la figura en una vista**: un punto del mundo `(x, y)` va
+/// a `(x * escala + dx, y * escala + dy)` de la vista (Y hacia abajo).
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct EncuadreDeFigura {
+    pub escala: f32,
+    pub dx: f32,
+    pub dy: f32,
+}
+
+/// **Lo que se ve de la figura** en la vista previa: `zoom` 1 es encajada
+/// entera; `centro_x, centro_y`, el punto del mundo que cae en el centro
+/// de la vista.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct VistaDeFigura {
+    pub zoom: f32,
+    pub centro_x: f32,
+    pub centro_y: f32,
+}
+
+/// La escala con que `caja` cabe entera en `ancho` x `alto` con `aire` a
+/// cada lado, sin deformar (`encajar` de Windows).
+fn escala_encajada(caja: crate::lienzo::CajaLienzo, ancho: f32, alto: f32, aire: f32) -> f32 {
+    let (w, h) = ((caja.x1 - caja.x0).max(1.0), (caja.y1 - caja.y0).max(1.0));
+    let util = |v: f32| (v - 2.0 * aire).max(1.0);
+    (util(ancho) / w).min(util(alto) / h)
+}
+
+/// **La figura encajada y centrada** en la vista: solo la zona de la
+/// figura, sin lo que sobre del lienzo.
+#[uniffi::export]
+pub fn encuadre_de_figura(
+    caja: crate::lienzo::CajaLienzo,
+    ancho: f32,
+    alto: f32,
+    aire: f32,
+) -> EncuadreDeFigura {
+    encuadre_con_zoom(caja, ancho, alto, aire, vista_encajada(caja))
+}
+
+/// La vista previa recien abierta: entera y centrada.
+#[uniffi::export]
+pub fn vista_encajada(caja: crate::lienzo::CajaLienzo) -> VistaDeFigura {
+    VistaDeFigura {
+        zoom: 1.0,
+        centro_x: (caja.x0 + caja.x1) / 2.0,
+        centro_y: (caja.y0 + caja.y1) / 2.0,
+    }
+}
+
+/// **El encuadre con zoom**: la escala encajada por `vista.zoom`, con el
+/// centro de la vista en `vista.centro`.
+#[uniffi::export]
+pub fn encuadre_con_zoom(
+    caja: crate::lienzo::CajaLienzo,
+    ancho: f32,
+    alto: f32,
+    aire: f32,
+    vista: VistaDeFigura,
+) -> EncuadreDeFigura {
+    let escala = escala_encajada(caja, ancho, alto, aire) * vista.zoom;
+    EncuadreDeFigura {
+        escala,
+        dx: ancho / 2.0 - vista.centro_x * escala,
+        dy: alto / 2.0 - vista.centro_y * escala,
+    }
+}
+
+/// El centro no sale de la caja: siempre se ve algo de la figura.
+fn sujetar(caja: crate::lienzo::CajaLienzo, v: VistaDeFigura) -> VistaDeFigura {
+    let zoom = v.zoom.clamp(ZOOM_MINIMO, ZOOM_MAXIMO);
+    if zoom <= 1.0 {
+        // Encajada o mas lejos: centrada, que no hay nada que buscar.
+        return VistaDeFigura {
+            zoom,
+            ..vista_encajada(caja)
+        };
+    }
+    VistaDeFigura {
+        zoom,
+        centro_x: v.centro_x.clamp(caja.x0.min(caja.x1), caja.x1.max(caja.x0)),
+        centro_y: v.centro_y.clamp(caja.y0.min(caja.y1), caja.y1.max(caja.y0)),
+    }
+}
+
+/// **Acerca (`factor` > 1) o aleja (< 1)** la vista previa dejando quieto lo
+/// que hay bajo el punto `(px, py)` de la vista (el raton, o el centro con
+/// los botones), entre la mitad de encajada y 32 veces.
+#[uniffi::export]
+#[allow(clippy::too_many_arguments)]
+pub fn acercar_figura(
+    caja: crate::lienzo::CajaLienzo,
+    ancho: f32,
+    alto: f32,
+    aire: f32,
+    vista: VistaDeFigura,
+    factor: f32,
+    px: f32,
+    py: f32,
+) -> VistaDeFigura {
+    if !factor.is_finite() || factor <= 0.0 {
+        return vista;
+    }
+    let antes = encuadre_con_zoom(caja, ancho, alto, aire, vista);
+    // El punto del mundo bajo el raton.
+    let (mx, my) = (
+        (px - antes.dx) / antes.escala,
+        (py - antes.dy) / antes.escala,
+    );
+    let zoom = (vista.zoom * factor).clamp(ZOOM_MINIMO, ZOOM_MAXIMO);
+    let escala = escala_encajada(caja, ancho, alto, aire) * zoom;
+    // Que siga bajo el raton: centro = m - (p - mitad) / escala.
+    sujetar(
+        caja,
+        VistaDeFigura {
+            zoom,
+            centro_x: mx - (px - ancho / 2.0) / escala,
+            centro_y: my - (py - alto / 2.0) / escala,
+        },
+    )
+}
+
+/// **Mueve la vista previa** `(dx, dy)` puntos de la vista (arrastrar con el
+/// raton o deslizar dos dedos): la figura va con el dedo.
+#[uniffi::export]
+pub fn mover_figura(
+    caja: crate::lienzo::CajaLienzo,
+    ancho: f32,
+    alto: f32,
+    aire: f32,
+    vista: VistaDeFigura,
+    dx: f32,
+    dy: f32,
+) -> VistaDeFigura {
+    let e = encuadre_con_zoom(caja, ancho, alto, aire, vista);
+    sujetar(
+        caja,
+        VistaDeFigura {
+            centro_x: vista.centro_x - dx / e.escala,
+            centro_y: vista.centro_y - dy / e.escala,
+            ..vista
+        },
+    )
+}
+
 /// Lo del usuario primero y las categorias de serie en su orden; una
 /// inventada por el usuario, detras (`orden_del_grupo` de Windows).
 fn orden_del_grupo(g: &str) -> usize {
@@ -501,17 +685,18 @@ impl GaleriaFiguras {
             .collect()
     }
 
-    /// **La miniatura** de la figura `id`: el bufer plano de su lienzo
-    /// (`lienzo.rs`), desde el origen. `None` si no esta o no tiene piezas.
+    /// **La figura tal cual**: el bufer plano de su lienzo (`lienzo.rs`),
+    /// con la caja de lo dibujado (la vista previa con zoom). `None` si no
+    /// esta o no tiene piezas.
     pub fn plano(&self, id: String) -> Option<LienzoPlano> {
-        let f = self.figura(&id)?;
-        let escena = escena_con(&f);
-        let caja = escena.caja()?;
-        Some(crate::lienzo::empaquetar(
-            &crate::grafito_plano::ordenes_de_escena(&escena),
-            escena.fondo,
-            Some(caja),
-        ))
+        plano_de(&escena_con(&self.figura(&id)?))
+    }
+
+    /// **La miniatura** de la figura `id` para pintarla en `lado` puntos: su
+    /// plano con la caja de lo dibujado (solo la zona de la figura, como
+    /// Windows) y cada trazo lo bastante grueso para que se vea.
+    pub fn miniatura(&self, id: String, lado: u32) -> Option<LienzoPlano> {
+        plano_de(&escena_de_miniatura(&self.figura(&id)?, lado))
     }
 
     /// De que piezas esta hecha y los textos que lleva.

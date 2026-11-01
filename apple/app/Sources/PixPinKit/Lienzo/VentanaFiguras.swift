@@ -27,7 +27,25 @@
 // entra en el chat como un lienzo con ella dentro y la ventana se queda
 // abierta con «Adjuntada ✓», por si se quiere otra.
 //
-// Lo que falta respecto a Windows: mover lo elegido con las flechas.
+// **Las miniaturas, solo la zona de la figura** (el usuario: «enseñan la
+// figura y el resto en blanco»): el papel claro es el de la caja de lo
+// dibujado (`GaleriaFiguras.miniatura`, como `exportar::miniaturas` de
+// Windows), encajado y centrado en su sitio; antes se pintaba el lienzo
+// arrimado arriba a la izquierda, con tope de escala, sobre un fondo blanco
+// del tamano de la celda.
+//
+// **Mirar de cerca** (el usuario: «una vista previa con zoom»): pulsar la
+// figura grande del panel (o su lupa) la abre encima de la ventana, entera;
+// la rueda, el pellizco o ⌘+ / ⌘− acercan y alejan donde esta el raton,
+// arrastrar o deslizar dos dedos la mueven, doble clic o ⌘0 la vuelven a
+// ver entera, Esc cierra. Las cuentas (encajar, acercar sin que se mueva lo
+// que hay bajo el raton, mover sin perderla) son de Rust
+// (`encuadre_con_zoom`, `acercar_figura`, `mover_figura`). Windows no la
+// tiene: alli el panel ensena la figura en grande y nada mas.
+//
+// Lo que falta respecto a Windows: mover lo elegido con las flechas, y el
+// interruptor ☀/☾ de las plantillas (Windows 9848a068, 4d7c01e4: necesita
+// `figuras_de_serie::segun_el_modo`, que aun no esta en el motor del Mac).
 
 import AppKit
 import PixPinCore
@@ -39,6 +57,9 @@ private enum MedidasFiguras {
     static let panel: CGFloat = 340
     static let celda: CGFloat = 184
     static let mini: CGFloat = 196
+    /// El lado con que se piden las miniaturas (para engordar lo que se
+    /// perderia encogido): el de la vista grande del panel.
+    static let ladoMiniatura: UInt32 = 300
     static let filaLateral: CGFloat = 34
     /// El papel claro de las miniaturas: las plantillas son hojas blancas.
     static let papel = Color(hex: 0xF2F2F5)
@@ -93,6 +114,10 @@ final class ModeloFiguras: ObservableObject {
     @Published var confirmarQuitar = false
     @Published private(set) var miniaturas: [String: LienzoLeido] = [:]
     private var pedidas: Set<String> = []
+    /// La figura que se mira de cerca (tal cual, sin engordar los trazos) y
+    /// su nombre; `nil`, cerrada.
+    @Published private(set) var deCerca: LienzoLeido?
+    @Published private(set) var nombreDeCerca = ""
 
     init(galeria: GaleriaFiguras, destino: ModeloEditorLienzo?) {
         self.galeria = galeria
@@ -190,11 +215,31 @@ final class ModeloFiguras: ObservableObject {
         let galeria = self.galeria
         Task {
             let leido = await Task.detached(priority: .userInitiated) { () -> LienzoLeido? in
-                guard let plano = galeria.plano(id: id) else { return nil }
+                guard let plano = galeria.miniatura(id: id, lado: MedidasFiguras.ladoMiniatura) else { return nil }
                 return try? leerLienzo(plano)
             }.value
             if let leido { miniaturas[id] = leido }
         }
+    }
+
+    /// **Mira de cerca la elegida**: su dibujo tal cual, encima de la
+    /// ventana, para acercarlo, alejarlo y moverlo.
+    func verDeCerca() {
+        guard let e = elegida else { return }
+        let (galeria, id) = (self.galeria, e.id)
+        nombreDeCerca = e.corto
+        Task {
+            let leido = await Task.detached(priority: .userInitiated) { () -> LienzoLeido? in
+                guard let plano = galeria.plano(id: id) else { return nil }
+                return try? leerLienzo(plano)
+            }.value
+            guard elegida?.id == id else { return }
+            if let leido, leido.caja != nil { deCerca = leido } else { NSSound.beep() }
+        }
+    }
+
+    func cerrarDeCerca() {
+        deCerca = nil
     }
 
     private var valoresPedidos: [ValorDeCampo] {
@@ -350,13 +395,27 @@ struct VistaFiguras: View {
                     .frame(width: MedidasFiguras.panel)
             }
         }
+        .overlay {
+            // Mirar de cerca, encima de todo (la cabecera tambien).
+            if let l = modelo.deCerca {
+                FiguraDeCerca(lienzo: l, nombre: modelo.nombreDeCerca) { modelo.cerrarDeCerca() }
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: modelo.deCerca != nil)
         .frame(minWidth: 960, minHeight: 600)
         .background(Paleta.v2.fondo)
         .environment(\.colorScheme, .dark)
         .background {
             // Esc: primero lo buscado; sin nada buscado, cierra.
             Button("") {
-                if modelo.consulta.isEmpty { VentanaLisa.cerrar(ventana?.ventana) } else { modelo.consulta = "" }
+                if modelo.deCerca != nil {
+                    modelo.cerrarDeCerca()
+                } else if modelo.consulta.isEmpty {
+                    VentanaLisa.cerrar(ventana?.ventana)
+                } else {
+                    modelo.consulta = ""
+                }
             }
             .keyboardShortcut(.cancelAction)
             .hidden()
@@ -489,23 +548,302 @@ private struct RejillaFiguras: View {
     }
 }
 
-/// La miniatura de una figura sobre su papel claro.
+/// **La miniatura de una figura**: solo la zona de la figura, sobre su
+/// papel claro (las plantillas son hojas blancas), encajada y centrada en
+/// el sitio que le dan; lo de alrededor es de la tarjeta.
 private struct MiniaturaFigura: View {
     let mini: LienzoLeido?
+    /// El aire de la figura dentro de su papel.
+    var aire: CGFloat = 6
+
+    var body: some View {
+        GeometryReader { g in
+            if let mini, let caja = mini.caja {
+                let zona = Self.zona(caja, en: g.size, aire: aire)
+                // Sin raton: los clics son de la celda.
+                VistaFigura(lienzo: mini, aire: aire)
+                    .frame(width: zona.width, height: zona.height)
+                    .background(MedidasFiguras.papel)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .position(x: zona.midX, y: zona.midY)
+                    .allowsHitTesting(false)
+            } else if mini == nil {
+                ProgressView().controlSize(.small)
+                    .frame(width: g.size.width, height: g.size.height)
+            }
+        }
+    }
+
+    /// El papel: la caja de la figura encajada en `tamano` (con `aire`
+    /// alrededor, dentro del papel), centrada.
+    static func zona(_ caja: CGRect, en tamano: CGSize, aire: CGFloat) -> CGRect {
+        let e = encuadreDeFigura(caja: CajaLienzo(caja), ancho: Float(tamano.width),
+                                 alto: Float(tamano.height), aire: Float(aire))
+        let k = CGFloat(e.escala)
+        let w = min(max(caja.width, 1) * k + 2 * aire, tamano.width)
+        let h = min(max(caja.height, 1) * k + 2 * aire, tamano.height)
+        return CGRect(x: (tamano.width - w) / 2, y: (tamano.height - h) / 2, width: w, height: h)
+    }
+}
+
+extension CajaLienzo {
+    /// La caja de un rectangulo del mundo del lienzo.
+    init(_ r: CGRect) {
+        self.init(x0: Float(r.minX), y0: Float(r.minY), x1: Float(r.maxX), y1: Float(r.maxY))
+    }
+}
+
+/// **Una figura encajada a su caja** en una `NSView` volteada (Y hacia
+/// abajo, como el mundo del lienzo): solo lo dibujado, centrado, con
+/// `aire` alrededor; con `zoom`, lo que diga la vista previa. El fondo es
+/// de quien la pone.
+class VistaFiguraNS: NSView {
+    var lienzo: LienzoLeido? { didSet { needsDisplay = true } }
+    var aire: CGFloat = 6 { didSet { if aire != oldValue { needsDisplay = true } } }
+    /// La vista previa con zoom; `nil`, encajada.
+    var zoom: ZoomDeFigura? {
+        didSet {
+            zoom?.tamano = bounds.size
+            needsDisplay = true
+        }
+    }
+
+    override var isFlipped: Bool { true }
+
+    override func setFrameSize(_ nuevo: NSSize) {
+        super.setFrameSize(nuevo)
+        zoom?.tamano = nuevo
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let lienzo, let r = lienzo.caja, let ctx = NSGraphicsContext.current?.cgContext else { return }
+        let e: EncuadreDeFigura
+        if let zoom {
+            zoom.tamano = bounds.size
+            e = zoom.encuadre
+        } else {
+            e = encuadreDeFigura(caja: CajaLienzo(r), ancho: Float(bounds.width),
+                                 alto: Float(bounds.height), aire: Float(aire))
+        }
+        let k = CGFloat(e.escala)
+        guard k > 0, k.isFinite else { return }
+        let (dx, dy) = (CGFloat(e.dx), CGFloat(e.dy))
+        ctx.saveGState()
+        ctx.translateBy(x: dx, y: dy)
+        ctx.scaleBy(x: k, y: k)
+        let visible = CGRect(x: -dx / k, y: -dy / k, width: bounds.width / k, height: bounds.height / k)
+        PintorLienzo(lienzo: lienzo).pintar(en: ctx, limites: visible)
+        ctx.restoreGState()
+    }
+}
+
+private struct VistaFigura: NSViewRepresentable {
+    let lienzo: LienzoLeido
+    var aire: CGFloat = 6
+
+    func makeNSView(context: Context) -> VistaFiguraNS {
+        let v = VistaFiguraNS()
+        v.aire = aire
+        v.lienzo = lienzo
+        return v
+    }
+
+    func updateNSView(_ v: VistaFiguraNS, context: Context) {
+        v.aire = aire
+        v.lienzo = lienzo
+    }
+}
+
+/// **Lo que se ve de cerca**: el zoom y el centro de la vista previa, con
+/// las cuentas de Rust. `tamano` lo apunta la vista al medirse.
+@MainActor
+final class ZoomDeFigura: ObservableObject {
+    /// El aire alrededor de la figura entera.
+    static let aire: Float = 24
+    let caja: CajaLienzo
+    @Published private(set) var vista: VistaDeFigura
+    var tamano: CGSize = .zero
+
+    init(caja: CajaLienzo) {
+        self.caja = caja
+        vista = vistaEncajada(caja: caja)
+    }
+
+    private var ancho: Float { Float(max(tamano.width, 1)) }
+    private var alto: Float { Float(max(tamano.height, 1)) }
+
+    var encuadre: EncuadreDeFigura {
+        encuadreConZoom(caja: caja, ancho: ancho, alto: alto, aire: Self.aire, vista: vista)
+    }
+
+    /// «100 %» es entera.
+    var porcentaje: Int { Int((vista.zoom * 100).rounded()) }
+    var entera: Bool { abs(vista.zoom - 1) < 0.01 }
+
+    /// Acerca (`factor` > 1) o aleja dejando quieto lo que hay en `p` (sin
+    /// el, el centro).
+    func acercar(_ factor: CGFloat, en p: CGPoint? = nil) {
+        let p = p ?? CGPoint(x: tamano.width / 2, y: tamano.height / 2)
+        vista = acercarFigura(caja: caja, ancho: ancho, alto: alto, aire: Self.aire, vista: vista,
+                              factor: Float(factor), px: Float(p.x), py: Float(p.y))
+    }
+
+    func mover(_ dx: CGFloat, _ dy: CGFloat) {
+        vista = moverFigura(caja: caja, ancho: ancho, alto: alto, aire: Self.aire, vista: vista,
+                            dx: Float(dx), dy: Float(dy))
+    }
+
+    func encajar() {
+        vista = vistaEncajada(caja: caja)
+    }
+}
+
+/// La vista de cerca: la de la figura con el raton y el trackpad.
+final class VistaFiguraDeCercaNS: VistaFiguraNS {
+    private var arrastre: CGPoint?
+
+    override var acceptsFirstResponder: Bool { true }
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    private func punto(_ e: NSEvent) -> CGPoint { convert(e.locationInWindow, from: nil) }
+
+    override func scrollWheel(with e: NSEvent) {
+        guard let zoom else { return super.scrollWheel(with: e) }
+        if e.modifierFlags.contains(.command) || !e.hasPreciseScrollingDeltas {
+            // La rueda del raton (o ⌘ y deslizar): acercar y alejar.
+            let paso = e.hasPreciseScrollingDeltas ? e.scrollingDeltaY / 120 : e.scrollingDeltaY / 8
+            zoom.acercar(CGFloat(exp(Double(paso))), en: punto(e))
+        } else {
+            // Dos dedos: la figura va con ellos.
+            zoom.mover(e.scrollingDeltaX, e.scrollingDeltaY)
+        }
+    }
+
+    override func magnify(with e: NSEvent) {
+        zoom?.acercar(1 + e.magnification, en: punto(e))
+    }
+
+    override func mouseDown(with e: NSEvent) {
+        guard let zoom else { return }
+        if e.clickCount == 2 {
+            // Doble clic: de cerca donde se pulsa, o entera otra vez.
+            if zoom.entera { zoom.acercar(3, en: punto(e)) } else { zoom.encajar() }
+            arrastre = nil
+            return
+        }
+        arrastre = punto(e)
+        NSCursor.closedHand.set()
+    }
+
+    override func mouseDragged(with e: NSEvent) {
+        guard let zoom, let a = arrastre else { return }
+        let p = punto(e)
+        zoom.mover(p.x - a.x, p.y - a.y)
+        arrastre = p
+    }
+
+    override func mouseUp(with e: NSEvent) {
+        arrastre = nil
+        NSCursor.openHand.set()
+    }
+
+    override func resetCursorRects() {
+        addCursorRect(bounds, cursor: .openHand)
+    }
+}
+
+private struct VistaFiguraDeCerca: NSViewRepresentable {
+    let lienzo: LienzoLeido
+    @ObservedObject var zoom: ZoomDeFigura
+
+    func makeNSView(context: Context) -> VistaFiguraDeCercaNS {
+        let v = VistaFiguraDeCercaNS()
+        v.zoom = zoom
+        v.lienzo = lienzo
+        return v
+    }
+
+    func updateNSView(_ v: VistaFiguraDeCercaNS, context: Context) {
+        if v.zoom !== zoom { v.zoom = zoom }
+        v.lienzo = lienzo
+        v.needsDisplay = true
+    }
+}
+
+/// **La figura de cerca**, encima de la ventana: su nombre, alejar, cuanto
+/// esta acercada (pulsarlo la ve entera), acercar y cerrar; debajo, como
+/// se usa.
+private struct FiguraDeCerca: View {
+    let lienzo: LienzoLeido
+    let nombre: String
+    let cerrar: () -> Void
+    @StateObject private var zoom: ZoomDeFigura
+
+    init(lienzo: LienzoLeido, nombre: String, cerrar: @escaping () -> Void) {
+        self.lienzo = lienzo
+        self.nombre = nombre
+        self.cerrar = cerrar
+        _zoom = StateObject(wrappedValue: ZoomDeFigura(caja: CajaLienzo(lienzo.caja ?? .zero)))
+    }
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 8).fill(MedidasFiguras.papel)
-            if let mini {
-                // Sin raton: los clics son de la celda.
-                VistaLienzo(lienzo: mini)
-                    .allowsHitTesting(false)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                    .padding(8)
-            } else {
-                ProgressView().controlSize(.small)
+            // Pulsar fuera cierra.
+            Color.black.opacity(0.55)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: cerrar)
+            VStack(spacing: 0) {
+                HStack(spacing: 6) {
+                    Text(nombre)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Paleta.v2.texto)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer(minLength: 12)
+                    boton("minus.magnifyingglass", ayuda: "Alejar (⌘−)") { zoom.acercar(1 / 1.5) }
+                        .keyboardShortcut("-", modifiers: .command)
+                    Button { zoom.encajar() } label: {
+                        Text("\(zoom.porcentaje) %")
+                            .font(.system(size: 12.5).monospacedDigit())
+                            .foregroundStyle(Paleta.v2.cuerpo)
+                            .frame(minWidth: 56, minHeight: 30)
+                            .background(Paleta.v2.caja, in: RoundedRectangle(cornerRadius: 8))
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .keyboardShortcut("0", modifiers: .command)
+                    .help("Verla entera (⌘0)")
+                    boton("plus.magnifyingglass", ayuda: "Acercar (⌘+)") { zoom.acercar(1.5) }
+                        .keyboardShortcut("+", modifiers: .command)
+                    boton("xmark", ayuda: "Cerrar (Esc)", hacer: cerrar)
+                }
+                .padding(.bottom, 12)
+                VistaFiguraDeCerca(lienzo: lienzo, zoom: zoom)
+                    .background(MedidasFiguras.papel)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                Text("Rueda o pellizco: acercar y alejar  ·  arrastrar: mover  ·  doble clic: de cerca o entera")
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(Paleta.v2.gris)
+                    .lineLimit(1)
+                    .padding(.top, 10)
             }
+            .padding(18)
+            .background(MedidasFiguras.lado, in: RoundedRectangle(cornerRadius: 14))
+            .padding(36)
         }
+    }
+
+    private func boton(_ icono: String, ayuda: String, hacer: @escaping () -> Void) -> some View {
+        Button(action: hacer) {
+            Image(systemName: icono)
+                .font(.system(size: 14))
+                .foregroundStyle(Paleta.v2.texto)
+                .frame(width: 32, height: 30)
+                .background(Paleta.v2.caja, in: RoundedRectangle(cornerRadius: 8))
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(ayuda)
     }
 }
 
@@ -568,8 +906,24 @@ private struct PanelFiguras: View {
 
     @ViewBuilder
     private func cuerpo(_ f: FichaDeFigura) -> some View {
-        MiniaturaFigura(mini: modelo.miniaturas[f.id])
+        MiniaturaFigura(mini: modelo.miniaturas[f.id], aire: 10)
             .frame(height: modelo.campos.isEmpty ? 300 : 230)
+            .contentShape(Rectangle())
+            .onTapGesture { modelo.verDeCerca() }
+            .overlay(alignment: .bottomTrailing) {
+                // Mirarla de cerca (con zoom); pulsar el dibujo hace lo mismo.
+                Button { modelo.verDeCerca() } label: {
+                    Image(systemName: "plus.magnifyingglass")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Paleta.v2.texto)
+                        .frame(width: 30, height: 30)
+                        .background(Paleta.v2.caja.opacity(0.92), in: Circle())
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help("Verla de cerca")
+                .padding(8)
+            }
             .onAppear { modelo.pedirMiniatura(f.id) }
             .padding(.bottom, 16)
         // Eligiendo para un chat, el boton grande va justo debajo del
@@ -589,7 +943,7 @@ private struct PanelFiguras: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .keyboardShortcut(enNombre ? nil : KeyboardShortcut.defaultAction)
+            .keyboardShortcut(enNombre || modelo.deCerca != nil ? nil : KeyboardShortcut.defaultAction)
             Text("O doble clic en la figura, o Intro.")
                 .font(.system(size: 11.5))
                 .foregroundStyle(Paleta.v2.gris)
@@ -667,7 +1021,7 @@ private struct PanelFiguras: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .keyboardShortcut(enNombre ? nil : KeyboardShortcut.defaultAction)
+                .keyboardShortcut(enNombre || modelo.deCerca != nil ? nil : KeyboardShortcut.defaultAction)
                 .disabled(!modelo.puedeInsertar)
             }
             Button { modelo.quitar() } label: {

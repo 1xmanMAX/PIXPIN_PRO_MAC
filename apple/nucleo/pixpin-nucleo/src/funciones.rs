@@ -184,6 +184,18 @@ pub fn funcion_en_la_rejilla(r: RejillaDeFunciones, x: i32, y: i32) -> Option<u3
         .map(|i| i as u32)
 }
 
+/// **La funcion bajo el punto `x, y`** de una columna de `ancho` x `alto`
+/// (la de la lista), si cae en un mosaico: la rejilla y la funcion de cada
+/// mosaico salen de la misma cuenta (`Funcion::TODAS` en su orden, como
+/// `funcion_en` de Windows), asi que lo pulsado es siempre lo que se ve ahi.
+/// Swift la usa para el clic y el raton en vez de fiarse de donde SwiftUI
+/// cree que esta cada mosaico (el usuario: «pulsar Grabar abre Figuras»).
+#[uniffi::export]
+pub fn funcion_en_el_punto(ancho: u32, alto: u32, x: i32, y: i32) -> Option<FuncionDeLaLista> {
+    let i = funcion_en_la_rejilla(rejilla_de_funciones(ancho, alto), x, y)?;
+    Funcion::TODAS.get(i as usize).map(|f| (*f).into())
+}
+
 /// Las medidas con que se pinta un mosaico (`pixpin_ui::funciones`).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct MedidasDeFunciones {
@@ -333,6 +345,65 @@ mod pruebas {
         assert_eq!(funcion_en_la_rejilla(g.clone(), 20, 10), None);
         // Estrecha: solo iconos.
         assert!(rejilla_de_funciones(72, 700).solo_iconos);
+    }
+
+    #[test]
+    fn cada_mosaico_hace_lo_suyo_donde_se_ve() {
+        use FuncionDeLaLista as F;
+        // Lo que dice cada mosaico y lo que hace al pulsarlo: el titulo,
+        // su funcion y el mosaico en ese sitio de la rejilla van atados.
+        let esperado = [
+            ("grabar", "Grabar reunión", F::Grabar),
+            ("lienzo", "Nuevo lienzo", F::Lienzo),
+            ("tareas", "Tareas", F::Tareas),
+            ("timeline", "Timeline", F::Timeline),
+            ("horario", "Horario", F::Horario),
+            ("galeria", "Capturas", F::Galeria),
+            ("figuras", "Figuras", F::Figuras),
+        ];
+        let es = textos_de_funciones("es-ES".into());
+        // De la lista de siempre a una columna ancha o bajita: mismos atados.
+        for (ancho, alto) in [(320, 700), (900, 700), (320, 300), (72, 700), (200, 900)] {
+            let g = rejilla_de_funciones(ancho, alto);
+            assert_eq!(g.mosaicos.len(), esperado.len());
+            for (i, (nombre, titulo, f)) in esperado.iter().enumerate() {
+                let m = &es.mosaicos[i];
+                assert_eq!((m.nombre.as_str(), m.funcion), (*nombre, *f));
+                assert_eq!(m.titulo, *titulo, "{nombre}");
+                let c = g.mosaicos[i];
+                // El centro y las cuatro esquinas (por dentro) del mosaico.
+                let (dx, dy) = (c.ancho as i32 - 1, c.alto as i32 - 1);
+                for (x, y) in [
+                    (c.x + dx / 2, c.y + dy / 2),
+                    (c.x, c.y),
+                    (c.x + dx, c.y),
+                    (c.x, c.y + dy),
+                    (c.x + dx, c.y + dy),
+                ] {
+                    assert_eq!(
+                        funcion_en_el_punto(ancho, alto, x, y),
+                        Some(*f),
+                        "{nombre} en {ancho}x{alto} ({x}, {y})"
+                    );
+                }
+            }
+        }
+        // Caso negativo: el titulo y lo de fuera no son de ningun mosaico
+        // (y el rincon de arriba, donde empieza la columna, no es Figuras).
+        assert_eq!(funcion_en_el_punto(320, 700, 2, 2), None);
+        assert_eq!(funcion_en_el_punto(320, 700, -5, 100), None);
+        assert_eq!(funcion_en_el_punto(320, 700, 10, 690), None);
+        // Los mosaicos no se pisan: cada punto es de uno solo.
+        let g = rejilla_de_funciones(320, 700);
+        for (i, a) in g.mosaicos.iter().enumerate() {
+            for b in &g.mosaicos[i + 1..] {
+                let fuera = a.x + a.ancho as i32 <= b.x
+                    || b.x + b.ancho as i32 <= a.x
+                    || a.y + a.alto as i32 <= b.y
+                    || b.y + b.alto as i32 <= a.y;
+                assert!(fuera, "{a:?} pisa {b:?}");
+            }
+        }
     }
 
     #[test]
