@@ -8258,7 +8258,7 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     
     /**
      * **El dibujo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
-     * el «Editable» de la hoja y lo que viaja dentro de la pagina web.
+     * lo que viaja dentro de la pagina web, para volver a editarlo.
      */
     func excalidrawDeDibujo(chat: String, dibujo: String) throws  -> String
     
@@ -11208,7 +11208,7 @@ open func sincronizarConPersona(host: String, puerto: UInt16, id: String?, chats
     
     /**
      * **El dibujo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
-     * el «Editable» de la hoja y lo que viaja dentro de la pagina web.
+     * lo que viaja dentro de la pagina web, para volver a editarlo.
      */
 open func excalidrawDeDibujo(chat: String, dibujo: String)throws  -> String  {
     return try  FfiConverterString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -58737,7 +58737,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_sincronizar_con_persona() != 815) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_excalidraw_de_dibujo() != 10282) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_excalidraw_de_dibujo() != 47233) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_hojas_de_dibujo() != 32055) {
