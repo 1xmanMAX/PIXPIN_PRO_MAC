@@ -534,28 +534,25 @@ public final class ModeloAsistente: ObservableObject {
 
     // MARK: Lo dibujado
 
-    /// Guarda lo dibujado en «Mensajes guardados» como un `.excalidraw`
-    /// (el formato del lienzo de Windows y Android) y, con `abrir`, lo abre
-    /// en el lienzo.
+    /// Guarda lo dibujado en «Mensajes guardados» como un **lienzo del
+    /// chat** (un `DIBUJO` con su `lienzos/<d>.excalidraw`, lo que viaja con
+    /// Windows y Android; no un `.excalidraw` suelto adjunto) y, con
+    /// `abrir`, lo abre en el lienzo.
     @discardableResult
     public func guardarDibujo(_ b: Burbuja, abrir: Bool = false) async -> Bool {
         guard let lienzo = b.lienzo, let almacen else { return false }
-        let carpeta = FileManager.default.temporaryDirectory
-            .appendingPathComponent("pixpin-asistente-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: carpeta) }
+        let nucleo = almacen.nucleo
+        let titulo = "Lienzo del asistente"
         do {
-            try FileManager.default.createDirectory(at: carpeta, withIntermediateDirectories: true)
-            let ms = Int64(Date().timeIntervalSince1970 * 1000)
-            let fichero = carpeta.appendingPathComponent("asistente-\(ms).excalidraw")
-            try Data(lienzo.utf8).write(to: fichero)
-            let nucleo = almacen.nucleo
-            let guardados = try await Task.detached(priority: .utility) { try nucleo.chatGuardados() }.value
-            let hechos = await almacen.adjuntar(urls: [fichero], en: guardados.id)
-            if abrir, let ref = hechos.first?.referencia {
-                VentanasDeLienzo.compartidas.abrir(referencia: ref, en: guardados.id, titulo: "Lienzo del asistente",
-                                                  almacen: almacen)
+            let (guardados, m) = try await Task.detached(priority: .utility) { () -> (String, MensajeChat) in
+                let g = try nucleo.chatGuardados()
+                return (g.id, try nucleo.crearLienzoConDibujo(chat: g.id, nombre: titulo, json: lienzo))
+            }.value
+            almacen.anadir([m], en: guardados)
+            if abrir, let ref = m.referencia {
+                VentanasDeLienzo.compartidas.abrir(referencia: ref, en: guardados, titulo: titulo, almacen: almacen)
             }
-            return !hechos.isEmpty
+            return true
         } catch {
             return false
         }

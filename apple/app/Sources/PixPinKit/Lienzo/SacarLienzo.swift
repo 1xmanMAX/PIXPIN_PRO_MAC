@@ -222,6 +222,18 @@ extension ModeloEditorLienzo {
                     marcada: nivel > 0 || !conMarcos)
             }
         }
+        // El lienzo viaja dentro de la web, para volver a editarlo. Fuera, lo
+        // editable es el `.pixpin` (el `.excalidraw` suelto ya no se ofrece,
+        // como en Windows desde el 20-oct-2026): un proyecto nuevo con el
+        // lienzo como su hoja, para seguir en otro PixPin o en el movil.
+        guard !p.piezas.isEmpty else { return p }
+        p.excalidraw = editor.excalidrawParaCompartir()
+        let ed = editor
+        let nombre = nombreDeFichero
+        let formato = FormatoCompartir(id: IdFormato.pixpin, nombre: ".pixpin", cuantas: .ninguna, simbolo: "shippingbox")
+        p.extras.append(ExtraCompartir(formato: formato, que: .escrito(nombre: "\(nombreDeFicheroCompartido(titulo: nombre)).pixpin") {
+            try await Task.detached { try ed.pixpinParaCompartir(nombre: nombre) }.value
+        }))
         return p
     }
 

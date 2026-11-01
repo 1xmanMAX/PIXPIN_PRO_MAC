@@ -2782,10 +2782,27 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
     func estilo()  -> EstiloLienzo
     
     /**
+     * **El lienzo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
+     * lo que viaja dentro de la pagina web compartida, para volver a
+     * editarlo. No es un «Editable» aparte: fuera, lo editable es el
+     * `.pixpin` ([`EditorLienzo::pixpin_para_compartir`]).
+     */
+    func excalidrawParaCompartir()  -> String
+    
+    /**
      * **Las hojas que salen** al exportar, compartir o imprimir `que`. Vacio
      * si no hay nada (un lienzo en blanco, nada elegido).
      */
     func hojasParaExportar(que: QueExportar)  -> [HojaExportada]
+    
+    /**
+     * **El `.pixpin` del lienzo** (`compartir-pixpin` de un lienzo suelto
+     * en Windows, 20-oct-2026): el lienzo como la hoja de un proyecto nuevo
+     * llamado `nombre`, con sus fotos, para seguir en otro PixPin o en el
+     * movil. Antes se guarda lo pendiente (las fotos pegadas pasan a
+     * `imagenes/`). Bloqueante: Swift lo llama fuera del hilo principal.
+     */
+    func pixpinParaCompartir(nombre: String) throws  -> Data
     
     /**
      * **El papel de fondo** del lienzo (un pin, una foto o una pagina de
@@ -3597,6 +3614,21 @@ open func estilo() -> EstiloLienzo  {
 }
     
     /**
+     * **El lienzo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
+     * lo que viaja dentro de la pagina web compartida, para volver a
+     * editarlo. No es un «Editable» aparte: fuera, lo editable es el
+     * `.pixpin` ([`EditorLienzo::pixpin_para_compartir`]).
+     */
+open func excalidrawParaCompartir() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_excalidraw_para_compartir(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Las hojas que salen** al exportar, compartir o imprimir `que`. Vacio
      * si no hay nada (un lienzo en blanco, nada elegido).
      */
@@ -3606,6 +3638,23 @@ open func hojasParaExportar(que: QueExportar) -> [HojaExportada]  {
     uniffi_pixpin_nucleo_fn_method_editorlienzo_hojas_para_exportar(
             self.uniffiCloneHandle(),
         FfiConverterTypeQueExportar_lower(que),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El `.pixpin` del lienzo** (`compartir-pixpin` de un lienzo suelto
+     * en Windows, 20-oct-2026): el lienzo como la hoja de un proyecto nuevo
+     * llamado `nombre`, con sus fotos, para seguir en otro PixPin o en el
+     * movil. Antes se guarda lo pendiente (las fotos pegadas pasan a
+     * `imagenes/`). Bloqueante: Swift lo llama fuera del hilo principal.
+     */
+open func pixpinParaCompartir(nombre: String)throws  -> Data  {
+    return try  FfiConverterData.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_pixpin_para_compartir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(nombre),uniffiCallStatus
     )
 })
 }
@@ -5491,9 +5540,10 @@ open class Lienzo: LienzoProtocol, @unchecked Sendable {
 
     
     /**
-     * Un lienzo desde un fichero `.excalidraw` o `.pixpin2d` (el dibujo
-     * propio de PixPin, `pixpin_motor2d::formato`; se mira la extension).
-     * Lo usa tambien la vista previa de Quick Look.
+     * Un lienzo desde un fichero `.excalidraw`, `.pixpin2d` (el dibujo
+     * propio de PixPin, `pixpin_motor2d::formato`) o `.pixpin` (el de su
+     * primera hoja); se mira la extension. Lo usa tambien la vista previa
+     * de Quick Look.
      */
 public static func deFichero(ruta: String)throws  -> Lienzo  {
     return try  FfiConverterTypeLienzo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -8438,6 +8488,15 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * despues con [`Nucleo::editar_lienzo`] y la `referencia` del mensaje.
      */
     func crearLienzo(chat: String, nombre: String?) throws  -> MensajeChat
+    
+    /**
+     * **Un lienzo nuevo en un chat con `json` dentro** (un `.excalidraw`
+     * entero, el que dibuja el asistente): un mensaje `DIBUJO` con su
+     * `lienzos/<codigo>.excalidraw`, lo mismo que [`Nucleo::crear_lienzo`],
+     * para que se edite y viaje como cualquier lienzo del chat (no como un
+     * `.excalidraw` suelto adjunto). Lo que no es un lienzo no crea nada.
+     */
+    func crearLienzoConDibujo(chat: String, nombre: String?, json: String) throws  -> MensajeChat
     
     /**
      * **Abre para editar** el lienzo `dibujo` de un chat (la `referencia`
@@ -11648,6 +11707,25 @@ open func crearLienzo(chat: String, nombre: String?)throws  -> MensajeChat  {
             self.uniffiCloneHandle(),
         FfiConverterString.lower(chat),
         FfiConverterOptionString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Un lienzo nuevo en un chat con `json` dentro** (un `.excalidraw`
+     * entero, el que dibuja el asistente): un mensaje `DIBUJO` con su
+     * `lienzos/<codigo>.excalidraw`, lo mismo que [`Nucleo::crear_lienzo`],
+     * para que se edite y viaje como cualquier lienzo del chat (no como un
+     * `.excalidraw` suelto adjunto). Lo que no es un lienzo no crea nada.
+     */
+open func crearLienzoConDibujo(chat: String, nombre: String?, json: String)throws  -> MensajeChat  {
+    return try  FfiConverterTypeMensajeChat_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_crear_lienzo_con_dibujo(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterOptionString.lower(nombre),
+        FfiConverterString.lower(json),uniffiCallStatus
     )
 })
 }
@@ -59213,6 +59291,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_lienzo() != 32607) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_lienzo_con_dibujo() != 49432) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_editar_lienzo() != 47881) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -59912,7 +59993,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_estilo() != 48239) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_excalidraw_para_compartir() != 10084) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_hojas_para_exportar() != 40205) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_pixpin_para_compartir() != 37778) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_poner_papel() != 64092) {
@@ -60560,7 +60647,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_constructor_semanahorario_abrir() != 55314) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_fichero() != 15288) {
+    if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_fichero() != 2860) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_lienzo_de_json() != 46678) {

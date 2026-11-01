@@ -210,6 +210,36 @@ fn nombre_de_hoja(nombre: &str, dibujo: &str) -> String {
 pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec<u8>), String> {
     let json = std::fs::read_to_string(ruta).map_err(|e| e.to_string())?;
     let en_proyecto = proyecto_y_dibujo(raiz, ruta);
+    // Un `.excalidraw` suelto: un proyecto nuevo con su nombre, y sus fotos
+    // al lado del fichero.
+    let nombre = ruta
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "Lienzo".into());
+    let al_lado = ruta.parent().map(Path::to_path_buf).unwrap_or_default();
+    empaquetar_de(raiz, &json, en_proyecto, &nombre, &al_lado, ahora)
+}
+
+/// **El `.pixpin` de un lienzo para «Compartir»** (`pixpin_de_un_lienzo` de
+/// Windows, 20-oct-2026): el lienzo `json` como la hoja de un proyecto
+/// NUEVO llamado `nombre` (no el del chat: al otro lado no pisa nada), con
+/// las fotos de `files` buscadas en `carpeta` (`imagenes/<id>` del chat o
+/// del fichero suelto). Es lo editable fuera: el `.excalidraw` suelto ya no
+/// se ofrece.
+pub fn pixpin_de_un_lienzo(json: &str, nombre: &str, carpeta: &Path, ahora: i64) -> Result<Vec<u8>, String> {
+    let nombre = nombre.trim();
+    let nombre = if nombre.is_empty() { "Lienzo" } else { nombre };
+    empaquetar_de(carpeta, json, None, nombre, carpeta, ahora).map(|(_, b)| b)
+}
+
+fn empaquetar_de(
+    raiz: &Path,
+    json: &str,
+    en_proyecto: Option<(String, String)>,
+    nombre_suelto: &str,
+    al_lado: &Path,
+    ahora: i64,
+) -> Result<(Elemento, Vec<u8>), String> {
 
     let (mut proyecto, hoja, mensaje, fotos_desde): (Proyecto, Hoja, Option<cuaderno::Mensaje>, _) =
         match &en_proyecto {
@@ -262,10 +292,7 @@ pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec
             None => {
                 // Un `.excalidraw` suelto (el de «Compartir», uno de fuera):
                 // al otro lado sera un proyecto nuevo con su nombre.
-                let nombre = ruta
-                    .file_stem()
-                    .map(|s| s.to_string_lossy().into_owned())
-                    .unwrap_or_else(|| "Lienzo".into());
+                let nombre = nombre_suelto.to_string();
                 let id = pixpin_proyecto::codigos::nuevo();
                 let dibujo = pixpin_proyecto::codigos::nuevo();
                 let mut p = Proyecto {
@@ -287,7 +314,6 @@ pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec
         };
 
     let dibujo = hoja.dibujo.clone().unwrap_or_else(|| hoja.id.clone());
-    let al_lado = ruta.parent().map(Path::to_path_buf).unwrap_or_default();
     let foto = |_: &str, e: &Map<String, Value>| -> Option<Vec<u8>> {
         if let Some(url) = e.get("dataURL").and_then(Value::as_str) {
             return de_data_url(url);
@@ -304,7 +330,7 @@ pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec
         };
         std::fs::read(real).ok()
     };
-    let (escena, fotos, informe) = escena_para_el_movil(&json, &foto)?;
+    let (escena, fotos, informe) = escena_para_el_movil(json, &foto)?;
     // Lo que no viaja (un tipo que el movil no conoce, una foto sin
     // fichero) se queda fuera: con ello dentro no se abriria nada alli.
     let _ = informe;

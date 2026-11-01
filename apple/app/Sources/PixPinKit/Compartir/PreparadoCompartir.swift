@@ -11,7 +11,8 @@
 // la del movil y la de Windows (`paginaWebCompartida` del nucleo).
 //
 // Lo que no es paginas va **entero**: el fichero original, el `.pixpin` del
-// proyecto, el `.excalidraw` del lienzo o el texto de una nota.
+// proyecto (lo editable de un lienzo: el `.excalidraw` suelto ya no se
+// ofrece) o el texto de una nota.
 
 import AppKit
 import PDFKit

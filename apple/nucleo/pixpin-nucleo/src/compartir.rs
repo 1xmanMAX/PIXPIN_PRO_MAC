@@ -10,8 +10,9 @@
 //! - **las hojas de un dibujo del chat** ([`Nucleo::hojas_de_dibujo`]): el
 //!   lienzo entero y cada marco (`anadir_lienzo` de Windows), con sus
 //!   ordenes para pintarlas y su SVG, el del motor, con las fotos dentro;
-//! - **el `.excalidraw` limpio** de un dibujo, para el «Editable» y para que
-//!   viaje dentro de la pagina web ([`Nucleo::excalidraw_de_dibujo`]);
+//! - **el `.excalidraw` limpio** de un dibujo, que solo viaja dentro de la
+//!   pagina web ([`Nucleo::excalidraw_de_dibujo`]): fuera, lo editable es
+//!   el `.pixpin` (el `.excalidraw` suelto ya no se ofrece, Windows 20-oct);
 //! - **la pagina web** ([`pagina_web_compartida`]): la del movil
 //!   (`exportar_html`), con sus mandos, de las hojas que Swift ya tiene en
 //!   SVG;
@@ -203,7 +204,7 @@ impl Nucleo {
     }
 
     /// **El dibujo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
-    /// el «Editable» de la hoja y lo que viaja dentro de la pagina web.
+    /// lo que viaja dentro de la pagina web, para volver a editarlo.
     pub fn excalidraw_de_dibujo(
         &self,
         chat: String,

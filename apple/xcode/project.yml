@@ -11,8 +11,8 @@
 #   Atajos y Spotlight;
 # - `CompartirPixPin`: la extension de Compartir (mandar a un proyecto
 #   desde cualquier app);
-# - `VistaPreviaPixPin`: la vista previa de Quick Look de `.excalidraw` y
-#   `.pixpin2d`, pintada con el mismo lector y pintor del lienzo.
+# - `VistaPreviaPixPin`: la vista previa de Quick Look de `.pixpin`,
+#   `.excalidraw` y `.pixpin2d`, pintada con el mismo lector y pintor del lienzo.
 #
 # Va en su carpeta, fuera de `apple/app`: asi el paquete local (`../app`,
 # del que sale PixPinKit) no contiene al propio proyecto, que Xcode lleva

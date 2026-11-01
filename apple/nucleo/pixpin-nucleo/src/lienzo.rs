@@ -152,9 +152,10 @@ impl Lienzo {
         Ok(Arc::new(Lienzo::de_lienzo(&l)))
     }
 
-    /// Un lienzo desde un fichero `.excalidraw` o `.pixpin2d` (el dibujo
-    /// propio de PixPin, `pixpin_motor2d::formato`; se mira la extension).
-    /// Lo usa tambien la vista previa de Quick Look.
+    /// Un lienzo desde un fichero `.excalidraw`, `.pixpin2d` (el dibujo
+    /// propio de PixPin, `pixpin_motor2d::formato`) o `.pixpin` (el de su
+    /// primera hoja); se mira la extension. Lo usa tambien la vista previa
+    /// de Quick Look.
     #[uniffi::constructor]
     pub fn de_fichero(ruta: String) -> Result<Arc<Lienzo>, ErrorNucleo> {
         leer_fichero(Path::new(&ruta))
@@ -208,6 +209,13 @@ impl Lienzo {
 }
 
 fn leer_fichero(ruta: &Path) -> Result<Arc<Lienzo>, ErrorNucleo> {
+    let es_pixpin = ruta
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("pixpin"));
+    if es_pixpin {
+        return Lienzo::de_pixpin(ruta);
+    }
     let texto = match std::fs::read_to_string(ruta) {
         Ok(t) => t,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -228,6 +236,29 @@ fn leer_fichero(ruta: &Path) -> Result<Arc<Lienzo>, ErrorNucleo> {
 }
 
 impl Lienzo {
+    /// **El lienzo de un `.pixpin`** (lo editable que se comparte desde el
+    /// 20-oct-2026, Windows): el de su primera hoja con dibujo, para la
+    /// vista previa de Quick Look. Sus fotos van dentro del paquete y no se
+    /// sacan: salen como su hueco. Un proyecto sin ningun lienzo no tiene
+    /// nada que ensenar.
+    fn de_pixpin(ruta: &Path) -> Result<Arc<Lienzo>, ErrorNucleo> {
+        let paquete = pixpin_proyecto::Paquete::abrir(ruta).map_err(|e| ErrorNucleo::Lienzo {
+            detalle: e.to_string(),
+        })?;
+        let lienzo = paquete
+            .proyecto
+            .hojas
+            .iter()
+            .find_map(|h| paquete.lienzo_de(h).and_then(Result::ok))
+            .ok_or_else(|| ErrorNucleo::Lienzo {
+                detalle: "el proyecto no trae ningun lienzo".into(),
+            })?;
+        Ok(Arc::new(Lienzo {
+            escena: excalidraw::a_escena(&lienzo),
+            imagenes: Vec::new(),
+        }))
+    }
+
     /// Un `.pixpin2d` (el JSON de la `Escena`, como `formato::cargar`). No
     /// lleva fotos aparte.
     fn de_pixpin2d(texto: &str) -> Result<Arc<Lienzo>, ErrorNucleo> {
@@ -838,6 +869,40 @@ mod pruebas {
             Lienzo::de_fichero(roto.display().to_string()),
             Err(ErrorNucleo::Lienzo { .. })
         ));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// La vista previa de un `.pixpin` (lo editable que se comparte): el
+    /// lienzo de su primera hoja.
+    #[test]
+    fn un_pixpin_se_ve_con_el_lienzo_de_su_hoja() {
+        let dir = std::env::temp_dir().join(format!("pixpin-nucleo-pixpin-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let json = r#"{"type":"excalidraw","elements":[
+            {"id":"x","type":"rectangle","x":0,"y":0,"width":80,"height":40},
+            {"id":"y","type":"ellipse","x":100,"y":0,"width":30,"height":30}],"files":{}}"#;
+        let bytes = crate::lienzo_suelto::pixpin_de_un_lienzo(json, "Viaje", &dir, 1).unwrap();
+        let ruta = dir.join("Viaje.PIXPIN");
+        std::fs::write(&ruta, bytes).unwrap();
+        let leido = Lienzo::de_fichero(ruta.display().to_string()).unwrap();
+        assert_eq!(leido.cuantos_elementos(), 2);
+        assert!(decodificar(&leido.plano()).is_ok());
+
+        // Casos negativos: un proyecto sin lienzos y un zip que no es nada.
+        let vacio = pixpin_proyecto::Paquete::nuevo(
+            pixpin_proyecto::Manifiesto::default(),
+            pixpin_proyecto::Proyecto::default(),
+        );
+        let sin = dir.join("sin.pixpin");
+        std::fs::write(&sin, vacio.a_bytes().unwrap()).unwrap();
+        assert!(matches!(
+            Lienzo::de_fichero(sin.display().to_string()),
+            Err(ErrorNucleo::Lienzo { .. })
+        ));
+        let roto = dir.join("roto.pixpin");
+        std::fs::write(&roto, b"no soy un zip").unwrap();
+        assert!(Lienzo::de_fichero(roto.display().to_string()).is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

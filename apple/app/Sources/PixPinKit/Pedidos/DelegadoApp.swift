@@ -42,6 +42,14 @@ public final class DelegadoApp: NSObject, NSApplicationDelegate {
         var resto: [URL] = []
         for u in urls {
             if !u.isFileURL, HacerPedidos.compartidos.abrir(enlace: u) { continue }
+            // Un `.pixpin` (lo editable que se comparte): a la lista de
+            // proyectos, como «Abrir con PixPin» de Windows. Por un pedido,
+            // para que espere a que la app tenga su almacen.
+            if u.isFileURL, u.pathExtension.lowercased() == "pixpin" {
+                HacerPedidos.compartidos.hacer(Pedido("abrir", ["que": .objeto(["tipo": .texto("fichero"),
+                                                                                 "ruta": .texto(u.path)])]))
+                continue
+            }
             if u.isFileURL, DelegadoApp.vaAPinOReproductor(u) {
                 HacerPedidos.compartidos.abrir(fichero: u)
                 continue

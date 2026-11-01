@@ -1,6 +1,8 @@
 // La vista previa de Quick Look (barra espaciadora en el Finder) de los
-// dibujos: `.excalidraw` (el lienzo de Windows y Android) y `.pixpin2d` (el
-// dibujo propio). El `vista_previa.rs` de Windows, §3 del plan.
+// dibujos: `.pixpin` (lo editable que se comparte: el lienzo de su primera
+// hoja), `.excalidraw` (el lienzo de Windows y Android, los de antes se
+// siguen viendo) y `.pixpin2d` (el dibujo propio). El `vista_previa.rs` de
+// Windows, §3 del plan.
 //
 // Lo lee el nucleo de Rust (`Lienzo.deFichero`, que mira la extension) en
 // UN bufer plano, y lo pinta el mismo `PintorLienzo` de la app en un

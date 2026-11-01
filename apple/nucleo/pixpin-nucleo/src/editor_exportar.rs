@@ -217,6 +217,33 @@ impl EditorLienzo {
             })
             .collect()
     }
+
+    /// **El lienzo como `.excalidraw` limpio** (`excalidraw_de` de Windows):
+    /// lo que viaja dentro de la pagina web compartida, para volver a
+    /// editarlo. No es un «Editable» aparte: fuera, lo editable es el
+    /// `.pixpin` ([`EditorLienzo::pixpin_para_compartir`]).
+    pub fn excalidraw_para_compartir(&self) -> String {
+        let st = self.tomar();
+        pixpin_motor2d::excalidraw::escribir(&pixpin_motor2d::excalidraw::con_escena(
+            &pixpin_motor2d::excalidraw::Lienzo::vacio(),
+            &st.escena,
+        ))
+    }
+
+    /// **El `.pixpin` del lienzo** (`compartir-pixpin` de un lienzo suelto
+    /// en Windows, 20-oct-2026): el lienzo como la hoja de un proyecto nuevo
+    /// llamado `nombre`, con sus fotos, para seguir en otro PixPin o en el
+    /// movil. Antes se guarda lo pendiente (las fotos pegadas pasan a
+    /// `imagenes/`). Bloqueante: Swift lo llama fuera del hilo principal.
+    pub fn pixpin_para_compartir(&self, nombre: String) -> Result<Vec<u8>, crate::ErrorNucleo> {
+        let _ = self.guardar();
+        let json = std::fs::read_to_string(&self.ruta)
+            .ok()
+            .filter(|t| pixpin_motor2d::excalidraw::leer(t).is_ok())
+            .unwrap_or_else(|| self.excalidraw_para_compartir());
+        crate::lienzo_suelto::pixpin_de_un_lienzo(&json, &nombre, &self.carpeta, crate::ahora_ms())
+            .map_err(|detalle| crate::ErrorNucleo::Lienzo { detalle })
+    }
 }
 
 #[cfg(test)]
@@ -280,5 +307,43 @@ mod pruebas {
         assert_eq!(mime_de(b"\x89PNG\r\n"), Some("image/png"));
         assert_eq!(mime_de(&[0xff, 0xd8, 0xff, 0xe0]), Some("image/jpeg"));
         assert_eq!(mime_de(b"hola"), None);
+    }
+
+    /// Lo editable de un lienzo al compartir es su `.pixpin` (Windows,
+    /// 20-oct-2026), con lo recien dibujado; el `.excalidraw` limpio solo
+    /// viaja dentro de la pagina web.
+    #[test]
+    fn el_lienzo_se_comparte_como_pixpin_con_lo_recien_dibujado() {
+        let dir = std::env::temp_dir().join(format!("pixpin-exportar-pixpin-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let ed =
+            EditorLienzo::de_fichero(dir.join("e.excalidraw").display().to_string(), true).unwrap();
+        ed.herramienta("rectangulo".into()).unwrap();
+        ed.puntero(FasePuntero::Pulsar, 0.0, 0.0, None, 0, 1.0);
+        ed.puntero(FasePuntero::Mover, 100.0, 50.0, None, 0, 1.0);
+        ed.puntero(FasePuntero::Soltar, 100.0, 50.0, None, 0, 1.0);
+
+        let json = ed.excalidraw_para_compartir();
+        let l = pixpin_motor2d::excalidraw::leer(&json).unwrap();
+        assert_eq!(pixpin_motor2d::excalidraw::a_escena(&l).cuantos_visibles(), 1);
+
+        let bytes = ed.pixpin_para_compartir("Plano".into()).unwrap();
+        let p = pixpin_proyecto::Paquete::desde_bytes(&bytes).unwrap();
+        assert_eq!(p.proyecto.nombre, "Plano");
+        let d = p.proyecto.hojas[0].dibujo.clone().unwrap();
+        let s = std::str::from_utf8(p.entrada(&format!("lienzos/{d}.excalidraw")).unwrap()).unwrap();
+        let dentro = pixpin_motor2d::excalidraw::leer(s).unwrap();
+        assert_eq!(
+            pixpin_motor2d::excalidraw::a_escena(&dentro).cuantos_visibles(),
+            1,
+            "lleva el rectangulo recien trazado"
+        );
+        // Caso negativo: un lienzo en blanco tambien sale (una hoja vacia).
+        let vacio =
+            EditorLienzo::de_fichero(dir.join("v.excalidraw").display().to_string(), true).unwrap();
+        let p = pixpin_proyecto::Paquete::desde_bytes(&vacio.pixpin_para_compartir(String::new()).unwrap()).unwrap();
+        assert_eq!(p.proyecto.nombre, "Lienzo");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }
