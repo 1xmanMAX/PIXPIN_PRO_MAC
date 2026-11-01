@@ -4,6 +4,23 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>es</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>es</string>
+		<string>en</string>
+		<string>zh-Hans</string>
+		<string>hi</string>
+		<string>ar</string>
+		<string>pt-BR</string>
+		<string>fr</string>
+		<string>de</string>
+		<string>ja</string>
+		<string>ru</string>
+		<string>ko</string>
+		<string>it</string>
+		<string>id</string>
+		<string>tr</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>PixPin</string>
 	<key>CFBundleDocumentTypes</key>
