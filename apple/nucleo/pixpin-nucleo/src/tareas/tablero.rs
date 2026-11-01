@@ -3,7 +3,7 @@
 //! con lo buscado, en que orden, y el color de cada lista.
 //!
 //! - **Buscar** (`tarjetas::coincide`): sin mayusculas ni tildes
-//!   (`pixpin_ui::resaltado`), y han de estar TODAS las palabras, cada una
+//!   (`pindesk_ui::resaltado`), y han de estar TODAS las palabras, cada una
 //!   en el texto de la tarea, en el nombre de su lista o en el de su chat.
 //!   Una palabra que nombra un dia («hoy», «ayer», «anteayer» o
 //!   `2026-10-01`) vale tambien por el dia en que se apunto. El Mac buscaba
@@ -17,8 +17,8 @@
 //!   para la misma lista (sale de su clave, `chat/mensaje`, y de las demas
 //!   listas con tareas). No viaja en el mensaje: Windows lo calcula asi.
 
-use pixpin_proyecto::mini;
-use pixpin_ui::resaltado::hay_coincidencia;
+use pindesk_proyecto::mini;
+use pindesk_ui::resaltado::hay_coincidencia;
 
 use super::{ListaTareas, Tarea};
 

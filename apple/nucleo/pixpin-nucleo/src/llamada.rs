@@ -15,8 +15,8 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{Clase, Cuaderno, Mensaje};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{Clase, Cuaderno, Mensaje};
 
 use crate::chats::validar_chat;
 use crate::{ErrorNucleo, Nucleo};

@@ -8,7 +8,7 @@
 //! los archivos en la conversacion general como adjunto, sin abrirlos.
 //!
 //! El movil manda un lienzo de otra manera (`EnviarActivity.deLienzo`):
-//! tipo `lienzo`, dentro un `.pixpin` con UN proyecto de UNA hoja, la
+//! tipo `lienzo`, dentro un `.pindesk` con UN proyecto de UNA hoja, la
 //! identidad `lienzo:<proyecto>:<hoja>` y el proyecto del que es, para que
 //! al otro lado caiga en el mismo (`Recepcion.guardarLienzo`). Aqui se hace
 //! lo mismo en los dos sentidos:
@@ -23,13 +23,13 @@
 //! ENTERA. Los lienzos nacidos en el PC y en el Mac llevan los puntos como
 //! `[x, y]` y el movil los quiere como `{"x":…,"y":…}`.
 //! [`escena_para_el_movil`] lo deja como lo espera, con las reglas de
-//! `pixpin_proyecto::para_el_movil` (las mismas con que sale un lienzo al
+//! `pindesk_proyecto::para_el_movil` (las mismas con que sale un lienzo al
 //! sincronizar).
 
 use std::path::{Path, PathBuf};
 
-use pixpin_proyecto::{Hoja, Paquete, Proyecto, almacen, cuaderno, para_el_movil};
-use pixpin_sincro::envio::{self, Elemento};
+use pindesk_proyecto::{Hoja, Paquete, Proyecto, almacen, cuaderno, para_el_movil};
+use pindesk_sincro::envio::{self, Elemento};
 use serde_json::{Map, Value};
 
 /// Lo que se hizo al pasar un lienzo a la forma del movil.
@@ -206,7 +206,7 @@ fn nombre_de_hoja(nombre: &str, dibujo: &str) -> String {
 }
 
 /// Un lienzo del PC como lo manda el movil (`EnviarActivity.deLienzo`):
-/// el elemento de la oferta y los bytes del `.pixpin` de una hoja.
+/// el elemento de la oferta y los bytes del `.pindesk` de una hoja.
 pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec<u8>), String> {
     let json = std::fs::read_to_string(ruta).map_err(|e| e.to_string())?;
     let en_proyecto = proyecto_y_dibujo(raiz, ruta);
@@ -220,7 +220,7 @@ pub fn empaquetar(raiz: &Path, ruta: &Path, ahora: i64) -> Result<(Elemento, Vec
     empaquetar_de(raiz, &json, en_proyecto, &nombre, &al_lado, ahora)
 }
 
-/// **El `.pixpin` de un lienzo para «Compartir»** (`pixpin_de_un_lienzo` de
+/// **El `.pindesk` de un lienzo para «Compartir»** (`pixpin_de_un_lienzo` de
 /// Windows, 20-oct-2026): el lienzo `json` como la hoja de un proyecto
 /// NUEVO llamado `nombre` (no el del chat: al otro lado no pisa nada), con
 /// las fotos de `files` buscadas en `carpeta` (`imagenes/<id>` del chat o
@@ -293,8 +293,8 @@ fn empaquetar_de(
                 // Un `.excalidraw` suelto (el de «Compartir», uno de fuera):
                 // al otro lado sera un proyecto nuevo con su nombre.
                 let nombre = nombre_suelto.to_string();
-                let id = pixpin_proyecto::codigos::nuevo();
-                let dibujo = pixpin_proyecto::codigos::nuevo();
+                let id = pindesk_proyecto::codigos::nuevo();
+                let dibujo = pindesk_proyecto::codigos::nuevo();
                 let mut p = Proyecto {
                     id,
                     nombre: nombre.clone(),
@@ -320,7 +320,7 @@ fn empaquetar_de(
         }
         let rel = e.get("path").and_then(Value::as_str)?;
         let real = match &fotos_desde {
-            Some(pid) => pixpin_proyecto::vista::ruta_real(raiz, pid, rel)?,
+            Some(pid) => pindesk_proyecto::vista::ruta_real(raiz, pid, rel)?,
             None => {
                 if Path::new(rel).is_absolute() || rel.contains("..") || rel.contains(':') {
                     return None;
@@ -337,7 +337,7 @@ fn empaquetar_de(
 
     // Una pagina de un PDF necesita su PDF, como en `deLienzo`.
     let pdf = match (&fotos_desde, hoja.pagina) {
-        (Some(pid), Some(_)) => pixpin_proyecto::vista::documento_del_proyecto(raiz, pid)
+        (Some(pid), Some(_)) => pindesk_proyecto::vista::documento_del_proyecto(raiz, pid)
             .and_then(|d| std::fs::read(d).ok()),
         _ => None,
     };
@@ -351,7 +351,7 @@ fn empaquetar_de(
     proyecto.pdf_origen = None;
     proyecto.pdf_limpio = None;
 
-    let manifiesto = pixpin_proyecto::Manifiesto {
+    let manifiesto = pindesk_proyecto::Manifiesto {
         escrito: ahora,
         proyecto: proyecto.nombre.clone(),
         ..Default::default()
@@ -406,11 +406,11 @@ fn empaquetar_de(
     ))
 }
 
-/// El nombre del `.pixpin` que sale, el de `deLienzo`: «Proyecto - Hoja».
+/// El nombre del `.pindesk` que sale, el de `deLienzo`: «Proyecto - Hoja».
 pub fn nombre_del_paquete(e: &Elemento) -> String {
     let proyecto = e.proyecto_nombre.as_deref().unwrap_or("Proyecto");
     format!(
-        "{}.pixpin",
+        "{}.pindesk",
         envio::nombre_sano(&format!("{proyecto} - {}", e.nombre))
     )
 }
@@ -425,7 +425,7 @@ pub fn preparar_envio(
     let (e, bytes) = empaquetar(raiz, ruta, ahora)?;
     // Uno por carpeta, como `l-<hora>` del movil: dos lienzos que se llamen
     // igual no se pisan.
-    let carpeta = carpeta.join(pixpin_proyecto::codigos::nuevo());
+    let carpeta = carpeta.join(pindesk_proyecto::codigos::nuevo());
     std::fs::create_dir_all(&carpeta).map_err(|e| e.to_string())?;
     let destino = carpeta.join(nombre_del_paquete(&e));
     std::fs::write(&destino, bytes).map_err(|e| e.to_string())?;

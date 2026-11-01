@@ -1,5 +1,5 @@
 //! **Los ajustes que valen en los dos sistemas**, en el mismo
-//! `pixpinmax.toml` que Windows (`pixpin_store::ajustes`), en la raiz de la
+//! `pindesk.toml` (o el `pixpinmax.toml` de antes) que Windows (`pindesk_store::ajustes`), en la raiz de la
 //! carpeta de datos.
 //!
 //! Cruzan las claves que significan lo mismo en Mac y en Windows (las de la
@@ -20,8 +20,8 @@
 //! fichero que hay no se entiende, **no se guarda** (se dice): reescribirlo
 //! con los valores de fabrica le borraria al usuario todo lo de Windows.
 
-use pixpin_store::ajustes::{FormatoColor, ModoDeIdiomas, PreferenciaIdioma};
-use pixpin_store::{Ubicacion, ajustes};
+use pindesk_store::ajustes::{FormatoColor, ModoDeIdiomas, PreferenciaIdioma};
+use pindesk_store::{Ubicacion, ajustes};
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -235,12 +235,14 @@ pub const DIAS_MAXIMOS: u32 = 400;
 
 #[uniffi::export]
 impl Nucleo {
-    /// Los ajustes de `pixpinmax.toml` (los de fabrica si no hay fichero).
+    /// Los ajustes de `pindesk.toml` (o del `pixpinmax.toml` de antes; los de
+    /// fabrica si no hay fichero).
     pub fn ajustes(&self) -> Result<AjustesMac, ErrorNucleo> {
         Ok(AjustesMac::from(&ajustes::cargar(&self.ubicacion())?))
     }
 
-    /// Guarda los ajustes del Mac en `pixpinmax.toml` sin tocar lo demas.
+    /// Guarda los ajustes del Mac en `pindesk.toml` (o en el `pixpinmax.toml`
+    /// de antes si es el que hay) sin tocar lo demas.
     pub fn guardar_ajustes(&self, nuevos: AjustesMac) -> Result<(), ErrorNucleo> {
         let u = self.ubicacion();
         // Si el fichero no se entiende, aqui sale el error y no se escribe.
@@ -256,7 +258,7 @@ impl Nucleo {
         AjustesMac::from(&ajustes::Ajustes::default())
     }
 
-    /// La ruta de `pixpinmax.toml` (para ensenarla).
+    /// La ruta de `pindesk.toml` (o la del de antes; para ensenarla).
     pub fn ruta_ajustes(&self) -> String {
         self.ubicacion().fichero_ajustes().display().to_string()
     }
@@ -307,7 +309,7 @@ mod pruebas {
         let b = n.ajustes().unwrap();
         assert_eq!(b.dias_caducidad, 30);
         assert!(!b.sincro_automatica);
-        assert!(n.ruta_ajustes().ends_with("pixpinmax.toml"));
+        assert!(n.ruta_ajustes().ends_with("pindesk.toml"));
     }
 
     #[test]
@@ -333,8 +335,8 @@ mod pruebas {
         };
         n.guardar_ajustes(nuevos.clone()).unwrap();
         assert_eq!(n.ajustes().unwrap(), nuevos);
-        // Lo escrito es lo que lee Windows (`pixpin_store::ajustes`).
-        let texto = std::fs::read_to_string(d.join("pixpinmax.toml")).unwrap();
+        // Lo escrito es lo que lee Windows (`pindesk_store::ajustes`).
+        let texto = std::fs::read_to_string(d.join("pindesk.toml")).unwrap();
         for linea in [
             "idioma = \"en\"",
             "retardo_captura_s = 5",
@@ -363,6 +365,8 @@ mod pruebas {
 
     #[test]
     fn se_conservan_los_comentarios_y_lo_de_windows() {
+        // Con el `pixpinmax.toml` de antes (sin mudar aun): se lee y se
+        // escribe en el mismo, sin crear un `pindesk.toml` aparte.
         let d = temporal("conservar");
         let toml = "# mis ajustes\narranque_con_windows = false\nclave_rara = 5\n\n[capturas]\n# una semana\ndias_caducidad = 7\n";
         std::fs::write(d.join("pixpinmax.toml"), toml).unwrap();
@@ -380,6 +384,8 @@ mod pruebas {
         assert!(texto.contains("arranque_con_windows = false"));
         assert!(texto.contains("dias_caducidad = 14"));
         assert!(!n.ajustes().unwrap().sincro_presencia);
+        assert!(!d.join("pindesk.toml").exists());
+        assert!(n.ruta_ajustes().ends_with("pixpinmax.toml"));
     }
 
     #[test]
@@ -457,6 +463,7 @@ mod pruebas {
                 "se guardo {m:?}"
             );
         }
+        assert!(!d.join("pindesk.toml").exists());
         assert!(!d.join("pixpinmax.toml").exists());
     }
 }

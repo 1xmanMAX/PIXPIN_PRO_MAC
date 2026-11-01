@@ -334,9 +334,9 @@ impl Nucleo {
 }
 
 /// Lo que se pide desde el mensaje `id` (`recetas::pedido_de` de Windows).
-pub fn pedido_de(mensajes: &[pixpin_proyecto::cuaderno::Mensaje], id: &str) -> Option<String> {
+pub fn pedido_de(mensajes: &[pindesk_proyecto::cuaderno::Mensaje], id: &str) -> Option<String> {
     use super::chat as ia_chat;
-    use pixpin_proyecto::cuaderno::{Clase, Mensaje};
+    use pindesk_proyecto::cuaderno::{Clase, Mensaje};
     let i = mensajes.iter().position(|m| m.id == id)?;
     let m = &mensajes[i];
     let es_nota = |m: &Mensaje| matches!(m.clase, None | Some(Clase::Nota));

@@ -1,7 +1,7 @@
 //! **Lo que pide presentar un PowerPoint** (tanda D9): las notas del orador,
 //! la transicion de cada diapositiva, sus videos y audios y los fotogramas
 //! de cada transicion. Es lo que `diapositivas.rs` de Windows lee de
-//! `pixpin_office::pptx::pase`, puesto al alcance de Swift
+//! `pindesk_office::pptx::pase`, puesto al alcance de Swift
 //! (`Documentos/Diapositivas.swift`).
 //!
 //! Nada se lee al abrir: cada cosa se pide cuando hace falta (las notas al
@@ -9,12 +9,12 @@
 //! cuentas del fotograma ([`capas_de_transicion`]) son las mismas de
 //! Windows: quien pinta solo mezcla dos imagenes ya hechas.
 
-use pixpin_office::Documento;
-use pixpin_office::pptx::pase::{self as pp, Efecto, Fuente, Sentido};
+use pindesk_office::Documento;
+use pindesk_office::pptx::pase::{self as pp, Efecto, Fuente, Sentido};
 
 use crate::office::DocumentoOffice;
 
-/// Como entra una diapositiva (`pixpin_office::pptx::pase::Efecto`). `dx` y
+/// Como entra una diapositiva (`pindesk_office::pptx::pase::Efecto`). `dx` y
 /// `dy` valen -1, 0 o 1: hacia donde se mueve.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum EfectoDiapositiva {

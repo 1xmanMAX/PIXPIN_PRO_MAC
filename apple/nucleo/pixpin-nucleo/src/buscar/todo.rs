@@ -31,9 +31,9 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Mensaje};
-use pixpin_proyecto::mini;
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Mensaje};
+use pindesk_proyecto::mini;
 
 use super::puntos::{self, normalizar, puntuar};
 use super::recientes::Recientes;
@@ -186,7 +186,7 @@ fn es_de_leccion(m: &Mensaje) -> bool {
     crate::lecciones::es_leccion(m)
         || m.responde_a
             .as_deref()
-            .is_some_and(|r| r.starts_with(pixpin_lecciones::leccion::PREFIJO))
+            .is_some_and(|r| r.starts_with(pindesk_lecciones::leccion::PREFIJO))
 }
 
 /// La primera linea con algo, recortada.
@@ -332,7 +332,7 @@ impl Nucleo {
                     // Lo que pone dentro del documento.
                     let texto = ruta
                         .as_deref()
-                        .filter(|r| textos::lector_de(&pixpin_docs::nombre(r)).is_some())
+                        .filter(|r| textos::lector_de(&pindesk_docs::nombre(r)).is_some())
                         .and_then(|r| textos::guardado(self.ruta(), r));
                     let Some(t) = texto else {
                         continue;
@@ -574,13 +574,13 @@ impl Nucleo {
         // 5. Los momentos del timeline.
         if !cancelada && cesta.quiere(ClaseDeResultado::Momento) {
             let momentos = self.momentos();
-            let a = pixpin_timeline::almacen::Almacen::en(self.ruta());
-            let mut v: Vec<&pixpin_timeline::Momento> = if c.vacia() {
+            let a = pindesk_timeline::almacen::Almacen::en(self.ruta());
+            let mut v: Vec<&pindesk_timeline::Momento> = if c.vacia() {
                 let mut v: Vec<_> = momentos.iter().collect();
                 v.sort_by_key(|m| std::cmp::Reverse(m.cuando));
                 v
             } else {
-                pixpin_timeline::buscar::buscar(&momentos, consulta)
+                pindesk_timeline::buscar::buscar(&momentos, consulta)
             };
             v.truncate(cesta.tope + 1);
             for m in v {
@@ -741,7 +741,7 @@ impl Nucleo {
                 else {
                     continue;
                 };
-                let nombre = pixpin_docs::nombre(&ruta);
+                let nombre = pindesk_docs::nombre(&ruta);
                 let Some(lector) = textos::lector_de(&nombre) else {
                     continue;
                 };

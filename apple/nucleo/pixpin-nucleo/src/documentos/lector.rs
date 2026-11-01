@@ -1,7 +1,7 @@
 //! **Lo del lector que no es pintar** (tanda B7): cambiar el nombre con F2
 //! (`renombrar_doc.rs` de Windows), juntar la tinta con lo que cambio en el
 //! disco mientras se anotaba (`lector_pdf/al_dia.rs`) y la pagina que sube
-//! sola (`lector.rs`, las cuentas de `pixpin_docs::auto_desplazar`).
+//! sola (`lector.rs`, las cuentas de `pindesk_docs::auto_desplazar`).
 //!
 //! # El nombre
 //!
@@ -24,10 +24,10 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_docs::auto_desplazar as auto;
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{self, Cuaderno, Mensaje};
-use pixpin_proyecto::vista;
+use pindesk_docs::auto_desplazar as auto;
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{self, Cuaderno, Mensaje};
+use pindesk_proyecto::vista;
 
 use crate::chats::{self, CambioMensaje};
 use crate::{ErrorNucleo, Nucleo};
@@ -205,8 +205,8 @@ pub fn juntar_tinta_con_el_disco(
     mio: String,
     suyo: String,
 ) -> Option<String> {
-    use pixpin_sincro::canonico::Json;
-    use pixpin_sincro::fusion;
+    use pindesk_sincro::canonico::Json;
+    use pindesk_sincro::fusion;
     // Los tres por el mismo camino: un mismo numero escrito de dos maneras
     // (`1.0E-7`, `1e-7`) seria un cambio que no hizo nadie.
     let json = |t: &str| {
@@ -273,8 +273,8 @@ pub fn rotulo_de_lo_que_queda(
 /// conservando el tono. Devuelve `[r, g, b, a]` de 0 a 1.
 #[uniffi::export]
 pub fn tinta_sobre_papel(color: Vec<f32>, papel: Vec<f32>) -> Vec<f32> {
-    use pixpin_motor2d::contraste::adaptar;
-    use pixpin_motor2d::elemento::ColorRgba;
+    use pindesk_motor2d::contraste::adaptar;
+    use pindesk_motor2d::elemento::ColorRgba;
     let c = |v: &[f32], k: usize, por_defecto: f32| v.get(k).copied().unwrap_or(por_defecto);
     let a = adaptar(
         ColorRgba {
@@ -299,7 +299,7 @@ impl Nucleo {
     /// (`palabras_por_minuto` del estado, como Windows; 230 la de fabrica).
     pub fn palabras_por_minuto(&self) -> u32 {
         auto::valida(
-            pixpin_store::estado::cargar(&self.ubicacion())
+            pindesk_store::estado::cargar(&self.ubicacion())
                 .palabras_por_minuto
                 .unwrap_or(auto::POR_DEFECTO),
         )
@@ -308,9 +308,9 @@ impl Nucleo {
     /// Guarda la velocidad sin tocar lo demas que se recuerda.
     pub fn guardar_palabras_por_minuto(&self, ppm: u32) -> Result<(), ErrorNucleo> {
         let u = self.ubicacion();
-        let mut e = pixpin_store::estado::cargar(&u);
+        let mut e = pindesk_store::estado::cargar(&u);
         e.palabras_por_minuto = Some(auto::valida(ppm));
-        pixpin_store::estado::guardar(&u, &e)?;
+        pindesk_store::estado::guardar(&u, &e)?;
         Ok(())
     }
 
@@ -318,14 +318,14 @@ impl Nucleo {
     /// todos, como en Windows (`lectores_oscuros` del estado). `None` es
     /// «nunca se toco»: entonces manda el aspecto del Mac.
     pub fn lectores_oscuros(&self) -> Option<bool> {
-        pixpin_store::estado::cargar(&self.ubicacion()).lectores_oscuros
+        pindesk_store::estado::cargar(&self.ubicacion()).lectores_oscuros
     }
 
     pub fn guardar_lectores_oscuros(&self, oscuros: bool) -> Result<(), ErrorNucleo> {
         let u = self.ubicacion();
-        let mut e = pixpin_store::estado::cargar(&u);
+        let mut e = pindesk_store::estado::cargar(&u);
         e.lectores_oscuros = Some(oscuros);
-        pixpin_store::estado::guardar(&u, &e)?;
+        pindesk_store::estado::guardar(&u, &e)?;
         Ok(())
     }
 
@@ -405,8 +405,8 @@ mod pruebas {
     use super::*;
     use std::sync::Arc;
 
-    use pixpin_proyecto::almacen::{Ficha, Indice};
-    use pixpin_proyecto::cuaderno::{Clase, Sello};
+    use pindesk_proyecto::almacen::{Ficha, Indice};
+    use pindesk_proyecto::cuaderno::{Clase, Sello};
 
     fn raiz(etiqueta: &str) -> PathBuf {
         let r = std::env::temp_dir().join(format!(

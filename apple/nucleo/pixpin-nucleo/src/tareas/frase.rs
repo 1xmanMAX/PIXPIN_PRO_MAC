@@ -1,7 +1,7 @@
 //! **Lo que se reconoce al escribir una tarea**, del lado de la app (17 y
 //! 18-oct-2026).
 //!
-//! El parser es [`pixpin_frase::tarea`] (el mismo del pedido `anadir_tarea`
+//! El parser es [`pindesk_frase::tarea`] (el mismo del pedido `anadir_tarea`
 //! y del plugin de Flow Launcher): #etiquetas en cualquier sitio, urgencia
 //! normal / urgente / muy urgente y la hora de recordar escrita como se dice.
 //! Aqui solo lo que es de la app:
@@ -13,7 +13,7 @@
 //!   legible y la nota, los emoticonos y las chapitas de la urgencia y las
 //!   etiquetas;
 //! - meter y sacar la nota del texto ([`con_nota`]), sin tocar las imagenes
-//!   ni la fecha de creacion `➕`, que son de `pixpin_proyecto::mini`.
+//!   ni la fecha de creacion `➕`, que son de `pindesk_proyecto::mini`.
 
 #![forbid(unsafe_code)]
 // La copia de Windows: lo que el Mac aun no usa se queda igual.
@@ -21,10 +21,10 @@
 
 use std::sync::RwLock;
 
-use pixpin_ia::fechas::{self, Momento};
-use pixpin_proyecto::mini;
+use pindesk_ia::fechas::{self, Momento};
+use pindesk_proyecto::mini;
 
-pub use pixpin_frase::tarea::{Frase, NOTA, Palabras, Urgencia};
+pub use pindesk_frase::tarea::{Frase, NOTA, Palabras, Urgencia};
 
 /// Las palabras de cada urgencia que valen ahora. `None`: las de fabrica.
 static PALABRAS: RwLock<Option<Palabras>> = RwLock::new(None);
@@ -47,7 +47,7 @@ pub fn palabras() -> Palabras {
 
 /// **Entiende una tarea escrita** con las palabras de Ajustes.
 pub fn leer(texto: &str, ahora: Momento) -> Frase {
-    pixpin_frase::tarea::leer(texto, ahora, &palabras())
+    pindesk_frase::tarea::leer(texto, ahora, &palabras())
 }
 
 /// El texto que se guarda de lo escrito en una caja: lo entendido o, si no
@@ -78,7 +78,7 @@ pub fn ms_de(m: Momento) -> i64 {
 pub fn marcas(texto: &str) -> Frase {
     let (visible, _) = mini::partir(texto);
     let (visible, _) = mini::imagenes_de(visible);
-    pixpin_frase::tarea::marcas(&visible)
+    pindesk_frase::tarea::marcas(&visible)
 }
 
 /// Una chapita de una tarea: su urgencia o una etiqueta.
@@ -193,12 +193,12 @@ pub fn hora_escrita(escrito: &str, ahora: Momento) -> Option<Momento> {
 /// decia una fecha con palabras («mañana a las 10»), se quita: manda la
 /// elegida. Lo demas se queda tal cual; se reconoce al guardar.
 pub fn con_hora_escrita(escrito: &str, hora: Option<Momento>, ahora: Momento) -> String {
-    let mut base = match pixpin_frase::tarea::marca_de_hora(escrito) {
+    let mut base = match pindesk_frase::tarea::marca_de_hora(escrito) {
         Some((i, _)) => escrito[..i].trim_end().to_string(),
         None => escrito.trim_end().to_string(),
     };
     // La fecha dicha con palabras sale: la que vale es la del selector.
-    let sin_fecha = pixpin_frase::tarea::sin_fecha_dicha(&base, ahora, &palabras());
+    let sin_fecha = pindesk_frase::tarea::sin_fecha_dicha(&base, ahora, &palabras());
     if sin_fecha != base {
         base = sin_fecha;
     }

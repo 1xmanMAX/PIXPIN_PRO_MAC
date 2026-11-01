@@ -19,9 +19,9 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use pixpin_proyecto::almacen::{self, Ficha};
-use pixpin_proyecto::{cuaderno, vista};
-use pixpin_sincro::envio::{self, Elemento};
+use pindesk_proyecto::almacen::{self, Ficha};
+use pindesk_proyecto::{cuaderno, vista};
+use pindesk_sincro::envio::{self, Elemento};
 
 use crate::lienzo_suelto;
 
@@ -155,17 +155,18 @@ fn mensaje_que_sustituye(
 }
 
 /// El nombre con el que se guarda algo que llega, ya con su extension: un
-/// proyecto o un lienzo es un `.pixpin` aunque el movil lo mande sin ella
+/// proyecto o un lienzo es un `.pindesk` aunque el movil lo mande sin ella
 /// (el primer envio de prueba llego como `123` siendo un proyecto entero).
 pub fn nombre_con_extension(e: &Elemento) -> String {
     let nombre = envio::nombre_sano(&e.nombre);
     if e.tipo != envio::PROYECTO && e.tipo != envio::LIENZO {
         return nombre;
     }
-    if nombre.to_ascii_lowercase().ends_with(".pixpin") {
+    // Uno que ya trae `.pindesk` (o el `.pixpin` de antes) se queda como esta.
+    if pindesk_proyecto::es_paquete(Path::new(&nombre)) {
         nombre
     } else {
-        format!("{nombre}.pixpin")
+        pindesk_proyecto::nombre_de_paquete(&nombre)
     }
 }
 
@@ -180,7 +181,7 @@ pub fn guardar_lo_recibido(
 ) -> Vec<Guardado> {
     // El codigo CORTO del aparato (`6ARJ`), no su identificador entero: es
     // lo que va en el codigo de chat de cada mensaje.
-    let aparato = pixpin_proyecto::codigos::de_aparato(id);
+    let aparato = pindesk_proyecto::codigos::de_aparato(id);
     let mut guardados = Vec::new();
     // Un proyecto entra en la LISTA de proyectos, no como adjunto: un
     // `.pixpin` es una conversacion entera, y cada chat es un proyecto.
@@ -192,7 +193,7 @@ pub fn guardar_lo_recibido(
             r.clone()
         };
         let nuevo = como_nuevo.get(&e.identidad).copied().unwrap_or(false);
-        let hecho = pixpin_proyecto::Paquete::abrir(&ruta)
+        let hecho = pindesk_proyecto::Paquete::abrir(&ruta)
             .map_err(|e| e.to_string())
             .and_then(|p| {
                 guardar_un_proyecto(raiz, e, p, &aparato, nuevo, ahora).map_err(|x| x.to_string())
@@ -277,7 +278,7 @@ fn a_la_carpeta(raiz: &Path, e: &Elemento, ruta: &Path) -> Guardado {
 pub fn guardar_un_proyecto(
     raiz: &Path,
     e: &Elemento,
-    paquete: pixpin_proyecto::Paquete,
+    paquete: pindesk_proyecto::Paquete,
     aparato: &str,
     como_nuevo: bool,
     ahora: i64,
@@ -307,7 +308,7 @@ pub fn guardar_un_proyecto(
 }
 
 /// Guarda como esta un chat antes de que un envio lo pise
-/// (`pixpin_sincro::copias`, puerto de `sincro/Copias.kt`).
+/// (`pindesk_sincro::copias`, puerto de `sincro/Copias.kt`).
 pub fn copia_antes_de_tocar(
     raiz: &Path,
     ficha: &str,
@@ -318,7 +319,7 @@ pub fn copia_antes_de_tocar(
         return Ok(());
     };
     let disco = vista::DiscoPc::nuevo(raiz);
-    pixpin_sincro::copias::hacer(&disco, &chat, motivo, ahora).map(|_| ())
+    pindesk_sincro::copias::hacer(&disco, &chat, motivo, ahora).map(|_| ())
 }
 
 /// Mete en el cuaderno de «Mensajes guardados» lo que llego y no es un
@@ -460,11 +461,11 @@ mod pruebas {
     }
 
     /// Un `.pixpin` como el que manda el movil, con sus tres codigos.
-    fn paquete(nombre: &str, uid: &str, creado: i64) -> pixpin_proyecto::Paquete {
-        let proyecto = pixpin_proyecto::Proyecto {
+    fn paquete(nombre: &str, uid: &str, creado: i64) -> pindesk_proyecto::Paquete {
+        let proyecto = pindesk_proyecto::Proyecto {
             id: "p-movil".into(),
             nombre: nombre.into(),
-            hojas: vec![pixpin_proyecto::Hoja {
+            hojas: vec![pindesk_proyecto::Hoja {
                 id: "h1".into(),
                 nombre: "Plano".into(),
                 dibujo: Some("d1".into()),
@@ -477,9 +478,9 @@ mod pruebas {
             aparato: Some("K7Q2".into()),
             ..Default::default()
         };
-        let mut p = pixpin_proyecto::Paquete::nuevo(Default::default(), proyecto);
+        let mut p = pindesk_proyecto::Paquete::nuevo(Default::default(), proyecto);
         p.poner_entrada("lienzos/d1.excalidraw", b"{}".to_vec());
-        pixpin_proyecto::Paquete::desde_bytes(&p.a_bytes().unwrap()).unwrap()
+        pindesk_proyecto::Paquete::desde_bytes(&p.a_bytes().unwrap()).unwrap()
     }
 
     fn elemento_de_proyecto(nombre: &str, uid: &str, creado: i64) -> Elemento {
@@ -552,7 +553,7 @@ mod pruebas {
         // usuario tras perder lienzos: poder volver.
         let chat = vista::chat_de_ficha(&raiz, &ficha.id).unwrap();
         let disco = vista::DiscoPc::nuevo(&raiz);
-        let copias = pixpin_sincro::copias::lista(&disco, &chat);
+        let copias = pindesk_sincro::copias::lista(&disco, &chat);
         assert_eq!(copias.len(), 1, "una copia de antes de recibir");
         assert!(
             copias[0].motivo.contains("Antes de recibir"),
@@ -692,7 +693,7 @@ mod pruebas {
             5,
         );
         assert_eq!(g[0].donde, Donde::Carpeta);
-        assert!(raiz.join("recibidos/Roto.pixpin").is_file());
+        assert!(raiz.join("recibidos/Roto.pindesk").is_file());
         assert!(almacen::Indice::leer(&raiz).proyectos.is_empty());
         let _ = std::fs::remove_dir_all(&raiz);
     }

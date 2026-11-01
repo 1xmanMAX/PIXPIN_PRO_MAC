@@ -7,7 +7,7 @@
 //! cosas tiene cada una, con cual se abre, que hay en cada una (con lo
 //! buscado ya filtrado) y, de cada cosa, si es un video, su enlace y su
 //! posicion en el chat (para «Ver en el chat»). Que cuenta cada pestana es
-//! `pixpin_proyecto::cuaderno::Seccion` (`indices_de_seccion`, con
+//! `pindesk_proyecto::cuaderno::Seccion` (`indices_de_seccion`, con
 //! `es_video` y `tiene_enlace`), el mismo que en Windows y el movil; como
 //! se ve, la rejilla y la previa, es de Swift.
 //!
@@ -26,14 +26,14 @@
 //!   queda la lista de chats de la izquierda.
 //! - **Las fotos de las notas ricas** (`![…](pixpin:files/…)`) salen en
 //!   «Fotos» cada una como una cosa mas, en el sitio de su nota
-//!   (`pixpin_ui::info::con_las_fotos_de_las_notas`).
+//!   (`pindesk_ui::info::con_las_fotos_de_las_notas`).
 //! - El foco del teclado se mueve con las mismas cuentas que en Windows
-//!   ([`vecina_en_la_ficha`], `pixpin_ui::info::Lista::vecina`).
+//!   ([`vecina_en_la_ficha`], `pindesk_ui::info::Lista::vecina`).
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje, Seccion};
-use pixpin_ui::info as ui;
-use pixpin_ui::resaltado;
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje, Seccion};
+use pindesk_ui::info as ui;
+use pindesk_ui::resaltado;
 
 use crate::chats::{MensajeChat, validar_chat};
 use crate::{ErrorNucleo, Nucleo};
@@ -123,7 +123,7 @@ pub struct EnlaceFicha {
 }
 
 /// Una cosa de una pestana: un mensaje entero o, en «Fotos», una foto de
-/// una nota rica (`pixpin_ui::info::Cosa`).
+/// una nota rica (`pindesk_ui::info::Cosa`).
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct CosaDeLaFicha {
     pub mensaje: MensajeChat,
@@ -159,7 +159,7 @@ fn es_de_leccion(m: &Mensaje) -> bool {
     crate::lecciones::es_leccion(m)
         || m.responde_a
             .as_deref()
-            .is_some_and(|r| r.starts_with(pixpin_lecciones::leccion::PREFIJO))
+            .is_some_and(|r| r.starts_with(pindesk_lecciones::leccion::PREFIJO))
 }
 
 /// **Que mensajes son de una seccion**, por su sitio en `mensajes`: el
@@ -300,7 +300,7 @@ pub fn vecina_en_la_ficha(
     dx: i32,
     dy: i32,
 ) -> Option<u32> {
-    let area = pixpin_geom::Rect {
+    let area = pindesk_geom::Rect {
         x: 0,
         y: 0,
         ancho,
@@ -495,7 +495,7 @@ impl Nucleo {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_proyecto::cuaderno::Sello;
+    use pindesk_proyecto::cuaderno::Sello;
     use std::path::PathBuf;
     use std::sync::Arc;
 

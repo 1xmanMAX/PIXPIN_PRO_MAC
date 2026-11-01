@@ -12,11 +12,41 @@ import AppKit
 import Foundation
 import PixPinCore
 
-/// Donde viven los datos de PixPin en este Mac: la misma estructura que
-/// `%APPDATA%\PixPinMax` en Windows (`proyectos/`, `sincro/`...).
+/// Donde viven los datos de PinDesk en este Mac: la misma estructura que
+/// `%APPDATA%\PinDesk` en Windows (`proyectos/`, `sincro/`...), en
+/// `~/Library/Application Support/PinDesk`. Hasta nov-2026 era `PixPinMax`:
+/// la primera vez que se pide se muda (`CarpetaDeDatos`).
 public func carpetaDeDatos() -> URL {
-    let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-    return base.appendingPathComponent("PixPinMax", isDirectory: true)
+    CarpetaDeDatos.elegida
+}
+
+/// **La mudanza de `PixPinMax` a `PinDesk`**, una vez y antes de abrir
+/// ningun fichero, como `pindesk_sistema::nombre::migrar_al_arrancar` de
+/// Windows (docs/formato-pindesk.md): renombrar; si no se puede, copiar a
+/// `PinDesk.migrando` y renombrar, dejando la vieja con sus datos; en los dos
+/// casos `MOVIDO-A-PINDESK.txt` en la vieja; si falla, se sigue con la vieja.
+/// Lo hace el nucleo (`mudarCarpetaDeDatos`); aqui solo se recuerda el
+/// resultado. El Llavero (`PixPinMax.*`) no cambia.
+enum CarpetaDeDatos {
+    /// `~/Library/Application Support`.
+    static var base: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    }
+
+    /// La de esta ejecucion. `static let`: se calcula (y se muda) una sola
+    /// vez, aunque la pidan varios hilos a la vez.
+    static let elegida: URL = {
+        let m = mudarCarpetaDeDatos(base: base.path)
+        switch m.quePaso {
+        case .movida, .copiada:
+            NSLog("PinDesk: los datos pasaron a %@", m.carpeta)
+        case .fallo:
+            NSLog("PinDesk: no se pudieron pasar los datos a PinDesk (%@); se sigue con la carpeta de antes", m.detalle)
+        case .nada:
+            break
+        }
+        return URL(fileURLWithPath: m.carpeta, isDirectory: true)
+    }()
 }
 
 @MainActor

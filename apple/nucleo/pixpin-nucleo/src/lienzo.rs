@@ -1,6 +1,6 @@
 //! El lienzo cruzando a Swift como **un solo bufer plano**.
 //!
-//! `pixpin_motor2d::pintado` ya convierte una escena en ordenes de dibujo
+//! `pindesk_motor2d::pintado` ya convierte una escena en ordenes de dibujo
 //! (poligonos, polilineas, textos, imagenes) sin pintar nada. Aqui esas
 //! ordenes se empaquetan en un unico bloque de numeros para que Swift las
 //! recorra en una pasada y construya sus `CGPath`: **una llamada al puente
@@ -56,12 +56,12 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use pixpin_motor2d::Escena;
-use pixpin_motor2d::camara::Camara;
-use pixpin_motor2d::elemento::{ColorRgba, EstiloTrazo, RecorteImagen};
-use pixpin_motor2d::excalidraw;
-use pixpin_motor2d::pintado::{self, Orden};
-use pixpin_motor2d::vector::Punto2;
+use pindesk_motor2d::Escena;
+use pindesk_motor2d::camara::Camara;
+use pindesk_motor2d::elemento::{ColorRgba, EstiloTrazo, RecorteImagen};
+use pindesk_motor2d::excalidraw;
+use pindesk_motor2d::pintado::{self, Orden};
+use pindesk_motor2d::vector::Punto2;
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -153,7 +153,7 @@ impl Lienzo {
     }
 
     /// Un lienzo desde un fichero `.excalidraw`, `.pixpin2d` (el dibujo
-    /// propio de PixPin, `pixpin_motor2d::formato`) o `.pixpin` (el de su
+    /// propio de PixPin, `pindesk_motor2d::formato`) o `.pixpin` (el de su
     /// primera hoja); se mira la extension. Lo usa tambien la vista previa
     /// de Quick Look.
     #[uniffi::constructor]
@@ -209,10 +209,8 @@ impl Lienzo {
 }
 
 fn leer_fichero(ruta: &Path) -> Result<Arc<Lienzo>, ErrorNucleo> {
-    let es_pixpin = ruta
-        .extension()
-        .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case("pixpin"));
+    // `.pindesk` o el `.pixpin` de antes.
+    let es_pixpin = pindesk_proyecto::es_paquete(ruta);
     if es_pixpin {
         return Lienzo::de_pixpin(ruta);
     }
@@ -228,7 +226,7 @@ fn leer_fichero(ruta: &Path) -> Result<Arc<Lienzo>, ErrorNucleo> {
     let es_pixpin2d = ruta
         .extension()
         .and_then(|e| e.to_str())
-        .is_some_and(|e| e.eq_ignore_ascii_case(pixpin_motor2d::formato::EXTENSION));
+        .is_some_and(|e| e.eq_ignore_ascii_case(pindesk_motor2d::formato::EXTENSION));
     if es_pixpin2d {
         return Lienzo::de_pixpin2d(&texto);
     }
@@ -242,7 +240,7 @@ impl Lienzo {
     /// sacan: salen como su hueco. Un proyecto sin ningun lienzo no tiene
     /// nada que ensenar.
     fn de_pixpin(ruta: &Path) -> Result<Arc<Lienzo>, ErrorNucleo> {
-        let paquete = pixpin_proyecto::Paquete::abrir(ruta).map_err(|e| ErrorNucleo::Lienzo {
+        let paquete = pindesk_proyecto::Paquete::abrir(ruta).map_err(|e| ErrorNucleo::Lienzo {
             detalle: e.to_string(),
         })?;
         let lienzo = paquete
@@ -284,7 +282,7 @@ impl Nucleo {
                 });
             }
         }
-        leer_fichero(&pixpin_proyecto::almacen::lienzo(
+        leer_fichero(&pindesk_proyecto::almacen::lienzo(
             self.ruta(),
             &chat,
             &dibujo,
@@ -857,7 +855,7 @@ mod pruebas {
         .unwrap();
         let escena = excalidraw::a_escena(&l);
         let ruta = dir.join("dibujo.pixpin2d");
-        pixpin_motor2d::formato::guardar(&ruta, &escena).unwrap();
+        pindesk_motor2d::formato::guardar(&ruta, &escena).unwrap();
         let leido = Lienzo::de_fichero(ruta.display().to_string()).unwrap();
         assert_eq!(leido.cuantos_elementos(), 1);
         assert!(leido.imagenes().is_empty());
@@ -890,9 +888,9 @@ mod pruebas {
         assert!(decodificar(&leido.plano()).is_ok());
 
         // Casos negativos: un proyecto sin lienzos y un zip que no es nada.
-        let vacio = pixpin_proyecto::Paquete::nuevo(
-            pixpin_proyecto::Manifiesto::default(),
-            pixpin_proyecto::Proyecto::default(),
+        let vacio = pindesk_proyecto::Paquete::nuevo(
+            pindesk_proyecto::Manifiesto::default(),
+            pindesk_proyecto::Proyecto::default(),
         );
         let sin = dir.join("sin.pixpin");
         std::fs::write(&sin, vacio.a_bytes().unwrap()).unwrap();

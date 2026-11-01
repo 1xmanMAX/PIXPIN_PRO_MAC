@@ -1,5 +1,5 @@
 //! **El motor de video de la clase, sin nada del Mac** (Windows bea497b,
-//! 32973c1 y cdad692, `pixpin-motor-video`): los perfiles, con que se
+//! 32973c1 y cdad692, `pindesk-motor-video`): los perfiles, con que se
 //! codifica, cuando se escribe un fotograma, en que instante del MP4 va y
 //! que hacer cuando la pantalla se va. Lo de Windows al numero, para que un
 //! video de una reunion pese y se vea igual en los dos.
@@ -37,7 +37,7 @@ pub const BITS_AUDIO: u32 = 96_000;
 
 // --- Los perfiles (`perfil.rs`) -------------------------------------------
 
-/// Con que calidad se graba (`pixpin_motor_video::Perfil`).
+/// Con que calidad se graba (`pindesk_motor_video::Perfil`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, uniffi::Enum)]
 pub enum PerfilVideo {
     /// 720p a 10 fps: lo minimo para leer una diapositiva.
@@ -206,7 +206,7 @@ pub fn video_con(codificador: CodificadorVideo) -> String {
 
 // --- La cadena de caidas (`cadena.rs`) ------------------------------------
 
-/// Con que se codifica (`pixpin_motor_video::Codificador`).
+/// Con que se codifica (`pindesk_motor_video::Codificador`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Enum)]
 pub enum CodificadorVideo {
     /// El H.264 de la grafica (VideoToolbox por hardware).
@@ -753,7 +753,7 @@ mod pruebas {
 
     #[test]
     fn los_textos_son_los_de_windows() {
-        let ftl = include_str!("../../pixpin-store/i18n/es-ES/main.ftl");
+        let ftl = include_str!("../../pindesk-store/i18n/es-ES/main.ftl");
         let clave = |k: &str| {
             ftl.lines()
                 .find_map(|l| l.strip_prefix(&format!("{k} = ")))

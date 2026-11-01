@@ -1,5 +1,5 @@
 //! **La memoria de largo plazo del asistente** (Windows,
-//! `asistente/memoria.rs`, 22-oct-2026): el almacen de `pixpin_ia::memoria`
+//! `asistente/memoria.rs`, 22-oct-2026): el almacen de `pindesk_ia::memoria`
 //! en una carpeta que viaja a los aparatos propios, y lo que la app hace con
 //! ella (meterla en cada turno de la nube, guardar lo duradero al reiniciar
 //! y al empezar una conversacion nueva).
@@ -20,8 +20,8 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use pixpin_ia::memoria::{Almacen, EnCarpeta, Memoria};
-use pixpin_proyecto::cuaderno::{self, Clase, Cuaderno, Mensaje, Sello};
+use pindesk_ia::memoria::{Almacen, EnCarpeta, Memoria};
+use pindesk_proyecto::cuaderno::{self, Clase, Cuaderno, Mensaje, Sello};
 
 use crate::Nucleo;
 
@@ -36,7 +36,7 @@ const TEXTO: &str = "🧠 Memoria del asistente (lo que recuerda entre conversac
 
 /// El id fijo del mensaje del fichero `rel` (`PERFIL.md`, `temas/x.md`).
 pub fn id_de(rel: &str) -> String {
-    format!("{PREFIJO_ID}{}", pixpin_sincro::disco::limpio(&rel.to_lowercase()))
+    format!("{PREFIJO_ID}{}", pindesk_sincro::disco::limpio(&rel.to_lowercase()))
 }
 
 /// La carpeta de la memoria dentro de la carpeta del chat «Asistente».
@@ -107,7 +107,7 @@ impl AlmacenQueViaja {
             Err(e) => return Err(e),
         };
         if !quitados.is_empty() {
-            pixpin_proyecto::vista::anotar_borrados(&self.raiz, &self.proyecto, &quitados, crate::ahora_ms())?;
+            pindesk_proyecto::vista::anotar_borrados(&self.raiz, &self.proyecto, &quitados, crate::ahora_ms())?;
         }
         Ok(())
     }
@@ -138,7 +138,7 @@ impl Almacen for AlmacenQueViaja {
 
 /// El dia de hoy en la hora del usuario: la fecha de lo que se guarda.
 pub fn hoy(desfase_ms: i64) -> String {
-    pixpin_ia::memoria::fecha_de_ms(crate::ahora_ms() + desfase_ms)
+    pindesk_ia::memoria::fecha_de_ms(crate::ahora_ms() + desfase_ms)
 }
 
 /// **La memoria de este nucleo** (creando el chat «Asistente» si no esta),
@@ -159,21 +159,21 @@ pub fn en(raiz: &Path, proyecto: &str, carpeta_del_chat: &Path, aparato: &str, q
 /// **El bloque de la memoria para el sistema** (perfil e indice), vacio si
 /// no hay nada o no hay chat.
 pub fn bloque(m: Option<&Memoria>) -> String {
-    m.map(|m| m.bloque_para_el_sistema(pixpin_ia::memoria::PRESUPUESTO_SISTEMA))
+    m.map(|m| m.bloque_para_el_sistema(pindesk_ia::memoria::PRESUPUESTO_SISTEMA))
         .unwrap_or_default()
 }
 
 /// **Guarda lo duradero en segundo plano** con este motor: lo de
 /// `conversacion` que se va a dejar de ver. No espera: ni el turno ni
 /// «Conversación nueva» anaden latencia.
-pub fn guardar_en_segundo_plano(motor: Arc<dyn pixpin_ia::Motor>, memoria: Memoria, conversacion: Vec<(bool, String)>) {
+pub fn guardar_en_segundo_plano(motor: Arc<dyn pindesk_ia::Motor>, memoria: Memoria, conversacion: Vec<(bool, String)>) {
     if !conversacion.iter().any(|(u, t)| *u && !t.trim().is_empty()) {
         return;
     }
     // Si falla, la memoria sigue como estaba: no hay nadie a quien decirlo.
     let _ = std::thread::Builder::new().name("asistente-memoria".into()).spawn(move || {
-        let t = pixpin_ia::memoria::transcripcion(&conversacion);
-        let _ = pixpin_ia::memoria::guardar_lo_duradero(motor.as_ref(), &memoria, &t);
+        let t = pindesk_ia::memoria::transcripcion(&conversacion);
+        let _ = pindesk_ia::memoria::guardar_lo_duradero(motor.as_ref(), &memoria, &t);
     });
 }
 
@@ -181,12 +181,12 @@ pub fn guardar_en_segundo_plano(motor: Arc<dyn pixpin_ia::Motor>, memoria: Memor
 /// que se cierra, con Claude Haiku y solo si hay su clave (Windows). Sin
 /// clave no se hace nada: la memoria sigue como estaba.
 pub fn al_cerrar(nucleo: &Nucleo, conversacion: Vec<(bool, String)>, desfase_ms: i64) {
-    use pixpin_ia::nube::{MotorNube, Proveedor, claves};
-    if !pixpin_ia::nube::http::hay_transporte() {
+    use pindesk_ia::nube::{MotorNube, Proveedor, claves};
+    if !pindesk_ia::nube::http::hay_transporte() {
         return;
     }
     let Some(clave) = claves::leer(Proveedor::Claude) else { return };
-    let motor: Arc<dyn pixpin_ia::Motor> = Arc::new(MotorNube::nuevo(Proveedor::Claude, clave).pensando(false));
+    let motor: Arc<dyn pindesk_ia::Motor> = Arc::new(MotorNube::nuevo(Proveedor::Claude, clave).pensando(false));
     let Some(m) = de(nucleo, Proveedor::Claude.nombre(), desfase_ms) else { return };
     guardar_en_segundo_plano(motor, m, conversacion);
 }
@@ -208,7 +208,7 @@ impl Nucleo {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_proyecto::almacen;
+    use pindesk_proyecto::almacen;
 
     fn raiz_de_prueba(nombre: &str) -> PathBuf {
         let r = std::env::temp_dir().join(format!("pixpin-memoria-mac-{nombre}-{}", std::process::id()));
@@ -236,11 +236,11 @@ mod pruebas {
         // (la misma que en Windows).
         let perfil = c.mensajes.iter().find(|m| m.id == id_de("PERFIL.md")).unwrap();
         assert_eq!(perfil.ruta.as_deref(), Some("pixpin:files/guardados/asistente/memoria/PERFIL.md"));
-        let real = pixpin_proyecto::vista::ruta_real(&raiz, &f.id, perfil.ruta.as_deref().unwrap()).unwrap();
+        let real = pindesk_proyecto::vista::ruta_real(&raiz, &f.id, perfil.ruta.as_deref().unwrap()).unwrap();
         assert_eq!(real, carpeta_en(&carpeta).join("PERFIL.md"));
         assert!(std::fs::read_to_string(&real).unwrap().contains("corto"));
         let tema = c.mensajes.iter().find(|m| m.id == id_de("temas/obra.md")).unwrap();
-        assert!(pixpin_sincro::disco::permitida(tema.ruta.as_deref().unwrap().strip_prefix("pixpin:files/").unwrap()));
+        assert!(pindesk_sincro::disco::permitida(tema.ruta.as_deref().unwrap().strip_prefix("pixpin:files/").unwrap()));
         // Borrar el tema quita su mensaje (con marca) y el fichero.
         assert!(m.ejecutar(r#"{"command":"delete","path":"/memoria/temas/obra.md"}"#).contains("borrado"));
         let c = Cuaderno::leer_de(&carpeta).unwrap();

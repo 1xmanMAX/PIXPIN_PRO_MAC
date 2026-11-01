@@ -72,8 +72,8 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_ia::acciones::normalizar;
-use pixpin_ia::fechas::{self, Momento};
+use pindesk_ia::acciones::normalizar;
+use pindesk_ia::fechas::{self, Momento};
 
 use crate::Nucleo;
 
@@ -1092,7 +1092,7 @@ impl Nucleo {
 
 /// El aviso de un evento de Google Calendar: su titulo, su hora, su lugar
 /// y su calendario.
-fn aviso_de_evento(e: &pixpin_ia::conexiones::calendario::Evento, cuando_utc_ms: i64, desfase_ms: i64) -> AvisoHorario {
+fn aviso_de_evento(e: &pindesk_ia::conexiones::calendario::Evento, cuando_utc_ms: i64, desfase_ms: i64) -> AvisoHorario {
     let detalle = [crate::calendario_google::tramo_legible(e, desfase_ms), e.lugar.clone(), e.calendario.clone()]
         .into_iter()
         .filter(|x| !x.is_empty())

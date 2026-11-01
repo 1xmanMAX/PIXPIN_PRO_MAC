@@ -1,6 +1,6 @@
 //! **Chats compartidos con otras personas** (Android 13-oct-2026), del lado
 //! del Mac: es `sincronizar/compartidos_ui.rs` de Windows sin la ventana,
-//! sobre `pixpin_sincro::compartidos` e `invitacion`, que son los mismos
+//! sobre `pindesk_sincro::compartidos` e `invitacion`, que son los mismos
 //! crates (las firmas, la valla de archivos y el protocolo estan alli,
 //! probados contra Android).
 //!
@@ -16,7 +16,7 @@
 //!   (`PXC1`).
 //! - **Sincronizar** con cada persona ([`Nucleo::sincronizar_con_persona`]):
 //!   solo los chats donde estamos los dos, con **la valla** de
-//!   `pixpin_sincro::valla` (ningun fichero de otro chat sale ni entra).
+//!   `pindesk_sincro::valla` (ningun fichero de otro chat sale ni entra).
 //!   Las personas tambien llaman a la [`crate::Escucha`] de siempre.
 //! - **Quitar** a alguien (solo quien lo creo) o **salir** uno mismo.
 //!
@@ -38,11 +38,11 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::canal::{ErrorCanal, MAGIA_DE_INVITACION, MAGIA_DE_PERSONA};
-use pixpin_sincro::compartidos::{self, ChatCompartido, CompartidosEnDisco};
-use pixpin_sincro::invitacion;
-use pixpin_sincro::protocolo::{ErrorSincro, Respondedor};
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::canal::{ErrorCanal, MAGIA_DE_INVITACION, MAGIA_DE_PERSONA};
+use pindesk_sincro::compartidos::{self, ChatCompartido, CompartidosEnDisco};
+use pindesk_sincro::invitacion;
+use pindesk_sincro::protocolo::{ErrorSincro, Respondedor};
 
 use crate::red::{conectar, nonce};
 use crate::sincro::{AnuncioBonjour, ParTxt};
@@ -143,7 +143,7 @@ pub fn etiqueta_de_invitacion(codigo: String) -> String {
     invitacion::etiqueta(&codigo)
 }
 
-/// `_pixpinchat._tcp`.
+/// `_pindeskchat._tcp` (antes `_pixpinchat._tcp`, [`crate::sincro::tipo_de_antes`]).
 #[uniffi::export]
 pub fn tipo_de_servicio_chat() -> String {
     invitacion::TIPO.trim_end_matches('.').to_string()
@@ -162,7 +162,7 @@ impl Nucleo {
     /// El id de chat que viaja de una ficha de aqui (o el mismo si no hay
     /// otro).
     fn chat_de(&self, ficha: &str) -> String {
-        pixpin_proyecto::vista::chat_de_ficha(self.ruta(), ficha).unwrap_or_else(|| ficha.into())
+        pindesk_proyecto::vista::chat_de_ficha(self.ruta(), ficha).unwrap_or_else(|| ficha.into())
     }
 
     fn para_ver(&self, c: &ChatCompartido, yo: &str) -> ChatCompartidoMac {
@@ -429,7 +429,7 @@ pub enum AvisoInvitacion {
 }
 
 /// **La puerta de una invitacion** (`invitacion::Puerta` de
-/// `pixpin_sincro`, sin su hilo que sondea cada 100 ms: aqui `accept`
+/// `pindesk_sincro`, sin su hilo que sondea cada 100 ms: aqui `accept`
 /// bloquea en un hilo de Swift y se despierta al cerrar). Atiende la
 /// invitacion (`PXI1`) y, detras, la conversacion de persona (`PXC1`) con
 /// la que el otro se trae el chat.
@@ -467,13 +467,13 @@ impl Invitacion {
         invitacion::texto_del_qr(&self.codigo, h.as_deref(), self.puerto)
     }
 
-    /// Lo que hay que anunciar en Bonjour: `PixPin <nombre>` del tipo
-    /// `_pixpinchat._tcp` con el TXT `g` (como Windows). PBKDF2: fuera del
+    /// Lo que hay que anunciar en Bonjour: `PinDesk <nombre>` del tipo
+    /// `_pindeskchat._tcp` (y el de antes) con el TXT `g` (como Windows). PBKDF2: fuera del
     /// hilo de la interfaz.
     pub fn anuncio(&self, nombre: String) -> AnuncioBonjour {
         let etiqueta = invitacion::etiqueta(&self.codigo);
         AnuncioBonjour {
-            instancia: crate::sincro::recortar_etiqueta(format!("PixPin {nombre}").trim()),
+            instancia: crate::sincro::instancia_de(&nombre),
             tipo: tipo_de_servicio_chat(),
             txt: vec![ParTxt {
                 clave: "g".into(),
@@ -592,6 +592,10 @@ mod pruebas {
         assert!(leer_invitacion("pixpin-envio:1:123456::0".into()).is_none());
         assert!(leer_invitacion("k7q2".into()).is_none());
         assert_eq!(invitacion_legible("K7Q2M9XP".into()), "K7Q2-M9XP");
-        assert_eq!(tipo_de_servicio_chat(), "_pixpinchat._tcp");
+        assert_eq!(tipo_de_servicio_chat(), "_pindeskchat._tcp");
+        // El QR de PinDesk (`pindesk-chat:`) tambien vale.
+        let q = leer_invitacion("pindesk-chat:1:K7Q2M9XP:192.168.1.5:4000".into()).unwrap();
+        assert_eq!((q.codigo.as_str(), q.puerto), ("K7Q2M9XP", 4000));
+        assert!(leer_invitacion("pindesk-envio:1:123456::0".into()).is_none());
     }
 }

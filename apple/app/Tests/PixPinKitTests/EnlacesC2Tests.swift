@@ -134,8 +134,19 @@ final class EnlacesC2Tests: XCTestCase {
         XCTAssertEqual(try delEnlace("pixpinmax://nota?texto=a%C3%B1o")[0]["texto"], .texto("año"))
         // Un campo repetido no cambia lo ya leido.
         XCTAssertEqual(try delEnlace("pixpinmax://tarea?texto=uno&texto=dos")[0]["texto"], .texto("uno"))
-        // `pixpin://` (Android) da lo mismo.
+        // `pixpin://` (Android) y `pindesk://` (el de ahora) dan lo mismo.
         XCTAssertEqual(try delEnlace("pixpinmax://tarea?texto=pan"), try delEnlace("pixpin://tarea?texto=pan"))
+        XCTAssertEqual(try delEnlace("pindesk://tarea?texto=pan"), try delEnlace("pixpinmax://tarea?texto=pan"))
+        XCTAssertEqual(try delEnlace("PinDesk://atajo/capturar"), [try p(#"{"pindesk":1,"accion":"capturar"}"#)])
+        // El pedido de ahora (`"pindesk": 1`) y el de antes (`"pixpin": 1`)
+        // son el mismo; si vienen los dos, manda `pindesk`.
+        XCTAssertEqual(try p(#"{"pindesk":1,"accion":"capturar"}"#), try p(#"{"pixpin":1,"accion":"capturar"}"#))
+        XCTAssertEqual(try delEnlace("pindesk://pedido?json=%7B%22pindesk%22%3A1%2C%22accion%22%3A%22capturar%22%7D"),
+                       [try p(#"{"pixpin":1,"accion":"capturar"}"#)])
+        XCTAssertEqual(codigo("pindesk://pedido?json=%7B%22pindesk%22%3A2%2C%22pixpin%22%3A1%2C%22accion%22%3A%22capturar%22%7D"),
+                       FalloOrden.Codigo.version)
+        // Lo que escribe la app lleva `pindesk`.
+        XCTAssertTrue(try p(#"{"pixpin":1,"accion":"capturar"}"#).json.contains(#""pindesk":1"#))
     }
 
     /// Las señas de `Atajos.kt` de Android: el mismo enlace sirve en el Mac.
@@ -294,7 +305,7 @@ final class EnlacesC2Tests: XCTestCase {
         for t in ["comprar yeso", "año ñu — 2 kg", "a&b=c?d/e%f+g", "/obra/plano.pdf"] {
             XCTAssertEqual(try Enlaces.descodificar(Enlaces.codificar(t), consulta: true), t)
         }
-        XCTAssertEqual(Enlaces.enlace("tarea", [("texto", "a b&c")]), "pixpinmax://tarea?texto=a%20b%26c")
+        XCTAssertEqual(Enlaces.enlace("tarea", [("texto", "a b&c")]), "pindesk://tarea?texto=a%20b%26c")
         XCTAssertEqual(try delEnlace(Enlaces.enlace("tarea", [("texto", "a b&c")]))[0]["texto"], .texto("a b&c"))
         let pedido = Pedido("anadir_tarea", ["texto": .texto("pan & leche")])
         XCTAssertEqual(try delEnlace(Enlaces.enlace(de: pedido)), [pedido])

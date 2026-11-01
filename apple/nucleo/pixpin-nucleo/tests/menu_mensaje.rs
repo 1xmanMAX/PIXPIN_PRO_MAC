@@ -9,8 +9,8 @@ use std::sync::Arc;
 use pixpin_nucleo::chats::{self, CambioMensaje};
 use pixpin_nucleo::lecciones::{repartir_para_leccion, texto_para_leccion};
 use pixpin_nucleo::{LeccionEditada, Nucleo};
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje};
 
 struct Temporal(PathBuf);
 

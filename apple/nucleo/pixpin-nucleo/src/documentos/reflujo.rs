@@ -39,10 +39,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use pixpin_docs::documento::{Clase, Documento};
-use pixpin_docs::{lectura, vista, voz_alta};
-use pixpin_proyecto::anotado::{self as an, Base};
-use pixpin_sincro::anotado::{Maqueta, MarcoDeLaHoja, margen_de};
+use pindesk_docs::documento::{Clase, Documento};
+use pindesk_docs::{lectura, vista, voz_alta};
+use pindesk_proyecto::anotado::{self as an, Base};
+use pindesk_sincro::anotado::{Maqueta, MarcoDeLaHoja, margen_de};
 
 use super::{DondeAnota, leer_marco};
 use crate::editor::{EditorLienzo, HojaDoc};
@@ -65,7 +65,7 @@ pub struct LetraDeLectura {
     pub datos: Vec<u8>,
 }
 
-/// **Las letras del movil**, incrustadas como en Windows (`pixpin-render`):
+/// **Las letras del movil**, incrustadas como en Windows (`pindesk-render`):
 /// Noto Serif y Roboto (las «serif» y «sans-serif» de Android, rectas y
 /// cursivas, normal y negrita) y Caveat (la letra a mano). Courier New ya
 /// viene con el Mac. Ver `letras/LICENCIAS.txt`.
@@ -187,7 +187,7 @@ fn tramo_a_swift(t: &Tramo) -> TramoReflujo {
 // ---------------------------------------------------------------------------
 // Lo colocado, como lo ve Swift
 
-/// Que es un bloque colocado (`pixpin_docs::documento::Clase`).
+/// Que es un bloque colocado (`pindesk_docs::documento::Clase`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum ClaseReflujo {
     Parrafo,
@@ -351,7 +351,7 @@ pub struct CoincidenciaReflujo {
 /// libros, paginas, Markdown y texto.
 #[uniffi::export]
 pub fn se_abre_en_el_visor(nombre: String) -> bool {
-    pixpin_docs::formato_de(&nombre).is_some()
+    pindesk_docs::formato_de(&nombre).is_some()
 }
 
 /// **Un documento abierto en el visor reflujado.**
@@ -368,11 +368,11 @@ impl DocumentoReflujo {
     /// Lee el documento (bloqueante: Swift lo llama fuera del hilo principal).
     #[uniffi::constructor]
     pub fn abrir(ruta: String) -> Result<Arc<DocumentoReflujo>, ErrorNucleo> {
-        let doc = pixpin_docs::abrir(Path::new(&ruta)).map_err(|e| ErrorNucleo::Argumento {
+        let doc = pindesk_docs::abrir(Path::new(&ruta)).map_err(|e| ErrorNucleo::Argumento {
             detalle: format!("no se abre en el visor: {e}"),
         })?;
         Ok(Arc::new(DocumentoReflujo {
-            hoja: Hoja::de(&pixpin_docs::nombre(Path::new(&ruta))),
+            hoja: Hoja::de(&pindesk_docs::nombre(Path::new(&ruta))),
             doc,
             colocados: Mutex::new(Vec::new()),
         }))
@@ -390,7 +390,7 @@ impl DocumentoReflujo {
 
     /// El indice (los titulos y los capitulos), en el orden del documento.
     pub fn indice(&self) -> Vec<EntradaIndiceReflujo> {
-        pixpin_docs::indice::de(&self.doc)
+        pindesk_docs::indice::de(&self.doc)
             .into_iter()
             .map(|e| EntradaIndiceReflujo {
                 nivel: e.nivel,
@@ -405,7 +405,7 @@ impl DocumentoReflujo {
         self.doc
             .bloques
             .iter()
-            .map(|b| pixpin_docs::auto_desplazar::contar_palabras(&b.texto()) as u64)
+            .map(|b| pindesk_docs::auto_desplazar::contar_palabras(&b.texto()) as u64)
             .sum()
     }
 
@@ -466,12 +466,12 @@ impl DocumentoReflujo {
     /// sin mirar mayusculas ni tildes, en orden de lectura.
     pub fn buscar(&self, consulta: String) -> Vec<CoincidenciaReflujo> {
         let c = self.colocados.lock().unwrap_or_else(|e| e.into_inner());
-        pixpin_docs::buscar::buscar(c.iter().map(|x| x.texto.as_str()), &consulta)
+        pindesk_docs::buscar::buscar(c.iter().map(|x| x.texto.as_str()), &consulta)
             .into_iter()
             .filter_map(|k| {
                 let texto = &c.get(k.texto)?.texto;
-                let inicio = pixpin_docs::buscar::a_utf16(texto, k.inicio);
-                let fin = pixpin_docs::buscar::a_utf16(texto, k.inicio + k.largo);
+                let inicio = pindesk_docs::buscar::a_utf16(texto, k.inicio);
+                let fin = pindesk_docs::buscar::a_utf16(texto, k.inicio + k.largo);
                 Some(CoincidenciaReflujo {
                     colocado: k.texto as u32,
                     inicio: inicio as u32,
@@ -1036,7 +1036,7 @@ impl Nucleo {
     /// (`.marcos.json` o `.vistas.json`), o `None` si no lo es (entonces se
     /// queda junto al fichero, sin viajar).
     pub fn ruta_anotada_del_adjunto(&self, documento: String, terminacion: String) -> Option<String> {
-        if terminacion != pixpin_sincro::anotado::MARCOS && terminacion != pixpin_sincro::anotado::VISTAS {
+        if terminacion != pindesk_sincro::anotado::MARCOS && terminacion != pindesk_sincro::anotado::VISTAS {
             return None;
         }
         let b = an::base_del_documento(self.ruta(), Path::new(&documento))?;
@@ -1093,7 +1093,7 @@ impl Nucleo {
                     if let Some(c) = hoja.parent() {
                         let _ = std::fs::create_dir_all(c);
                     }
-                    let _ = std::fs::write(&hoja, pixpin_sincro::anotado::MarcoDeLaHoja::nuevo(-2500.0, -2500.0, 2500.0, 2500.0).a_texto());
+                    let _ = std::fs::write(&hoja, pindesk_sincro::anotado::MarcoDeLaHoja::nuevo(-2500.0, -2500.0, 2500.0, 2500.0).a_texto());
                 }
                 b.tinta()
             }

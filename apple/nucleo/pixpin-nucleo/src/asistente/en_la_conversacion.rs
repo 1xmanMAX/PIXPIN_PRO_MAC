@@ -17,7 +17,7 @@
 //!   documentos, en `fuentesIa`.
 //! - **Lo que penso**, cuanto, la peticion mejorada y la hoja de trabajo van
 //!   en `pins/draw/anot-<codigo>.asistente.json` con el codigo unico de la
-//!   nota (`pixpin_ia::hoja_trabajo::Registro`): viajan con su nota y se
+//!   nota (`pindesk_ia::hoja_trabajo::Registro`): viajan con su nota y se
 //!   borran con ella. La hoja del chat es la de la ultima respuesta que la
 //!   tenga ([`hoja_del_chat`]).
 
@@ -28,15 +28,15 @@ use std::sync::mpsc::{RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use pixpin_ia::agente::Evento;
-use pixpin_ia::contexto::Fuente;
-use pixpin_ia::hoja_trabajo::{HojaDeTrabajo, Registro};
-use pixpin_ia::motor::Seguir;
-use pixpin_ia::preguntar::{Contestada, Pregunta};
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Cuaderno, Mensaje as Nota};
-use pixpin_sincro::anotado as an;
-use pixpin_sincro::disco::Disco;
+use pindesk_ia::agente::Evento;
+use pindesk_ia::contexto::Fuente;
+use pindesk_ia::hoja_trabajo::{HojaDeTrabajo, Registro};
+use pindesk_ia::motor::Seguir;
+use pindesk_ia::preguntar::{Contestada, Pregunta};
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Cuaderno, Mensaje as Nota};
+use pindesk_sincro::anotado as an;
+use pindesk_sincro::disco::Disco;
 
 use super::chat::{self as ia_chat, Contestacion, EnVivo};
 use super::turno::{AjustesIa, AppIa, EjecutorDelMac, EnChat, Entorno, Extra, FotoIa, PeticionIa, RangoPaginas, VENTANA_NUBE};
@@ -174,8 +174,8 @@ pub trait OyenteChatIa: Send + Sync {
 /// Donde va el registro de una respuesta (`pensado::ruta_del_registro`).
 pub fn ruta_del_registro(raiz: &Path, ficha: &str, codigo_unico: &str) -> PathBuf {
     let rel = an::rel(&format!("{}{codigo_unico}", an::PREFIJO), an::ASISTENTE);
-    let chat = pixpin_proyecto::vista::chat_de_ficha(raiz, ficha).unwrap_or_else(|| ficha.to_string());
-    pixpin_proyecto::vista::DiscoPc::nuevo(raiz).ruta(&chat, &rel)
+    let chat = pindesk_proyecto::vista::chat_de_ficha(raiz, ficha).unwrap_or_else(|| ficha.to_string());
+    pindesk_proyecto::vista::DiscoPc::nuevo(raiz).ruta(&chat, &rel)
 }
 
 /// El registro de una nota (si no hay, o esta roto, nada).
@@ -252,14 +252,14 @@ pub fn medidas_reducidas(ancho: u32, alto: u32, lado: u32) -> (u32, u32) {
 /// `foto::preparar_fichero`). `None` si no se puede abrir: mejor contestar
 /// sin verla que no contestar.
 pub fn foto_de(ruta: &Path) -> Option<FotoIa> {
-    let img = pixpin_codec::imagen::cargar(ruta).ok()?;
+    let img = pindesk_codec::imagen::cargar(ruta).ok()?;
     let (a, h) = medidas_reducidas(img.ancho, img.alto, LADO_FOTO);
     let img = if (a, h) == (img.ancho, img.alto) {
         img
     } else {
-        pixpin_codec::imagen::redimensionar(img, a, h).ok()?
+        pindesk_codec::imagen::redimensionar(img, a, h).ok()?
     };
-    let bytes = pixpin_codec::imagen::codificar_jpg(&img, 85).ok()?;
+    let bytes = pindesk_codec::imagen::codificar_jpg(&img, 85).ok()?;
     Some(FotoIa {
         bytes,
         mime: "image/jpeg".into(),
@@ -648,7 +648,7 @@ impl Nucleo {
     /// falle no para nada (la proxima vez se vuelve a probar, y `sellar` lo
     /// hace tambien antes de cada vuelta). Devuelve cuantos se juntaron.
     pub(crate) fn unificar_asistentes(&self) -> usize {
-        let n = pixpin_proyecto::vista::DiscoPc::nuevo(self.ruta())
+        let n = pindesk_proyecto::vista::DiscoPc::nuevo(self.ruta())
             .unificar_asistentes()
             .unwrap_or(0);
         if n > 0 {
@@ -892,11 +892,11 @@ pub fn ia_turno_en_chat(
         ia_chat::pregunta_de(m, nucleo.es_chat_del_asistente(&chat)).unwrap_or_default()
     };
     let motor = super::turno::motor_del_turno(&ajustes, &pregunta);
-    let pensar = pixpin_ia::complejidad::decidir(ajustes.pensar, &pregunta);
+    let pensar = pindesk_ia::complejidad::decidir(ajustes.pensar, &pregunta);
     // Con Jev, el rapido o el fuerte segun el pedido (Windows e51da39); la
     // pastilla del chat lo dice.
     let motor = motor.map(|(m, nombre)| {
-        let p = super::turno::eleccion_con(&ajustes.motor, |p| pixpin_ia::nube::claves::leer(p).is_some());
+        let p = super::turno::eleccion_con(&ajustes.motor, |p| pindesk_ia::nube::claves::leer(p).is_some());
         (crate::jev::modelo::segun_jev(nucleo.ruta(), &chat, m, p, pensar, &pregunta, &[]), nombre)
     });
     let preparado = motor.map(|(motor, nombre)| {
@@ -948,7 +948,7 @@ pub fn ia_turno_en_chat(
 /// El turno en el chat con cualquier motor (las pruebas usan uno guionado).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn turno_en_chat_con(
-    motor: &dyn pixpin_ia::motor::Motor,
+    motor: &dyn pindesk_ia::motor::Motor,
     entorno: &Entorno,
     nucleo: Arc<Nucleo>,
     chat: String,
@@ -1063,10 +1063,10 @@ fn acabar(
     nucleo: &Nucleo,
     chat: &str,
     burbuja: &Burbuja,
-    fin: Result<pixpin_ia::agente::Final, String>,
+    fin: Result<pindesk_ia::agente::Final, String>,
     registro: Option<Registro>,
     lienzo: Option<String>,
-    citas: Vec<pixpin_ia::documentos::Cita>,
+    citas: Vec<pindesk_ia::documentos::Cita>,
     leidos: Vec<(super::turno::AdjuntoIa, String)>,
     abrir: bool,
 ) -> Result<FinChatIa, ErrorNucleo> {

@@ -11,7 +11,7 @@
 //! marco con su rotulo y la foto de la pagina por cada una, las dos con
 //! candado), su mensaje `DIBUJO` y su hoja en `proyecto.json`.
 
-use pixpin_proyecto::{Hoja, Proyecto, almacen, vista};
+use pindesk_proyecto::{Hoja, Proyecto, almacen, vista};
 
 use crate::{ErrorNucleo, MensajeChat, Nucleo};
 
@@ -160,7 +160,7 @@ fn lienzo(paginas: &[u32], hechas: &[(u32, String, f64, f64)], ahora: i64) -> St
     serde_json::json!({
         "type": "excalidraw",
         "version": 2,
-        "source": "pixpin-max",
+        "source": "pindesk",
         "elements": elementos,
         "appState": {"viewBackgroundColor": "#ffffff"},
         "files": ficheros

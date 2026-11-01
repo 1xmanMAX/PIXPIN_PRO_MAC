@@ -71,7 +71,13 @@ def main():
     nuevo = git(win, 'rev-parse', sys.argv[2] if len(sys.argv) > 2 else 'HEAD')
     base = open(APUNTE).read().split()[0]
     tmp = tempfile.mkdtemp(prefix='portar-')
+    # `PORTAR_BASE` = una carpeta con `crates/` y `apps/` que hace de base
+    # (p. ej. la base de antes de un renombre, ya renombrada).
+    otra_base = os.environ.get('PORTAR_BASE')
     for cual, commit in (('base', base), ('nuevo', nuevo)):
+        if cual == 'base' and otra_base:
+            shutil.copytree(otra_base, os.path.join(tmp, 'base'), symlinks=True)
+            continue
         os.makedirs(os.path.join(tmp, cual))
         tar = subprocess.run(['git', '-C', win, 'archive', commit, 'crates', 'apps'], check=True, capture_output=True).stdout
         subprocess.run(['tar', '-x', '-C', os.path.join(tmp, cual)], input=tar, check=True)

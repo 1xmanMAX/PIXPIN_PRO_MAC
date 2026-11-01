@@ -9,7 +9,7 @@
 //! en el Mac la pantalla completa es otro escritorio entero (en Windows es la
 //! ventana sin marco tapando la pantalla).
 
-use pixpin_store::estado;
+use pindesk_store::estado;
 
 use crate::{ErrorNucleo, Nucleo};
 

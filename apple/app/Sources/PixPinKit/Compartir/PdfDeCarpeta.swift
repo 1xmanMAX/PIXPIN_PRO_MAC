@@ -92,7 +92,7 @@ enum PdfDeCarpeta {
         }
         PrepararCompartir.anadirOriginales(p, originales)
         if let ficha = almacen.chats.first(where: { $0.id == chat }) {
-            p.extras.append(PrepararCompartir.paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pixpin"))
+            p.extras.append(PrepararCompartir.paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pindesk"))
         }
         return p
     }

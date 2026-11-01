@@ -1,5 +1,5 @@
 //! **«Enviar a Anki»** del menu de un mensaje (Windows 2561be0,
-//! `ventana_chat/anki.rs`). Las tarjetas salen de `pixpin_anki::tarjetas`:
+//! `ventana_chat/anki.rs`). Las tarjetas salen de `pindesk_anki::tarjetas`:
 //!
 //! - **Una clase grabada** (nota de voz con capturas, [`crate::clase`]): una
 //!   tarjeta por captura, con la imagen delante y lo dicho en ese tramo
@@ -8,7 +8,7 @@
 //! - **Una nota**: sus «pregunta :: respuesta», «P: / R:» y huecos
 //!   `{{c1::…}}`.
 //!
-//! Van al mazo `PixPin::<proyecto>` con las etiquetas `pixpin` y la del
+//! Van al mazo `PinDesk::<proyecto>` (antes `PixPin::`) con las etiquetas `pindesk` y la del
 //! proyecto. Con Anki abierto (y AnkiConnect, `127.0.0.1:8765`), directas;
 //! si no, un fichero para «Archivo → Importar» en `<raiz>/anki/`, y las
 //! imagenes en la carpeta de medios del perfil de Anki si se encuentra (en
@@ -19,9 +19,9 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_anki::{Imagen, Tarjeta, tarjetas};
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje};
+use pindesk_anki::{Imagen, Tarjeta, tarjetas};
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje};
 
 use crate::chats::validar_chat;
 use crate::{ErrorNucleo, Nucleo};
@@ -50,7 +50,7 @@ pub fn anki_hay_tarjetas_en_nota(texto: String) -> bool {
 /// El mazo de un proyecto: `::` es el separador de submazos de Anki, dentro
 /// del nombre no.
 pub fn mazo_de(nombre: &str) -> String {
-    format!("PixPin::{}", nombre.trim().replace("::", ":"))
+    format!("PinDesk::{}", nombre.trim().replace("::", ":"))
 }
 
 /// El titulo de un audio: su nombre sin la extension
@@ -64,7 +64,7 @@ pub fn titulo_de_audio(m: &Mensaje) -> String {
 }
 
 /// El milisegundo de un `[1:23] texto` y el texto sin la marca
-/// (`pixpin_voz::tiempo_de`, copiado al caracter).
+/// (`pindesk_voz::tiempo_de`, copiado al caracter).
 pub fn tiempo_de(linea: &str) -> Option<(i64, &str)> {
     let recortada = linea.trim_start();
     let resto = recortada.strip_prefix('[')?;
@@ -205,7 +205,7 @@ pub fn tarjetas_con(
             .unwrap_or_default(),
         _ => tarjetas::de_la_nota(&m.texto),
     };
-    let etiquetas = vec!["pixpin".to_string(), tarjetas::etiqueta(proyecto)];
+    let etiquetas = vec!["pindesk".to_string(), tarjetas::etiqueta(proyecto)];
     for t in &mut v {
         t.etiquetas = etiquetas.clone();
     }
@@ -214,21 +214,21 @@ pub fn tarjetas_con(
 
 /// **Que tarjetas de la clase valen la pena**, segun Jev: lo dicho en el
 /// tramo de cada captura, valorado de 0 a 3 y si dice que entra en el
-/// examen; `pixpin_typesafe::anki::elegir` decide. `None`: sin Jev, o fallo
+/// examen; `pindesk_typesafe::anki::elegir` decide. `None`: sin Jev, o fallo
 /// (se mandan todas).
 fn valer_la_pena(raiz: &Path, titulo: &str, dichos: &[(i64, String)], tiempos: &[i64]) -> Option<Vec<bool>> {
     let cliente = crate::jev::para(raiz, crate::jev::Funcion::Anki)?;
-    let tramos: Vec<pixpin_typesafe::anki::Tramo> = tarjetas::lo_dicho_por_captura(dichos, tiempos)
+    let tramos: Vec<pindesk_typesafe::anki::Tramo> = tarjetas::lo_dicho_por_captura(dichos, tiempos)
         .into_iter()
         .zip(tiempos)
-        .map(|(dicho, ms)| pixpin_typesafe::anki::Tramo {
-            minuto: pixpin_voz::tiempos::marca_de_tiempo(*ms),
+        .map(|(dicho, ms)| pindesk_typesafe::anki::Tramo {
+            minuto: pindesk_voz::tiempos::marca_de_tiempo(*ms),
             dicho,
         })
         .collect();
-    pixpin_typesafe::anki::valorar(&cliente, titulo, &tramos, 4)
+    pindesk_typesafe::anki::valorar(&cliente, titulo, &tramos, 4)
         .ok()
-        .map(|senales| pixpin_typesafe::anki::elegir(&senales))
+        .map(|senales| pindesk_typesafe::anki::elegir(&senales))
 }
 
 /// Como acabo «Enviar a Anki» y cuantas capturas de la clase dejo fuera Jev
@@ -255,7 +255,7 @@ pub fn a_fichero(
         .map(|c| if c.is_alphanumeric() { c } else { '-' })
         .collect();
     let ruta = carpeta.join(format!("{nombre}-{ahora_ms}.txt"));
-    std::fs::write(&ruta, pixpin_anki::fichero::texto(mazo, tarjetas))?;
+    std::fs::write(&ruta, pindesk_anki::fichero::texto(mazo, tarjetas))?;
     if let Some(medios) = medios {
         for i in tarjetas.iter().flat_map(|t| &t.imagenes) {
             let _ = std::fs::write(medios.join(&i.nombre), &i.bytes);
@@ -344,13 +344,13 @@ impl Nucleo {
         }
         let mazo = mazo_de(&proyecto);
         let n = tarjetas.len() as u32;
-        let envio = match pixpin_anki::conectar::anadir(&mazo, &tarjetas) {
+        let envio = match pindesk_anki::conectar::anadir(&mazo, &tarjetas) {
             Ok(0) => EnvioAnki::YaEstaban { n, mazo },
             Ok(hechas) => EnvioAnki::Hecho {
                 n: hechas as u32,
                 mazo,
             },
-            Err(pixpin_anki::conectar::Fallo::SinAnki) => {
+            Err(pindesk_anki::conectar::Fallo::SinAnki) => {
                 let medios = medios_de_anki();
                 let ruta = a_fichero(raiz, &mazo, &tarjetas, crate::ahora_ms(), medios.as_deref())?;
                 EnvioAnki::Fichero {
@@ -372,9 +372,9 @@ mod pruebas {
     use super::*;
 
     #[test]
-    fn el_mazo_cuelga_de_pixpin_sin_romper_los_submazos() {
-        assert_eq!(mazo_de(" Física "), "PixPin::Física");
-        assert_eq!(mazo_de("A::B"), "PixPin::A:B");
+    fn el_mazo_cuelga_de_pindesk_sin_romper_los_submazos() {
+        assert_eq!(mazo_de(" Física "), "PinDesk::Física");
+        assert_eq!(mazo_de("A::B"), "PinDesk::A:B");
     }
 
     #[test]
@@ -430,7 +430,7 @@ mod pruebas {
         assert!(t[0].frente.contains("pixpin-a.png"));
         assert!(t[0].frente.contains("Clase 24-10 18h05 · ⏱ 0:09"));
         assert!(t[0].reverso.starts_with("uno dos"));
-        assert_eq!(t[0].etiquetas, vec!["pixpin".to_string(), "Física_1".to_string()]);
+        assert_eq!(t[0].etiquetas, vec!["pindesk".to_string(), "Física_1".to_string()]);
         // Caso negativo: una nota de voz sin capturas no da tarjetas.
         let sola = Mensaje {
             clase: Some(Clase::Voz),
@@ -455,7 +455,7 @@ mod pruebas {
 
     #[test]
     fn sin_anki_queda_el_fichero_y_las_imagenes_en_sus_medios() {
-        let dir = std::env::temp_dir().join(format!("pixpin-anki-nucleo-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("pindesk-anki-nucleo-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let medios = dir.join("Anki2").join("Usuario 1").join("collection.media");
         std::fs::create_dir_all(&medios).unwrap();

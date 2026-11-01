@@ -1,11 +1,11 @@
 //! **Las herramientas de documentos del asistente, del lado de la app**
 //! (E1; `asistente/documentos_acciones.rs` de Windows, la tabla esta en
-//! `pixpin_ia::acciones_documentos`).
+//! `pindesk_ia::acciones_documentos`).
 //!
 //! - `tabla_de_imagen`: las palabras con su sitio (la capa de texto del PDF
-//!   o Vision desde Swift) → filas y columnas (`pixpin_ia::tabla_escaneada`)
+//!   o Vision desde Swift) → filas y columnas (`pindesk_ia::tabla_escaneada`)
 //!   → el pedido `tabla_nueva` (la tabla del chat, que viaja al movil) o un
-//!   `.xlsx` (`pixpin_proyecto::tabla_xlsx`) que entra al chat con el pedido
+//!   `.xlsx` (`pindesk_proyecto::tabla_xlsx`) que entra al chat con el pedido
 //!   `chat`.
 //! - `anotar_documento`: busca el texto en las paginas (PDF, o Word y
 //!   PowerPoint maquetados como en el lector, con las letras de Core Text)
@@ -30,13 +30,13 @@
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 
-use pixpin_ia::acciones::{AccionApp, normalizar};
-use pixpin_ia::acciones_documentos::{ABRIR, ANOTAR, BUSCAR_EN, EXPORTAR, TABLA};
-use pixpin_ia::tabla_escaneada::{self, Palabra, TablaLeida};
-use pixpin_motor2d::{ColorRgba, Elemento, Figura, Punto2};
-use pixpin_pdf::texto::PaginaDeTexto;
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::cuaderno::{Clase, Cuaderno};
+use pindesk_ia::acciones::{AccionApp, normalizar};
+use pindesk_ia::acciones_documentos::{ABRIR, ANOTAR, BUSCAR_EN, EXPORTAR, TABLA};
+use pindesk_ia::tabla_escaneada::{self, Palabra, TablaLeida};
+use pindesk_motor2d::{ColorRgba, Elemento, Figura, Punto2};
+use pindesk_pdf::texto::PaginaDeTexto;
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::cuaderno::{Clase, Cuaderno};
 use serde_json::{Value, json};
 
 use super::turno::{AdjuntoIa, AppIa, PalabraLeida};
@@ -139,7 +139,7 @@ pub enum Sirve {
 }
 
 fn extension(nombre: &str) -> String {
-    pixpin_docs::extension(nombre)
+    pindesk_docs::extension(nombre)
 }
 
 /// Si es un plano (DWG o DXF, lo que abre el visor de planos).
@@ -157,7 +157,7 @@ pub fn es_imagen(ruta: &Path) -> bool {
 }
 
 pub fn es_pdf(ruta: &Path) -> bool {
-    extension(&pixpin_docs::nombre(ruta)) == "pdf"
+    extension(&pindesk_docs::nombre(ruta)) == "pdf"
 }
 
 fn sirve(nombre: &str, s: Sirve) -> bool {
@@ -184,14 +184,14 @@ pub fn candidatos(raiz: &Path) -> Vec<Candidato> {
         let pnombre = if ficha.es_guardados() { "Mensajes guardados".to_string() } else { ficha.nombre.clone() };
         let Ok(c) = Cuaderno::leer_de(&almacen::carpeta(raiz, &ficha.id)) else { continue };
         for m in c.mensajes.iter().filter(|m| m.clase == Some(Clase::Archivo) && !m.en_buzon) {
-            let Some(ruta) = m.ruta.as_deref().and_then(|r| pixpin_proyecto::vista::ruta_real(raiz, &ficha.id, r)) else {
+            let Some(ruta) = m.ruta.as_deref().and_then(|r| pindesk_proyecto::vista::ruta_real(raiz, &ficha.id, r)) else {
                 continue;
             };
             let ruta: PathBuf = ruta.components().collect();
             if !ruta.is_file() {
                 continue;
             }
-            let nombre = if m.nombre.trim().is_empty() { pixpin_docs::nombre(&ruta) } else { m.nombre.trim().to_string() };
+            let nombre = if m.nombre.trim().is_empty() { pindesk_docs::nombre(&ruta) } else { m.nombre.trim().to_string() };
             v.push(Candidato { nombre, ruta, proyecto: ficha.id.clone(), proyecto_nombre: pnombre.clone(), cuando: m.cuando });
         }
     }
@@ -288,7 +288,7 @@ pub(crate) fn elegir_entre(
     // Una ruta escrita tal cual.
     let como_ruta = PathBuf::from(descripcion.trim_matches(['"', '\'', '«', '»']));
     if como_ruta.is_absolute() && como_ruta.is_file() {
-        let nombre = pixpin_docs::nombre(&como_ruta);
+        let nombre = pindesk_docs::nombre(&como_ruta);
         if !vale(&nombre) {
             return Err(format!("«{nombre}» no es {que}"));
         }
@@ -385,9 +385,9 @@ fn no_sirve(cx: &Contexto, s: Sirve) -> String {
 // ---------------------------------------------------------------------------
 // El texto de las paginas, con donde cae cada letra
 
-/// El ancho de una hoja del lector (`pixpin_docs::vista::ANCHO_HOJA`): las
+/// El ancho de una hoja del lector (`pindesk_docs::vista::ANCHO_HOJA`): las
 /// capas de un PDF o un Word se escriben en estas unidades.
-pub const ANCHO_HOJA: f32 = pixpin_docs::vista::ANCHO_HOJA;
+pub const ANCHO_HOJA: f32 = pindesk_docs::vista::ANCHO_HOJA;
 
 /// Las paginas de un PDF, Word o PowerPoint: su texto con la caja de cada
 /// letra (fracciones de la hoja) y el alto de cada hoja en unidades del
@@ -407,19 +407,19 @@ pub const ANCHO_OCR: u32 = 1700;
 pub fn altos_de_pdf(app: &dyn AppIa, ruta: &Path) -> Result<Vec<f32>, String> {
     let m = app.paginas_de_pdf(ruta.display().to_string());
     if m.is_empty() {
-        return Err(format!("no se pudo abrir el PDF «{}»", pixpin_docs::nombre(ruta)));
+        return Err(format!("no se pudo abrir el PDF «{}»", pindesk_docs::nombre(ruta)));
     }
     Ok(m.iter().map(|p| ANCHO_HOJA * p.alto / p.ancho.max(1.0)).collect())
 }
 
 pub fn paginas(app: Option<&dyn AppIa>, ruta: &Path, parar: &dyn Fn() -> bool) -> Result<Paginas, String> {
-    let nombre = pixpin_docs::nombre(ruta);
+    let nombre = pindesk_docs::nombre(ruta);
     if es_office_de_paginas(&nombre) {
         return paginas_de_office(ruta);
     }
     let app = app.ok_or("aqui no se pueden abrir PDF")?;
     let altos = altos_de_pdf(app, ruta)?;
-    let mut textos = pixpin_pdf::texto::de_fichero(ruta).unwrap_or_default();
+    let mut textos = pindesk_pdf::texto::de_fichero(ruta).unwrap_or_default();
     textos.resize_with(altos.len(), || PaginaDeTexto { texto: String::new(), cajas: Vec::new() });
     let mut leidas = 0;
     for (i, t) in textos.iter_mut().enumerate() {
@@ -496,7 +496,7 @@ fn paginas_de_office(ruta: &Path) -> Result<Paginas, String> {
 /// fracciones de la hoja), como `lector_pdf::office::texto_de_pagina` de
 /// Windows: los saltos de renglon y los espacios entre trozos, y cada letra
 /// con su avance medido.
-pub fn texto_de_pagina(pagina: &pixpin_office::Pagina, medidor: &dyn pixpin_office::Medidor) -> PaginaDeTexto {
+pub fn texto_de_pagina(pagina: &pindesk_office::Pagina, medidor: &dyn pindesk_office::Medidor) -> PaginaDeTexto {
     let (w, h) = (pagina.ancho.max(1.0), pagina.alto.max(1.0));
     let mut texto = String::new();
     let mut cajas: Vec<Option<[f32; 4]>> = Vec::new();
@@ -537,7 +537,7 @@ pub fn texto_de_pagina(pagina: &pixpin_office::Pagina, medidor: &dyn pixpin_offi
 /// Lo que avanza cada letra de un trozo, con el interletrado y el
 /// justificado. Si el medidor no da una por letra, el ancho del trozo
 /// repartido a partes iguales.
-fn avances_de(t: &pixpin_office::pagina::Texto, medidor: &dyn pixpin_office::Medidor, salida: &mut Vec<f32>) {
+fn avances_de(t: &pindesk_office::pagina::Texto, medidor: &dyn pindesk_office::Medidor, salida: &mut Vec<f32>) {
     let n = t.texto.chars().count();
     medidor.avances(&t.texto, &t.letra, salida);
     if salida.len() != n {
@@ -567,7 +567,7 @@ pub struct Sitio {
 /// como ⌘F). `pagina`: solo esa (desde 0).
 pub fn buscar_en_paginas(p: &Paginas, consulta: &str, pagina: Option<usize>, max: usize) -> Vec<Sitio> {
     let mut v = Vec::new();
-    for k in pixpin_docs::buscar::buscar(p.textos.iter().map(|t| t.texto.as_str()), consulta) {
+    for k in pindesk_docs::buscar::buscar(p.textos.iter().map(|t| t.texto.as_str()), consulta) {
         if pagina.is_some_and(|q| q != k.texto) {
             continue;
         }
@@ -636,7 +636,7 @@ pub const GRUPO: &str = "asistente-anotado";
 
 fn rgb(color: Option<&str>, como: ComoAnotar) -> (u8, u8, u8) {
     color
-        .and_then(pixpin_ia::herramientas::color)
+        .and_then(pindesk_ia::herramientas::color)
         .and_then(|c| {
             let h = c.0.trim_start_matches('#');
             let n = u32::from_str_radix(h.get(..6)?, 16).ok()?;
@@ -685,7 +685,7 @@ fn marcas_texto(como: ComoAnotar, (r, g, b): (u8, u8, u8), cajas: &[[f32; 4]]) -
                         ancho: w + 2.0 * aire,
                         alto: h + 2.0 * aire,
                         relleno: Some(color),
-                        estilo_relleno: pixpin_motor2d::relleno::EstiloRelleno::Solido,
+                        estilo_relleno: pindesk_motor2d::relleno::EstiloRelleno::Solido,
                         trazo: ColorRgba { a: 0.0, ..color },
                         grosor: 1.0,
                         opacidad: OPACIDAD_RESALTADO,
@@ -758,7 +758,7 @@ pub fn figuras(como: ComoAnotar, cajas: &[[f32; 4]], color: (u8, u8, u8), nota: 
                 alto,
                 trazo: ColorRgba { a: 0.0, ..color_motor((0xe8, 0xc5, 0x47)) },
                 relleno: Some(color_motor((0xff, 0xf3, 0xa3))),
-                estilo_relleno: pixpin_motor2d::relleno::EstiloRelleno::Solido,
+                estilo_relleno: pindesk_motor2d::relleno::EstiloRelleno::Solido,
                 grosor: 1.0,
                 rugosidad: 0.0,
                 grupos: grupo.clone(),
@@ -855,7 +855,7 @@ pub fn palabras_de(app: Option<&dyn AppIa>, ruta: &Path, pagina: Option<usize>) 
         return Ok((palabras_de_ocr(&app.palabras_de_imagen(bytes)), 0));
     }
     // La capa de texto del PDF (exacta y al instante).
-    if let Ok(trozos) = pixpin_pdf::texto::trozos_de_fichero(ruta) {
+    if let Ok(trozos) = pindesk_pdf::texto::trozos_de_fichero(ruta) {
         let elegida = match pagina {
             Some(p) => Some(p),
             None => trozos.iter().position(|t| t.len() >= 4),
@@ -904,16 +904,16 @@ fn rayas_marcadas(px: &mut [u8]) {
 
 /// Las palabras de unos pixeles por Vision (la app), pasandolos a PNG.
 fn palabras_de_pixeles(app: &dyn AppIa, rgba: &[u8], ancho: u32, alto: u32) -> Option<Vec<Palabra>> {
-    let png = pixpin_codec::imagen::codificar_png(&pixpin_codec::ImagenRgba { ancho, alto, pixeles: rgba.to_vec() }).ok()?;
+    let png = pindesk_codec::imagen::codificar_png(&pindesk_codec::ImagenRgba { ancho, alto, pixeles: rgba.to_vec() }).ok()?;
     Some(palabras_de_ocr(&app.palabras_de_imagen(png)))
 }
 
-/// **El aspecto de la tabla** (`pixpin_ia::tabla_aspecto`): en la foto, o
+/// **El aspecto de la tabla** (`pindesk_ia::tabla_aspecto`): en la foto, o
 /// en la hoja del PDF pintada por PDFKit, con las palabras de Vision en
 /// sus mismos pixeles. Con el ancho de esa imagen.
-pub fn aspecto_de_tabla(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> Option<pixpin_ia::tabla_aspecto::Medida> {
+pub fn aspecto_de_tabla(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> Option<pindesk_ia::tabla_aspecto::Medida> {
     let img = if es_imagen(ruta) {
-        pixpin_codec::imagen::cargar(ruta).ok()?
+        pindesk_codec::imagen::cargar(ruta).ok()?
     } else {
         let p = match pagina {
             Some(p) => p,
@@ -923,16 +923,16 @@ pub fn aspecto_de_tabla(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> 
         let tmp = carpeta_temporal().join(format!("aspecto-{}.png", crate::ahora_ms()));
         std::fs::create_dir_all(tmp.parent()?).ok()?;
         std::fs::write(&tmp, png).ok()?;
-        let i = pixpin_codec::imagen::cargar(&tmp).ok();
+        let i = pindesk_codec::imagen::cargar(&tmp).ok();
         let _ = std::fs::remove_file(&tmp);
         i?
     };
     let ps = palabras_de_pixeles(app, &img.pixeles, img.ancho, img.alto)?;
-    let mut m = pixpin_ia::tabla_aspecto::medir(&img.pixeles, img.ancho, img.alto, &ps)?;
+    let mut m = pindesk_ia::tabla_aspecto::medir(&img.pixeles, img.ancho, img.alto, &ps)?;
     if m.columnas.is_empty() {
         let mut fuerte = img.pixeles.clone();
         rayas_marcadas(&mut fuerte);
-        if let Some(mut m2) = pixpin_ia::tabla_aspecto::medir(&fuerte, img.ancho, img.alto, &ps)
+        if let Some(mut m2) = pindesk_ia::tabla_aspecto::medir(&fuerte, img.ancho, img.alto, &ps)
             && !m2.columnas.is_empty()
         {
             m2.texto = m.texto;
@@ -942,9 +942,9 @@ pub fn aspecto_de_tabla(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> 
     // Torcida: Vision otra vez sobre la foto enderezada, y la medida con esas.
     if m.inclinacion != 0.0
         && !m.columnas.is_empty()
-        && let derecha = pixpin_ia::tabla_aspecto::enderezar(&img.pixeles, img.ancho, img.alto, m.inclinacion)
+        && let derecha = pindesk_ia::tabla_aspecto::enderezar(&img.pixeles, img.ancho, img.alto, m.inclinacion)
         && let Some(ps2) = palabras_de_pixeles(app, &derecha, img.ancho, img.alto)
-        && let Some(mut m2) = pixpin_ia::tabla_aspecto::medir(&derecha, img.ancho, img.alto, &ps2)
+        && let Some(mut m2) = pindesk_ia::tabla_aspecto::medir(&derecha, img.ancho, img.alto, &ps2)
     {
         m2.inclinacion = m.inclinacion;
         return Some(m2);
@@ -954,7 +954,7 @@ pub fn aspecto_de_tabla(app: &dyn AppIa, ruta: &Path, pagina: Option<usize>) -> 
 
 /// Las celdas que se usan: las de la rejilla medida en una foto o, si no
 /// hay rejilla o es un PDF que ya cuadra con ella, las leidas (Windows).
-pub fn filas_de(leida: &TablaLeida, m: &pixpin_ia::tabla_aspecto::Medida, ruta: &Path) -> Vec<Vec<String>> {
+pub fn filas_de(leida: &TablaLeida, m: &pindesk_ia::tabla_aspecto::Medida, ruta: &Path) -> Vec<Vec<String>> {
     let rejilla = !m.celdas.is_empty() && m.celdas.iter().flatten().any(|c| !c.is_empty());
     let pdf_que_cuadra = !es_imagen(ruta) && m.cuadra(leida.filas.len(), leida.columnas());
     if rejilla && !pdf_que_cuadra { m.celdas.clone() } else { leida.filas.clone() }
@@ -1011,20 +1011,20 @@ fn tabla(args: &Value, cx: &Contexto) -> Result<String, String> {
         None => leida,
     };
     let cabecera = args.get("cabecera").and_then(Value::as_bool).unwrap_or_else(|| leida.parece_cabecera());
-    let nombre = texto_de(args, "nombre").map(str::to_string).unwrap_or_else(|| pixpin_docs::sin_extension(&c.nombre));
+    let nombre = texto_de(args, "nombre").map(str::to_string).unwrap_or_else(|| pindesk_docs::sin_extension(&c.nombre));
     let excel = texto_de(args, "destino") == Some("excel");
     let hecha = if excel {
         let ruta = escribir_excel_con(&nombre, &leida.filas, cabecera, aspecto.as_ref())?;
         mandar(
             cx,
-            json!({"pixpin": 1, "accion": "chat", "proyecto": proyecto_del_pedido(cx),
+            json!({"pindesk": 1, "accion": "chat", "proyecto": proyecto_del_pedido(cx),
                    "texto": format!("[archivo 01] {nombre}.xlsx"), "archivos": [ruta]}),
         )?;
         TablaHecha { leida, nombre, cabecera, excel: Some(ruta) }
     } else {
         mandar(
             cx,
-            json!({"pixpin": 1, "accion": "tabla_nueva", "proyecto": proyecto_del_pedido(cx), "nombre": nombre,
+            json!({"pindesk": 1, "accion": "tabla_nueva", "proyecto": proyecto_del_pedido(cx), "nombre": nombre,
                    "filas": leida.filas, "cabecera": cabecera, "abrir": true}),
         )?;
         TablaHecha { leida, nombre, cabecera, excel: None }
@@ -1056,8 +1056,8 @@ pub fn resumen_de_tabla(h: &TablaHecha, de: &str) -> String {
 /// Windows): `filas[f][c]` va a la celda de la columna `c` y la fila `f`.
 /// Con `cabecera`, la primera fila en negrita; las celdas que son numeros
 /// escritos a la espanola o con miles se guardan como numero.
-pub fn tabla_de_filas(nombre: &str, filas: &[Vec<String>], cabecera: bool, ahora: i64) -> pixpin_proyecto::tabla::Tabla {
-    use pixpin_proyecto::tabla::{EstiloDeCelda, Ref, Tabla, ref_a};
+pub fn tabla_de_filas(nombre: &str, filas: &[Vec<String>], cabecera: bool, ahora: i64) -> pindesk_proyecto::tabla::Tabla {
+    use pindesk_proyecto::tabla::{EstiloDeCelda, Ref, Tabla, ref_a};
     let nombre = match nombre.trim() {
         "" => "Tabla",
         n => n,
@@ -1119,18 +1119,18 @@ pub fn escribir_excel_con(
     nombre: &str,
     filas: &[Vec<String>],
     cabecera: bool,
-    aspecto: Option<&pixpin_ia::tabla_aspecto::Medida>,
+    aspecto: Option<&pindesk_ia::tabla_aspecto::Medida>,
 ) -> Result<PathBuf, String> {
     let ahora = crate::ahora_ms();
     let mut t = tabla_de_filas(nombre, filas, cabecera, ahora);
     let columnas = filas.first().map_or(0, Vec::len);
     if let Some(m) = aspecto.filter(|m| m.cuadra(filas.len(), columnas)) {
-        use pixpin_proyecto::tabla::{Ref, ref_a};
+        use pindesk_proyecto::tabla::{Ref, ref_a};
         for (f, fila) in m.fondos.iter().enumerate() {
             for (c, fondo) in fila.iter().enumerate() {
                 if let Some(color) = fondo {
                     let r = ref_a(Ref { columna: c as u32, fila: f as u32 });
-                    t.estilos.entry(r).or_default().f = Some(pixpin_ia::tabla_aspecto::hex(*color));
+                    t.estilos.entry(r).or_default().f = Some(pindesk_ia::tabla_aspecto::hex(*color));
                 }
             }
         }
@@ -1140,7 +1140,7 @@ pub fn escribir_excel_con(
             t.anchos.insert(letra, ((a * k).round() as u32).clamp(30, 600));
         }
     }
-    let bytes = pixpin_proyecto::tabla_xlsx::a_xlsx(&[pixpin_proyecto::tabla_xlsx::HojaParaVer { nombre, tabla: &t, valores: None }], 0)
+    let bytes = pindesk_proyecto::tabla_xlsx::a_xlsx(&[pindesk_proyecto::tabla_xlsx::HojaParaVer { nombre, tabla: &t, valores: None }], 0)
         .map_err(|e| e.to_string())?;
     static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -1205,7 +1205,7 @@ pub fn anotar_en(cx: &Contexto, ruta: &Path, args: &Value) -> Result<Anotado, St
     if texto.is_none() && zona.len() < 4 && !(como == ComoAnotar::Dibujar && puntos.len() >= 4) && como != ComoAnotar::Nota {
         return Err("di sobre que texto del documento va («texto») o una «zona»".into());
     }
-    if es_plano(&pixpin_docs::nombre(ruta)) {
+    if es_plano(&pindesk_docs::nombre(ruta)) {
         let r = anotar_plano(cx, ruta, como, texto, &zona, &puntos, color, nota);
         if r.is_ok() {
             apuntar_anotado(Some(UltimoAnotado { ruta: ruta.to_path_buf(), hoja: None, alto: 0.0, cajas: Vec::new() }));
@@ -1219,7 +1219,7 @@ pub fn anotar_en(cx: &Contexto, ruta: &Path, args: &Value) -> Result<Anotado, St
         Some(t) if como != ComoAnotar::Nota || zona.len() < 4 => {
             let s = buscar_en_paginas(&p, t, pagina, 40);
             let Some(primera) = s.first() else {
-                return Err(format!("«{t}» no aparece en «{}»", pixpin_docs::nombre(ruta)));
+                return Err(format!("«{t}» no aparece en «{}»", pindesk_docs::nombre(ruta)));
             };
             let hoja = primera.pagina;
             let de_la_hoja: Vec<&Sitio> = s.iter().filter(|x| x.pagina == hoja).take(20).collect();
@@ -1292,7 +1292,7 @@ fn anotar_plano(
             let ts = crate::planos::textos::del_plano(cx.raiz(), ruta)?;
             let h = crate::planos::textos::buscar(&ts, t, 10);
             if h.is_empty() {
-                return Err(format!("«{t}» no aparece en el plano «{}»", pixpin_docs::nombre(ruta)));
+                return Err(format!("«{t}» no aparece en el plano «{}»", pindesk_docs::nombre(ruta)));
             }
             let uno = matches!(como, ComoAnotar::Encerrar | ComoAnotar::Marco | ComoAnotar::Nota);
             let cajas = h
@@ -1373,7 +1373,7 @@ fn anotar(args: &Value, cx: &Contexto) -> Result<String, String> {
     if let Some(v) = hecho.vista {
         que["zona"] = json!(v);
     }
-    mandar(cx, json!({"pixpin": 1, "accion": "abrir", "que": que}))?;
+    mandar(cx, json!({"pindesk": 1, "accion": "abrir", "que": que}))?;
     Ok(format!(
         "hecho: {} en «{}»{}: marcado en {} sitio(s){} ({} figuras); ya esta abierto ahi y viaja al movil al sincronizar",
         texto_de(args, "tipo").unwrap_or("anotado"),
@@ -1402,7 +1402,7 @@ pub struct Encontrado {
 
 /// **Busca sin mandar nada**: lo que se diria y el pedido `abrir`.
 pub fn buscar_dentro(cx: &Contexto, ruta: &Path, consulta: &str) -> Result<Encontrado, String> {
-    let nombre = pixpin_docs::nombre(ruta);
+    let nombre = pindesk_docs::nombre(ruta);
     if es_plano(&nombre) {
         let ts = crate::planos::textos::del_plano(cx.raiz(), ruta)?;
         let h = crate::planos::textos::buscar(&ts, consulta, 5);
@@ -1413,7 +1413,7 @@ pub fn buscar_dentro(cx: &Contexto, ruta: &Path, consulta: &str) -> Result<Encon
         let lista: Vec<String> = h.iter().map(|h| format!("«{}» en ({:.1}, {:.1})", h.texto, h.x, h.y)).collect();
         return Ok(Encontrado {
             texto: format!("en «{nombre}»: {}", lista.join("; ")),
-            pedido: json!({"pixpin": 1, "accion": "abrir", "que": {"tipo": "fichero", "ruta": ruta, "zona": vista}}),
+            pedido: json!({"pindesk": 1, "accion": "abrir", "que": {"tipo": "fichero", "ruta": ruta, "zona": vista}}),
             cuantos: h.len(),
         });
     }
@@ -1425,7 +1425,7 @@ pub fn buscar_dentro(cx: &Contexto, ruta: &Path, consulta: &str) -> Result<Encon
     let lista: Vec<String> = s.iter().map(|x| format!("pagina {}: «…{}…»", x.pagina + 1, x.contexto)).collect();
     Ok(Encontrado {
         texto: format!("en «{nombre}»: {}", lista.join("; ")),
-        pedido: json!({"pixpin": 1, "accion": "abrir", "que": {"tipo": "fichero", "ruta": ruta, "pagina": primero.pagina + 1, "buscar": consulta}}),
+        pedido: json!({"pindesk": 1, "accion": "abrir", "que": {"tipo": "fichero", "ruta": ruta, "pagina": primero.pagina + 1, "buscar": consulta}}),
         cuantos: s.len(),
     })
 }
@@ -1447,7 +1447,7 @@ fn buscar_en(args: &Value, cx: &Contexto) -> Result<String, String> {
 fn abrir(args: &Value, cx: &Contexto) -> Result<String, String> {
     let d = texto_de(args, "descripcion").ok_or("falta «descripcion»")?;
     let c = elegir(cx, Some(d), Sirve::Cualquiera)?;
-    mandar(cx, json!({"pixpin": 1, "accion": "abrir", "que": {"tipo": "fichero", "ruta": c.ruta}}))?;
+    mandar(cx, json!({"pindesk": 1, "accion": "abrir", "que": {"tipo": "fichero", "ruta": c.ruta}}))?;
     Ok(format!("abierto «{}» (del chat {})", c.nombre, c.proyecto_nombre))
 }
 
@@ -1469,10 +1469,10 @@ fn exportar(args: &Value, cx: &Contexto) -> Result<String, String> {
     let fichas: String = (1..=hechos.len()).map(|i| format!("[archivo {i:02}]")).collect::<Vec<_>>().join(" ");
     mandar(
         cx,
-        json!({"pixpin": 1, "accion": "chat", "proyecto": proyecto_del_pedido(cx),
+        json!({"pindesk": 1, "accion": "chat", "proyecto": proyecto_del_pedido(cx),
                "texto": format!("{fichas} «{}» en {formato}", c.nombre), "archivos": hechos}),
     )?;
-    let nombres: Vec<String> = hechos.iter().map(|r| pixpin_docs::nombre(Path::new(r))).collect();
+    let nombres: Vec<String> = hechos.iter().map(|r| pindesk_docs::nombre(Path::new(r))).collect();
     Ok(format!("hecho: «{}» exportado a {formato} ({}), ya esta en el chat", c.nombre, nombres.join(", ")))
 }
 

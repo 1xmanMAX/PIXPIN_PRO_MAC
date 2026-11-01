@@ -19,7 +19,7 @@
 
 use std::path::Path;
 
-use pixpin_proyecto::cuaderno::{Clase, Mensaje};
+use pindesk_proyecto::cuaderno::{Clase, Mensaje};
 
 /// Lo que es el mensaje, a efectos de su menu (`OpcionesDelMensaje.Tipo`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
@@ -59,7 +59,7 @@ pub enum SitioEnElMenu {
     Mas,
 }
 
-/// Los videos (`pixpin_shell::asociaciones::VIDEOS` de Windows).
+/// Los videos (`pindesk_shell::asociaciones::VIDEOS` de Windows).
 const VIDEOS: [&str; 10] = [
     "mp4", "mkv", "webm", "mov", "avi", "m4v", "wmv", "mpg", "mpeg", "ts",
 ];
@@ -76,7 +76,7 @@ fn extension(s: &str) -> String {
 
 /// Si Lectura Veloz lee el archivo (`chapas::se_ofrece_lectura_veloz`).
 pub(crate) fn se_ofrece_lectura_veloz(m: &Mensaje) -> bool {
-    use pixpin_docs::lectura_veloz::tipo_de;
+    use pindesk_docs::lectura_veloz::tipo_de;
     m.clase == Some(Clase::Archivo)
         && m.ruta.as_deref().is_some_and(|r| !r.is_empty())
         && (tipo_de(Path::new(&m.nombre)).is_some()
@@ -99,7 +99,7 @@ pub fn tipo_de(m: &Mensaje) -> TipoDeMensaje {
     if crate::asistente::chat::es_del_asistente(m) && matches!(m.clase, None | Some(Clase::Nota)) {
         return TipoDeMensaje::Asistente;
     }
-    if pixpin_proyecto::carpeta_de_paginas::es_carpeta(m) || m.clase == Some(Clase::Proyecto) {
+    if pindesk_proyecto::carpeta_de_paginas::es_carpeta(m) || m.clase == Some(Clase::Proyecto) {
         return TipoDeMensaje::Carpeta;
     }
     match &m.clase {
@@ -206,10 +206,10 @@ mod pruebas {
         assert_eq!(tipo_de(&de(Clase::Archivo, "fotos.zip")), T::Archivo);
         assert_eq!(tipo_de(&de(Clase::Dibujo, "")), T::Hoja);
         let mut lista = de(Clase::MiniApp, "");
-        lista.miniapp = Some(pixpin_proyecto::mini::TAREAS.into());
+        lista.miniapp = Some(pindesk_proyecto::mini::TAREAS.into());
         assert_eq!(tipo_de(&lista), T::MiniApp);
         let mut carpeta = de(Clase::MiniApp, "");
-        carpeta.miniapp = Some(pixpin_proyecto::carpeta_de_paginas::MINIAPP.into());
+        carpeta.miniapp = Some(pindesk_proyecto::carpeta_de_paginas::MINIAPP.into());
         assert_eq!(tipo_de(&carpeta), T::Carpeta);
         let mut ia = de(Clase::Nota, "");
         ia.aparato = Some(crate::asistente::chat::APARATO.into());

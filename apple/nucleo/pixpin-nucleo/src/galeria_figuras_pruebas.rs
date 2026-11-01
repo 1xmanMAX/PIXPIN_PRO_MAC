@@ -349,7 +349,7 @@ fn las_de_serie_se_ponen_una_vez_y_no_pisan_las_propias() {
 
 /// La caja de los puntos de las ordenes de un plano (lo que se pinta).
 fn caja_de_lo_pintado(plano: &LienzoPlano) -> (f32, f32, f32, f32) {
-    use pixpin_motor2d::pintado::Orden;
+    use pindesk_motor2d::pintado::Orden;
     let (_, ordenes) = crate::lienzo::decodificar(plano).unwrap();
     let mut c = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     for o in &ordenes {
@@ -534,7 +534,7 @@ fn de_dia_o_de_noche_nunca_las_dos() {
     let otra = n.clone().galeria_de_figuras().unwrap();
     assert!(otra.de_noche());
     assert_eq!(
-        pixpin_store::estado::cargar(&n.ubicacion()).figuras_de_noche,
+        pindesk_store::estado::cargar(&n.ubicacion()).figuras_de_noche,
         Some(true)
     );
     // Y de vuelta.

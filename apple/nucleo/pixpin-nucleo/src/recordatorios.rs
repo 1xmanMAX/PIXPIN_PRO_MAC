@@ -35,9 +35,9 @@
 
 use std::path::Path;
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::cuaderno::{self, Mensaje};
-use pixpin_proyecto::mini;
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::cuaderno::{self, Mensaje};
+use pindesk_proyecto::mini;
 
 use crate::chats::validar_chat;
 use crate::tareas::{

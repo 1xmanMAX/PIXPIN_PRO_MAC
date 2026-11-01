@@ -4,9 +4,9 @@
 //! elegido) y la hoja para elegirla.
 //!
 //! Es `ventana_chat/foto_del_chat.rs` y `ventana_chat/logo.rs` de Windows
-//! sin pintar nada, sobre los mismos crates: `pixpin_proyecto::avatar` (el
+//! sin pintar nada, sobre los mismos crates: `pindesk_proyecto::avatar` (el
 //! campo `avatar` de la ficha que viaja, la imagen `<proyecto>/avatar-<ms>.png`
-//! y la limpieza de las viejas) y `pixpin_ui::foto_del_chat` (los doce
+//! y la limpieza de las viejas) y `pindesk_ui::foto_del_chat` (los doce
 //! fondos, los emojis con su buscador y el recorte que se mueve y se acerca).
 //! Asi el Mac guarda la foto **exactamente donde y como Windows**: PNG
 //! cuadrado, ya recortado, de 256 px de lado como mucho, con un nombre nuevo
@@ -17,12 +17,12 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_codec::ImagenRgba;
-use pixpin_proyecto::almacen::{Ficha, Indice};
-use pixpin_proyecto::avatar::{self, Avatar};
-use pixpin_store::ajustes::PreferenciaIdioma;
-use pixpin_store::idioma::{Catalogo, resolver_idioma};
-use pixpin_ui::foto_del_chat::{self as ui, EMOJIS, FONDOS, Recorte};
+use pindesk_codec::ImagenRgba;
+use pindesk_proyecto::almacen::{Ficha, Indice};
+use pindesk_proyecto::avatar::{self, Avatar};
+use pindesk_store::ajustes::PreferenciaIdioma;
+use pindesk_store::idioma::{Catalogo, resolver_idioma};
+use pindesk_ui::foto_del_chat::{self as ui, EMOJIS, FONDOS, Recorte};
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -70,7 +70,7 @@ impl FotoDelChat {
     }
 }
 
-/// Un fondo de la paleta (`pixpin_ui::foto_del_chat::FONDOS`).
+/// Un fondo de la paleta (`pindesk_ui::foto_del_chat::FONDOS`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, uniffi::Record)]
 pub struct FondoDeLaFoto {
     pub arriba: u32,
@@ -102,7 +102,7 @@ pub fn emojis_de_la_foto(consulta: String) -> Vec<String> {
 // --- El recorte ---------------------------------------------------------------
 
 /// Que cuadrado de la foto preparada entra en el circulo
-/// (`pixpin_ui::foto_del_chat::Recorte`).
+/// (`pindesk_ui::foto_del_chat::Recorte`).
 #[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
 pub struct RecorteDeLaFoto {
     /// 1 = el cuadrado mas grande que cabe; hasta 8.
@@ -235,7 +235,7 @@ pub fn reducida(imagen: ImagenRgba) -> ImagenRgba {
         ((imagen.ancho as f32 * k).round() as u32).max(1),
         ((imagen.alto as f32 * k).round() as u32).max(1),
     );
-    pixpin_codec::redimensionar(imagen.clone(), w, h).unwrap_or(imagen)
+    pindesk_codec::redimensionar(imagen.clone(), w, h).unwrap_or(imagen)
 }
 
 /// El cuadrado `(x, y, lado)` de una imagen (`logo::recortar` de Windows).
@@ -274,17 +274,17 @@ pub fn guardar_cuadrada(
     cuando: i64,
 ) -> Result<String, ErrorNucleo> {
     let cuadrada = if cuadrada.ancho > avatar::LADO {
-        pixpin_codec::redimensionar(cuadrada, avatar::LADO, avatar::LADO).map_err(error_de_imagen)?
+        pindesk_codec::redimensionar(cuadrada, avatar::LADO, avatar::LADO).map_err(error_de_imagen)?
     } else {
         cuadrada
     };
-    let png = pixpin_codec::codificar_png(&cuadrada).map_err(error_de_imagen)?;
+    let png = pindesk_codec::codificar_png(&cuadrada).map_err(error_de_imagen)?;
     let rel = avatar::guardar_imagen(raiz, id, &png, cuando)?;
     avatar::poner(raiz, id, &Avatar::imagen(&rel, cuando))?;
     Ok(rel)
 }
 
-fn error_de_imagen(e: pixpin_codec::ErrorCodec) -> ErrorNucleo {
+fn error_de_imagen(e: pindesk_codec::ErrorCodec) -> ErrorNucleo {
     ErrorNucleo::Argumento {
         detalle: format!("imagen: {e}"),
     }
@@ -307,7 +307,7 @@ impl Nucleo {
     /// pegada): la lee derecha, la reduce a [`LADO_DE_TRABAJO`] y la deja en
     /// un PNG temporal. Sus medidas son las del recorte.
     pub fn preparar_foto_del_chat(&self, origen: String) -> Result<FotoPreparada, ErrorNucleo> {
-        let imagen = pixpin_codec::cargar(Path::new(&origen)).map_err(error_de_imagen)?;
+        let imagen = pindesk_codec::cargar(Path::new(&origen)).map_err(error_de_imagen)?;
         if imagen.ancho == 0 || imagen.alto == 0 {
             return Err(ErrorNucleo::Argumento {
                 detalle: "imagen vacia".into(),
@@ -315,8 +315,8 @@ impl Nucleo {
         }
         let imagen = reducida(imagen);
         let ruta = ruta_preparada(crate::chats::hora_unica());
-        let png = pixpin_codec::codificar_png(&imagen).map_err(error_de_imagen)?;
-        pixpin_sincro::disco::escribir_atomico(&ruta, &png)?;
+        let png = pindesk_codec::codificar_png(&imagen).map_err(error_de_imagen)?;
+        pindesk_sincro::disco::escribir_atomico(&ruta, &png)?;
         Ok(FotoPreparada {
             ruta: ruta.to_string_lossy().into_owned(),
             ancho: imagen.ancho,
@@ -332,7 +332,7 @@ impl Nucleo {
         preparada: String,
         recorte: RecorteDeLaFoto,
     ) -> Result<(), ErrorNucleo> {
-        let imagen = pixpin_codec::cargar(Path::new(&preparada)).map_err(error_de_imagen)?;
+        let imagen = pindesk_codec::cargar(Path::new(&preparada)).map_err(error_de_imagen)?;
         let cuadrado = Recorte::from(recorte).en_pixeles(imagen.ancho, imagen.alto);
         let c = recortar(&imagen, cuadrado).ok_or_else(|| ErrorNucleo::Argumento {
             detalle: "recorte fuera de la foto".into(),
@@ -395,7 +395,7 @@ impl Nucleo {
     }
 }
 
-/// Los textos de la hoja (`foto-chat-*` de `pixpin-store`).
+/// Los textos de la hoja (`foto-chat-*` de `pindesk-store`).
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct TextosDeLaFoto {
     pub menu: String,
@@ -439,10 +439,10 @@ mod pruebas {
     use super::*;
     use std::sync::Arc;
 
-    use pixpin_proyecto::almacen;
-    use pixpin_proyecto::vista::{self, DiscoPc};
-    use pixpin_sincro::disco::Disco;
-    use pixpin_sincro::kotlin;
+    use pindesk_proyecto::almacen;
+    use pindesk_proyecto::vista::{self, DiscoPc};
+    use pindesk_sincro::disco::Disco;
+    use pindesk_sincro::kotlin;
 
     fn montar(etiqueta: &str) -> (PathBuf, Arc<Nucleo>, Ficha) {
         let r = std::env::temp_dir().join(format!(
@@ -478,7 +478,7 @@ mod pruebas {
         let raiz = n.ruta().to_path_buf();
         // Una foto de 1200 x 800 que se elige desde un fichero.
         let origen = r.join("elegida.png");
-        std::fs::write(&origen, pixpin_codec::codificar_png(&foto(1200, 800)).unwrap()).unwrap();
+        std::fs::write(&origen, pindesk_codec::codificar_png(&foto(1200, 800)).unwrap()).unwrap();
         let p = n
             .preparar_foto_del_chat(origen.to_string_lossy().into_owned())
             .unwrap();
@@ -504,7 +504,7 @@ mod pruebas {
         let fichero = almacen::carpeta(&raiz, &f.id).join(rel);
         let bytes = std::fs::read(&fichero).unwrap();
         assert_eq!(&bytes[..8], b"\x89PNG\r\n\x1a\n");
-        let guardada = pixpin_codec::cargar(&fichero).unwrap();
+        let guardada = pindesk_codec::cargar(&fichero).unwrap();
         assert_eq!((guardada.ancho, guardada.alto), (avatar::LADO, avatar::LADO));
 
         // Y por la red sale con ruta portatil, que lleva el fichero.
@@ -551,7 +551,7 @@ mod pruebas {
         let (raiz, n, f) = montar("pequena");
         let rel = guardar_cuadrada(n.ruta(), &f.id, foto(100, 100), 5).unwrap();
         assert_eq!(rel, "avatar-5.png");
-        let g = pixpin_codec::cargar(&almacen::carpeta(n.ruta(), &f.id).join(rel)).unwrap();
+        let g = pindesk_codec::cargar(&almacen::carpeta(n.ruta(), &f.id).join(rel)).unwrap();
         assert_eq!((g.ancho, g.alto), (100, 100), "una pequena no se agranda");
         let _ = std::fs::remove_dir_all(&raiz);
     }

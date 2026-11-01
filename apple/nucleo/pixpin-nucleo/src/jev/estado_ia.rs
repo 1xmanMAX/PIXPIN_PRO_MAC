@@ -4,11 +4,11 @@
 //!
 //! - **De lo que se usa de verdad**: cada peticion del asistente, de
 //!   «Probar» en Ajustes y de Jev avisa de como acabo
-//!   (`pixpin_ia::nube::al_contestar` y `pixpin_typesafe::cliente::al_contestar`).
+//!   (`pindesk_ia::nube::al_contestar` y `pindesk_typesafe::cliente::al_contestar`).
 //! - **Una comprobacion que no gasta**, en su hilo («estado-ia»): la lista
 //!   de modelos de cada API, a los 10 s de arrancar, al cambiar una clave,
 //!   con «Comprobar ahora» y como mucho cada 30 min; sin red, antes y con
-//!   espera creciente. Las reglas, con sus pruebas, en `pixpin_ui::estado_ia`
+//!   espera creciente. Las reglas, con sus pruebas, en `pindesk_ui::estado_ia`
 //!   (el mismo crate que Windows).
 //!
 //! Swift lo arranca una vez ([`ia_estado_arrancar`], con el Llavero y el
@@ -20,8 +20,8 @@ use std::sync::{Condvar, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use fluent_bundle::FluentArgs;
-use pixpin_ia::nube::{self, Proveedor};
-use pixpin_ui::estado_ia::{Desenlace, Ficha, Luz, Servicio, Tablero, hace};
+use pindesk_ia::nube::{self, Proveedor};
+use pindesk_ui::estado_ia::{Desenlace, Ficha, Luz, Servicio, Tablero, hace};
 
 static TABLERO: Mutex<Option<Tablero>> = Mutex::new(None);
 /// Despierta al hilo de las comprobaciones (clave nueva, «Comprobar ahora»).
@@ -90,7 +90,7 @@ pub fn ia_estado_arrancar() {
     }
     let arranque = ahora_ms();
     nube::al_contestar(oir_nube);
-    pixpin_typesafe::cliente::al_contestar(oir_jev);
+    pindesk_typesafe::cliente::al_contestar(oir_jev);
     let lanzado = std::thread::Builder::new()
         .name("estado-ia".into())
         .spawn(move || bucle(arranque));
@@ -204,7 +204,7 @@ fn comprobar(s: Servicio) {
 // ---------------------------------------------------------------------------
 // Lo que pinta Swift
 
-/// El color del puntito (`pixpin_ui::estado_ia::Luz`).
+/// El color del puntito (`pindesk_ui::estado_ia::Luz`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
 pub enum LuzIa {
     /// Funciona: verde lleno.
@@ -261,7 +261,7 @@ fn id_de(s: Servicio) -> &'static str {
 }
 
 /// La frase de un servicio: «Claude · funciona · hace 3 min».
-fn linea(textos: &pixpin_store::idioma::Catalogo, s: Servicio, f: &Ficha, ahora: u64) -> String {
+fn linea(textos: &pindesk_store::idioma::Catalogo, s: Servicio, f: &Ficha, ahora: u64) -> String {
     if f.comprobando() {
         return format!("{} · {}", s.nombre(), textos.t("ia-estado-comprobando"));
     }

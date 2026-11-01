@@ -1,6 +1,8 @@
 // Un pedido del protocolo v1 de Windows (`docs/protocolo-pedidos.md`):
-// `{"pixpin": 1, "accion": "<accion>", ...}`. En el Mac no hay
-// `WM_COPYDATA`: los pedidos llegan por los enlaces `pixpinmax://`, el
+// `{"pindesk": 1, "accion": "<accion>", ...}` (hasta nov-2026 `"pixpin": 1`,
+// que se sigue aceptando; si vienen los dos, manda `pindesk`). En el Mac no
+// hay `WM_COPYDATA`: los pedidos llegan por los enlaces `pindesk://` (y los
+// `pixpinmax://`/`pixpin://` de antes), el
 // menu del Dock, los Servicios del Finder y las App Intents, y todos pasan
 // por aqui (`Enlaces`, `Verbos`, `HacerPedidos`).
 //
@@ -106,11 +108,15 @@ public enum ValorPedido: Equatable, Sendable {
     }
 }
 
-/// **Un pedido** ya leido: su accion y sus campos (sin `pixpin` ni
-/// `accion`).
+/// **Un pedido** ya leido: su accion y sus campos (sin `pindesk`, `pixpin`
+/// ni `accion`).
 public struct Pedido: Equatable, Sendable, CustomStringConvertible {
     /// La version del protocolo que entiende el Mac.
     public static let version = 1
+    /// El campo de la version: `pindesk` (`CAMPO_VERSION` de Windows).
+    public static let campoVersion = "pindesk"
+    /// El de antes de PinDesk (`CAMPO_VERSION_VIEJO`), que se sigue leyendo.
+    public static let campoVersionViejo = "pixpin"
     /// Lo mas largo que se acepta (el `TOPE_PEDIDO` de Windows).
     public static let tope = 64 * 1024
 
@@ -159,7 +165,7 @@ public struct Pedido: Equatable, Sendable, CustomStringConvertible {
     /// El pedido entero como objeto JSON.
     public var valor: ValorPedido {
         var o = campos
-        o["pixpin"] = .numero(Double(Pedido.version))
+        o[Pedido.campoVersion] = .numero(Double(Pedido.version))
         o["accion"] = .texto(accion)
         return .objeto(o)
     }
@@ -170,8 +176,8 @@ public struct Pedido: Equatable, Sendable, CustomStringConvertible {
     public var description: String { json }
 
     /// **Lee un pedido escrito a mano** (`pedido?json=…`) y lo mira como la
-    /// ventana de Windows (`validar_pedido`): un objeto con `"pixpin": 1` y
-    /// una accion conocida. Otra version sale con 2; lo demas, con 3.
+    /// ventana de Windows (`validar_pedido`): un objeto con `"pindesk": 1` (o
+    /// el `"pixpin": 1` de antes) y una accion conocida. Otra version sale con 2; lo demas, con 3.
     public static func de(json: String) throws -> Pedido {
         if json.utf8.count > tope {
             throw FalloOrden.noSeEntiende("el pedido pasa de 64 KB")
@@ -180,15 +186,17 @@ public struct Pedido: Equatable, Sendable, CustomStringConvertible {
         guard let datos = json.data(using: .utf8),
               let a = try? JSONSerialization.jsonObject(with: datos),
               case let .objeto(o) = ValorPedido(deAny: a) else { throw roto }
-        // Sin `pixpin` (o no numero) no es un pedido nuestro; otro numero,
-        // otra version.
-        guard case let .numero(v)? = o["pixpin"], v >= 0, v.rounded() == v else { throw roto }
+        // Sin `pindesk` ni `pixpin` (o no numero) no es un pedido nuestro;
+        // otro numero, otra version. Si vienen los dos, manda `pindesk`.
+        let versionCruda: ValorPedido? = o[Pedido.campoVersion] ?? o[Pedido.campoVersionViejo]
+        guard case let .numero(v)? = versionCruda, v >= 0, v.rounded() == v else { throw roto }
         guard Int(v) == version else {
             throw FalloOrden(codigo: FalloOrden.Codigo.version, motivo: "esa version del protocolo no existe")
         }
         guard let accion = o["accion"]?.texto, acciones.contains(accion) else { throw roto }
         var campos = o
-        campos["pixpin"] = nil
+        campos[Pedido.campoVersion] = nil
+        campos[Pedido.campoVersionViejo] = nil
         campos["accion"] = nil
         return Pedido(accion: accion, crudos: campos)
     }

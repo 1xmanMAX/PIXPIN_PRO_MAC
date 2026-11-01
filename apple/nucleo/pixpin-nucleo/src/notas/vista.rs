@@ -10,7 +10,7 @@
 //! El fichero es texto, un renglon por vista: `clave\tcuerpo\ttitulos\tpx`,
 //! con `*` como clave de la general. Lo que no se entiende se salta.
 //!
-//! Copia de `pixpin-notas/src/vista.rs` de Windows (el mismo
+//! Copia de `pindesk-notas/src/vista.rs` de Windows (el mismo
 //! `vista-de-notas.txt`, al lado del almacen y sin viajar).
 
 /// Las letras que se pueden elegir: las del lienzo.

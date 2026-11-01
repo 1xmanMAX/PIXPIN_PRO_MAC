@@ -17,10 +17,10 @@
 //! se sigue viendo encima. Y si la imagen no llegara a pintarse, debajo
 //! sigue la banda maciza de `pintado.rs`: tapa igual.
 
-use pixpin_motor2d::elemento::{Elemento, Figura};
-use pixpin_motor2d::escena::Escena;
-use pixpin_motor2d::lupa_elemento as lupa;
-use pixpin_motor2d::pintado::{self, Orden};
+use pindesk_motor2d::elemento::{Elemento, Figura};
+use pindesk_motor2d::escena::Escena;
+use pindesk_motor2d::lupa_elemento as lupa;
+use pindesk_motor2d::pintado::{self, Orden};
 
 use crate::editor::EditorLienzo;
 use crate::lienzo::{LienzoPlano, empaquetar};
@@ -62,7 +62,7 @@ pub fn ordenes_tras(e: &Elemento) -> Vec<Orden> {
     }
     match &e.figura {
         Figura::Mosaico { .. } if e.angulo == 0.0 && e.ancho > 0.0 && e.alto > 0.0 => {
-            let (x0, y0, x1, y1) = pixpin_motor2d::mosaico::caja_girada(e);
+            let (x0, y0, x1, y1) = pindesk_motor2d::mosaico::caja_girada(e);
             vec![Orden::Imagen {
                 id_objeto: id_de_mosaico(e.id),
                 x: x0,
@@ -160,7 +160,7 @@ pub fn contenido(escena: &Escena, id_objeto: u64) -> Option<ContenidoTapado> {
         .position(|e| e.id == id && !e.borrado)?;
     let e = &escena.elementos[indice];
     if es_mosaico {
-        let t = pixpin_motor2d::mosaico::tapado_de(e)?;
+        let t = pindesk_motor2d::mosaico::tapado_de(e)?;
         let (x0, y0, x1, y1) = t.caja;
         // Lo de DEBAJO: lo que se pinta antes que el.
         let ordenes: Vec<Orden> = escena.elementos[..indice]
@@ -231,7 +231,7 @@ impl EditorLienzo {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_motor2d::elemento::ColorRgba;
+    use pindesk_motor2d::elemento::ColorRgba;
 
     fn rect(x: f32, color: ColorRgba) -> Elemento {
         Elemento {
@@ -304,7 +304,7 @@ mod pruebas {
             ..Default::default()
         });
         escena.anadir(rect(20.0, ColorRgba::opaco(0.0, 0.5, 0.0)));
-        let mut gesto = pixpin_motor2d::gesto::Gesto::nuevo();
+        let mut gesto = pindesk_motor2d::gesto::Gesto::nuevo();
         let id = crate::editor_herramientas::convertir_en_lupa(&mut escena, &mut gesto, circulo)
             .expect("lupa");
         let e = escena.buscar(id).unwrap().clone();

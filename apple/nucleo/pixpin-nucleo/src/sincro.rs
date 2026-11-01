@@ -1,8 +1,8 @@
 //! Sincronizar con otro aparato del grupo (Windows, Android u otro Apple).
 //!
-//! Es el mismo protocolo y el mismo codigo que Windows (`pixpin_sincro`:
+//! Es el mismo protocolo y el mismo codigo que Windows (`pindesk_sincro`:
 //! `Sesion` dirige, `Respondedor` contesta) sobre el mismo almacen
-//! (`pixpin_proyecto::vista::DiscoPc`). Aqui solo se pone el transporte: un
+//! (`pindesk_proyecto::vista::DiscoPc`). Aqui solo se pone el transporte: un
 //! `TcpStream` de la biblioteca estandar, que en Mac y en iOS va sobre los
 //! sockets BSD del sistema, con IPv4 e IPv6 ([`crate::red`]).
 //!
@@ -32,13 +32,15 @@
 //! sobre la misma `Escucha`: `accept` es seguro desde varios hilos y cada uno
 //! atiende la conexion que le toca. Asi una sonda no espera a que acabe una
 //! vuelta. Lo que escribe en los chats sigue siendo de uno en uno:
-//! `pixpin_sincro::protocolo::ocupar` deja una sola vuelta por carpeta de
+//! `pindesk_sincro::protocolo::ocupar` deja una sola vuelta por carpeta de
 //! datos (la segunda oye «ocupado», como en Windows) y cada cuaderno se
-//! escribe con el cerrojo de `pixpin_proyecto::cuaderno`.
+//! escribe con el cerrojo de `pindesk_proyecto::cuaderno`.
 //!
 //! # Descubrir a los demas
 //!
-//! Lo hace Swift (Bonjour `_pixpin._tcp`, TXT `g`/`id`/`l`/`n`): busca con
+//! Lo hace Swift (Bonjour `_pindesk._tcp` y, mientras haya aparatos sin
+//! actualizar, tambien el `_pixpin._tcp` de antes, [`tipo_de_antes`]; TXT
+//! `g`/`id`/`l`/`n`): busca con
 //! `NWBrowser` y anuncia con `DNSServiceRegister` sobre el puerto de la
 //! [`Escucha`]. Aqui se recibe ya el `host` y el `puerto`.
 //!
@@ -51,12 +53,12 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::disco::{Disco, Identidad};
-use pixpin_sincro::mensajes::Aparato;
-use pixpin_sincro::protocolo::{Hecho, Respondedor, Sesion};
-use pixpin_sincro::{codigo, grupo, vuelta};
-use pixpin_store::ajustes;
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::disco::{Disco, Identidad};
+use pindesk_sincro::mensajes::Aparato;
+use pindesk_sincro::protocolo::{Hecho, Respondedor, Sesion};
+use pindesk_sincro::{codigo, grupo, vuelta};
+use pindesk_store::ajustes;
 
 use crate::envio::{ArchivoLlegado, RecibeAlFrente};
 use crate::galeria_sincro::CapturasDelMac;
@@ -222,7 +224,7 @@ pub(crate) fn azar_menor_que(n: usize) -> Result<usize, ErrorNucleo> {
 }
 
 /// Un corte en el saludo es lo que hace quien no descifra: otro codigo.
-pub(crate) fn explicar(e: pixpin_sincro::protocolo::ErrorSincro, host: &str) -> ErrorNucleo {
+pub(crate) fn explicar(e: pindesk_sincro::protocolo::ErrorSincro, host: &str) -> ErrorNucleo {
     if e.es_corte() {
         ErrorNucleo::Sincro {
             detalle: format!("{host} no aceptó la conexión: ¿tiene el mismo código de grupo?"),
@@ -255,17 +257,45 @@ pub fn codigo_valido(codigo: String) -> bool {
 }
 
 /// El tipo de servicio de Bonjour para sincronizar, sin el punto final:
-/// `_pixpin._tcp` (como lo piden `NWBrowser` y `DNSServiceRegister`).
+/// `_pindesk._tcp` (como lo piden `NWBrowser` y `DNSServiceRegister`).
 #[uniffi::export]
 pub fn tipo_de_servicio() -> String {
-    pixpin_sincro::SERVICIO.trim_end_matches('.').to_string()
+    pindesk_sincro::SERVICIO.trim_end_matches('.').to_string()
+}
+
+/// **El tipo de antes de un tipo de PinDesk** (`_pindesk._tcp` →
+/// `_pixpin._tcp`, `_pindeskenvio._tcp` → `_pixpinenvio._tcp`…), sin el
+/// punto final, o `None` si no es de los de PinDesk. Como `tipo_de_antes` de
+/// Windows (`pindesk_shell::mdns`): mientras haya aparatos sin actualizar se
+/// anuncia y se busca con los dos, y si un aparato sale en los dos se usa el
+/// nuevo (docs/formato-pindesk.md).
+#[uniffi::export]
+pub fn tipo_de_antes(tipo: String) -> Option<String> {
+    let t = tipo.trim().trim_end_matches('.');
+    let resto = t.strip_prefix("_pindesk")?;
+    resto
+        .ends_with("._tcp")
+        .then(|| format!("_pixpin{resto}"))
+}
+
+/// El prefijo de la instancia que se anuncia: `PinDesk <aparato>`. Hasta
+/// nov-2026 era `PixPin <aparato>` ([`PREFIJO_INSTANCIA_VIEJO`]); se ensena,
+/// no se compara (se compara el TXT `g`/`id`).
+pub const PREFIJO_INSTANCIA: &str = "PinDesk";
+/// El prefijo de antes de [`PREFIJO_INSTANCIA`].
+pub const PREFIJO_INSTANCIA_VIEJO: &str = "PixPin";
+
+/// La instancia de Bonjour de un aparato: `PinDesk <nombre>`, recortada a 63
+/// bytes sin partir una letra.
+pub(crate) fn instancia_de(nombre: &str) -> String {
+    recortar_etiqueta(format!("{PREFIJO_INSTANCIA} {nombre}").trim())
 }
 
 /// El puerto que se intenta primero al escuchar (47474). Si esta tomado se
 /// escucha en otro cualquiera ([`Nucleo::escuchar`] con 0) y se anuncia ese.
 #[uniffi::export]
 pub fn puerto_preferido() -> u16 {
-    pixpin_sincro::PUERTO
+    pindesk_sincro::PUERTO
 }
 
 /// Una entrada del TXT de Bonjour, en el orden en que se anuncia.
@@ -276,16 +306,16 @@ pub struct ParTxt {
 }
 
 /// **Lo que este aparato anuncia en la red**, igual que Windows
-/// (`anunciarse`) y Android (`Presencia`): la instancia `PixPin <nombre>`
-/// del tipo `_pixpin._tcp` con el TXT `g` (etiqueta del grupo), `id`, `l`
+/// (`anunciarse`) y Android (`Presencia`): la instancia `PinDesk <nombre>`
+/// del tipo `_pindesk._tcp` (y del de antes, [`tipo_de_antes`]) con el TXT `g` (etiqueta del grupo), `id`, `l`
 /// (letra) y `n` (nombre, 40 letras como mucho). El puerto lo pone quien
 /// anuncia: el de su [`Escucha`].
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct AnuncioBonjour {
-    /// `PixPin Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
+    /// `PinDesk Mac de Max`, recortado a 63 bytes (una etiqueta DNS) sin
     /// partir una letra.
     pub instancia: String,
-    /// `_pixpin._tcp`.
+    /// `_pindesk._tcp` (el de antes, con [`tipo_de_antes`]).
     pub tipo: String,
     /// `g`, `id`, `l`, `n`, en ese orden.
     pub txt: Vec<ParTxt>,
@@ -322,7 +352,7 @@ fn anuncio_de(id: &str, nombre: &str, letra: Option<&str>, etiqueta: String) -> 
         valor: valor.into(),
     };
     AnuncioBonjour {
-        instancia: recortar_etiqueta(format!("PixPin {nombre}").trim()),
+        instancia: instancia_de(nombre),
         tipo: tipo_de_servicio(),
         txt: vec![
             par("g", &etiqueta),
@@ -373,7 +403,7 @@ impl Nucleo {
             return Ok(Some(a));
         }
         let i = self.identidad()?;
-        let cd = pixpin_sincro::compartidos::CompartidosEnDisco::nuevo(self.ruta());
+        let cd = pindesk_sincro::compartidos::CompartidosEnDisco::nuevo(self.ruta());
         if !cd.hay_alguno(&i.yo.id) {
             return Ok(None);
         }
@@ -492,7 +522,7 @@ impl Nucleo {
     ) -> Result<ResumenSincro, ErrorNucleo> {
         let chats: std::collections::BTreeSet<String> = fichas
             .iter()
-            .filter_map(|f| pixpin_proyecto::vista::chat_de_ficha(self.ruta(), f))
+            .filter_map(|f| pindesk_proyecto::vista::chat_de_ficha(self.ruta(), f))
             .collect();
         if chats.is_empty() {
             return Err(ErrorNucleo::Argumento {
@@ -508,7 +538,7 @@ impl Nucleo {
     /// traerlo entero otra vez. «Mensajes guardados» no se borra. Devuelve
     /// si se quito.
     pub fn borrar_proyecto(&self, ficha: String) -> Result<bool, ErrorNucleo> {
-        let (quitados, _sin_mover) = pixpin_proyecto::almacen::borrar_proyectos(
+        let (quitados, _sin_mover) = pindesk_proyecto::almacen::borrar_proyectos(
             self.ruta(),
             std::slice::from_ref(&ficha),
             crate::ahora_ms(),
@@ -575,7 +605,7 @@ impl Nucleo {
             .map(|a| a.sincro.lo_mio_manda)
             .unwrap_or(false)
         {
-            s.quien_manda(pixpin_sincro::mezcla::Mando::LoMioManda);
+            s.quien_manda(pindesk_sincro::mezcla::Mando::LoMioManda);
         }
         let otro = s.otro.clone();
         let mut hecho = Hecho::default();
@@ -831,9 +861,9 @@ fn atender(
     // Corto para los cuatro primeros y la sonda.
     flujo.set_read_timeout(Some(Duration::from_secs(5)))?;
     let (n, cuatro) = mirar_cuatro(&flujo)?;
-    if n == 4 && &cuatro == pixpin_sincro::SONDA {
+    if n == 4 && &cuatro == pindesk_sincro::SONDA {
         flujo.read_exact(&mut [0u8; 4])?;
-        flujo.write_all(pixpin_sincro::SONDA_RESPUESTA)?;
+        flujo.write_all(pindesk_sincro::SONDA_RESPUESTA)?;
         return Ok(Atendido::Sonda);
     }
     // Las sondas no cuentan (duran un instante); lo demas, si.
@@ -871,7 +901,7 @@ fn atender_saludo(
     // Un archivo suelto de otro aparato: al chat o lienzo que este delante.
     let fabrica = |_otro: &Aparato| {
         Box::new(RecibeAlFrente::nuevo(nucleo, &yo, &llegadas))
-            as Box<dyn pixpin_sincro::al_lienzo::Recibe + '_>
+            as Box<dyn pindesk_sincro::al_lienzo::Recibe + '_>
     };
     let al_saludar = |otro: &Aparato, _: u32| *quien.borrow_mut() = Some(otro.clone());
     let estado = |_: &str| {};
@@ -886,7 +916,7 @@ fn atender_saludo(
     // **Quien llama dice con los cuatro primeros bytes** si es del grupo
     // (`PXS1`) o una persona de un chat compartido (`PXC1`): a esa solo se
     // le deja tocar los chats que compartimos (la valla).
-    let persona = n == 4 && &cuatro == pixpin_sincro::canal::MAGIA_DE_PERSONA;
+    let persona = n == 4 && &cuatro == pindesk_sincro::canal::MAGIA_DE_PERSONA;
     if persona {
         r.atender_persona(flujo, nonce()?)?;
     } else {
@@ -927,8 +957,8 @@ mod tests {
             Some("c"),
             "0123456789abcdef".into(),
         );
-        assert_eq!(a.instancia, "PixPin Mac de Max");
-        assert_eq!(a.tipo, "_pixpin._tcp");
+        assert_eq!(a.instancia, "PinDesk Mac de Max");
+        assert_eq!(a.tipo, "_pindesk._tcp");
         let txt: Vec<_> = a
             .txt
             .iter()
@@ -951,9 +981,9 @@ mod tests {
     fn sin_letra_va_vacia_y_el_nombre_largo_se_recorta() {
         let largo = "ñ".repeat(50);
         let a = anuncio_de("id-del-mac", &largo, None, "e".into());
-        // 63 bytes como mucho y sin partir la ñ (2 bytes): «PixPin » son 7.
+        // 63 bytes como mucho y sin partir la ñ (2 bytes): «PinDesk » son 8.
         assert!(a.instancia.len() <= MAXIMO_ETIQUETA);
-        assert_eq!(a.instancia, format!("PixPin {}", "ñ".repeat(28)));
+        assert_eq!(a.instancia, format!("PinDesk {}", "ñ".repeat(27)));
         let valor = |c: &str| a.txt.iter().find(|p| p.clave == c).unwrap().valor.clone();
         assert_eq!(valor("l"), "");
         assert_eq!(valor("n").chars().count(), LETRAS_DEL_NOMBRE);
@@ -961,7 +991,24 @@ mod tests {
 
     #[test]
     fn tipo_y_puerto_son_los_de_pixpin_sincro() {
-        assert_eq!(tipo_de_servicio(), "_pixpin._tcp");
+        assert_eq!(tipo_de_servicio(), "_pindesk._tcp");
         assert_eq!(puerto_preferido(), 47474);
+    }
+
+    #[test]
+    fn cada_tipo_de_pindesk_tiene_su_tipo_de_antes() {
+        for (ahora, antes) in [
+            ("_pindesk._tcp", "_pixpin._tcp"),
+            ("_pindeskenvio._tcp", "_pixpinenvio._tcp"),
+            ("_pindeskrecibe._tcp", "_pixpinrecibe._tcp"),
+            ("_pindeskchat._tcp", "_pixpinchat._tcp"),
+        ] {
+            assert_eq!(tipo_de_antes(ahora.into()).as_deref(), Some(antes));
+            assert_eq!(tipo_de_antes(format!("{ahora}.")).as_deref(), Some(antes));
+        }
+        assert_eq!(tipo_de_antes(tipo_de_servicio()).as_deref(), Some("_pixpin._tcp"));
+        // Los de antes y los de otros no tienen otro de antes.
+        assert_eq!(tipo_de_antes("_pixpin._tcp".into()), None);
+        assert_eq!(tipo_de_antes("_http._tcp".into()), None);
     }
 }

@@ -1,16 +1,16 @@
 //! **`carpeta` en «Buscar en PixPin»**: las carpetas de paginas de todos los
 //! chats, para abrirlas, crear una o anadirles una pagina sin abrir el chat
 //! (Windows 22c3ce2 y 211a1cd, 25-oct-2026: `p carpeta` de Flow,
-//! `apps/pixpin-lanzador/src/cuadernos.rs`, y el pedido `carpeta_paginas`).
+//! `apps/pindesk-lanzador/src/cuadernos.rs`, y el pedido `carpeta_paginas`).
 //!
 //! Sale cada carpeta (la mas reciente primero, como mucho [`TOPE`]) y, si no
 //! es la de una clase grabada, su «Nueva página en …». Si lo escrito no es
 //! el nombre de ninguna, «Nueva carpeta «texto»». Lo de abrir ventanas lo
 //! hace Swift (`Buscar/`, `Chat/Carpetas.swift`); aqui se lee y se crea.
 
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
-use pixpin_proyecto::cuaderno::{self, Mensaje};
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
+use pindesk_proyecto::cuaderno::{self, Mensaje};
 
 use crate::carpetas::{NOMBRE_DE_SERIE, carpeta_por_nombre, nombre_libre, nombre_visible};
 use crate::chats::validar_chat;

@@ -5,7 +5,7 @@
 //!
 //! Una automatizacion es un disparador ([`Disparador`]: al capturar, a una
 //! hora, al llegar algo por la sincro, a mano) y una lista de pasos
-//! ([`Paso`]): una accion de la tabla `pixpin_ia::acciones` (el mismo pedido
+//! ([`Paso`]): una accion de la tabla `pindesk_ia::acciones` (el mismo pedido
 //! que armaria el asistente) o un pedido al asistente. Los pasos se encadenan
 //! con variables (`{captura}`, `{resultado}`, `{fecha}`, `{hora}`, `{sincro}`,
 //! `{nombre}`): lo que contesto un paso es el `{resultado}` del siguiente.
@@ -24,7 +24,7 @@
 //!   El historial de vueltas (solo del Mac, tampoco viaja) va al lado,
 //!   `automatizaciones-historial.json`.
 //! - **Nunca algo destructivo sin preguntar**: cada accion pasa por
-//!   `pixpin_ia::tareas::hacer`, que pregunta antes de lo que borra o sale
+//!   `pindesk_ia::tareas::hacer`, que pregunta antes de lo que borra o sale
 //!   del Mac (Swift: [`ManosAutomatizacion::confirmar`]).
 //! - **Sin bucles**: una que salta al capturar no puede capturar, ni una que
 //!   salta con la sincro sincronizar, ni ninguna crear automatizaciones (se
@@ -43,9 +43,9 @@ use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use pixpin_ia::acciones::{self, AccionApp};
-use pixpin_ia::fechas::{self, Momento};
-use pixpin_ia::tareas::{Chat, FuenteTareas, VistaLista, VistaTarea};
+use pindesk_ia::acciones::{self, AccionApp};
+use pindesk_ia::fechas::{self, Momento};
+use pindesk_ia::tareas::{Chat, FuenteTareas, VistaLista, VistaTarea};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
@@ -159,7 +159,7 @@ impl Disparador {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "tipo", rename_all = "snake_case")]
 pub enum Paso {
-    /// Una accion de la tabla del asistente (`pixpin_ia::acciones`), por el
+    /// Una accion de la tabla del asistente (`pindesk_ia::acciones`), por el
     /// nombre de su herramienta, con sus argumentos. `proyecto` (nombre o id
     /// del chat) e `imagenes` van al pedido si la accion los entiende.
     Accion {
@@ -1019,17 +1019,17 @@ pub fn leer_de(carpeta_del_chat: &Path) -> Result<Lista, String> {
 
 /// El chat «Asistente» (creandolo si no esta): su id y su carpeta.
 pub fn chat_del_asistente(raiz: &Path, aparato: &str, ahora: i64) -> std::io::Result<(String, PathBuf)> {
-    let f = pixpin_proyecto::almacen::asegurar_asistente(raiz, ahora, aparato)?;
-    let carpeta = pixpin_proyecto::almacen::carpeta(raiz, &f.id);
+    let f = pindesk_proyecto::almacen::asegurar_asistente(raiz, ahora, aparato)?;
+    let carpeta = pindesk_proyecto::almacen::carpeta(raiz, &f.id);
     Ok((f.id, carpeta))
 }
 
 /// La carpeta del chat «Asistente» si ya existe (sin crearlo solo por
 /// mirar, como Windows).
 fn carpeta_si_hay(raiz: &Path) -> Option<PathBuf> {
-    let indice = pixpin_proyecto::almacen::Indice::leer_si_esta(raiz).ok()?;
+    let indice = pindesk_proyecto::almacen::Indice::leer_si_esta(raiz).ok()?;
     let f = indice.proyectos.iter().find(|f| f.es_asistente())?;
-    Some(pixpin_proyecto::almacen::carpeta(raiz, &f.id))
+    Some(pindesk_proyecto::almacen::carpeta(raiz, &f.id))
 }
 
 /// La lista, si el chat «Asistente» ya existe (si no, vacia).
@@ -1068,7 +1068,7 @@ pub fn cambiar<R>(
 /// con la sincronizacion, como un `.leccion`). Si ya esta, no se toca
 /// (`senalar_fichero` de Windows).
 fn senalar(carpeta: &Path, proyecto: &str, aparato: &str, ahora: i64) -> std::io::Result<()> {
-    use pixpin_proyecto::cuaderno;
+    use pindesk_proyecto::cuaderno;
     let c = match cuaderno::Cuaderno::leer_de(carpeta) {
         Ok(c) => c,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Default::default(),
@@ -1119,7 +1119,7 @@ pub fn recortar(t: &str, n: usize) -> String {
 /// El id de un chat por su id o su nombre (sin mayusculas ni tildes; si no
 /// hay uno igual, el unico que lo contenga).
 pub fn proyecto_por_nombre(raiz: &Path, nombre: &str) -> Option<String> {
-    let indice = pixpin_proyecto::almacen::Indice::leer(raiz);
+    let indice = pindesk_proyecto::almacen::Indice::leer(raiz);
     let q = acciones::normalizar(nombre.trim());
     if q.is_empty() {
         return None;
@@ -1127,7 +1127,7 @@ pub fn proyecto_por_nombre(raiz: &Path, nombre: &str) -> Option<String> {
     if let Some(f) = indice.proyectos.iter().find(|f| f.id == nombre.trim()) {
         return Some(f.id.clone());
     }
-    let nombre_de = |f: &pixpin_proyecto::almacen::Ficha| {
+    let nombre_de = |f: &pindesk_proyecto::almacen::Ficha| {
         if f.es_guardados() {
             "mensajes guardados".to_string()
         } else {
@@ -1156,8 +1156,8 @@ pub trait ManosAutomatizacion: Send + Sync {
     fn empieza(&self, id: String, nombre: String);
     /// Pregunta al usuario y espera. Sin respuesta es un no.
     fn confirmar(&self, pregunta: String) -> bool;
-    /// Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-    /// llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+    /// Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+    /// llegara de `pindesk://`. `None`: hecho; si no, el motivo.
     fn pedido(&self, json: String) -> Option<String>;
     /// Un turno del asistente sin ventana. `proyecto` es el id del chat
     /// sobre el que se pide; `bloquear`, el disparador (`al_capturar`…): lo
@@ -1516,7 +1516,7 @@ impl FuenteTareas for FuenteDelMac<'_> {
     }
 
     fn chats(&self) -> Vec<Chat> {
-        pixpin_proyecto::almacen::Indice::leer_si_esta(self.nucleo.ruta())
+        pindesk_proyecto::almacen::Indice::leer_si_esta(self.nucleo.ruta())
             .map(|i| {
                 i.proyectos
                     .iter()
@@ -1560,7 +1560,7 @@ impl Hacedor for DeVerdad<'_> {
             desfase_ms: self.desfase_ms,
             ahora: Momento::de_ms_locales(crate::ahora_ms() + self.desfase_ms),
         };
-        pixpin_ia::tareas::hacer(a, &fuente, &confirmar, &mut mandar)
+        pindesk_ia::tareas::hacer(a, &fuente, &confirmar, &mut mandar)
     }
 
     fn asistente(&mut self, pedido: &str, proyecto: Option<&str>, imagenes: &[PathBuf], bloquear: Tipo) -> Result<String, String> {
@@ -1772,7 +1772,7 @@ pub fn automatizacion_herramientas() -> Vec<HerramientaAutomatizacion> {
         .filter(|a| {
             a.accion != "automatizacion"
                 && !acciones::es_en_el_chat(a.herramienta)
-                && !pixpin_ia::acciones_documentos::es_de_documentos(a.herramienta)
+                && !pindesk_ia::acciones_documentos::es_de_documentos(a.herramienta)
         })
         .map(|a| HerramientaAutomatizacion {
             nombre: a.herramienta.into(),

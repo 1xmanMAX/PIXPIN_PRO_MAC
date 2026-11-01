@@ -1,9 +1,9 @@
 //! **El timeline**: los dias con algo y sus momentos, por paginas.
 //!
-//! No se inventa nada: es `pixpin_timeline` tal cual (el de Windows). Los
+//! No se inventa nada: es `pindesk_timeline` tal cual (el de Windows). Los
 //! momentos viven en `<datos>/timeline/momentos.jsonl` y sus fotos y audios
-//! en `<datos>/timeline/medios/` (`pixpin_timeline::almacen::Almacen`); los
-//! dias se cuentan con `pixpin_timeline::dias` en el huso de quien mira (el
+//! en `<datos>/timeline/medios/` (`pindesk_timeline::almacen::Almacen`); los
+//! dias se cuentan con `pindesk_timeline::dias` en el huso de quien mira (el
 //! `desfase_ms` que pasa Swift: `TimeZone.current.secondsFromGMT() * 1000`).
 //!
 //! # Rendimiento
@@ -18,7 +18,7 @@
 //!
 //! Como `timeline/ventana.rs` de Windows: apuntar anade una linea al final
 //! (`Almacen::anadir`) con el texto partido en titulo y descripcion por
-//! `pixpin_timeline::frases`, las fotos copiadas (o movidas, si son un
+//! `pindesk_timeline::frases`, las fotos copiadas (o movidas, si son un
 //! temporal nuestro) y el audio movido a `medios/`; corregir, borrar,
 //! mandar a «Momentos» y marcar como leccion reescriben el fichero entero
 //! (`Almacen::guardar_todos`). Borrar devuelve la linea del momento para
@@ -30,11 +30,11 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use pixpin_timeline::Momento;
-use pixpin_timeline::almacen::Almacen;
-use pixpin_timeline::dias::{self, Dia, Mes};
-use pixpin_timeline::html::{Opciones, Seccion};
-use pixpin_timeline::{archivo, emoticonos, frases, resumen};
+use pindesk_timeline::Momento;
+use pindesk_timeline::almacen::Almacen;
+use pindesk_timeline::dias::{self, Dia, Mes};
+use pindesk_timeline::html::{Opciones, Seccion};
+use pindesk_timeline::{archivo, emoticonos, frases, resumen};
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -240,7 +240,7 @@ impl Nucleo {
 
     /// Busca en el titulo y la descripcion de TODOS los momentos, sin
     /// mayusculas ni tildes y con cada palabra en cualquier orden
-    /// (`pixpin_timeline::buscar`), del mas nuevo al mas viejo.
+    /// (`pindesk_timeline::buscar`), del mas nuevo al mas viejo.
     pub fn timeline_buscar(
         &self,
         consulta: String,
@@ -249,7 +249,7 @@ impl Nucleo {
     ) -> Result<Vec<MomentoTimeline>, ErrorNucleo> {
         let todos = self.momentos();
         let a = Almacen::en(self.ruta());
-        Ok(pixpin_timeline::buscar::buscar(&todos, &consulta)
+        Ok(pindesk_timeline::buscar::buscar(&todos, &consulta)
             .into_iter()
             .take(cuantos.min(TOPE_DE_PAGINA_TIMELINE) as usize)
             .map(|m| a_ficha(&a, m, desfase_ms))
@@ -493,10 +493,10 @@ impl Nucleo {
         // Otro aparato pudo usar el mismo numero en el mismo milisegundo.
         let ya: Vec<String> = a.leer().into_iter().map(|m| m.id).collect();
         let mut n = CUENTA.fetch_add(1, Ordering::Relaxed) + 1;
-        let mut id = pixpin_timeline::momento::id_nuevo(cuando, n);
+        let mut id = pindesk_timeline::momento::id_nuevo(cuando, n);
         while ya.contains(&id) {
             n += 1;
-            id = pixpin_timeline::momento::id_nuevo(cuando, n);
+            id = pindesk_timeline::momento::id_nuevo(cuando, n);
         }
         let mut m = Momento::nuevo(id.clone(), cuando, titulo, descripcion);
         for (k, f) in fotos.iter().enumerate() {
@@ -708,7 +708,7 @@ impl Nucleo {
     }
 
     /// **Exportar lo que se ve** (`exportar_lo_que_se_ve` de Windows): la
-    /// pagina de linea de tiempo de `pixpin_timeline::html`, con las fotos
+    /// pagina de linea de tiempo de `pindesk_timeline::html`, con las fotos
     /// y los audios dentro. Swift la guarda como HTML o la imprime a PDF.
     /// Sin nada que exportar, error de argumento.
     pub fn timeline_exportar(
@@ -730,7 +730,7 @@ impl Nucleo {
                 partir_por_dias(dias::ultimas_24h(&todos, ahora), desfase_ms),
             ),
             ExportarTimeline::Buscar { consulta } => {
-                let mut v = pixpin_timeline::buscar::buscar(&todos, consulta);
+                let mut v = pindesk_timeline::buscar::buscar(&todos, consulta);
                 // En la pagina, siempre de lo viejo a lo nuevo.
                 v.sort_by_key(|m| (m.cuando, m.id.clone()));
                 (
@@ -789,7 +789,7 @@ impl Nucleo {
             ),
             nota_de_voz: SIN_TITULO_VOZ.into(),
             desfase: desfase_ms,
-            lengua: pixpin_timeline::Lengua::Es,
+            lengua: pindesk_timeline::Lengua::Es,
             pestanas: ["Línea".into(), "Momentos".into(), "Calendario".into()],
             sobre_todo: "Sobre todo".into(),
         };
@@ -798,11 +798,11 @@ impl Nucleo {
                 return None;
             }
             let bytes = std::fs::read(a.ruta(n)).ok()?;
-            Some(pixpin_timeline::html::data_uri(n, &bytes))
+            Some(pindesk_timeline::html::data_uri(n, &bytes))
         };
         Ok(PaginaTimeline {
             nombre,
-            html: pixpin_timeline::html::pagina(&op, &secciones, &dentro, &dentro),
+            html: pindesk_timeline::html::pagina(&op, &secciones, &dentro, &dentro),
             cuantos: cuantos as u32,
         })
     }

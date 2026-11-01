@@ -4,7 +4,7 @@
 //! `ventana_chat/carpetas.rs` y `compartir/carpeta.rs` de Windows.
 //!
 //! La carpeta es un mensaje `MINIAPP` «carpeta» con la lista ordenada de sus
-//! paginas en el `texto` (`pixpin_proyecto::carpeta_de_paginas`, el mismo
+//! paginas en el `texto` (`pindesk_proyecto::carpeta_de_paginas`, el mismo
 //! crate que Windows): una creada en el PC se ve y se edita aqui igual, y al
 //! reves. Las paginas siguen siendo mensajes normales del chat.
 //!
@@ -36,12 +36,12 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use pixpin_motor2d::exportar::{self as ex};
-use pixpin_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
-use pixpin_motor2d::{Escena, excalidraw};
-use pixpin_proyecto::almacen;
-use pixpin_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
-use pixpin_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
+use pindesk_motor2d::exportar::{self as ex};
+use pindesk_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
+use pindesk_motor2d::{Escena, excalidraw};
+use pindesk_proyecto::almacen;
+use pindesk_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
+use pindesk_proyecto::cuaderno::{self, Clase, Mensaje, Sello};
 
 use crate::chats::validar_chat;
 use crate::compartir::HojaDeDibujo;
@@ -285,7 +285,7 @@ fn nombre_de_hoja(m: &Mensaje) -> String {
     if n == "Lienzo" || n.ends_with(".excalidraw") || n == "Sin nombre" {
         String::new()
     } else {
-        pixpin_docs::sin_extension(&n)
+        pindesk_docs::sin_extension(&n)
     }
 }
 
@@ -613,7 +613,7 @@ impl Nucleo {
             .map(|n| n.to_string_lossy().into_owned())
             .ok_or_else(|| no_existe(&ruta))?;
         let m = self.adjuntar_con(chat, ruta, Some(nombre.clone()), |_| {})?;
-        let titulo = pixpin_docs::sin_extension(&nombre);
+        let titulo = pindesk_docs::sin_extension(&nombre);
         let id = m.id.clone();
         let hecha = self.cambiar_en_disco(&dir, &carpeta, |c| c.adjuntar(&id, &titulo))?;
         Ok(hecha.map(|c| AdjuntadoALaClase {
@@ -757,7 +757,7 @@ pub fn pagina_siguiente(
         .and_then(|r| {
             let texto = std::fs::read_to_string(almacen::lienzo(raiz, chat, &r)).ok()?;
             let lienzo = excalidraw::leer(&texto).ok()?;
-            pixpin_motor2d::hoja_de_plantilla::lienzo_siguiente(&excalidraw::a_escena(&lienzo))
+            pindesk_motor2d::hoja_de_plantilla::lienzo_siguiente(&excalidraw::a_escena(&lienzo))
         });
     let titulo = c.titulo_siguiente(PAGINA_DE_SERIE);
     let m = n.crear_lienzo_con(chat.to_string(), Some(titulo.clone()), |_| {})?;
@@ -819,8 +819,8 @@ mod pruebas {
         (n, d, chat.id)
     }
 
-    fn diario() -> pixpin_motor2d::biblioteca::FiguraGuardada {
-        pixpin_motor2d::figuras_de_serie::catalogo()
+    fn diario() -> pindesk_motor2d::biblioteca::FiguraGuardada {
+        pindesk_motor2d::figuras_de_serie::catalogo()
             .into_iter()
             .find(|f| f.id == "serie-diario")
             .unwrap()
@@ -831,26 +831,26 @@ mod pruebas {
         let f = diario();
         let (w, h) = f.tamano();
         let mut escena = Escena::nueva();
-        pixpin_motor2d::biblioteca::estampar_en_escena(
+        pindesk_motor2d::biblioteca::estampar_en_escena(
             &mut escena,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(w / 2.0, h / 2.0),
+            pindesk_motor2d::vector::Punto2::nuevo(w / 2.0, h / 2.0),
         );
-        escena.anadir(pixpin_motor2d::Elemento {
+        escena.anadir(pindesk_motor2d::Elemento {
             x: 100.0,
             y: 300.0,
             ancho: 50.0,
             alto: 20.0,
-            figura: pixpin_motor2d::Figura::Rectangulo,
+            figura: pindesk_motor2d::Figura::Rectangulo,
             ..Default::default()
         });
         // Algo lejos de la hoja: no sale en el PDF.
-        escena.anadir(pixpin_motor2d::Elemento {
+        escena.anadir(pindesk_motor2d::Elemento {
             x: 9000.0,
             y: 9000.0,
             ancho: 30.0,
             alto: 30.0,
-            figura: pixpin_motor2d::Figura::Rectangulo,
+            figura: pindesk_motor2d::Figura::Rectangulo,
             ..Default::default()
         });
         let l = excalidraw::con_escena(&excalidraw::Lienzo::vacio(), &escena);

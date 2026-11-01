@@ -5,7 +5,7 @@
 // - `confirmar`: lo que borra o saca algo del Mac pregunta antes, en la
 //   burbuja con «Sí» y «No» (como Windows desde el 13-oct). Sin respuesta
 //   (parado, ventana cerrada, 10 min) es un no.
-// - `pedido`: una accion de la app (`{"pixpin":1,"accion":...}`, el
+// - `pedido`: una accion de la app (`{"pindesk":1,"accion":...}`, el
 //   protocolo de `docs/protocolo-pedidos.md`). Apuntar y marcar tareas se
 //   hace aqui con el nucleo (con su resultado); lo demas va a
 //   `HacerPedidos`, el mismo camino que `pixpinmax://` y el Dock.

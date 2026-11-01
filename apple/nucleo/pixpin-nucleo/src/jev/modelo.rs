@@ -1,7 +1,7 @@
 //! **Que modelo contesta cada pedido al asistente** (Windows e51da39,
 //! `apps/pixpin/src/jev/modelo.rs`): antes del turno, Jev dice lo dificil
 //! que es, si es una orden simple, si pide razonar y si un error importaria
-//! (`pixpin_typesafe::modelo`); la tabla de alli elige el modelo rapido
+//! (`pindesk_typesafe::modelo`); la tabla de alli elige el modelo rapido
 //! (Claude Haiku, DeepSeek Flash: el de siempre) o el fuerte del mismo
 //! proveedor y con la misma clave (Claude Sonnet, DeepSeek V4 Pro).
 //!
@@ -18,10 +18,10 @@ use std::path::Path;
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use pixpin_ia::motor::{Motor, Peticion, Respuesta, Seguir, Trozo};
-use pixpin_ia::nube::{self, MotorNube, Proveedor};
-use pixpin_typesafe::Cliente;
-use pixpin_typesafe::modelo::{self as jm, Contexto, Ruta};
+use pindesk_ia::motor::{Motor, Peticion, Respuesta, Seguir, Trozo};
+use pindesk_ia::nube::{self, MotorNube, Proveedor};
+use pindesk_typesafe::Cliente;
+use pindesk_typesafe::modelo::{self as jm, Contexto, Ruta};
 
 use super::Funcion;
 
@@ -96,7 +96,7 @@ impl Motor for MotorSegunJev {
         &self,
         peticion: &Peticion,
         al_trozo: &mut dyn FnMut(&Trozo) -> Seguir,
-    ) -> Result<Respuesta, pixpin_ia::ErrorIa> {
+    ) -> Result<Respuesta, pindesk_ia::ErrorIa> {
         self.elegido().completar(peticion, al_trozo)
     }
 
@@ -186,7 +186,7 @@ mod pruebas {
 
     #[test]
     fn sin_jev_el_motor_es_el_mismo() {
-        let m: Arc<dyn Motor> = Arc::new(pixpin_ia::motor::MotorGuionado::nuevo(vec![]));
+        let m: Arc<dyn Motor> = Arc::new(pindesk_ia::motor::MotorGuionado::nuevo(vec![]));
         let r = segun_jev(&std::env::temp_dir(), "p", m.clone(), Proveedor::Claude, false, "explica la entropía", &[]);
         assert!(Arc::ptr_eq(&m, &r));
         assert!(jev_rotulo_del_modelo("p".into()).is_none());

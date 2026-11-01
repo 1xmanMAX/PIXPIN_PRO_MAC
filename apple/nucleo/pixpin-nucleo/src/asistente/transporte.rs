@@ -1,7 +1,7 @@
 //! **El HTTPS del asistente en el Mac**: URLSession desde Swift.
 //!
-//! `pixpin_ia::nube::http` habla con Claude y DeepSeek por un
-//! [`pixpin_ia::nube::http::Transporte`] que pone la app (en Windows lo hace
+//! `pindesk_ia::nube::http` habla con Claude y DeepSeek por un
+//! [`pindesk_ia::nube::http::Transporte`] que pone la app (en Windows lo hace
 //! WinHTTP). Aqui ese transporte es un **interfaz que implementa Swift**
 //! ([`TransporteApp`]): manda el POST con URLSession (TLS, proxy y
 //! certificados del sistema) y va pasando la respuesta a un
@@ -22,8 +22,8 @@ use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use pixpin_ia::motor::Seguir;
-use pixpin_ia::nube::http::{self, EventoHttp, Pedido, Transporte};
+use pindesk_ia::motor::Seguir;
+use pindesk_ia::nube::http::{self, EventoHttp, Pedido, Transporte};
 
 use crate::ErrorNucleo;
 
@@ -143,7 +143,7 @@ impl ReceptorHttp {
     }
 }
 
-/// El adaptador al trait de `pixpin-ia`.
+/// El adaptador al trait de `pindesk-ia`.
 struct Adaptador {
     app: Arc<dyn TransporteApp>,
 }

@@ -1,4 +1,4 @@
-//! **Los graficos de un libro de Excel** (`pixpin-hojas`, el lector del
+//! **Los graficos de un libro de Excel** (`pindesk-hojas`, el lector del
 //! visor de hojas de Windows): su titulo, su clase, las categorias y los
 //! valores guardados en cache por Excel, y su ancla a las celdas, para que
 //! Swift los pinte encima de la rejilla en las mismas celdas que Excel.
@@ -8,7 +8,7 @@
 
 use std::path::Path;
 
-use pixpin_hojas::{Ancla, ContenidoDibujo, Libro, Regional, TipoHoja};
+use pindesk_hojas::{Ancla, ContenidoDibujo, Libro, Regional, TipoHoja};
 
 /// Una serie de un grafico.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -52,7 +52,7 @@ pub struct GraficoHoja {
     pub alto: f64,
 }
 
-fn hex(c: pixpin_hojas::Rgb) -> String {
+fn hex(c: pindesk_hojas::Rgb) -> String {
     format!("#{:02x}{:02x}{:02x}", c.r, c.g, c.b)
 }
 
@@ -165,7 +165,7 @@ pub fn rejilla_del_libro(ruta: String, hoja: u32, columnas: u32, filas: u32) -> 
     let (columnas, filas) = (columnas.min(4096), filas.min(200_000));
     let mut h = libro.abrir_hoja(hoja as usize);
     h.cargar_hasta_fila(filas);
-    let r = pixpin_hojas::Rejilla::nueva(&h, &libro.estilos.fuente_normal);
+    let r = pindesk_hojas::Rejilla::nueva(&h, &libro.estilos.fuente_normal);
     Some(RejillaTinta {
         xs: (0..=columnas).map(|c| r.x(c)).collect(),
         ys: (0..=filas).map(|f| r.y(f)).collect(),
@@ -182,9 +182,9 @@ mod pruebas {
     fn un_libro_sin_graficos_o_que_no_se_lee_da_la_lista_vacia() {
         let d = std::env::temp_dir().join(format!("pixpin-graficos-{}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
-        let t = pixpin_proyecto::tabla::Tabla::default();
-        let bytes = pixpin_proyecto::tabla_xlsx::a_xlsx(
-            &[pixpin_proyecto::tabla_xlsx::HojaParaVer {
+        let t = pindesk_proyecto::tabla::Tabla::default();
+        let bytes = pindesk_proyecto::tabla_xlsx::a_xlsx(
+            &[pindesk_proyecto::tabla_xlsx::HojaParaVer {
                 nombre: "Hoja1",
                 tabla: &t,
                 valores: None,

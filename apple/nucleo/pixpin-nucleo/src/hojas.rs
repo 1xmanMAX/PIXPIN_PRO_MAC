@@ -34,9 +34,9 @@
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use pixpin_proyecto::formula::{self, Valor};
-use pixpin_proyecto::tabla::{self, EstiloDeCelda, Ref, Tabla};
-use pixpin_proyecto::{almacen, cuaderno, importar_hojas, portapapeles_tabla, vista};
+use pindesk_proyecto::formula::{self, Valor};
+use pindesk_proyecto::tabla::{self, EstiloDeCelda, Ref, Tabla};
+use pindesk_proyecto::{almacen, cuaderno, importar_hojas, portapapeles_tabla, vista};
 
 use crate::chats::validar_chat;
 
@@ -189,7 +189,7 @@ impl HojaDeCalculo {
                 editor,
                 avisado: false,
             }),
-            decimal: pixpin_sistema::entorno::separador_decimal(),
+            decimal: pindesk_sistema::entorno::separador_decimal(),
         })
     }
 }
@@ -422,7 +422,7 @@ impl HojaDeCalculo {
     /// quita si ya lo tienen todas). `false` si no cambio nada o el rango es
     /// demasiado grande.
     pub fn formato(&self, f: FormatoHoja) -> bool {
-        use pixpin_proyecto::tabla::FormatoNumero;
+        use pindesk_proyecto::tabla::FormatoNumero;
         let f = match f {
             FormatoHoja::Negrita => Formato::Alternar(Interruptor::Negrita),
             FormatoHoja::Cursiva => Formato::Alternar(Interruptor::Cursiva),
@@ -1278,7 +1278,7 @@ mod pruebas {
     /// Un chat con un libro de dos hojas de verdad (`proyecto_con_libro` de
     /// `hoja_pin/pruebas.rs` de Windows).
     fn con_libro(n: &Nucleo, d: &std::path::Path) -> (String, cuaderno::Mensaje, PathBuf) {
-        use pixpin_proyecto::tabla_xlsx::{HojaParaVer, a_xlsx};
+        use pindesk_proyecto::tabla_xlsx::{HojaParaVer, a_xlsx};
         let tabla_de = |celdas: &[(&str, &str)]| {
             let mut t = Tabla::default();
             for (k, v) in celdas {

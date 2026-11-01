@@ -1,13 +1,13 @@
 //! **Los comentarios al margen de una nota para un editor nativo** (el
 //! `UITextView` del iPad): los mismos de `comentarios` (el fichero hermano
 //! `anot-<codigo>.comentarios.json` que viaja con la nota, las cuentas de
-//! `pixpin_docs::md_comentarios`), con registros de UniFFI en vez del JSON
+//! `pindesk_docs::md_comentarios`), con registros de UniFFI en vez del JSON
 //! de la pagina web. Todas las posiciones van en UTF-16 (`NSRange`).
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use pixpin_docs::md_comentarios::Quien;
-use pixpin_proyecto::{almacen, cuaderno};
+use pindesk_docs::md_comentarios::Quien;
+use pindesk_proyecto::{almacen, cuaderno};
 
 use super::DestinoNota;
 use super::comentarios::{self, Comentarista};

@@ -1,7 +1,7 @@
 //! **Quien hablo cuando**: la conversacion por turnos (tanda E5).
 //!
 //! Es `Mensaje.turnos` del movil (`TurnoDeVoz(quien, desdeMs, hastaMs)`,
-//! `ConversacionActivity.terminar`) y `pixpin_voz::turnos` de Windows, que
+//! `ConversacionActivity.terminar`) y `pindesk_voz::turnos` de Windows, que
 //! sigue en `por-adaptar/`: lo poco que hace falta esta copiado aqui **al
 //! caracter** (el campo viaja por la sincronizacion). Con los turnos
 //! guardados, pasar la nota a texto saca **cada turno con su nombre
@@ -18,7 +18,7 @@
 //! empieza ([`repartir`]). Lo dicho cuando no hablaba nadie no sale, igual
 //! que alli.
 
-use pixpin_proyecto::cuaderno::Mensaje;
+use pindesk_proyecto::cuaderno::Mensaje;
 
 use crate::voz::SegmentoVoz;
 
@@ -153,11 +153,11 @@ pub fn de_un_mensaje(m: &Mensaje) -> Vec<TurnoVoz> {
     m.resto.get(CAMPO).map(de_json).unwrap_or_default()
 }
 
-/// El texto con tiempos de un turno: `con_tiempos` de `pixpin_voz::tiempos`
+/// El texto con tiempos de un turno: `con_tiempos` de `pindesk_voz::tiempos`
 /// con el nombre delante de cada parrafo.
 fn con_tiempos(segmentos: &[SegmentoVoz], prefijo: &str) -> String {
     let trozos: Vec<_> = segmentos.iter().map(SegmentoVoz::de_windows).collect();
-    pixpin_voz::tiempos::con_tiempos(&trozos, prefijo)
+    pindesk_voz::tiempos::con_tiempos(&trozos, prefijo)
 }
 
 /// **Reparte lo reconocido de la nota entera entre sus turnos**: cada trozo

@@ -3,8 +3,8 @@
 
 use std::sync::Mutex;
 
-use pixpin_ia::herramientas;
-use pixpin_ia::motor::{MotorGuionado, Respuesta};
+use pindesk_ia::herramientas;
+use pindesk_ia::motor::{MotorGuionado, Respuesta};
 
 use super::*;
 use crate::asistente::pruebas::Apunta;
@@ -101,7 +101,7 @@ fn una_accion_de_la_app_sale_como_pedido_del_protocolo() {
     let pedidos = manos.pedidos.lock().unwrap();
     assert_eq!(pedidos.len(), 1, "{pedidos:?}");
     assert_eq!(pedidos[0]["accion"], "anadir_tarea");
-    assert_eq!(pedidos[0]["pixpin"], 1);
+    assert_eq!(pedidos[0]["pindesk"], 1);
     assert!(r.herramientas.iter().any(|h| h.nombre == "anadir_tarea" && h.ok), "{:?}", r.herramientas);
     assert_eq!(r.texto, "Apuntado: comprar pan.");
     assert_eq!(oyente.tandas.lock().unwrap().concat(), r.texto);
@@ -200,13 +200,13 @@ fn la_nube_ve_el_catalogo_sin_lo_que_el_mac_aun_no_hace() {
     let nube = herramientas_del_turno("hola", false, false, true);
     let nombres: Vec<&str> = nube.iter().map(|h| h.nombre.as_str()).collect();
     assert!(nombres.contains(&"anadir_tarea") && nombres.contains(&herramientas::DIBUJAR));
-    for no in [pixpin_ia::hoja::NOMBRE, pixpin_ia::figuras::NOMBRE, pixpin_ia::anotacion::NOMBRE] {
+    for no in [pindesk_ia::hoja::NOMBRE, pindesk_ia::figuras::NOMBRE, pindesk_ia::anotacion::NOMBRE] {
         assert!(!nombres.contains(&no), "{no}");
     }
-    assert!(pixpin_ia::edicion::herramientas().iter().all(|h| !nombres.contains(&h.nombre.as_str())));
+    assert!(pindesk_ia::edicion::herramientas().iter().all(|h| !nombres.contains(&h.nombre.as_str())));
     // El local, solo las pocas que vienen a cuento; con un adjunto, leerlo.
     let local = herramientas_del_turno("¿qué dice?", false, true, false);
-    assert!(local.len() <= pixpin_ia::seleccion::MAXIMO + 1);
+    assert!(local.len() <= pindesk_ia::seleccion::MAXIMO + 1);
     assert!(local.iter().any(|h| h.nombre == herramientas::OCR));
     // «Cópiame esto» con una foto: solo calcar.
     let calcar = herramientas_del_turno("dibuja esta imagen", true, true, true);
@@ -223,7 +223,7 @@ fn sin_clave_la_nube_lo_dice_y_el_local_de_antes_pasa_a_la_nube() {
     // Sin Llavero instalado en las pruebas: no hay clave.
     let m = ia_que_motor(a.clone());
     assert_eq!(m.proveedor, "deepseek");
-    assert_eq!(m.modelo, pixpin_ia::nube::deepseek::MODELO);
+    assert_eq!(m.modelo, pindesk_ia::nube::deepseek::MODELO);
     assert!(!m.con_clave);
     let e = motor_del_turno(&a, "hola").err().expect("sin clave no hay nube");
     assert!(e.to_string().contains("Falta la clave de DeepSeek"), "{e}");
@@ -249,7 +249,7 @@ fn sin_clave_la_nube_lo_dice_y_el_local_de_antes_pasa_a_la_nube() {
 /// un proveedor; si no, el primero con clave, y sin ninguna, Claude.
 #[test]
 fn la_eleccion_es_la_de_windows() {
-    use pixpin_ia::nube::Proveedor;
+    use pindesk_ia::nube::Proveedor;
     let nada = |_| false;
     assert_eq!(eleccion_con("", nada), Proveedor::Claude);
     assert_eq!(eleccion_con("claude", nada), Proveedor::Claude);
@@ -302,7 +302,7 @@ fn buscar_en_mis_cosas_encuentra_y_cita_y_la_nube_pide_permiso() {
         .unwrap();
     let guion = || {
         MotorGuionado::nuevo(vec![
-            Respuesta::de_llamada(pixpin_ia::documentos::BUSCAR, r#"{"consulta":"presupuesto cuneta"}"#),
+            Respuesta::de_llamada(pindesk_ia::documentos::BUSCAR, r#"{"consulta":"presupuesto cuneta"}"#),
             Respuesta::de_texto("Son 4500 soles [1]."),
         ])
     };

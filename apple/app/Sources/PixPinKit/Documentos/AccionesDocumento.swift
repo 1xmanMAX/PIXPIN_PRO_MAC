@@ -183,7 +183,7 @@ public struct SeccionAjustesPdf: View {
                     Text("Chico (para pantalla)").tag(NivelAligerar.pequeno)
                     Text("Máximo").tag(NivelAligerar.extremo)
                 }
-                Text("Al entrar al chat solo se usan Exacto y Medio; Chico y Máximo, con «Aligerar el PDF» del menu del mensaje. Se guarda en pixpinmax.toml, igual que en Windows.")
+                Text("Al entrar al chat solo se usan Exacto y Medio; Chico y Máximo, con «Aligerar el PDF» del menu del mensaje. Se guarda en pindesk.toml, igual que en Windows.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let error { Text(error).font(.caption).foregroundStyle(.red) }

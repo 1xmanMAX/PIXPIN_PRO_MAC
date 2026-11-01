@@ -2,7 +2,7 @@
 //! `gastos`, `pizarra` o `hoja` **sola** y pinearla saca la herramienta en
 //! vez de un pin de texto.
 //!
-//! Copia de `crates/pixpin-pin/src/magia.rs` de Windows (que es el puerto de
+//! Copia de `crates/pindesk-pin/src/magia.rs` de Windows (que es el puerto de
 //! `clipboard/MagicWord.kt` del movil), regla a regla, sin el estado global:
 //! las palabras guardadas viajan en `[pinear]` de `pixpinmax.toml`
 //! (`palabras_propias` y `palabras`, una por linea `palabra=APP`), y Swift

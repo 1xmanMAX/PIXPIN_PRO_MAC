@@ -1,13 +1,13 @@
 //! **Lo que el editor nativo de notas del iPad pide al Markdown** (el
 //! `UITextView`, cuyo texto ES el Markdown): el menu de la barra `/`
-//! (`pixpin_docs::md_comandos`, el de Windows y el movil), las tablas de
-//! barras para editarlas como rejilla (`pixpin_docs::md_tabla`) y las fotos
-//! de la nota con su renglon (`pixpin_docs::md_imagen`). Todas las
+//! (`pindesk_docs::md_comandos`, el de Windows y el movil), las tablas de
+//! barras para editarlas como rejilla (`pindesk_docs::md_tabla`) y las fotos
+//! de la nota con su renglon (`pindesk_docs::md_imagen`). Todas las
 //! posiciones van en UTF-16 (`NSRange`).
 
-use pixpin_docs::md_comandos::{self as mc, Bloque};
-use pixpin_docs::md_imagen;
-use pixpin_docs::md_tabla::{self, Alineacion, Tabla};
+use pindesk_docs::md_comandos::{self as mc, Bloque};
+use pindesk_docs::md_imagen;
+use pindesk_docs::md_tabla::{self, Alineacion, Tabla};
 
 use super::TextoElegido;
 

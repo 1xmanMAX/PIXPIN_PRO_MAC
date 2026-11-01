@@ -1,6 +1,11 @@
-// Los otros aparatos de PixPin en la Wi-Fi: Bonjour con `NWBrowser` de
+// Los otros aparatos de PinDesk en la Wi-Fi: Bonjour con `NWBrowser` de
 // Network.framework (el `DnsServiceBrowse` de Windows y el `NsdManager` de
 // Android) y la sonda `PING`/`PONG` que dice si contestan y donde.
+//
+// Se busca con el tipo de ahora (`_pindesk._tcp`…) **y** con el de antes
+// (`_pixpin._tcp`…, `tipoDeAntes`), como `mdns::buscar` de Windows: los
+// aparatos sin actualizar solo anuncian el de antes. Si un aparato sale en
+// los dos (el mismo `id`), vale lo del nuevo (docs/formato-pindesk.md).
 //
 // Rendimiento (§4bis.6 del plan): nada sondea. Bonjour avisa cuando alguien
 // aparece o se va (`browseResultsChangedHandler`), y a cada aparato nuevo se
@@ -14,7 +19,8 @@ import PixPinCore
 public struct Vecino: Identifiable, Equatable {
     /// El `id` del TXT; si no lo trae, la instancia.
     public var id: String
-    /// `PixPin Portatil`, tal como se anuncia.
+    /// `PinDesk Portatil` (o el `PixPin Portatil` de antes), tal como se
+    /// anuncia.
     public var instancia: String
     public var datos: DatosVecino
     /// Donde esta en Bonjour (se resuelve con `Vecinos.sondear`).
@@ -25,51 +31,79 @@ public struct Vecino: Identifiable, Equatable {
 
 @MainActor
 public final class Vecinos: ObservableObject {
-    /// Todos los `_pixpin._tcp` de la red, uno por aparato.
+    /// Todos los `_pindesk._tcp` (y `_pixpin._tcp`) de la red, uno por aparato.
     @Published public private(set) var todos: [Vecino] = []
     /// Se llama en el hilo principal cada vez que cambia la lista.
     public var alCambiar: (@MainActor ([Vecino]) -> Void)?
 
-    private var buscador: NWBrowser?
+    /// Los buscadores: el del tipo de ahora primero y, detras, el de antes.
+    private var buscadores: [NWBrowser] = []
+    /// Lo que ve cada buscador, en el mismo orden.
+    private var vistosPor: [Set<NWBrowser.Result>] = []
+    /// Sube al montar o soltar los buscadores: lo que llegue de unos ya
+    /// soltados se tira.
+    private var generacion = 0
     /// Quien espera a un aparato (`esperar`): su condicion y su aviso.
     private var esperas: [UUID: (cumple: (DatosVecino) -> Bool, aviso: CheckedContinuation<Vecino?, Never>)] = [:]
 
     public init() {}
 
-    public var buscando: Bool { buscador != nil }
+    public var buscando: Bool { !buscadores.isEmpty }
 
-    /// Empieza a buscar `tipo` (`tipoDeServicio()`). La primera vez el
-    /// sistema pide el permiso de red local (`NSLocalNetworkUsageDescription`).
+    /// Empieza a buscar `tipo` (`tipoDeServicio()`) y su tipo de antes
+    /// (`tipoDeAntes`). La primera vez el sistema pide el permiso de red local
+    /// (`NSLocalNetworkUsageDescription`).
     public func empezar(tipo: String = tipoDeServicio()) {
-        guard buscador == nil else { return }
-        let parametros = NWParameters()
-        // Solo la Wi-Fi/Ethernet de verdad: AWDL (AirDrop) no lleva a un PC.
-        parametros.includePeerToPeer = false
-        let b = NWBrowser(for: .bonjourWithTXTRecord(type: tipo, domain: nil), using: parametros)
-        b.browseResultsChangedHandler = { [weak self] resultados, _ in
-            // El buscador corre en la cola principal (abajo).
-            MainActor.assumeIsolated { self?.actualizar(resultados) }
-        }
-        b.stateUpdateHandler = { [weak self] estado in
-            if case let .failed(error) = estado {
-                NSLog("PixPin: la busqueda de Bonjour fallo: %@", "\(error)")
-                MainActor.assumeIsolated {
-                    // Sin rehacerlo aqui (podria girar en vacio): la
-                    // siguiente `empezar` lo vuelve a montar.
-                    self?.buscador?.cancel()
-                    self?.buscador = nil
+        guard buscadores.isEmpty else { return }
+        var tipos = [tipo]
+        if let antes = tipoDeAntes(tipo: tipo) { tipos.append(antes) }
+        generacion += 1
+        let gen = generacion
+        vistosPor = Array(repeating: Set<NWBrowser.Result>(), count: tipos.count)
+        for (i, t) in tipos.enumerated() {
+            let parametros = NWParameters()
+            // Solo la Wi-Fi/Ethernet de verdad: AWDL (AirDrop) no lleva a un PC.
+            parametros.includePeerToPeer = false
+            let b = NWBrowser(for: .bonjourWithTXTRecord(type: t, domain: nil), using: parametros)
+            b.browseResultsChangedHandler = { [weak self] resultados, _ in
+                // El buscador corre en la cola principal (abajo).
+                MainActor.assumeIsolated { self?.recibir(resultados, de: i, generacion: gen) }
+            }
+            b.stateUpdateHandler = { [weak self] estado in
+                if case let .failed(error) = estado {
+                    NSLog("PinDesk: la busqueda de Bonjour (%@) fallo: %@", t, "\(error)")
+                    MainActor.assumeIsolated {
+                        // Sin rehacerlo aqui (podria girar en vacio): la
+                        // siguiente `empezar` los vuelve a montar. Si solo
+                        // falla el del tipo de antes, se sigue con el nuevo.
+                        guard let self, self.generacion == gen else { return }
+                        if i > 0, i < self.buscadores.count {
+                            self.buscadores[i].cancel()
+                            self.vistosPor[i] = []
+                            self.actualizar()
+                        } else {
+                            self.soltarBuscadores()
+                        }
+                    }
                 }
             }
+            // En la principal: los avisos son pocos y pequenos, y asi la lista se
+            // publica sin saltos de hilo.
+            b.start(queue: .main)
+            buscadores.append(b)
         }
-        // En la principal: los avisos son pocos y pequenos, y asi la lista se
-        // publica sin saltos de hilo.
-        b.start(queue: .main)
-        buscador = b
+    }
+
+    /// Cancela los buscadores sin tocar la lista ni las esperas.
+    private func soltarBuscadores() {
+        for b in buscadores { b.cancel() }
+        buscadores = []
+        vistosPor = []
+        generacion += 1
     }
 
     public func parar() {
-        buscador?.cancel()
-        buscador = nil
+        soltarBuscadores()
         todos = []
         for clave in Array(esperas.keys) { cumplir(clave, con: nil) }
     }
@@ -100,9 +134,18 @@ public final class Vecinos: ObservableObject {
         espera.aviso.resume(returning: vecino)
     }
 
-    private func actualizar(_ resultados: Set<NWBrowser.Result>) {
+    /// Lo nuevo de un buscador (`indice`: 0 el tipo de ahora, 1 el de antes).
+    private func recibir(_ resultados: Set<NWBrowser.Result>, de indice: Int, generacion gen: Int) {
+        guard gen == generacion, indice < vistosPor.count else { return }
+        vistosPor[indice] = resultados
+        actualizar()
+    }
+
+    /// Junta lo de los buscadores: el del tipo de ahora va primero, asi que
+    /// un aparato que sale en los dos se queda con lo del nuevo.
+    private func actualizar() {
         var vistos: [String: Vecino] = [:]
-        for r in resultados {
+        for r in vistosPor.flatMap({ Array($0) }) {
             guard case let .service(nombre, _, _, _) = r.endpoint else { continue }
             var txt: [String: String] = [:]
             if case let .bonjour(registro) = r.metadata { txt = registro.dictionary }

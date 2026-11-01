@@ -15,13 +15,13 @@
 //! error. **Bloqueante**: Swift lo llama desde una `Task` con prioridad
 //! `.utility`. pdfsqueeze corre en su propio grupo de hilos (la mitad de los
 //! nucleos, al menos uno), que se suelta al acabar: no queda nada vivo.
-//! Plan B de Windows (`pixpin_pdf::aligerar`, con WIC) no hay: va tras
+//! Plan B de Windows (`pindesk_pdf::aligerar`, con WIC) no hay: va tras
 //! `cfg(windows)`.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use pixpin_store::ajustes::{self, NivelPdf};
+use pindesk_store::ajustes::{self, NivelPdf};
 
 use crate::{ErrorNucleo, Nucleo};
 
@@ -203,7 +203,7 @@ fn aligerar_con(
     let bytes = std::fs::read(origen)?;
     match comprimir(&bytes, nivel, avance) {
         Salida::Menor(datos, informe) => {
-            pixpin_sincro::disco::escribir_atomico(Path::new(destino), &datos)?;
+            pindesk_sincro::disco::escribir_atomico(Path::new(destino), &datos)?;
             Ok(ResumenAligerar {
                 antes: bytes.len() as u64,
                 despues: datos.len() as u64,
@@ -452,8 +452,8 @@ impl Nucleo {
 }
 
 impl Nucleo {
-    fn ubicacion_pdf(&self) -> pixpin_store::Ubicacion {
-        pixpin_store::Ubicacion::Instalado {
+    fn ubicacion_pdf(&self) -> pindesk_store::Ubicacion {
+        pindesk_store::Ubicacion::Instalado {
             raiz: self.ruta().to_path_buf(),
         }
     }
@@ -560,7 +560,7 @@ mod pruebas {
     }
 
     #[test]
-    fn los_ajustes_pdf_van_en_pixpinmax_toml() {
+    fn los_ajustes_pdf_van_en_pindesk_toml() {
         let d = carpeta("ajustes");
         let n = Nucleo::abrir(d.display().to_string(), "Mac".into()).unwrap();
         let a = n.ajustes_pdf().unwrap();
@@ -574,7 +574,7 @@ mod pruebas {
         let b = n.ajustes_pdf().unwrap();
         assert!(!b.aligerar_al_entrar);
         assert_eq!(b.nivel, NivelAligerar::Pequeno);
-        let toml = std::fs::read_to_string(d.join("pixpinmax.toml")).unwrap();
+        let toml = std::fs::read_to_string(d.join("pindesk.toml")).unwrap();
         assert!(toml.contains("pequeno"), "{toml}");
     }
 }

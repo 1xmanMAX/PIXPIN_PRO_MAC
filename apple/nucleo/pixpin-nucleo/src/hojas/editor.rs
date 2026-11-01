@@ -27,9 +27,9 @@
 use std::cell::OnceCell;
 use std::collections::BTreeMap;
 
-use pixpin_proyecto::formula::{self, Valor};
-use pixpin_proyecto::importar_hojas::{MAX_COLS, MAX_FILAS};
-use pixpin_proyecto::tabla::{EstiloDeCelda, FormatoNumero, Ref, Tabla, ref_a, ref_de};
+use pindesk_proyecto::formula::{self, Valor};
+use pindesk_proyecto::importar_hojas::{MAX_COLS, MAX_FILAS};
+use pindesk_proyecto::tabla::{EstiloDeCelda, FormatoNumero, Ref, Tabla, ref_a, ref_de};
 
 /// Cuantos cambios se pueden deshacer.
 const MAXIMO_DESHACER: usize = 200;
@@ -518,7 +518,7 @@ impl Editor {
     /// **Pega** unas filas de celdas con la esquina en la celda activa
     /// (`portapapeles_tabla::pegar`), como un solo cambio. Escribiendo, el
     /// texto va dentro de lo que se escribe.
-    pub fn pegar(&mut self, filas: &[Vec<pixpin_proyecto::portapapeles_tabla::Pegada>]) -> bool {
+    pub fn pegar(&mut self, filas: &[Vec<pindesk_proyecto::portapapeles_tabla::Pegada>]) -> bool {
         let en = self.hoja().sel.activa;
         let alto = filas.len() as u32;
         let ancho = filas.iter().map(|f| f.len()).max().unwrap_or(0) as u32;
@@ -527,7 +527,7 @@ impl Editor {
         }
         let esquinas = (en.columna, en.fila, (en.columna + ancho - 1).min(MAX_COLS - 1), (en.fila + alto - 1).min(MAX_FILAS - 1));
         let hecho = self.cambiar(esquinas, |t| {
-            pixpin_proyecto::portapapeles_tabla::pegar(t, en, filas);
+            pindesk_proyecto::portapapeles_tabla::pegar(t, en, filas);
         });
         // Lo pegado queda elegido, como en Excel.
         let h = self.hoja_mut();
@@ -743,7 +743,7 @@ mod pruebas {
 
     #[test]
     fn pegar_se_deshace_de_una_vez() {
-        use pixpin_proyecto::portapapeles_tabla::Pegada;
+        use pindesk_proyecto::portapapeles_tabla::Pegada;
         let mut e = editor();
         e.elegir(r("B2"), false);
         let p = |t: &str| Pegada { texto: t.into(), ..Default::default() };

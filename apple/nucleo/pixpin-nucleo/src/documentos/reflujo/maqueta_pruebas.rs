@@ -1,8 +1,8 @@
 //! Las pruebas de la maqueta del movil: las de `visor/maqueta_movil.rs` y
-//! las de partir renglones de `pixpin_render::lectura` de Windows.
+//! las de partir renglones de `pindesk_render::lectura` de Windows.
 
 use super::*;
-use pixpin_docs::tabla::FilaDeTabla;
+use pindesk_docs::tabla::FilaDeTabla;
 
 /// Una medida de mentira: 8 unidades por letra, renglones de la letra por
 /// su interlineado; el minimo es la palabra mas larga.
@@ -142,7 +142,7 @@ fn la_letra_y_el_grosor_son_los_cuatro_del_movil() {
 fn el_enlace_no_cambia_la_letra_y_el_tabulador_es_un_espacio_eme() {
     let enlace = Trozo {
         texto: "https://x.pe".into(),
-        estilo: pixpin_docs::documento::Estilo {
+        estilo: pindesk_docs::documento::Estilo {
             enlace: true,
             ..Default::default()
         },
@@ -273,7 +273,7 @@ fn una_imagen_ancha_se_encoge_al_texto_y_ocupa_su_alto() {
     png.extend_from_slice(&352u32.to_be_bytes());
     let doc = Documento {
         bloques: vec![Bloque::nota(MARCA_IMAGEN), p("pie")],
-        imagenes: vec![pixpin_docs::documento::Imagen {
+        imagenes: vec![pindesk_docs::documento::Imagen {
             mime: "image/png".into(),
             datos: png,
         }],
@@ -288,7 +288,7 @@ fn una_imagen_ancha_se_encoge_al_texto_y_ocupa_su_alto() {
     assert_eq!(para_leer(&c), vec![1]);
 }
 
-// ----------------------------------------------- partir (pixpin_render::lectura)
+// ----------------------------------------------- partir (pindesk_render::lectura)
 
 fn u(t: &str) -> Vec<u16> {
     t.encode_utf16().collect()

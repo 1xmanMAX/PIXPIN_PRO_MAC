@@ -48,12 +48,35 @@ enum IdFormato {
     static let original = "original"
     static let originales = "originales"
     static let editable = "editable"
+    /// El proyecto en un fichero (`.pindesk`; el id sigue siendo `pixpin`,
+    /// que es la clase que dice el nucleo).
     static let pixpin = "pixpin"
     static let texto = "texto"
     /// Los propios de una grabacion (y `word` de una nota en Windows).
     static let word = "word"
     static let md = "md"
     static let anki = "anki"
+}
+
+/// **Un proyecto en un fichero**: `.pindesk` (lo que se escribe desde
+/// nov-2026) o el `.pixpin` de antes, que se sigue abriendo, importando y
+/// recibiendo (`pindesk_proyecto::es_paquete`, docs/formato-pindesk.md).
+public enum PaqueteProyecto {
+    /// La extension con que sale, sin el punto.
+    public static let extension_ = "pindesk"
+    /// La de antes de PinDesk.
+    public static let extensionVieja = "pixpin"
+
+    /// Si `url` es un `.pindesk` o un `.pixpin` (las mayusculas dan igual).
+    public static func es(_ url: URL) -> Bool {
+        let e = url.pathExtension.lowercased()
+        return e == extension_ || e == extensionVieja
+    }
+
+    /// `<tronco>.pindesk`.
+    public static func nombre(_ tronco: String) -> String {
+        "\(tronco).\(extension_)"
+    }
 }
 
 /// **El simbolo de cada formato, por su clase** (el mismo en toda la app,

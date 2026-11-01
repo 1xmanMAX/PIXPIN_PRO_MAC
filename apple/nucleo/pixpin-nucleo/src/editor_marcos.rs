@@ -9,11 +9,11 @@
 //! con la escena (en el mismo plano que el dibujo), asi el numero se mueve
 //! con el lienzo y no llega tarde.
 
-use pixpin_motor2d::Escena;
-use pixpin_motor2d::elemento::{ColorRgba, EstiloTrazo, Figura};
-use pixpin_motor2d::marco;
-use pixpin_motor2d::pintado::Orden;
-use pixpin_motor2d::vector::Punto2;
+use pindesk_motor2d::Escena;
+use pindesk_motor2d::elemento::{ColorRgba, EstiloTrazo, Figura};
+use pindesk_motor2d::marco;
+use pindesk_motor2d::pintado::Orden;
+use pindesk_motor2d::vector::Punto2;
 
 /// El azul de los marcos de los visores (`marcos_doc::AZUL`, #0078D4).
 pub(crate) const AZUL: ColorRgba = ColorRgba {
@@ -57,7 +57,7 @@ pub(crate) fn ordenes(escena: &Escena, zoom: f32) -> Vec<Orden> {
         // La insignia: el numero en blanco sobre su cuadrito azul, 20 de alto
         // y 6 de aire a cada lado.
         let n = (i + 1).to_string();
-        let (w, _) = pixpin_motor2d::texto::medida_estimada(&n, TAM);
+        let (w, _) = pindesk_motor2d::texto::medida_estimada(&n, TAM);
         let (ancho, alto) = ((w + 12.0) * k, 20.0 * k);
         v.push(Orden::Relleno {
             puntos: vec![
@@ -73,7 +73,7 @@ pub(crate) fn ordenes(escena: &Escena, zoom: f32) -> Vec<Orden> {
         if let Figura::Marco { nombre } = &m.figura
             && !nombre.is_empty()
         {
-            let (_, h) = pixpin_motor2d::texto::medida_estimada(nombre, TAM);
+            let (_, h) = pindesk_motor2d::texto::medida_estimada(nombre, TAM);
             v.push(texto(nombre.clone(), x0, y0 - (h + 4.0) * k, k, AZUL));
         }
     }
@@ -88,7 +88,7 @@ fn texto(texto: String, x: f32, y: f32, k: f32, color: ColorRgba) -> Orden {
         tam: TAM * k,
         familia: FAMILIA.into(),
         color,
-        ancho_max: pixpin_motor2d::texto::SIN_PARTIR,
+        ancho_max: pindesk_motor2d::texto::SIN_PARTIR,
         negrita: false,
         cursiva: false,
     }
@@ -97,8 +97,8 @@ fn texto(texto: String, x: f32, y: f32, k: f32, color: ColorRgba) -> Orden {
 #[cfg(test)]
 mod pruebas {
     use super::*;
-    use pixpin_motor2d::elemento::Elemento;
-    use pixpin_motor2d::relleno::EstiloRelleno;
+    use pindesk_motor2d::elemento::Elemento;
+    use pindesk_motor2d::relleno::EstiloRelleno;
 
     fn un_marco(escena: &mut Escena, x: f32, y: f32, nombre: &str) {
         escena.anadir(Elemento {
@@ -177,6 +177,6 @@ mod pruebas {
     fn el_motor_no_pinta_el_marco() {
         let mut escena = Escena::nueva();
         un_marco(&mut escena, 0.0, 0.0, "Hoja");
-        assert!(pixpin_motor2d::pintado::ordenes(&escena.elementos[0]).is_empty());
+        assert!(pindesk_motor2d::pintado::ordenes(&escena.elementos[0]).is_empty());
     }
 }

@@ -22,11 +22,11 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use pixpin_motor2d::excalidraw;
-use pixpin_motor2d::exportar::{self as ex, Alcance};
-use pixpin_motor2d::exportar_html::{self, HojaWeb};
-use pixpin_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
-use pixpin_motor2d::{Escena, marco};
+use pindesk_motor2d::excalidraw;
+use pindesk_motor2d::exportar::{self as ex, Alcance};
+use pindesk_motor2d::exportar_html::{self, HojaWeb};
+use pindesk_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
+use pindesk_motor2d::{Escena, marco};
 
 use crate::chats::validar_chat;
 use crate::editor_exportar::{QueExportar, hojas as hojas_con_ordenes, mime_de};
@@ -223,7 +223,7 @@ impl Nucleo {
     /// movil. Bloqueante: puede pesar mucho.
     pub fn paquete_de_proyecto(&self, chat: String) -> Result<Vec<u8>, ErrorNucleo> {
         validar_chat(&chat)?;
-        match pixpin_proyecto::almacen::empaquetar(self.ruta(), &chat, crate::ahora_ms()) {
+        match pindesk_proyecto::almacen::empaquetar(self.ruta(), &chat, crate::ahora_ms()) {
             Ok(b) => Ok(b),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 Err(ErrorNucleo::NoExiste { que: chat })
@@ -273,7 +273,7 @@ mod pruebas {
         let (n, d, chat) = nucleo("dibujo");
         let m = n.crear_lienzo(chat.clone(), None).unwrap();
         let referencia = m.referencia.unwrap();
-        let ruta = pixpin_proyecto::almacen::lienzo(&d, &chat, &referencia);
+        let ruta = pindesk_proyecto::almacen::lienzo(&d, &chat, &referencia);
         // Caso negativo: un lienzo en blanco no tiene hojas.
         assert!(
             n.hojas_de_dibujo(chat.clone(), referencia.clone())

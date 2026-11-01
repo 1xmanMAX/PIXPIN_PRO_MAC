@@ -34,6 +34,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
+				<string>io.github.1xmanmax.pindesk.proyecto</string>
 				<string>io.github.1xmanmax.pixpin.proyecto</string>
 			</array>
 		</dict>
@@ -157,6 +158,7 @@
 			<string>io.github.1xmanmax.pixpin.enlace</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>pindesk</string>
 				<string>pixpinmax</string>
 			</array>
 		</dict>
@@ -173,6 +175,10 @@
 	<string>PinDesk le pregunta al Finder qué ficheros tienes elegidos para dejarlos flotando como pin (comando «Pinear lo elegido en el Finder»).</string>
 	<key>NSBonjourServices</key>
 	<array>
+		<string>_pindesk._tcp</string>
+		<string>_pindeskenvio._tcp</string>
+		<string>_pindeskrecibe._tcp</string>
+		<string>_pindeskchat._tcp</string>
 		<string>_pixpin._tcp</string>
 		<string>_pixpinenvio._tcp</string>
 		<string>_pixpinrecibe._tcp</string>
@@ -288,6 +294,24 @@
 			</array>
 			<key>UTTypeDescription</key>
 			<string>Proyecto de PinDesk</string>
+			<key>UTTypeIdentifier</key>
+			<string>io.github.1xmanmax.pindesk.proyecto</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>pindesk</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.content</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Proyecto de PinDesk (.pixpin)</string>
 			<key>UTTypeIdentifier</key>
 			<string>io.github.1xmanmax.pixpin.proyecto</string>
 			<key>UTTypeTagSpecification</key>

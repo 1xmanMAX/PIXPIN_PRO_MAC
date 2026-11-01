@@ -3,7 +3,7 @@
 // `EnviarActivity`/`RecibirActivity` de Android). Los dos sentidos:
 //
 // - **Enviar y esperar**: se eligen archivos, se abre una puerta con un
-//   codigo (y su QR `pixpin-envio:1:…`), se anuncia `_pixpinenvio._tcp` y
+//   codigo (y su QR `pixpin-envio:1:…`), se anuncia `_pindeskenvio._tcp` (y el `_pixpinenvio._tcp` de antes) y
 //   cada aparato que llega con el codigo espera a que se le apruebe.
 // - **Esperar para recibir**: un codigo (y su QR `pixpin-recibe:1:…`) y se
 //   anuncia `_pixpinrecibe._tcp`; quien envia lo teclea y manda.

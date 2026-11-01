@@ -229,11 +229,11 @@ final class CompartirTests: XCTestCase {
         let pdf = try await p.generar(IdFormato.pdf, claves: [nota.id, dibujo.id], en: carpeta)
         XCTAssertEqual(PDFDocument(url: pdf[0])?.pageCount, 2)
         let paquete = try await p.generar(IdFormato.pixpin, claves: [], en: carpeta)
-        XCTAssertEqual(paquete[0].pathExtension, "pixpin")
+        XCTAssertEqual(paquete[0].pathExtension, "pindesk")
         XCTAssertEqual(try Data(contentsOf: paquete[0]).prefix(2), Data("PK".utf8))
 
         // Solo el dibujo: el lienzo dentro de la web; lo editable es el
-        // `.pixpin` (el `.excalidraw` suelto ya no se ofrece, como Windows).
+        // `.pindesk` (el `.excalidraw` suelto ya no se ofrece, como Windows).
         let solo = await PrepararCompartir.preparar(.mensajes(chat: chat, titulo: "Obra", [dibujo]), almacen: almacen)
         XCTAssertNotNil(solo.excalidraw)
         XCTAssertFalse(solo.compartible().formatos.contains { $0.id == IdFormato.editable })

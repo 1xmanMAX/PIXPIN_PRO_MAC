@@ -1,5 +1,5 @@
 //! **Cuanto vale cada coincidencia y que letras se resaltan**: el
-//! `normalizar.rs` del plugin de Flow de Windows (`pixpin-lanzador`), tal
+//! `normalizar.rs` del plugin de Flow de Windows (`pindesk-lanzador`), tal
 //! cual, para que «Buscar en todo» ordene y resalte igual en los dos
 //! sistemas.
 //!

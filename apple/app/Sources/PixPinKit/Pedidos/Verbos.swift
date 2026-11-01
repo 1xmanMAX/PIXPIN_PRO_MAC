@@ -105,7 +105,7 @@ public enum Verbos {
         Fila(nombres: ["pinear-ultima", "ultima"], uso: "pinear-ultima", ayuda: "Saca como pin la captura mas reciente.",
              opciones: [], porEnlace: true) { _ in uno("pinear_ultima") },
         Fila(nombres: ["archivo"], uso: "archivo <id del mensaje> [--proyecto P]",
-             ayuda: "Saca a la pantalla el fichero de ese mensaje del chat (pixpin://atajo/archivo/<id> de Android).",
+             ayuda: "Saca a la pantalla el fichero de ese mensaje del chat (pindesk://atajo/archivo/<id> de Android).",
              opciones: ["proyecto", "id"], porEnlace: true, armar: armarArchivo),
         Fila(nombres: ["chat", "mensaje"], uso: "chat [texto] [fichero…] [--proyecto P]",
              ayuda: "Escribe en el chat (sin proyecto, en Mensajes guardados) el texto y los ficheros; sin nada, abre ese chat.",
@@ -281,7 +281,7 @@ public enum Verbos {
                 continue
             }
             guard fila.opciones.contains(clave) else {
-                throw FalloOrden.noSeEntiende("«\(fila.nombres[0])» no tiene la opcion --\(clave) (pixpinmax ayuda)")
+                throw FalloOrden.noSeEntiende("«\(fila.nombres[0])» no tiene la opcion --\(clave) (pindesk ayuda)")
             }
             if valor == nil {
                 guard i < resto.count else { throw FalloOrden.noSeEntiende("falta el valor de --\(clave)") }
@@ -296,12 +296,12 @@ public enum Verbos {
     /// La ayuda, sacada de la tabla.
     public static func ayuda() -> String {
         var s = "PinDesk: pedirle cosas a PinDesk desde fuera.\n\n"
-            + "Enlaces: pixpinmax://<verbo>?campo=valor (y pixpin://atajo/<verbo> de Android).\n\nVerbos:\n"
+            + "Enlaces: pindesk://<verbo>?campo=valor (y pindesk://atajo/<verbo> de Android; pixpinmax:// y pixpin:// también valen).\n\nVerbos:\n"
         for f in tabla {
             s += "  " + f.uso.padding(toLength: max(52, f.uso.count), withPad: " ", startingAt: 0) + " " + f.ayuda + "\n"
         }
         s += "\n--proyecto acepta el id o el nombre del proyecto. Sin --proyecto, Mensajes guardados.\n"
-            + "Ejemplos: pixpinmax://tarea?texto=comprar%20yeso, pixpinmax://proyecto/<id>, pixpinmax://atajo/capturar.\n\n"
+            + "Ejemplos: pindesk://tarea?texto=comprar%20yeso, pindesk://proyecto/<id>, pindesk://atajo/capturar.\n\n"
             + "Codigos de salida: 0 aceptado, 1 fallo aqui (fichero), 2 version, 3 no se entiende,\n"
             + "6 rechazado (enlace no permitido o dijo que no).\n"
         return s

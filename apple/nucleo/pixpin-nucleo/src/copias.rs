@@ -2,21 +2,21 @@
 //! de Windows, copia de `sincro/CopiasActivity.kt` del movil).
 //!
 //! Las copias se hacen solas antes de recibir algo por Wi-Fi y antes de cada
-//! vuelta de sincronizar (`pixpin_sincro::copias`, el mismo crate que
+//! vuelta de sincronizar (`pindesk_sincro::copias`, el mismo crate que
 //! Windows): viven en `copias/`, fuera de lo que viaja. Aqui se listan y se
 //! vuelve a cualquiera. **Volver no borra lo hecho despues** y se puede
 //! deshacer, porque antes de volver se guarda otra copia.
 //!
 //! Y **«Proyectos borrados»**: lo que esta en la papelera de PixPin
-//! (`pixpin_proyecto::almacen::en_papelera`) se recupera entero —nombre,
+//! (`pindesk_proyecto::almacen::en_papelera`) se recupera entero —nombre,
 //! hojas en su orden, PDF y chat— y deja de estar borrado para sincronizar.
 //!
 //! Como en Windows, en el PC (y en el Mac) un lienzo vive dentro de la
 //! carpeta de su proyecto: no hay «lienzos sin proyecto» que recoger.
 
-use pixpin_proyecto::almacen::{self, EnPapelera};
-use pixpin_proyecto::vista::DiscoPc;
-use pixpin_sincro::copias::{self, Copia};
+use pindesk_proyecto::almacen::{self, EnPapelera};
+use pindesk_proyecto::vista::DiscoPc;
+use pindesk_sincro::copias::{self, Copia};
 
 use crate::{ErrorNucleo, Nucleo};
 

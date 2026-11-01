@@ -18,12 +18,12 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_motor2d::biblioteca::{self, FiguraGuardada};
-use pixpin_motor2d::ecuacion::Estilo;
-use pixpin_motor2d::elemento::Elemento;
-use pixpin_motor2d::gesto::Gesto;
-use pixpin_motor2d::grafica::{self, Fallo, Peticion};
-use pixpin_motor2d::vector::Punto2;
+use pindesk_motor2d::biblioteca::{self, FiguraGuardada};
+use pindesk_motor2d::ecuacion::Estilo;
+use pindesk_motor2d::elemento::Elemento;
+use pindesk_motor2d::gesto::Gesto;
+use pindesk_motor2d::grafica::{self, Fallo, Peticion};
+use pindesk_motor2d::vector::Punto2;
 
 use crate::editor::EditorLienzo;
 use crate::{ErrorNucleo, Nucleo};
@@ -52,25 +52,25 @@ pub(crate) fn estilo_del_pincel(g: &Gesto) -> Estilo {
     let tam = if g.estilo.tamano_letra > 0.0 {
         g.estilo.tamano_letra
     } else {
-        pixpin_motor2d::texto::TAM_POR_DEFECTO
+        pindesk_motor2d::texto::TAM_POR_DEFECTO
     };
     Estilo {
         color: g.estilo.trazo,
         tam,
         opacidad: g.estilo.opacidad,
-        familia: pixpin_motor2d::texto::nombre_de_familia(g.estilo.familia).to_string(),
+        familia: pindesk_motor2d::texto::nombre_de_familia(g.estilo.familia).to_string(),
     }
 }
 
 /// Lo que mide un texto con la letra `familia`: la cuenta del motor (en el
 /// Mac no hay medidor de DirectWrite).
 pub(crate) fn medir(familia: &str) -> impl Fn(&str, f32) -> (f32, f32) + '_ {
-    move |texto, tam| pixpin_motor2d::texto::medida(texto, tam, familia, Default::default())
+    move |texto, tam| pindesk_motor2d::texto::medida(texto, tam, familia, Default::default())
 }
 
 /// **El instrumento de fabrica con el pincel de ahora** (`instrumento_del_pincel`).
 fn instrumento_del_pincel(g: &Gesto, ejes: u8) -> Elemento {
-    let mut e = pixpin_motor2d::instrumento::elemento_de_fabrica(
+    let mut e = pindesk_motor2d::instrumento::elemento_de_fabrica(
         ejes,
         g.estilo.trazo,
         g.estilo.grosor.de_forma(),
@@ -80,7 +80,7 @@ fn instrumento_del_pincel(g: &Gesto, ejes: u8) -> Elemento {
     e.extras.familia = g
         .estilo
         .familia
-        .map(|f| pixpin_motor2d::texto::nombre_de_familia(Some(f)).to_string());
+        .map(|f| pindesk_motor2d::texto::nombre_de_familia(Some(f)).to_string());
     e
 }
 
@@ -126,7 +126,7 @@ pub fn peticion_de_grafica(
 /// texto no es una tabla.
 #[uniffi::export]
 pub fn celdas_de_texto(texto: String) -> Option<Vec<Vec<String>>> {
-    pixpin_motor2d::tabla_dibujada::rejilla_de_texto(&texto)
+    pindesk_motor2d::tabla_dibujada::rejilla_de_texto(&texto)
 }
 
 /// **Si una grafica se puede dibujar asi**: `None` si si; el aviso de lo
@@ -171,7 +171,7 @@ impl EditorLienzo {
             return false;
         }
         st.gesto
-            .tomar_herramienta(pixpin_motor2d::gesto::Herramienta::Mano);
+            .tomar_herramienta(pindesk_motor2d::gesto::Herramienta::Mano);
         st.gesto.seleccion.poner_todos(ids);
         drop(guarda);
         self.subir_cambios();
@@ -227,7 +227,7 @@ impl EditorLienzo {
         // Celda a celda y no por `elementos_de_tabla`, que quita las filas
         // en blanco del final: una tabla en blanco es donde escribir
         // (`tabla_de_celdas` de Windows). Las filas, todas del mismo ancho.
-        use pixpin_motor2d::tabla_dibujada::{Celda, elementos_de_tabla_con_juntas};
+        use pindesk_motor2d::tabla_dibujada::{Celda, elementos_de_tabla_con_juntas};
         let ancho = celdas.iter().map(Vec::len).max().unwrap_or(0);
         let rejilla: Vec<Vec<Celda>> = celdas
             .iter()
@@ -265,15 +265,15 @@ impl EditorLienzo {
 /// La ruta de la biblioteca en `raiz`, creando el chat «Asistente» si no
 /// estaba (`biblioteca_figuras::ruta_en`), con la carpeta y el id del chat.
 fn ruta_en(raiz: &Path, aparato: &str, ahora: i64) -> std::io::Result<(PathBuf, String, PathBuf)> {
-    let f = pixpin_proyecto::almacen::asegurar_asistente(raiz, ahora, aparato)?;
-    let carpeta = pixpin_proyecto::almacen::carpeta(raiz, &f.id);
+    let f = pindesk_proyecto::almacen::asegurar_asistente(raiz, ahora, aparato)?;
+    let carpeta = pindesk_proyecto::almacen::carpeta(raiz, &f.id);
     Ok((carpeta.join(RUTA_EN_EL_CHAT), f.id, carpeta))
 }
 
 /// Pone (una vez) el mensaje ARCHIVO del chat que hace viajar la biblioteca
 /// (`automatizaciones::senalar_fichero` de Windows).
 fn senalar(carpeta: &Path, proyecto: &str, aparato: &str, ahora: i64) -> std::io::Result<()> {
-    use pixpin_proyecto::cuaderno;
+    use pindesk_proyecto::cuaderno;
     let c = match cuaderno::Cuaderno::leer_de(carpeta) {
         Ok(c) => c,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Default::default(),
@@ -313,7 +313,7 @@ pub const MARCA_DE_SERIE: &str = "figuras-de-serie.version";
 /// que dos aparatos que las ponen a la vez dejan lo mismo. `true` si las
 /// puso ahora.
 pub fn instalar_de_serie(raiz: &Path, ruta: &Path) -> bool {
-    use pixpin_motor2d::figuras_de_serie::{VERSION, instalar_en};
+    use pindesk_motor2d::figuras_de_serie::{VERSION, instalar_en};
     let marca = raiz.join(MARCA_DE_SERIE);
     if std::fs::read_to_string(&marca).is_ok_and(|s| s.trim() == VERSION.to_string()) {
         return false;
@@ -524,7 +524,7 @@ mod pruebas {
             .into_iter()
             .filter(|f| {
                 !f.id
-                    .starts_with(pixpin_motor2d::figuras_de_serie::PREFIJO_ID)
+                    .starts_with(pindesk_motor2d::figuras_de_serie::PREFIJO_ID)
             })
             .collect();
         assert_eq!(lista.len(), 1);
@@ -532,7 +532,7 @@ mod pruebas {
         let (ruta, _, carpeta) =
             ruta_en(&raiz, &nucleo.identidad().unwrap().yo.codigo(), 1).unwrap();
         assert!(ruta.ends_with(RUTA_EN_EL_CHAT) && ruta.is_file());
-        let c = pixpin_proyecto::cuaderno::Cuaderno::leer_de(&carpeta).unwrap();
+        let c = pindesk_proyecto::cuaderno::Cuaderno::leer_de(&carpeta).unwrap();
         assert_eq!(c.mensajes.iter().filter(|m| m.id == ID_MENSAJE).count(), 1);
 
         assert!(
@@ -548,7 +548,7 @@ mod pruebas {
         );
         assert!(nucleo.quitar_figura(lista[0].id.clone()).unwrap());
         assert!(nucleo.figuras_guardadas().unwrap().iter().all(|f| {
-            f.id.starts_with(pixpin_motor2d::figuras_de_serie::PREFIJO_ID)
+            f.id.starts_with(pindesk_motor2d::figuras_de_serie::PREFIJO_ID)
         }));
         let _ = std::fs::remove_dir_all(dir);
         let _ = std::fs::remove_dir_all(raiz);

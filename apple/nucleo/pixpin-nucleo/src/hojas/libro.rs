@@ -10,8 +10,8 @@
 //! movil guardaba solo en `tablas/libro-*.json` antes del 13-oct
 //! (`vista::tablas_viejas_del_libro`) pasan tambien a mensajes al guardar.
 
-use pixpin_proyecto::cuaderno::{Clase, Mensaje, Sello};
-use pixpin_proyecto::importar_hojas;
+use pindesk_proyecto::cuaderno::{Clase, Mensaje, Sello};
+use pindesk_proyecto::importar_hojas;
 
 /// Si el mensaje es un libro de hojas (o un `.xls`, que se reconoce para
 /// decir que no se lee).
@@ -41,7 +41,7 @@ pub fn tablas_hechas(mensajes: &[Mensaje], libro: &Mensaje) -> Vec<usize> {
     let mut hechas: Vec<(usize, usize)> = mensajes
         .iter()
         .enumerate()
-        .filter(|(_, m)| m.miniapp.as_deref() == Some(pixpin_proyecto::tabla::MINIAPP))
+        .filter(|(_, m)| m.miniapp.as_deref() == Some(pindesk_proyecto::tabla::MINIAPP))
         .filter_map(|(i, m)| {
             let hoja = m.referencia.as_deref()?.strip_prefix(&prefijo)?.parse().ok()?;
             Some((hoja, i))
@@ -66,7 +66,7 @@ pub fn mensajes_de_hojas(libro: &Mensaje, hojas: &[HojaLista], sello: &Sello) ->
             // El id es la hora: con varias hojas en el mismo milisegundo se
             // pisarian, asi que cada una va un milisegundo detras.
             let sello = Sello { cuando: sello.cuando + i as i64, numero: sello.numero + i as i64, ..sello.clone() };
-            let mut m = Mensaje::miniapp(pixpin_proyecto::tabla::MINIAPP, &h.nombre, &h.documento, &sello);
+            let mut m = Mensaje::miniapp(pindesk_proyecto::tabla::MINIAPP, &h.nombre, &h.documento, &sello);
             m.referencia = Some(id_de_hoja(libro, i));
             m
         })
@@ -149,8 +149,8 @@ mod pruebas {
         assert_eq!(nuevos[1].referencia.as_deref(), Some("libro-1700-1"));
         assert_ne!(nuevos[0].id, nuevos[1].id, "dos hojas en el mismo milisegundo no se pisan");
         assert_eq!(nuevos[1].numero, 10);
-        let t = pixpin_proyecto::tabla::Tabla::leer(&nuevos[1].texto).unwrap();
-        assert_eq!(t.celda(pixpin_proyecto::tabla::ref_de("B1").unwrap()), "2");
+        let t = pindesk_proyecto::tabla::Tabla::leer(&nuevos[1].texto).unwrap();
+        assert_eq!(t.celda(pindesk_proyecto::tabla::ref_de("B1").unwrap()), "2");
 
         // Y la segunda vez se encuentran, en el orden de las hojas aunque
         // esten desordenadas en el chat.

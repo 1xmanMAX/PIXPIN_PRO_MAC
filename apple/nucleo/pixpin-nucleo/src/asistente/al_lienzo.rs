@@ -20,10 +20,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use pixpin_ia::edicion::{Anfitrion, Contexto, Edicion};
-use pixpin_motor2d::Escena;
-use pixpin_motor2d::elemento::Elemento;
-use pixpin_proyecto::cuaderno::{Cuaderno, Mensaje as Nota};
+use pindesk_ia::edicion::{Anfitrion, Contexto, Edicion};
+use pindesk_motor2d::Escena;
+use pindesk_motor2d::elemento::Elemento;
+use pindesk_proyecto::cuaderno::{Cuaderno, Mensaje as Nota};
 
 use super::chat as ia_chat;
 use crate::Nucleo;
@@ -39,10 +39,10 @@ pub const NOMBRE_LIENZO_PROPIO: &str = "Lienzo del asistente";
 const HUECO: f32 = 80.0;
 
 /// Que se pide al lienzo (ademas de dibujar, editar lo que hay y resumirlo
-/// para el modelo; `pixpin_ia::edicion`).
+/// para el modelo; `pindesk_ia::edicion`).
 #[derive(Debug, Clone)]
 pub enum Trabajo {
-    /// Meter un `.excalidraw` hecho por `pixpin_ia::lienzo::documento`.
+    /// Meter un `.excalidraw` hecho por `pindesk_ia::lienzo::documento`.
     Dibujar(String),
     /// Una hoja pasada al lienzo (`hoja_a_lienzo`): su documento y las
     /// fotos recortadas que nombra (id, PNG), todo en un paso.
@@ -54,13 +54,13 @@ pub enum Trabajo {
     /// Copiar lo que hay (para «guarda esto como figura» sin nada elegido).
     Elegido,
     /// **Mirarlo** (`ojos`): se copia la zona con sus fotos.
-    Ver { mirada: pixpin_ia::ojos::Mirada, ctx: Contexto },
+    Ver { mirada: pindesk_ia::ojos::Mirada, ctx: Contexto },
     /// **Una plantilla de serie con otro intervalo** (Windows, 22-oct,
     /// «damela del 1 al 40», «de 10 en 10»): la elegida, rehecha en su
     /// sitio, o la de `nombre`. Ver [`plantilla::poner_plantilla`].
     Plantilla {
         nombre: Option<String>,
-        intervalo: pixpin_motor2d::figuras_de_serie::Intervalo,
+        intervalo: pindesk_motor2d::figuras_de_serie::Intervalo,
     },
     /// **Las secciones de la plantilla del lienzo** (25-oct): la elegida o
     /// la unica que hay, para que el modelo las lea antes de personalizarla.
@@ -71,7 +71,7 @@ pub enum Trabajo {
     Copia,
     /// **Volver a una copia** de [`Trabajo::Copia`], como un paso mas.
     VolverA { copia: Vec<Elemento> },
-    /// **Las comprobaciones duras** de todo el lienzo (`pixpin_ia::lint`):
+    /// **Las comprobaciones duras** de todo el lienzo (`pindesk_ia::lint`):
     /// una linea por fallo en [`Respuesta::texto`].
     Comprobar,
 }
@@ -93,7 +93,7 @@ pub struct Respuesta {
 
 /// Los elementos de un documento del asistente.
 pub fn elementos_de(documento: &str) -> Result<Vec<Elemento>, String> {
-    let lienzo = pixpin_motor2d::excalidraw::leer(documento).map_err(|e| format!("el lienzo no lo entiende: {e}"))?;
+    let lienzo = pindesk_motor2d::excalidraw::leer(documento).map_err(|e| format!("el lienzo no lo entiende: {e}"))?;
     let els = lienzo.elementos();
     if els.is_empty() {
         return Err("no hay nada que dibujar".into());
@@ -116,7 +116,7 @@ pub fn meter_ids(escena: &mut Escena, documento: &str, centro: (f32, f32)) -> Re
     let c = caja(&els).ok_or("las figuras no tienen medida")?;
     let dx = centro.0 - (c.0 + c.2) / 2.0;
     let dy = centro.1 - (c.1 + c.3) / 2.0;
-    Ok(pixpin_motor2d::portapapeles::pegar(escena, &els, dx, dy))
+    Ok(pindesk_motor2d::portapapeles::pegar(escena, &els, dx, dy))
 }
 
 /// **Mete lo dibujado a la derecha de lo que ya hay** (con un lienzo
@@ -138,7 +138,7 @@ pub fn meter_al_lado_ids(escena: &mut Escena, documento: &str) -> Result<Vec<u64
         Some(h) => (h.2 + HUECO - nueva.0, h.1 - nueva.1),
         None => (0.0, 0.0),
     };
-    Ok(pixpin_motor2d::portapapeles::pegar(escena, &els, dx, dy))
+    Ok(pindesk_motor2d::portapapeles::pegar(escena, &els, dx, dy))
 }
 
 /// El resumen que se le devuelve al modelo.
@@ -150,11 +150,11 @@ pub fn resumen(n: usize) -> String {
 /// turno tiene uno), para poder editarlo en la llamada siguiente.
 pub fn resumen_con_ids(escena: &Escena, ids: Vec<u64>, marco: Option<(f32, f32)>) -> Respuesta {
     let ctx = Contexto {
-        marco: marco.unwrap_or_else(|| pixpin_ia::edicion::marco_de(escena)),
+        marco: marco.unwrap_or_else(|| pindesk_ia::edicion::marco_de(escena)),
         ..Default::default()
     };
     Respuesta {
-        texto: pixpin_ia::edicion::resumen_de_lo_anadido(escena, &ids, &ctx),
+        texto: pindesk_ia::edicion::resumen_de_lo_anadido(escena, &ids, &ctx),
         ids,
         ..Default::default()
     }
@@ -194,7 +194,7 @@ pub fn trabajar(escena: &mut Escena, trabajo: &Trabajo, elegidos: &[u64], marco:
             // Con la guia de las plantillas que hay (25-oct): para cambiar la
             // que hay con sus piezas y no dibujar otra al lado.
             Ok(Respuesta {
-                texto: format!("{}{}", pixpin_ia::edicion::resumen(escena, &ctx), plantilla::guias_del_lienzo(escena)),
+                texto: format!("{}{}", pindesk_ia::edicion::resumen(escena, &ctx), plantilla::guias_del_lienzo(escena)),
                 ctx: Some(ctx),
                 ..Default::default()
             })
@@ -203,7 +203,7 @@ pub fn trabajar(escena: &mut Escena, trabajo: &Trabajo, elegidos: &[u64], marco:
             let mut ctx = ctx.clone();
             // Lo elegido es lo de ahora, no lo de cuando empezo el turno.
             ctx.elegidos = elegidos.to_vec();
-            let h = pixpin_ia::edicion::aplicar(escena, edicion, &ctx, &mut SinImagenes)?;
+            let h = pindesk_ia::edicion::aplicar(escena, edicion, &ctx, &mut SinImagenes)?;
             Ok(Respuesta {
                 texto: h.texto,
                 ids: h.ids,
@@ -235,7 +235,7 @@ pub fn trabajar(escena: &mut Escena, trabajo: &Trabajo, elegidos: &[u64], marco:
             })
         }
         Trabajo::Comprobar => {
-            let avisos = pixpin_ia::lint::revisar(escena, None);
+            let avisos = pindesk_ia::lint::revisar(escena, None);
             Ok(Respuesta {
                 texto: avisos.iter().map(|h| h.texto.clone()).collect::<Vec<_>>().join("\n"),
                 ..Default::default()
@@ -295,10 +295,10 @@ fn registrar_fotos(editor: &EditorLienzo, trabajo: &Trabajo) -> Result<(), Strin
 /// El lienzo de un mensaje del chat, su fichero y sus fotos.
 fn fichero_del_lienzo(nucleo: &Nucleo, chat: &str, m: &Nota) -> Option<(PathBuf, Vec<ImagenDelLienzo>)> {
     let referencia = m.referencia.as_deref()?;
-    let ruta = pixpin_proyecto::almacen::lienzo(nucleo.ruta(), chat, referencia);
+    let ruta = pindesk_proyecto::almacen::lienzo(nucleo.ruta(), chat, referencia);
     let texto = std::fs::read_to_string(&ruta).ok()?;
-    let leido = pixpin_motor2d::excalidraw::leer(&texto).ok()?;
-    let imagenes = pixpin_motor2d::excalidraw::ficheros(&leido)
+    let leido = pindesk_motor2d::excalidraw::leer(&texto).ok()?;
+    let imagenes = pindesk_motor2d::excalidraw::ficheros(&leido)
         .into_iter()
         .filter_map(|(id_objeto, rel)| {
             let r = nucleo.resolver(chat, &rel)?;
@@ -329,7 +329,7 @@ pub fn en_el_chat(
     trabajo: &Trabajo,
     marco: Option<(f32, f32)>,
 ) -> Result<(Respuesta, Option<String>), String> {
-    let carpeta = pixpin_proyecto::almacen::carpeta(nucleo.ruta(), chat);
+    let carpeta = pindesk_proyecto::almacen::carpeta(nucleo.ruta(), chat);
     let mensajes = Cuaderno::leer_de(&carpeta).map(|c| c.mensajes).unwrap_or_default();
     let nombrado = destino.and_then(|r| {
         mensajes
@@ -396,7 +396,7 @@ pub fn en_el_chat(
             Ok(resumen_con_ids(escena, ids, marco))
         }
         otro => {
-            let marco = pixpin_ia::edicion::marco_de(escena);
+            let marco = pindesk_ia::edicion::marco_de(escena);
             trabajar(escena, otro, &[], marco, &imagenes)
         }
     })?;
@@ -434,12 +434,12 @@ mod pruebas {
     #[test]
     fn con_el_lienzo_cerrado_lo_nuevo_va_a_la_derecha_de_lo_que_habia() {
         let doc = |x: f64| {
-            pixpin_ia::lienzo::documento(vec![serde_json::json!({
+            pindesk_ia::lienzo::documento(vec![serde_json::json!({
                 "id": format!("a{x}"), "type": "rectangle", "x": x, "y": 50.0, "width": 100.0, "height": 40.0,
                 "strokeColor": "#e03131", "backgroundColor": "transparent", "version": 1, "isDeleted": false
             })])
         };
-        let mut escena = pixpin_motor2d::Escena::nueva();
+        let mut escena = pindesk_motor2d::Escena::nueva();
         // Vacio: donde lo puso el modelo.
         assert_eq!(meter_al_lado(&mut escena, &doc(10.0)).unwrap(), 1);
         let c1 = caja(&escena.visibles().cloned().collect::<Vec<_>>()).unwrap();
@@ -457,11 +457,11 @@ mod pruebas {
 
     #[test]
     fn un_dibujo_llega_al_lienzo_abierto_centrado_y_en_un_paso() {
-        let doc = pixpin_ia::lienzo::documento(vec![
+        let doc = pindesk_ia::lienzo::documento(vec![
             serde_json::json!({"id":"a","type":"rectangle","x":0.0,"y":0.0,"width":100.0,"height":100.0,"strokeColor":"#1e1e1e","version":1,"isDeleted":false}),
             serde_json::json!({"id":"b","type":"ellipse","x":200.0,"y":0.0,"width":100.0,"height":100.0,"strokeColor":"#1e1e1e","version":1,"isDeleted":false}),
         ]);
-        let mut escena = pixpin_motor2d::Escena::nueva();
+        let mut escena = pindesk_motor2d::Escena::nueva();
         let antes = escena.pasos_cerrados();
         let ids = meter_ids(&mut escena, &doc, (1000.0, 1000.0)).unwrap();
         assert_eq!(ids.len(), 2);
@@ -474,8 +474,8 @@ mod pruebas {
         assert_eq!(escena.cuantos_visibles(), 0);
     }
 
-    use pixpin_motor2d::biblioteca;
-    use pixpin_motor2d::figuras_de_serie as serie;
+    use pindesk_motor2d::biblioteca;
+    use pindesk_motor2d::figuras_de_serie as serie;
 
     fn trabajo_de(escena: &mut Escena, t: Trabajo) -> Respuesta {
         trabajar(escena, &t, &[], (0.0, 0.0), &[]).unwrap()
@@ -493,7 +493,7 @@ mod pruebas {
         let ids = biblioteca::estampar_en_escena(
             &mut escena,
             &f,
-            pixpin_motor2d::vector::Punto2::nuevo(500.0, 600.0),
+            pindesk_motor2d::vector::Punto2::nuevo(500.0, 600.0),
         );
         let antes: Vec<_> = escena.visibles().map(|e| (e.id, e.caja())).collect();
         let copia = trabajo_de(&mut escena, Trabajo::Copia)
@@ -538,6 +538,6 @@ mod pruebas {
         );
         // Y comprobar contesta con una linea por fallo (o ninguna).
         let r = trabajo_de(&mut escena, Trabajo::Comprobar);
-        assert!(r.texto.lines().count() <= pixpin_ia::lint::MAX_LINEAS.max(64));
+        assert!(r.texto.lines().count() <= pindesk_ia::lint::MAX_LINEAS.max(64));
     }
 }

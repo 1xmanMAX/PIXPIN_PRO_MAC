@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use pixpin_nucleo::timeline::{CirculoDia, ExportarTimeline, FotoNueva};
 use pixpin_nucleo::{ErrorNucleo, Nucleo};
-use pixpin_timeline::almacen::Almacen;
+use pindesk_timeline::almacen::Almacen;
 
 struct Temporal(PathBuf);
 

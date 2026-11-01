@@ -4,13 +4,13 @@
 //!
 //! Lo leido para dibujar no guarda las letras como texto, solo sus trazos:
 //! los textos se sacan del plano recorriendolo como al dibujarlo
-//! (`pixpin_cad::convertir::textos_del_fichero`) y quedan en la cache junto
+//! (`pindesk_cad::convertir::textos_del_fichero`) y quedan en la cache junto
 //! al plano, `<raiz>/cache/cad/<clave>-textos.json` (el mismo JSON que
 //! Windows). La segunda busqueda en el mismo plano es instantanea.
 
 use std::path::Path;
 
-use pixpin_cad::convertir::TextoDelPlano;
+use pindesk_cad::convertir::TextoDelPlano;
 
 use super::{Plano, cache};
 use crate::ErrorNucleo;
@@ -67,7 +67,7 @@ pub(crate) fn del_plano(raiz: &Path, plano: &Path) -> Result<Vec<TextoDelPlano>,
     {
         return Ok(t);
     }
-    let t = pixpin_cad::convertir::textos_del_fichero(plano)?;
+    let t = pindesk_cad::convertir::textos_del_fichero(plano)?;
     if std::fs::create_dir_all(&carpeta).is_ok() {
         let tmp = destino.with_extension("tmp");
         if std::fs::write(&tmp, a_json(&t)).is_ok() && std::fs::rename(&tmp, &destino).is_ok() {
@@ -80,7 +80,7 @@ pub(crate) fn del_plano(raiz: &Path, plano: &Path) -> Result<Vec<TextoDelPlano>,
 /// Minusculas, sin tildes ni puntos y con los espacios de uno en uno: «JR.
 /// ANTISUYO» encuentra «Jr Antisuyo».
 pub(crate) fn plegar(s: &str) -> String {
-    let t: String = pixpin_ia::acciones::normalizar(s)
+    let t: String = pindesk_ia::acciones::normalizar(s)
         .chars()
         .map(|c| if c.is_alphanumeric() { c } else { ' ' })
         .collect();

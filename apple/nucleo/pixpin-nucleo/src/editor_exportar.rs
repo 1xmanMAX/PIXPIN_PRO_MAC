@@ -3,7 +3,7 @@
 //!
 //! Como en Windows (`ventana_editor/exportar.rs`), aqui no hay formatos de
 //! pagina ni dialogos: las hojas las decide el motor
-//! (`pixpin_motor2d::exportar::hojas`) y el SVG lo escribe el motor
+//! (`pindesk_motor2d::exportar::hojas`) y el SVG lo escribe el motor
 //! (`exportar_svg`). El PNG, el PDF y el papel los pinta Swift con el pintor
 //! de siempre sobre un `CGContext` (un mapa de bits, un PDF vectorial o la
 //! impresora), asi que aqui solo se le dan las ordenes de cada hoja.
@@ -14,12 +14,12 @@
 //! (`editor_tapado`): un mosaico tambien tapa en lo exportado (F18 de
 //! Windows). El grafito va con sus ordenes de siempre.
 
-use pixpin_motor2d::elemento::Elemento;
-use pixpin_motor2d::escena::Escena;
-use pixpin_motor2d::exportar::{self as ex, Alcance};
-use pixpin_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
-use pixpin_motor2d::marco;
-use pixpin_motor2d::pintado::{self, Orden};
+use pindesk_motor2d::elemento::Elemento;
+use pindesk_motor2d::escena::Escena;
+use pindesk_motor2d::exportar::{self as ex, Alcance};
+use pindesk_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
+use pindesk_motor2d::marco;
+use pindesk_motor2d::pintado::{self, Orden};
 
 use crate::editor::EditorLienzo;
 use crate::lienzo::{LienzoPlano, empaquetar};
@@ -224,8 +224,8 @@ impl EditorLienzo {
     /// `.pixpin` ([`EditorLienzo::pixpin_para_compartir`]).
     pub fn excalidraw_para_compartir(&self) -> String {
         let st = self.tomar();
-        pixpin_motor2d::excalidraw::escribir(&pixpin_motor2d::excalidraw::con_escena(
-            &pixpin_motor2d::excalidraw::Lienzo::vacio(),
+        pindesk_motor2d::excalidraw::escribir(&pindesk_motor2d::excalidraw::con_escena(
+            &pindesk_motor2d::excalidraw::Lienzo::vacio(),
             &st.escena,
         ))
     }
@@ -239,7 +239,7 @@ impl EditorLienzo {
         let _ = self.guardar();
         let json = std::fs::read_to_string(&self.ruta)
             .ok()
-            .filter(|t| pixpin_motor2d::excalidraw::leer(t).is_ok())
+            .filter(|t| pindesk_motor2d::excalidraw::leer(t).is_ok())
             .unwrap_or_else(|| self.excalidraw_para_compartir());
         crate::lienzo_suelto::pixpin_de_un_lienzo(&json, &nombre, &self.carpeta, crate::ahora_ms())
             .map_err(|detalle| crate::ErrorNucleo::Lienzo { detalle })
@@ -289,7 +289,7 @@ mod pruebas {
         assert!(svg[0].starts_with("<?xml") && svg[0].contains("<svg"));
         // Con papel de fondo (un pin, una pagina), la hoja entera lo abarca
         // y el SVG lo lleva dentro.
-        let png = pixpin_motor2d::exportar::png_rgba(1, 1, &[255, 255, 255, 255]);
+        let png = pindesk_motor2d::exportar::png_rgba(1, 1, &[255, 255, 255, 255]);
         ed.poner_papel(1000.0, 800.0, Some(png));
         let h = &ed.hojas_para_exportar(QueExportar::Todo)[0];
         assert!(h.x0 <= 0.0 && h.y0 <= 0.0 && h.x1 >= 1000.0 && h.y1 >= 800.0);
@@ -325,24 +325,24 @@ mod pruebas {
         ed.puntero(FasePuntero::Soltar, 100.0, 50.0, None, 0, 1.0);
 
         let json = ed.excalidraw_para_compartir();
-        let l = pixpin_motor2d::excalidraw::leer(&json).unwrap();
-        assert_eq!(pixpin_motor2d::excalidraw::a_escena(&l).cuantos_visibles(), 1);
+        let l = pindesk_motor2d::excalidraw::leer(&json).unwrap();
+        assert_eq!(pindesk_motor2d::excalidraw::a_escena(&l).cuantos_visibles(), 1);
 
         let bytes = ed.pixpin_para_compartir("Plano".into()).unwrap();
-        let p = pixpin_proyecto::Paquete::desde_bytes(&bytes).unwrap();
+        let p = pindesk_proyecto::Paquete::desde_bytes(&bytes).unwrap();
         assert_eq!(p.proyecto.nombre, "Plano");
         let d = p.proyecto.hojas[0].dibujo.clone().unwrap();
         let s = std::str::from_utf8(p.entrada(&format!("lienzos/{d}.excalidraw")).unwrap()).unwrap();
-        let dentro = pixpin_motor2d::excalidraw::leer(s).unwrap();
+        let dentro = pindesk_motor2d::excalidraw::leer(s).unwrap();
         assert_eq!(
-            pixpin_motor2d::excalidraw::a_escena(&dentro).cuantos_visibles(),
+            pindesk_motor2d::excalidraw::a_escena(&dentro).cuantos_visibles(),
             1,
             "lleva el rectangulo recien trazado"
         );
         // Caso negativo: un lienzo en blanco tambien sale (una hoja vacia).
         let vacio =
             EditorLienzo::de_fichero(dir.join("v.excalidraw").display().to_string(), true).unwrap();
-        let p = pixpin_proyecto::Paquete::desde_bytes(&vacio.pixpin_para_compartir(String::new()).unwrap()).unwrap();
+        let p = pindesk_proyecto::Paquete::desde_bytes(&vacio.pixpin_para_compartir(String::new()).unwrap()).unwrap();
         assert_eq!(p.proyecto.nombre, "Lienzo");
         let _ = std::fs::remove_dir_all(dir);
     }

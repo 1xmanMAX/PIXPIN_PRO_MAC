@@ -854,7 +854,7 @@ struct VistaCarpeta: View {
                     Label(Lengua.t("compartir-titulo"), systemImage: "square.and.arrow.up").frame(minWidth: 120)
                 }
                 .controlSize(.large)
-                .help("HTML, PDF, imágenes, Word, Markdown, el original o el .pixpin")
+                .help("HTML, PDF, imágenes, Word, Markdown, el original o el .pindesk")
                 Button { modelo.exportar() } label: {
                     Label(modelo.exportando ? TextosCarpeta.exportando : TextosCarpeta.exportarPdf,
                           systemImage: "doc.richtext").frame(minWidth: 120)

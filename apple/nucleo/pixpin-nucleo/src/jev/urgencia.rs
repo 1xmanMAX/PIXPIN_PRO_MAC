@@ -1,7 +1,7 @@
 //! **La prioridad de cada tarea segun su contexto** (Windows fa4ca12,
 //! `apps/pixpin/src/jev/urgencia.rs`): por cada tarea pendiente, Jev juzga
 //! lo que pasa si se hace tarde, si otro la espera, si el plazo lo puso otro
-//! y si en su chat la piden ya (`pixpin_typesafe::urgencia`); cuanto falta
+//! y si en su chat la piden ya (`pindesk_typesafe::urgencia`); cuanto falta
 //! para su hora (`⏰`) lo cuenta el codigo, y la tabla de alli da urgente,
 //! alta, normal o baja. Lo que el usuario marco (⏫, 🔼) manda.
 //!
@@ -17,8 +17,8 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
-use pixpin_proyecto::{almacen, cuaderno};
-use pixpin_typesafe::urgencia::{self as ju, Contexto, Marca, Prioridad, Senales};
+use pindesk_proyecto::{almacen, cuaderno};
+use pindesk_typesafe::urgencia::{self as ju, Contexto, Marca, Prioridad, Senales};
 
 use super::Funcion;
 use crate::tareas::ListaTareas;
@@ -131,7 +131,7 @@ fn poner_sabido(listas: &mut [ListaTareas], hoy: i64) -> Vec<(String, String, Co
     faltan
 }
 
-fn preguntar(cliente: &pixpin_typesafe::Cliente, raiz: &Path, mut faltan: Vec<(String, String, Contexto)>) {
+fn preguntar(cliente: &pindesk_typesafe::Cliente, raiz: &Path, mut faltan: Vec<(String, String, Contexto)>) {
     let mut recientes: HashMap<String, Vec<String>> = HashMap::new();
     for (_, chat, c) in &mut faltan {
         let r = recientes.entry(chat.clone()).or_insert_with(|| recientes_del_chat(raiz, chat));
@@ -192,7 +192,7 @@ pub fn jev_preguntando_tareas() -> bool {
 mod pruebas {
     use super::*;
     use crate::tareas::Tarea;
-    use pixpin_typesafe::api::Escala;
+    use pindesk_typesafe::api::Escala;
 
     fn lista(textos: &[&str]) -> ListaTareas {
         ListaTareas {

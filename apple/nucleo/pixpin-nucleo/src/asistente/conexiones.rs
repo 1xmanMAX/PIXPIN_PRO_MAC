@@ -8,8 +8,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
-use pixpin_ia::acciones::AccionApp;
-use pixpin_ia::conexiones::{self, acciones::Chat, guardado};
+use pindesk_ia::acciones::AccionApp;
+use pindesk_ia::conexiones::{self, acciones::Chat, guardado};
 use serde_json::json;
 
 use super::documentos_acciones::{self as docs, Contexto, Sirve};
@@ -25,7 +25,7 @@ impl Chat for DelChat<'_, '_> {
     }
 
     fn texto_de(&self, ruta: &Path) -> Result<String, String> {
-        let nombre = pixpin_docs::nombre(ruta);
+        let nombre = pindesk_docs::nombre(ruta);
         if docs::es_office_de_paginas(&nombre) || docs::es_pdf(ruta) {
             let p = docs::paginas(self.cx.app, ruta, self.cx.parar)?;
             return Ok(p.textos.iter().map(|t| t.texto.as_str()).collect::<Vec<_>>().join("\n\n"));
@@ -38,7 +38,7 @@ impl Chat for DelChat<'_, '_> {
     }
 
     fn al_chat(&self, ruta: &Path, frase: &str) -> Result<(), String> {
-        let mut p = json!({"pixpin": 1, "accion": "chat", "texto": frase, "archivos": [ruta]});
+        let mut p = json!({"pindesk": 1, "accion": "chat", "texto": frase, "archivos": [ruta]});
         if !self.cx.proyecto.trim().is_empty() {
             p["proyecto"] = json!(self.cx.proyecto);
         }

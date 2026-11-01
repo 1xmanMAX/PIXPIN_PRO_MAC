@@ -9,7 +9,7 @@
 //! imagenes, los originales y el `.pixpin`— y con lo suyo:
 //!
 //! - **HTML** ([`grabacion_web`]): la pagina de
-//!   [`pixpin_proyecto::clase_exportar::html`], con el reproductor, la
+//!   [`pindesk_proyecto::clase_exportar::html`], con el reproductor, la
 //!   transcripcion que salta y se resalta, las capturas en su minuto y los
 //!   marcadores. El audio va dentro hasta [`AUDIO_DENTRO`]; mas grande, al
 //!   lado, como el video (siempre al lado: pesa demasiado para base64).
@@ -32,15 +32,15 @@
 
 use std::path::{Path, PathBuf};
 
-use pixpin_motor2d::ColorRgba;
-use pixpin_motor2d::exportar::{self as ex, Hoja};
-use pixpin_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
-use pixpin_motor2d::pintado::Orden;
-use pixpin_proyecto::almacen::{self, Indice};
-use pixpin_proyecto::carpeta_de_paginas::Carpeta;
-use pixpin_proyecto::clase::Marcador;
-use pixpin_proyecto::clase_exportar::{self as ce, ClaseParaExportar, Fila, Medio, Rotulos};
-use pixpin_proyecto::cuaderno::{self, Mensaje};
+use pindesk_motor2d::ColorRgba;
+use pindesk_motor2d::exportar::{self as ex, Hoja};
+use pindesk_motor2d::exportar_svg::{self, Incrustada, OpcionesSvg};
+use pindesk_motor2d::pintado::Orden;
+use pindesk_proyecto::almacen::{self, Indice};
+use pindesk_proyecto::carpeta_de_paginas::Carpeta;
+use pindesk_proyecto::clase::Marcador;
+use pindesk_proyecto::clase_exportar::{self as ce, ClaseParaExportar, Fila, Medio, Rotulos};
+use pindesk_proyecto::cuaderno::{self, Mensaje};
 
 use crate::chats::validar_chat;
 use crate::compartir::HojaDeDibujo;
@@ -96,7 +96,7 @@ pub struct GrabacionParaCompartir {
     /// Todos sus ficheros que hay en este Mac, sin repetir: «Original» u
     /// «Originales».
     pub originales: Vec<String>,
-    /// El mazo de Anki (`PixPin::<proyecto>`).
+    /// El mazo de Anki (`PinDesk::<proyecto>`).
     pub mazo: String,
 }
 
@@ -394,7 +394,7 @@ fn hojas_de(c: &ClaseParaExportar, r: &Rotulos) -> Vec<Hoja> {
             }
             Fila::Captura(i) => {
                 let (ms, ruta) = &c.capturas[i];
-                let Ok((w, alto)) = pixpin_codec::imagen::medidas(ruta) else {
+                let Ok((w, alto)) = pindesk_codec::imagen::medidas(ruta) else {
                     continue;
                 };
                 let (w, alto) = (w.max(1) as f32, alto.max(1) as f32);
@@ -526,7 +526,7 @@ fn captura_ligera(ruta: &Path) -> Option<Medio> {
     if std::fs::metadata(ruta).ok()?.len() <= CAPTURA_LIGERA {
         return tal_cual();
     }
-    let Ok(mut img) = pixpin_codec::cargar(ruta) else {
+    let Ok(mut img) = pindesk_codec::cargar(ruta) else {
         return tal_cual();
     };
     let lado = img.ancho.max(img.alto);
@@ -536,15 +536,15 @@ fn captura_ligera(ruta: &Path) -> Option<Medio> {
             ((img.ancho as f32 * k).round() as u32).max(1),
             ((img.alto as f32 * k).round() as u32).max(1),
         );
-        if let Ok(r) = pixpin_codec::imagen::redimensionar(img.clone(), w, h) {
+        if let Ok(r) = pindesk_codec::imagen::redimensionar(img.clone(), w, h) {
             img = r;
         }
     }
     let opaca = img.pixeles.chunks_exact(4).all(|p| p[3] == 255);
     let bytes = if opaca {
-        pixpin_codec::imagen::codificar_jpg(&img, 85).ok()
+        pindesk_codec::imagen::codificar_jpg(&img, 85).ok()
     } else {
-        pixpin_codec::codificar_png(&img).ok()
+        pindesk_codec::codificar_png(&img).ok()
     };
     match bytes {
         Some(b) => Some(Medio::Incrustado {
@@ -659,21 +659,21 @@ pub fn grabacion_texto(
     Ok(rutas(vec![ruta]))
 }
 
-/// Los bytes de una foto como los quiere Word (`pixpin_notas::word::
+/// Los bytes de una foto como los quiere Word (`pindesk_notas::word::
 /// bytes_de_foto` de Windows): tal cual si es PNG, JPEG, GIF o BMP; si no,
 /// pasada a PNG.
 fn bytes_de_foto(ruta: &Path) -> Option<Vec<u8>> {
     let bytes = std::fs::read(ruta).ok()?;
-    if pixpin_docs::exportar_docx::imagen::leer(&bytes).is_some() {
+    if pindesk_docs::exportar_docx::imagen::leer(&bytes).is_some() {
         return Some(bytes);
     }
-    let rgba = pixpin_codec::cargar(ruta).ok()?;
-    pixpin_codec::codificar_png(&rgba).ok()
+    let rgba = pindesk_codec::cargar(ruta).ok()?;
+    pindesk_codec::codificar_png(&rgba).ok()
 }
 
 /// **Word**: el mismo Markdown por el escritor de `.docx` de las notas, con
 /// las capturas dentro (`clase::word` de Windows, por
-/// `pixpin_notas::word::exportar`).
+/// `pindesk_notas::word::exportar`).
 #[uniffi::export]
 pub fn grabacion_word(
     g: GrabacionParaCompartir,
@@ -699,14 +699,14 @@ pub fn grabacion_word(
             .find(|(_, n)| n == r)
             .and_then(|(ruta, _)| bytes_de_foto(ruta))
     };
-    let titulo = match pixpin_docs::md_vivo::titulo(&md) {
+    let titulo = match pindesk_docs::md_vivo::titulo(&md) {
         t if t.trim().is_empty() => c.titulo.clone(),
         t => t,
     };
-    let bytes = pixpin_docs::exportar_docx::exportar(&pixpin_docs::exportar_docx::Nota {
+    let bytes = pindesk_docs::exportar_docx::exportar(&pindesk_docs::exportar_docx::Nota {
         markdown: &md,
         titulo: &titulo,
-        letra: pixpin_docs::exportar_docx::Letra::default(),
+        letra: pindesk_docs::exportar_docx::Letra::default(),
         comentarios: None,
         imagen: &fotos,
         autor: "",
@@ -735,7 +735,7 @@ fn anki_en(
         .filter_map(|(ms, t)| Some(((*ms)?, t.clone())))
         .collect();
     let tronco = crate::compartir::nombre_de_fichero_compartido(c.titulo.clone()).replace(' ', "-");
-    let capturas: Vec<(i64, pixpin_anki::Imagen)> = c
+    let capturas: Vec<(i64, pindesk_anki::Imagen)> = c
         .capturas
         .iter()
         .filter_map(|(ms, r)| {
@@ -745,26 +745,26 @@ fn anki_en(
                 .unwrap_or_else(|| "png".into());
             Some((
                 *ms,
-                pixpin_anki::Imagen {
+                pindesk_anki::Imagen {
                     nombre: format!("pixpin-{tronco}-{ms}.{ext}"),
                     bytes: std::fs::read(r).ok()?,
                 },
             ))
         })
         .collect();
-    let mut tarjetas = pixpin_anki::tarjetas::de_la_clase(&c.titulo, pregunta, &trozos, capturas);
+    let mut tarjetas = pindesk_anki::tarjetas::de_la_clase(&c.titulo, pregunta, &trozos, capturas);
     if tarjetas.is_empty() {
         return Err(ErrorNucleo::NoExiste {
             que: "tarjetas".into(),
         });
     }
     for t in &mut tarjetas {
-        t.etiquetas = vec!["pixpin".to_string()];
+        t.etiquetas = vec!["pindesk".to_string()];
     }
     let ruta = carpeta.join(format!("{base} (Anki).txt"));
     escribir(
         &ruta,
-        pixpin_anki::fichero::texto(&g.mazo, &tarjetas).as_bytes(),
+        pindesk_anki::fichero::texto(&g.mazo, &tarjetas).as_bytes(),
     )?;
     let mut v = vec![ruta];
     for i in tarjetas.iter().flat_map(|t| &t.imagenes) {
@@ -819,7 +819,7 @@ impl Nucleo {
             let relativa = m.ruta.as_deref().filter(|r| !r.is_empty())?;
             self.resolver(&chat, relativa)
                 .filter(|r| r.is_file())
-                .map(|r| pixpin_proyecto::vista::con_la_extension_del_nombre(raiz, r, &m.nombre))
+                .map(|r| pindesk_proyecto::vista::con_la_extension_del_nombre(raiz, r, &m.nombre))
         };
         let datos =
             ClaseParaExportar::de_la_nota(voz, &mensajes, lineas_de(voz), String::new(), &ruta);
@@ -847,7 +847,7 @@ mod pruebas {
     }
 
     fn png(ancho: u32, alto: u32) -> Vec<u8> {
-        pixpin_codec::codificar_png(&pixpin_codec::ImagenRgba {
+        pindesk_codec::codificar_png(&pindesk_codec::ImagenRgba {
             ancho,
             alto,
             pixeles: vec![200; (ancho * alto * 4) as usize],
@@ -880,7 +880,7 @@ mod pruebas {
             temas: vec![],
             acta: Default::default(),
         };
-        GrabacionParaCompartir::de(&c, 0, "PixPin::Fisica".into())
+        GrabacionParaCompartir::de(&c, 0, "PinDesk::Fisica".into())
     }
 
     #[test]
@@ -951,13 +951,13 @@ mod pruebas {
             grabacion_word(grabacion(&dir), "Clase 1".into(), dir.display().to_string()).unwrap();
         assert!(v[0].ends_with("Clase 1.docx"));
         let bytes = std::fs::read(&v[0]).unwrap();
-        let mut p = pixpin_docs::Paquete::de_bytes(&bytes).unwrap();
+        let mut p = pindesk_docs::Paquete::de_bytes(&bytes).unwrap();
         let nombres = p.nombres();
         assert!(
             nombres.iter().any(|n| n.starts_with("word/media/")),
             "{nombres:?}"
         );
-        let d = pixpin_docs::docx::de_paquete(&mut p, "x").unwrap();
+        let d = pindesk_docs::docx::de_paquete(&mut p, "x").unwrap();
         let todo: String = d.bloques.iter().map(|b| b.texto()).collect();
         assert!(todo.contains("adios"));
         let _ = std::fs::remove_dir_all(&dir);
@@ -972,7 +972,7 @@ mod pruebas {
         let v = anki_en(&g, "Clase 1", &dir, "¿Qué?", Some(&medios)).unwrap();
         assert_eq!(v.len(), 2);
         let t = std::fs::read_to_string(&v[0]).unwrap();
-        assert!(t.contains("PixPin::Fisica"));
+        assert!(t.contains("PinDesk::Fisica"));
         assert!(v[1].is_file());
         assert!(
             medios.join(v[1].file_name().unwrap()).is_file(),
@@ -1062,7 +1062,7 @@ mod pruebas {
         voz.transcripcion = Some("[0:00] hola\n\n[0:20] **adios**".into());
         let mut nota = Mensaje::nota("solo texto", &sello(2));
         nota.id = "n1".into();
-        let mut carp = pixpin_proyecto::carpeta_de_paginas::mensaje_de_grabacion(
+        let mut carp = pindesk_proyecto::carpeta_de_paginas::mensaje_de_grabacion(
             "Clase 1",
             &Carpeta::grabacion("v1", 60_000),
             &sello(3),
@@ -1078,7 +1078,7 @@ mod pruebas {
             .unwrap();
         assert_eq!(g.titulo, "Clase 1");
         assert_eq!(g.cuando, 1_000);
-        assert_eq!(g.mazo, "PixPin::Física");
+        assert_eq!(g.mazo, "PinDesk::Física");
         assert_eq!(
             g.lineas[1],
             LineaDeGrabacion {

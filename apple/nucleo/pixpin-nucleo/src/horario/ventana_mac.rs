@@ -6,7 +6,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use pixpin_ia::fechas::Momento;
+use pindesk_ia::fechas::Momento;
 
 use super::semana::{self, Semana};
 use crate::{ErrorNucleo, Nucleo};

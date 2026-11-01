@@ -1,7 +1,7 @@
 // **«Enviar a Anki»** del menu de un mensaje (Windows 2561be0,
 // `ventana_chat/anki.rs`): las tarjetas de una clase grabada (una por
 // captura), de una foto o de una nota («pregunta :: respuesta», «P: / R:»,
-// huecos `{{c1::…}}`), al mazo `PixPin::<proyecto>`. Lo hace el nucleo
+// huecos `{{c1::…}}`), al mazo `PinDesk::<proyecto>`. Lo hace el nucleo
 // (`Nucleo.enviarAAnki`: AnkiConnect en 127.0.0.1:8765 o, sin Anki, el
 // fichero para importar); aqui, cuando sale en el menu y lo que se dice.
 

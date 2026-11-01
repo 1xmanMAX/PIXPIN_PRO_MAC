@@ -1,6 +1,6 @@
 // Lo que se guarda de los Ajustes, cada cosa en su sitio:
 //
-// - En `pixpinmax.toml` (el MISMO fichero de Windows, por el nucleo de Rust
+// - En `pindesk.toml` (el MISMO fichero de Windows, por el nucleo de Rust
 //   `Nucleo.ajustes`/`guardarAjustes`), lo que vale en los dos sistemas:
 //   `valores` (idioma, captura, GIF, caducidad, sincronizar, voz y
 //   asistente) y `pdf` (`[pdf]`, por `ajustesPdf`).
@@ -61,13 +61,13 @@ public enum Tema: String, CaseIterable, Identifiable, Sendable {
 
 @MainActor
 public final class ModeloAjustes: ObservableObject {
-    /// Lo de `pixpinmax.toml` (los de fabrica hasta `cargar`).
+    /// Lo de `pindesk.toml` (los de fabrica hasta `cargar`).
     @Published public private(set) var valores: AjustesMac
     /// Los de fabrica de Windows (`Ajustes::default`).
     public let fabrica: AjustesMac
-    /// `[pdf]` de `pixpinmax.toml` (`nil` hasta `cargar`).
+    /// `[pdf]` de `pindesk.toml` (`nil` hasta `cargar`).
     @Published public private(set) var pdf: AjustesPdf?
-    /// `[jev]` de `pixpinmax.toml`, los interruptores de Jev (`nil` hasta
+    /// `[jev]` de `pindesk.toml`, los interruptores de Jev (`nil` hasta
     /// `cargar`).
     @Published public private(set) var jev: AjustesJev?
     @Published public private(set) var abrirAlIniciar = false
@@ -115,10 +115,10 @@ public final class ModeloAjustes: ObservableObject {
         leerAbrirAlIniciar()
     }
 
-    /// La carpeta de datos (la de `proyectos/`, `sincro/`, `pixpinmax.toml`).
+    /// La carpeta de datos (la de `proyectos/`, `sincro/`, `pindesk.toml`).
     public var carpetaDatos: URL { URL(fileURLWithPath: nucleo.raiz(), isDirectory: true) }
 
-    /// `pixpinmax.toml`.
+    /// `pindesk.toml`.
     public var ficheroAjustes: String { nucleo.rutaAjustes() }
 
     /// La carpeta de las capturas (`<datos>/capturas`).
@@ -146,7 +146,7 @@ public final class ModeloAjustes: ObservableObject {
             sincro?.automatica = a.sincroAutomatica
             error = nil
         case let .failure(e):
-            error = "No se pudo leer pixpinmax.toml: \(ModeloAjustes.texto(de: e))"
+            error = "No se pudo leer pindesk.toml: \(ModeloAjustes.texto(de: e))"
         }
         leerAbrirAlIniciar()
         cargado = true
@@ -273,7 +273,7 @@ public final class ModeloAjustes: ObservableObject {
     }
 
     /// El ultimo guardado en marcha: los guardados van **uno detras de
-    /// otro** (dos escrituras a la vez de `pixpinmax.toml` se pisaban, y
+    /// otro** (dos escrituras a la vez de `pindesk.toml` se pisaban, y
     /// quien leyera en medio veia el fichero a medias).
     private var ultimoGuardado: Task<Void, Never>?
 
@@ -289,7 +289,7 @@ public final class ModeloAjustes: ObservableObject {
         return t
     }
 
-    /// Escribe lo de este modelo en `pixpinmax.toml`, conservando lo demas
+    /// Escribe lo de este modelo en `pindesk.toml`, conservando lo demas
     /// (despues de los guardados que ya esperaban).
     public func guardar() async {
         await programarGuardado().value
@@ -313,7 +313,7 @@ public final class ModeloAjustes: ObservableObject {
         }
     }
 
-    /// Abre `pixpinmax.toml` en el editor de texto (lo crea si aun no esta,
+    /// Abre `pindesk.toml` en el editor de texto (lo crea si aun no esta,
     /// con lo de ahora).
     public func abrirFicheroAjustes() async {
         let url = URL(fileURLWithPath: ficheroAjustes)

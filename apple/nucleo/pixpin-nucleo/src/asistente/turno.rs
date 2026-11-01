@@ -5,12 +5,12 @@
 //!   desde el 27-oct-2026 (`f86732c`: fuera el modelo local, su descarga y
 //!   sus ajustes `modelo`, `respaldo_local` y `mejor_vista`). `motor =
 //!   "claude" | "deepseek"` es Claude Haiku 5.5 o DeepSeek V4.1 Flash (los
-//!   modelos que fija `pixpin_ia::nube`) con la clave del Llavero; vacio o
+//!   modelos que fija `pindesk_ia::nube`) con la clave del Llavero; vacio o
 //!   el `local` de antes, la nube que tenga clave, y sin ninguna, Claude
 //!   ([`eleccion_con`]). Apple Intelligence (Foundation Models) no pasa por
 //!   aqui: lo decide Swift (`ModeloAsistente`) cuando no hay clave.
 //! - **Pensar** (`pensar`): lo de los ajustes o, en automatico, solo las
-//!   tareas complejas (`pixpin_ia::complejidad`), con la vuelta de planear,
+//!   tareas complejas (`pindesk_ia::complejidad`), con la vuelta de planear,
 //!   la hoja de trabajo de la conversacion y el reinicio del contexto al
 //!   70 % (`buscar_historial` para lo viejo).
 //! - **Las herramientas**: la nube recibe el catalogo entero (sin lo que el
@@ -18,14 +18,14 @@
 //!   documentos y las del chat); para calcar una imagen, solo las que vienen
 //!   a cuento (`seleccion`). Editar el lienzo y las figuras guardadas solo en una
 //!   conversacion ([`super::en_la_conversacion`], E1), que tiene lienzo. El
-//!   camino rapido (`pixpin_ia::rapido`) hace las ordenes simples sin
+//!   camino rapido (`pindesk_ia::rapido`) hace las ordenes simples sin
 //!   modelo.
 //! - **Lo que hace cada herramienta** ([`EjecutorDelMac`]): dibujar y
 //!   calcar juntan los elementos del lienzo; las acciones de la app
 //!   (tareas, notas, ventanas...) son pedidos del protocolo
 //!   (`docs/protocolo-pedidos.md`) que hace Swift ([`AppIa::pedido`]), con
 //!   las tareas resueltas por su nombre contra las listas de verdad
-//!   (`pixpin_ia::tareas::hacer`) y la pregunta de «¿seguro?» en la burbuja
+//!   (`pindesk_ia::tareas::hacer`) y la pregunta de «¿seguro?» en la burbuja
 //!   ([`AppIa::confirmar`]); leer un PDF o una foto adjunta es Vision o
 //!   PDFKit desde Swift ([`AppIa::leer_texto`]); `buscar_en_mis_cosas`
 //!   busca en los documentos y chats del usuario ([`documentos`]), con
@@ -36,16 +36,16 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-use pixpin_ia::acciones::AccionApp;
-use pixpin_ia::agente::{self, Ejecutor, Evento, Opciones};
-use pixpin_ia::contexto::{self, Fuente};
-use pixpin_ia::fechas::{self, Momento};
-use pixpin_ia::herramientas::{Herramienta, Llamada};
-use pixpin_ia::hoja_trabajo::{HojaDeTrabajo, ResumenDelTurno};
-use pixpin_ia::motor::{Mensaje, Motor, Seguir};
-use pixpin_ia::nube::{MotorNube, Proveedor, claves};
-use pixpin_ia::pensar::Plan;
-use pixpin_ia::tareas::{Chat, Fijas, FuenteTareas, VistaLista, VistaTarea};
+use pindesk_ia::acciones::AccionApp;
+use pindesk_ia::agente::{self, Ejecutor, Evento, Opciones};
+use pindesk_ia::contexto::{self, Fuente};
+use pindesk_ia::fechas::{self, Momento};
+use pindesk_ia::herramientas::{Herramienta, Llamada};
+use pindesk_ia::hoja_trabajo::{HojaDeTrabajo, ResumenDelTurno};
+use pindesk_ia::motor::{Mensaje, Motor, Seguir};
+use pindesk_ia::nube::{MotorNube, Proveedor, claves};
+use pindesk_ia::pensar::Plan;
+use pindesk_ia::tareas::{Chat, Fijas, FuenteTareas, VistaLista, VistaTarea};
 use serde_json::Value;
 
 use super::documentos::{self, LectorDelMac};
@@ -72,7 +72,7 @@ const LARGO_NUBE: usize = 4000;
 /// pedido, solo con la nube (Windows, 17-oct): con la hora de ahora y la de
 /// cada archivo, el modelo entiende «lo de esta mañana» sin preguntar.
 pub fn nota_de_ahora(ahora_utc_ms: i64, desfase_ms: i64) -> String {
-    match pixpin_ia::fechas::fecha_y_hora(ahora_utc_ms, desfase_ms) {
+    match pindesk_ia::fechas::fecha_y_hora(ahora_utc_ms, desfase_ms) {
         Some(f) => format!("\n\n(Ahora: {f}, hora local del usuario.)"),
         None => String::new(),
     }
@@ -141,7 +141,7 @@ pub fn falta_la_clave(p: Proveedor) -> String {
 /// sin clave o sin HTTPS.
 fn motor_de_vision(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
     let (p, clave) = nube_elegida(nucleo)?;
-    pixpin_ia::nube::http::hay_transporte().then(|| Arc::new(MotorNube::nuevo(p, clave).pensando(false)) as Arc<dyn Motor>)
+    pindesk_ia::nube::http::hay_transporte().then(|| Arc::new(MotorNube::nuevo(p, clave).pensando(false)) as Arc<dyn Motor>)
 }
 
 /// **Quien contestaria con estos ajustes.** Mira el Llavero: fuera del hilo
@@ -168,7 +168,7 @@ pub fn ia_probar_clave(proveedor_id: String) -> Result<String, ErrorNucleo> {
     let clave = claves::leer(p).ok_or_else(|| ErrorNucleo::Asistente {
         detalle: format!("no hay clave de {} guardada", p.nombre()),
     })?;
-    pixpin_ia::nube::probar(p, &clave).map_err(|detalle| ErrorNucleo::Asistente { detalle })
+    pindesk_ia::nube::probar(p, &clave).map_err(|detalle| ErrorNucleo::Asistente { detalle })
 }
 
 /// Una foto para que la mire el modelo (ya reducida por Swift a ~768 px).
@@ -218,8 +218,8 @@ pub trait AppIa: Send + Sync {
     /// Pregunta al usuario (en la burbuja, con «Sí» y «No») y espera.
     /// `true`: si. Sin respuesta (parado, ventana cerrada) es un no.
     fn confirmar(&self, pregunta: String) -> bool;
-    /// Hace un pedido del protocolo (`{"pixpin":1,"accion":...}`), como si
-    /// llegara de `pixpinmax://`. `None`: hecho; si no, el motivo.
+    /// Hace un pedido del protocolo (`{"pindesk":1,"accion":...}`), como si
+    /// llegara de `pindesk://`. `None`: hecho; si no, el motivo.
     fn pedido(&self, json: String) -> Option<String>;
     /// El texto de un PDF o una imagen (la capa de texto o Vision). `paginas`
     /// vacio: todas.
@@ -268,11 +268,11 @@ pub struct PalabraLeida {
 /// lienzo y las figuras guardadas, solo `en_chat` (fuera de una conversacion
 /// no hay lienzo que editar).
 fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
-    use pixpin_ia::acciones;
-    if nombre == pixpin_ia::figuras::NOMBRE || pixpin_ia::edicion::herramientas().iter().any(|h| h.nombre == nombre) {
+    use pindesk_ia::acciones;
+    if nombre == pindesk_ia::figuras::NOMBRE || pindesk_ia::edicion::herramientas().iter().any(|h| h.nombre == nombre) {
         return en_chat;
     }
-    if nombre == pixpin_ia::hoja::NOMBRE {
+    if nombre == pindesk_ia::hoja::NOMBRE {
         return en_chat;
     }
     // Los lienzos del chat (listar, crear, pasar a otro) y sus carpetas de
@@ -282,7 +282,7 @@ fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
     }
     // La web de PixPin (para DeepSeek) ya va por el HTTPS de Swift sin
     // seguir redirecciones (`nube::http::bajar_web`, [`web_del_mac`]).
-    !(nombre == pixpin_ia::anotacion::NOMBRE || acciones::es_en_el_chat(nombre))
+    !(nombre == pindesk_ia::anotacion::NOMBRE || acciones::es_en_el_chat(nombre))
 }
 
 /// **La web de PixPin** (buscar en internet y leer paginas, Windows
@@ -290,17 +290,17 @@ fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
 /// redirecciones; un PDF de la web, por su capa de texto.
 fn web_del_mac(a: &AccionApp) -> Result<String, String> {
     let pdf = |bytes: &[u8]| -> Result<String, String> {
-        pixpin_pdf::texto::de_bytes(bytes)
+        pindesk_pdf::texto::de_bytes(bytes)
             .map(|p| p.into_iter().map(|p| p.texto).collect::<Vec<_>>().join("\n\n"))
             .map_err(|_| "ese PDF no trae texto que se pueda leer".to_string())
     };
-    pixpin_ia::web::hacer(
+    pindesk_ia::web::hacer(
         a,
-        &pixpin_ia::web::Lector {
-            red: &pixpin_ia::web::Internet,
+        &pindesk_ia::web::Lector {
+            red: &pindesk_ia::web::Internet,
             pdf: &pdf,
             al_leer: &|_| {},
-            clave_brave: pixpin_ia::web::clave_brave(),
+            clave_brave: pindesk_ia::web::clave_brave(),
         },
     )
 }
@@ -316,12 +316,12 @@ pub(crate) fn es_imagen(ruta: &str) -> bool {
 /// Si el pedido es «copia/dibuja esto» con una imagen: solo calcar
 /// (Windows, `acciones::es_para_calcar`).
 fn es_para_calcar(pedido: &str, con_imagen: bool) -> bool {
-    let q = pixpin_ia::acciones::normalizar(pedido);
+    let q = pindesk_ia::acciones::normalizar(pedido);
     let palabras: Vec<&str> = q.split(|c: char| !c.is_alphanumeric()).filter(|p| !p.is_empty()).collect();
     con_imagen
-        && pixpin_ia::seleccion::pide_la_imagen(&palabras)
-        && !pixpin_ia::seleccion::pide_una_tabla(&palabras)
-        && !pixpin_ia::seleccion::pide_pegar_o_recortar(&palabras)
+        && pindesk_ia::seleccion::pide_la_imagen(&palabras)
+        && !pindesk_ia::seleccion::pide_una_tabla(&palabras)
+        && !pindesk_ia::seleccion::pide_pegar_o_recortar(&palabras)
 }
 
 /// **Las herramientas de este turno** (fuera de una conversacion).
@@ -333,15 +333,15 @@ pub(crate) fn herramientas_del_turno(pedido: &str, con_imagen: bool, adjuntos: b
 /// Las de este turno; `en_chat`: en una conversacion, con su lienzo.
 pub(crate) fn herramientas_del_turno_en(pedido: &str, con_imagen: bool, adjuntos: bool, nube: bool, en_chat: bool) -> Vec<Herramienta> {
     let mut h = if nube && !es_para_calcar(pedido, con_imagen) {
-        pixpin_ia::herramientas::catalogo()
+        pindesk_ia::herramientas::catalogo()
     } else {
-        pixpin_ia::seleccion::para_el_pedido(pedido, con_imagen)
+        pindesk_ia::seleccion::para_el_pedido(pedido, con_imagen)
     };
-    if adjuntos && !es_para_calcar(pedido, con_imagen) && !h.iter().any(|x| x.nombre == pixpin_ia::herramientas::OCR) {
+    if adjuntos && !es_para_calcar(pedido, con_imagen) && !h.iter().any(|x| x.nombre == pindesk_ia::herramientas::OCR) {
         h.extend(
-            pixpin_ia::herramientas::catalogo_base()
+            pindesk_ia::herramientas::catalogo_base()
                 .into_iter()
-                .filter(|x| x.nombre == pixpin_ia::herramientas::OCR),
+                .filter(|x| x.nombre == pindesk_ia::herramientas::OCR),
         );
     }
     h.retain(|x| el_mac_lo_hace(&x.nombre, en_chat));
@@ -371,7 +371,7 @@ pub fn ia_turno(
     let (motor, nombre) = motor_del_turno(&ajustes, &pedido)?;
     // En la nube lo apaga `MotorNube::pensando`; las opciones del turno lo
     // saben tambien.
-    let pensar = pixpin_ia::complejidad::decidir(ajustes.pensar, &pedido);
+    let pensar = pindesk_ia::complejidad::decidir(ajustes.pensar, &pedido);
     // Con Jev, el rapido o el fuerte segun el pedido (Windows e51da39).
     let motor = match nucleo.as_deref() {
         Some(n) => {
@@ -416,7 +416,7 @@ pub(crate) fn motor_del_turno(a: &AjustesIa, pedido: &str) -> Result<(Arc<dyn Mo
 /// Si `pedido` es una orden del camino rapido. Solo para saberlo: la hora
 /// exacta no cambia eso.
 fn es_orden_rapida(pedido: &str) -> bool {
-    pixpin_ia::rapido::interpretar(pedido.trim(), Momento::de_ms_locales(crate::ahora_ms())).is_some()
+    pindesk_ia::rapido::interpretar(pedido.trim(), Momento::de_ms_locales(crate::ahora_ms())).is_some()
 }
 
 /// **Si `pedido` es una orden simple** del camino rapido («apunta pan»,
@@ -429,10 +429,10 @@ pub fn ia_es_orden_rapida(pedido: String) -> bool {
 
 fn motor_de_la_nube(a: &AjustesIa, p: Proveedor, pedido: &str) -> Result<Arc<dyn Motor>, String> {
     let clave = claves::leer(p).ok_or_else(|| falta_la_clave(p))?;
-    if !pixpin_ia::nube::http::hay_transporte() {
+    if !pindesk_ia::nube::http::hay_transporte() {
         return Err(format!("No hay conexion con {} desde esta app (falta el HTTPS del sistema).", p.nombre()));
     }
-    let pensar = pixpin_ia::complejidad::decidir(a.pensar, pedido);
+    let pensar = pindesk_ia::complejidad::decidir(a.pensar, pedido);
     Ok(Arc::new(MotorNube::nuevo(p, clave).pensando(pensar)))
 }
 
@@ -443,10 +443,10 @@ pub(crate) struct SinMotor(pub String);
 impl Motor for SinMotor {
     fn completar(
         &self,
-        _: &pixpin_ia::motor::Peticion,
-        _: &mut dyn FnMut(&pixpin_ia::motor::Trozo) -> Seguir,
-    ) -> Result<pixpin_ia::motor::Respuesta, pixpin_ia::ErrorIa> {
-        Err(pixpin_ia::ErrorIa::Nube(self.0.clone()))
+        _: &pindesk_ia::motor::Peticion,
+        _: &mut dyn FnMut(&pindesk_ia::motor::Trozo) -> Seguir,
+    ) -> Result<pindesk_ia::motor::Respuesta, pindesk_ia::ErrorIa> {
+        Err(pindesk_ia::ErrorIa::Nube(self.0.clone()))
     }
 }
 
@@ -532,7 +532,7 @@ pub(crate) struct Extra {
     pub cortado: bool,
     /// **La memoria de largo plazo** (Windows, 22-oct): con la nube, el
     /// perfil y el indice en el sistema y la herramienta `memoria`.
-    pub largo_plazo: Option<pixpin_ia::memoria::Memoria>,
+    pub largo_plazo: Option<pindesk_ia::memoria::Memoria>,
     /// **Lo que el usuario escribe mientras trabaja** (Windows, 25-oct):
     /// se mira antes de cada vuelta (`Opciones::entrantes`).
     pub entrantes: Option<Arc<dyn Fn() -> Vec<String> + Send + Sync>>,
@@ -544,9 +544,9 @@ pub(crate) struct Detalle {
     /// posicion entre los que no estan en blanco) sigue la conversacion.
     pub primero: Option<usize>,
     /// Lo que se guarda con la respuesta (`<nota>.asistente.json`).
-    pub registro: pixpin_ia::hoja_trabajo::Registro,
+    pub registro: pindesk_ia::hoja_trabajo::Registro,
     /// Como acabo el turno (`EnVivo::acabar`).
-    pub fin: Result<pixpin_ia::agente::Final, String>,
+    pub fin: Result<pindesk_ia::agente::Final, String>,
 }
 
 /// **El turno**: prepara el historial (desde el ultimo reinicio, los
@@ -582,14 +582,14 @@ pub(crate) fn turno_nucleo(
     };
     if extra.cortado {
         let r = vacia(peticion.hoja.clone());
-        let registro = pixpin_ia::hoja_trabajo::Registro {
+        let registro = pindesk_ia::hoja_trabajo::Registro {
             pensamiento: String::new(),
             segundos: None,
             plan: None,
             hoja,
             reinicio: false,
         };
-        let fin = Ok(pixpin_ia::agente::Final {
+        let fin = Ok(pindesk_ia::agente::Final {
             texto: String::new(),
             herramientas_hechas: 0,
             reintentos: 0,
@@ -636,12 +636,12 @@ pub(crate) fn turno_nucleo(
     // cuenta en la ventana como lo demas.
     let largo_plazo = extra.largo_plazo.filter(|_| entorno.nube);
     let bloque = super::memoria::bloque(largo_plazo.as_ref());
-    let base = pixpin_ia::memoria::con_memoria(&agente::instrucciones(), &bloque);
+    let base = pindesk_ia::memoria::con_memoria(&agente::instrucciones(), &bloque);
     let sistema = contexto::sistema_con_hoja(&base, &hoja, None);
     let mut con_buscar = herramientas.clone();
     con_buscar.push(contexto::herramienta_buscar());
     if largo_plazo.is_some() {
-        con_buscar.push(pixpin_ia::memoria::herramienta());
+        con_buscar.push(pindesk_ia::memoria::herramienta());
     }
     let preparado = contexto::preparar(sistema, anteriores, nuevo, &con_buscar, entorno.ventana, contexto::RESERVA_RESPUESTA);
     let primero = preparado.reiniciado.then_some(desde + preparado.primero);
@@ -656,28 +656,28 @@ pub(crate) fn turno_nucleo(
     let mut historial = preparado.historial;
     // El lienzo destino, resumido (tipos, #id, cajas, colores, textos) al
     // final del pedido: solo si el pedido es de dibujar o editar y hay
-    // lienzo (`pixpin_ia::edicion`). Con ojos (en una conversacion, con un
+    // lienzo (`pindesk_ia::edicion`). Con ojos (en una conversacion, con un
     // modelo que ve imagenes), «corrige», «alinea», «¿que falta?» llevan
     // ademas la vista.
     let ojos = en_chat && motor.ve_imagenes();
-    let mirar = pixpin_ia::ojos::pide_mirar(&pedido);
-    let de_lienzo = pixpin_ia::edicion::viene_a_cuento(&pedido) || mirar;
+    let mirar = pindesk_ia::ojos::pide_mirar(&pedido);
+    let de_lienzo = pindesk_ia::edicion::viene_a_cuento(&pedido) || mirar;
     if de_lienzo
         && let Some(r) = ejecutor.resumen_del_lienzo()
     {
-        pixpin_ia::edicion::anadir_resumen(&mut historial, &r);
+        pindesk_ia::edicion::anadir_resumen(&mut historial, &r);
         if ojos
             && mirar
-            && let Ok(v) = pixpin_ia::agente::Ejecutor::ver(ejecutor, &pixpin_ia::ojos::Mirada::default())
+            && let Ok(v) = pindesk_ia::agente::Ejecutor::ver(ejecutor, &pindesk_ia::ojos::Mirada::default())
         {
             poner_vista(&mut historial, &v);
         }
     }
 
     let buscar = |c: &str| contexto::buscar(&fuentes, c, 3);
-    let todas: Vec<Herramienta> = pixpin_ia::herramientas::catalogo()
+    let todas: Vec<Herramienta> = pindesk_ia::herramientas::catalogo()
         .into_iter()
-        .filter(|h| el_mac_lo_hace(&h.nombre, en_chat) && (entorno.nube || !pixpin_ia::acciones::es_solo_nube(&h.nombre)))
+        .filter(|h| el_mac_lo_hace(&h.nombre, en_chat) && (entorno.nube || !pindesk_ia::acciones::es_solo_nube(&h.nombre)))
         .collect();
     let ahora = Momento::de_ms_locales(crate::ahora_ms() + peticion.desfase_ms);
     // El critico de respaldo (Sonnet), solo si hay revision; el jefe, con
@@ -712,10 +712,10 @@ pub(crate) fn turno_nucleo(
     let mut recogido = Recogido::default();
     // El diario del asistente (Windows, fase 1: medir).
     let empezo = std::time::Instant::now();
-    let mut apunte = pixpin_ia::diario::Entrada {
+    let mut apunte = pindesk_ia::diario::Entrada {
         cuando: crate::ahora_ms(),
         motor: nombre_corto(&entorno.nombre, entorno.nube).to_string(),
-        pedido: pixpin_ia::diario::recortar(&pedido),
+        pedido: pindesk_ia::diario::recortar(&pedido),
         ..Default::default()
     };
     let mut dicho = String::new();
@@ -745,7 +745,7 @@ pub(crate) fn turno_nucleo(
     apunte.fallo = resultado.is_err();
     apunte.cortado = resultado.as_ref().is_ok_and(|f| f.cortado);
     if let Some(n) = &nucleo {
-        let _ = pixpin_ia::diario::apuntar(&n.ruta().join(DIARIO), &apunte);
+        let _ = pindesk_ia::diario::apuntar(&n.ruta().join(DIARIO), &apunte);
     }
     let fin = match resultado {
         Ok(f) => f,
@@ -765,7 +765,7 @@ pub(crate) fn turno_nucleo(
             );
             if en_chat {
                 // En una conversacion el fallo tambien se guarda con su nota.
-                let registro = pixpin_ia::hoja_trabajo::Registro {
+                let registro = pindesk_ia::hoja_trabajo::Registro {
                     pensamiento: recogido.pensamiento.clone(),
                     segundos: recogido.segundos,
                     plan: recogido.plan.clone(),
@@ -813,7 +813,7 @@ pub(crate) fn turno_nucleo(
         motor: entorno.nombre.clone(),
         hoja: hoja.a_json().to_string(),
     };
-    let registro = pixpin_ia::hoja_trabajo::Registro {
+    let registro = pindesk_ia::hoja_trabajo::Registro {
         pensamiento: recogido.pensamiento,
         segundos: recogido.segundos,
         plan: recogido.plan,
@@ -823,7 +823,7 @@ pub(crate) fn turno_nucleo(
     Ok((respuesta, Detalle { primero, registro, fin: Ok(fin) }))
 }
 
-/// **El diario del asistente** en la carpeta de datos (`pixpin_ia::diario`,
+/// **El diario del asistente** en la carpeta de datos (`pindesk_ia::diario`,
 /// el mismo nombre que Windows): solo en este equipo, para medir.
 pub const DIARIO: &str = "diario-del-asistente.jsonl";
 
@@ -840,8 +840,8 @@ fn nombre_corto(nombre: &str, nube: bool) -> &'static str {
 }
 
 /// Lo que un evento cuenta para el diario (Windows, `turno::apuntar_evento`).
-fn apuntar_evento(a: &mut pixpin_ia::diario::Entrada, dicho: &mut String, e: &Evento) {
-    use pixpin_ia::orquesta::EstadoTarea;
+fn apuntar_evento(a: &mut pindesk_ia::diario::Entrada, dicho: &mut String, e: &Evento) {
+    use pindesk_ia::orquesta::EstadoTarea;
     match e {
         Evento::Texto(t) => dicho.push_str(t),
         Evento::Resultado { ok: true, .. } => a.herramientas_ok += 1,
@@ -862,7 +862,7 @@ fn apuntar_evento(a: &mut pixpin_ia::diario::Entrada, dicho: &mut String, e: &Ev
 
 /// El proveedor de la nube elegido en los ajustes, con su clave.
 fn nube_elegida(nucleo: &Nucleo) -> Option<(Proveedor, String)> {
-    let a = pixpin_store::ajustes::cargar(&nucleo.ubicacion()).ok()?;
+    let a = pindesk_store::ajustes::cargar(&nucleo.ubicacion()).ok()?;
     let p = eleccion(&a.asistente.motor);
     Some((p, claves::leer(p)?))
 }
@@ -879,12 +879,12 @@ fn critico(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
     let (p, clave) = nube_elegida(nucleo).filter(|(p, _)| *p == Proveedor::Claude)?;
     Some(Arc::new(
         MotorNube::nuevo(p, clave)
-            .con_modelo(pixpin_ia::nube::claude::MODELO_CRITICO)
+            .con_modelo(pindesk_ia::nube::claude::MODELO_CRITICO)
             .pensando(false),
     ))
 }
 
-/// **El jefe** (Windows, `nube::jefe`, `pixpin_ia::orquesta`): el modelo
+/// **El jefe** (Windows, `nube::jefe`, `pindesk_ia::orquesta`): el modelo
 /// fuerte del mismo proveedor y con la misma clave: Sonnet con Claude,
 /// DeepSeek V4 Pro con DeepSeek. Piensa (planear y supervisar es donde mas
 /// rinde).
@@ -894,8 +894,8 @@ fn jefe(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
     }
     let (p, clave) = nube_elegida(nucleo)?;
     let modelo = match p {
-        Proveedor::Claude => pixpin_ia::nube::claude::MODELO_CRITICO,
-        Proveedor::DeepSeek => pixpin_ia::nube::deepseek::MODELO_PRO,
+        Proveedor::Claude => pindesk_ia::nube::claude::MODELO_CRITICO,
+        Proveedor::DeepSeek => pindesk_ia::nube::deepseek::MODELO_PRO,
     };
     Some(Arc::new(MotorNube::nuevo(p, clave).con_modelo(modelo)))
 }
@@ -914,13 +914,13 @@ pub(crate) struct EjecutorDelMac {
     /// Si contesta la nube: buscar en los documentos pide permiso.
     nube: bool,
     /// Lo citado de los documentos en el turno.
-    pub(crate) citas: pixpin_ia::documentos::Citas,
+    pub(crate) citas: pindesk_ia::documentos::Citas,
     /// En una conversacion: su lienzo (lo dibujado va alli, no a un
     /// `.excalidraw` suelto) y lo que hay que dejar en el chat.
     pub(crate) chat: Option<EnChat>,
     /// Las copias del lienzo que guardo la revision con rubrica
     /// (`guardar_version`), por su numero.
-    versiones: Vec<Vec<pixpin_motor2d::Elemento>>,
+    versiones: Vec<Vec<pindesk_motor2d::Elemento>>,
     /// Por donde preguntar con opciones (`preguntar_usuario`): la burbuja
     /// de la conversacion. Sin el (la ventana del asistente, el MCP) no se
     /// ofrece.
@@ -928,7 +928,7 @@ pub(crate) struct EjecutorDelMac {
 }
 
 /// Hace al usuario una pregunta con opciones (`preguntar_usuario`) y espera.
-pub(crate) type Preguntar = Arc<dyn Fn(&pixpin_ia::preguntar::Pregunta) -> pixpin_ia::preguntar::Contestada + Send + Sync>;
+pub(crate) type Preguntar = Arc<dyn Fn(&pindesk_ia::preguntar::Pregunta) -> pindesk_ia::preguntar::Contestada + Send + Sync>;
 
 /// **El turno en una conversacion**: adonde va lo dibujado y lo que el
 /// turno sabe del lienzo (`EjecutorDelChat` de Windows).
@@ -938,7 +938,7 @@ pub(crate) struct EnChat {
     /// El lienzo nombrado con `@lienzo:` (su referencia).
     pub destino: Option<String>,
     /// Desde donde mide el modelo, lo elegido y lo ultimo que toco.
-    pub ctx: pixpin_ia::edicion::Contexto,
+    pub ctx: pindesk_ia::edicion::Contexto,
     /// Si ya se pregunto al lienzo por su resumen (y con el, el marco).
     pub con_marco: bool,
     /// El lienzo del chat donde dibujo (su referencia): la respuesta lo
@@ -1020,7 +1020,7 @@ impl EjecutorDelMac {
     /// destino del turno: lo que se dibuje, edite o mire despues va a ese
     /// lienzo.
     fn lienzos(&mut self, a: &AccionApp) -> Result<String, String> {
-        use pixpin_ia::acciones::{ANADIR_A_CARPETA, CREAR_LIENZO, LIENZOS_DEL_CHAT, PAGINA_DE_CARPETA, USAR_LIENZO};
+        use pindesk_ia::acciones::{ANADIR_A_CARPETA, CREAR_LIENZO, LIENZOS_DEL_CHAT, PAGINA_DE_CARPETA, USAR_LIENZO};
         use super::chat as ia_chat;
         if !self.nube {
             return Err("los lienzos del chat solo se manejan con el asistente de la nube".into());
@@ -1037,7 +1037,7 @@ impl EjecutorDelMac {
                     .filter(|m| ia_chat::es_lienzo(m))
                     .map(|m| {
                         let r = m.referencia.clone().unwrap_or_default();
-                        let n = cuantas_cosas(&pixpin_proyecto::almacen::lienzo(nucleo.ruta(), &chat, &r));
+                        let n = cuantas_cosas(&pindesk_proyecto::almacen::lienzo(nucleo.ruta(), &chat, &r));
                         let ahora = if destino.as_deref() == Some(r.as_str()) { " (trabajas en este)" } else { "" };
                         format!(
                             "- «{}»: {}{ahora}",
@@ -1122,7 +1122,7 @@ impl EjecutorDelMac {
             PAGINA_DE_CARPETA => {
                 let carpeta = a.pedido.get("carpeta").and_then(Value::as_str).unwrap_or("").trim().to_string();
                 let k = crate::carpetas::carpeta_por_nombre(&mensajes, &carpeta).ok_or_else(|| {
-                    let hay: Vec<&str> = pixpin_proyecto::carpeta_de_paginas::carpetas_de(&mensajes)
+                    let hay: Vec<&str> = pindesk_proyecto::carpeta_de_paginas::carpetas_de(&mensajes)
                         .into_iter()
                         .map(|i| mensajes[i].nombre.as_str())
                         .collect();
@@ -1172,7 +1172,7 @@ impl EjecutorDelMac {
     }
 
     /// **El resumen del lienzo destino** para el modelo, al empezar el turno
-    /// (`pixpin_ia::edicion::resumen`); se queda con el marco y lo elegido.
+    /// (`pindesk_ia::edicion::resumen`); se queda con el marco y lo elegido.
     /// `None` fuera de una conversacion o si el lienzo esta vacio.
     pub(crate) fn resumen_del_lienzo(&mut self) -> Option<String> {
         let c = self.chat.as_mut()?;
@@ -1189,9 +1189,9 @@ impl EjecutorDelMac {
         if elementos.is_empty() {
             return Err("no salio ninguna figura".into());
         }
-        let documento = pixpin_ia::lienzo::documento(elementos);
+        let documento = pindesk_ia::lienzo::documento(elementos);
         // Que lo lea el lienzo de verdad antes de tocar nada.
-        pixpin_motor2d::excalidraw::leer(&documento).map_err(|_| "el lienzo no pudo leer las figuras".to_string())?;
+        pindesk_motor2d::excalidraw::leer(&documento).map_err(|_| "el lienzo no pudo leer las figuras".to_string())?;
         let c = self.chat.as_mut().ok_or("aqui no hay lienzo")?;
         c.ultimo_dibujo = Some(documento.clone());
         let marco = c.con_marco.then_some(c.ctx.marco);
@@ -1205,9 +1205,9 @@ impl EjecutorDelMac {
     fn hoja_a_lienzo(&mut self, args: &Value) -> Result<String, String> {
         use super::hoja_a_lienzo as h;
         let c = self.chat.as_ref().ok_or("aqui no hay lienzo")?;
-        let vision = motor_de_vision(&c.nucleo).ok_or(pixpin_ia::hoja::SOLO_NUBE)?;
+        let vision = motor_de_vision(&c.nucleo).ok_or(pindesk_ia::hoja::SOLO_NUBE)?;
         let app = self.app.clone().ok_or("aqui no se pueden leer adjuntos")?;
-        let pedido = pixpin_ia::hoja::Pedido::de(args);
+        let pedido = pindesk_ia::hoja::Pedido::de(args);
         let validos: Vec<AdjuntoIa> = self
             .adjuntos
             .iter()
@@ -1219,18 +1219,18 @@ impl EjecutorDelMac {
         }
         let a = match pedido.archivo.as_deref() {
             Some(n) => {
-                let n = pixpin_ia::acciones::normalizar(n);
-                validos.iter().find(|a| pixpin_ia::acciones::normalizar(&a.nombre).contains(&n)).unwrap_or(&validos[validos.len() - 1])
+                let n = pindesk_ia::acciones::normalizar(n);
+                validos.iter().find(|a| pindesk_ia::acciones::normalizar(&a.nombre).contains(&n)).unwrap_or(&validos[validos.len() - 1])
             }
             None => &validos[validos.len() - 1],
         };
         let pagina = h::leer(app.as_ref(), Path::new(&a.ruta), pedido.pagina)?;
-        let mut o = pixpin_ia::hoja::Opciones::default();
+        let mut o = pindesk_ia::hoja::Opciones::default();
         if let Some(w) = pedido.ancho {
             o.ancho = w;
         }
         self.semilla += 1;
-        let pintor = |hechos: &[pixpin_ia::hoja::montaje::Hecho], tam: (f32, f32), ancho: u32| h::pintar(app.as_ref(), hechos, tam, ancho);
+        let pintor = |hechos: &[pindesk_ia::hoja::montaje::Hecho], tam: (f32, f32), ancho: u32| h::pintar(app.as_ref(), hechos, tam, ancho);
         let pasada = h::pasar(&pagina, Some(vision.as_ref()), Some(&pintor), &o, pedido.fiel, self.semilla, &|| false, &mut |_, _| {})?;
         let (documento, imagenes) = h::documento_de(&pasada.hechos)?;
         let c = self.chat.as_mut().ok_or("aqui no hay lienzo")?;
@@ -1242,8 +1242,8 @@ impl EjecutorDelMac {
         Ok(format!("{} — {}", h::contar(&pasada), r.texto))
     }
 
-    /// **Editar lo que ya hay** (`pixpin_ia::edicion`).
-    fn editar(&mut self, e: &pixpin_ia::edicion::Edicion) -> Result<String, String> {
+    /// **Editar lo que ya hay** (`pindesk_ia::edicion`).
+    fn editar(&mut self, e: &pindesk_ia::edicion::Edicion) -> Result<String, String> {
         if self.chat.as_ref().is_some_and(|c| !c.con_marco) {
             // Sin resumen al empezar: se pregunta ahora, para medir desde
             // el mismo sitio.
@@ -1260,9 +1260,9 @@ impl EjecutorDelMac {
     }
 
     /// **La biblioteca de figuras**, la misma del panel del lienzo.
-    fn figuras(&mut self, p: &pixpin_ia::figuras::PedidoFiguras) -> Result<String, String> {
-        use pixpin_ia::figuras::{PedidoFiguras, buscar, lista};
-        use pixpin_motor2d::biblioteca;
+    fn figuras(&mut self, p: &pindesk_ia::figuras::PedidoFiguras) -> Result<String, String> {
+        use pindesk_ia::figuras::{PedidoFiguras, buscar, lista};
+        use pindesk_motor2d::biblioteca;
         let nucleo = self.chat.as_ref().map(|c| c.nucleo.clone()).ok_or("aqui no hay lienzo")?;
         let todas = nucleo.biblioteca_cargar().map_err(|e| format!("no se pudo leer la biblioteca de figuras: {e}"))?;
         match p {
@@ -1281,7 +1281,7 @@ impl EjecutorDelMac {
             }
             // Las secciones de la plantilla, para leerlas antes de cambiarlas:
             // por su nombre sin mirar el lienzo; si no, la que hay en el.
-            PedidoFiguras::Secciones { nombre: Some(n) } => pixpin_ia::figuras::secciones_de_nombre(n),
+            PedidoFiguras::Secciones { nombre: Some(n) } => pindesk_ia::figuras::secciones_de_nombre(n),
             PedidoFiguras::Secciones { nombre: None } => {
                 let c = self.chat.as_ref().ok_or("aqui no hay lienzo")?;
                 let trabajo = super::al_lienzo::Trabajo::Secciones;
@@ -1290,7 +1290,7 @@ impl EjecutorDelMac {
             PedidoFiguras::Poner { nombre } => {
                 let f = buscar(&todas, nombre).ok_or_else(|| format!("no hay ninguna figura guardada como «{nombre}» ({})", lista(&todas)))?;
                 self.semilla += 1;
-                let els = pixpin_ia::lienzo::elementos_de_figura(f, (0.0, 0.0), self.semilla);
+                let els = pindesk_ia::lienzo::elementos_de_figura(f, (0.0, 0.0), self.semilla);
                 let r = self.al_lienzo_del_chat(els)?;
                 Ok(format!("{r}: la figura «{}»", f.nombre))
             }
@@ -1314,7 +1314,7 @@ impl EjecutorDelMac {
 
     /// Lo elegido en el lienzo abierto; si no hay nada elegido, lo ultimo
     /// que dibujo el asistente en este turno.
-    fn lo_que_guardar(&self) -> Result<(Vec<pixpin_motor2d::Elemento>, &'static str), String> {
+    fn lo_que_guardar(&self) -> Result<(Vec<pindesk_motor2d::Elemento>, &'static str), String> {
         let c = self.chat.as_ref().ok_or("aqui no hay lienzo")?;
         if let Ok((r, _)) = super::al_lienzo::en_el_chat(&c.nucleo, &c.chat, c.destino.as_deref(), &super::al_lienzo::Trabajo::Elegido, None)
             && !r.elegido.is_empty()
@@ -1335,7 +1335,7 @@ impl EjecutorDelMac {
 
     /// **Busca en los documentos del usuario.** Con la nube, solo si lo
     /// permite (se pregunta la primera vez).
-    fn buscar(&mut self, p: &pixpin_ia::documentos::PeticionBusqueda) -> Result<String, String> {
+    fn buscar(&mut self, p: &pindesk_ia::documentos::PeticionBusqueda) -> Result<String, String> {
         let nucleo = self.nucleo.clone().ok_or("aqui no hay documentos en los que buscar")?;
         if self.nube {
             let app = self.app.clone();
@@ -1365,7 +1365,7 @@ impl EjecutorDelMac {
 
     /// Lo dibujado en el turno, como un `.excalidraw` entero.
     pub(crate) fn lienzo(&mut self) -> Option<String> {
-        (!self.elementos.is_empty()).then(|| pixpin_ia::lienzo::documento(std::mem::take(&mut self.elementos)))
+        (!self.elementos.is_empty()).then(|| pindesk_ia::lienzo::documento(std::mem::take(&mut self.elementos)))
     }
 
     /// Donde empieza lo siguiente: debajo de lo de antes, para no pisarse.
@@ -1416,12 +1416,12 @@ impl EjecutorDelMac {
             })
     }
 
-    fn calcar(&mut self, p: &pixpin_ia::calcar::Parametros) -> Result<String, String> {
+    fn calcar(&mut self, p: &pindesk_ia::calcar::Parametros) -> Result<String, String> {
         let ruta = PathBuf::from(&self.elegir(p.imagen.as_deref(), true)?.ruta);
-        let img = pixpin_codec::imagen::cargar(&ruta).map_err(|e| format!("no se pudo abrir la imagen: {e}"))?;
-        let c = pixpin_ia::calcar::calcar(&img.pixeles, img.ancho, img.alto, p);
+        let img = pindesk_codec::imagen::cargar(&ruta).map_err(|e| format!("no se pudo abrir la imagen: {e}"))?;
+        let c = pindesk_ia::calcar::calcar(&img.pixeles, img.ancho, img.alto, p);
         self.semilla += 1;
-        let els = pixpin_ia::lienzo::elementos_de_calcado(&c, self.origen(), self.semilla);
+        let els = pindesk_ia::lienzo::elementos_de_calcado(&c, self.origen(), self.semilla);
         if els.is_empty() {
             return Err("la imagen no tiene formas que calcar (esta en blanco o casi)".into());
         }
@@ -1432,7 +1432,7 @@ impl EjecutorDelMac {
     }
 
     /// El adjunto pedido y su texto entero.
-    fn leer_entero(&self, p: &pixpin_ia::herramientas::PeticionOcr) -> Result<(AdjuntoIa, String), String> {
+    fn leer_entero(&self, p: &pindesk_ia::herramientas::PeticionOcr) -> Result<(AdjuntoIa, String), String> {
         let a = self.elegir(p.archivo.as_deref(), false)?;
         let app = self.app.as_ref().ok_or("aqui no se pueden leer adjuntos")?;
         let paginas = p.paginas.iter().map(|&(desde, hasta)| RangoPaginas { desde, hasta }).collect();
@@ -1445,7 +1445,7 @@ impl EjecutorDelMac {
 
     /// Lo leido, recortado para el modelo; en una conversacion el texto
     /// entero queda ademas en el chat (nota y `.txt`).
-    fn leer(&mut self, p: &pixpin_ia::herramientas::PeticionOcr) -> Result<String, String> {
+    fn leer(&mut self, p: &pindesk_ia::herramientas::PeticionOcr) -> Result<String, String> {
         let (a, texto) = self.leer_entero(p)?;
         let para_el_modelo = recortar(&texto, LEIDO_PARA_EL_MODELO);
         if let Some(c) = self.chat.as_mut() {
@@ -1455,11 +1455,11 @@ impl EjecutorDelMac {
     }
 
     fn accion(&self, a: &AccionApp) -> Result<String, String> {
-        if pixpin_ia::web::es_de_la_web(a.herramienta) {
+        if pindesk_ia::web::es_de_la_web(a.herramienta) {
             return web_del_mac(a);
         }
-        let de_conexiones = pixpin_ia::conexiones::acciones::es_de_conexiones(a.herramienta);
-        if pixpin_ia::acciones_documentos::es_de_documentos(a.herramienta) || de_conexiones {
+        let de_conexiones = pindesk_ia::conexiones::acciones::es_de_conexiones(a.herramienta);
+        if pindesk_ia::acciones_documentos::es_de_documentos(a.herramienta) || de_conexiones {
             let n = self.nucleo.as_ref().ok_or("aqui no se pueden abrir documentos")?;
             let proyecto = self.chat.as_ref().map(|c| c.chat.clone()).unwrap_or_default();
             let cx = super::documentos_acciones::Contexto {
@@ -1491,7 +1491,7 @@ impl EjecutorDelMac {
                     desfase_ms: self.desfase_ms,
                     ahora,
                 };
-                pixpin_ia::tareas::hacer(a, &fuente, &confirmar, &mut mandar)
+                pindesk_ia::tareas::hacer(a, &fuente, &confirmar, &mut mandar)
             }
             None if a.es_consulta() || !a.por_resolver.is_empty() => Err("no puedo leer las listas de tareas desde aqui".into()),
             None => {
@@ -1499,7 +1499,7 @@ impl EjecutorDelMac {
                     ahora: Some(ahora),
                     ..Default::default()
                 };
-                pixpin_ia::tareas::hacer(a, &fijas, &confirmar, &mut mandar)
+                pindesk_ia::tareas::hacer(a, &fijas, &confirmar, &mut mandar)
             }
         }
     }
@@ -1511,20 +1511,20 @@ impl Ejecutor for EjecutorDelMac {
             l if l.dibuja() => {
                 self.semilla += 1;
                 if self.chat.is_some() {
-                    let nuevos = pixpin_ia::lienzo::elementos(l, (0.0, 0.0), self.semilla);
+                    let nuevos = pindesk_ia::lienzo::elementos(l, (0.0, 0.0), self.semilla);
                     return self.al_lienzo_del_chat(nuevos);
                 }
-                let nuevos = pixpin_ia::lienzo::elementos(l, self.origen(), self.semilla);
+                let nuevos = pindesk_ia::lienzo::elementos(l, self.origen(), self.semilla);
                 Ok(self.poner(nuevos))
             }
             Llamada::Calcar(p) => self.calcar(p),
             Llamada::Ocr(p) => self.leer(p),
             Llamada::Editar(e) if self.chat.is_some() => self.editar(e),
             Llamada::Figuras(p) if self.chat.is_some() => self.figuras(p),
-            Llamada::Ayuda(pregunta) => Ok(pixpin_ia::conocimiento::responder(pregunta)),
+            Llamada::Ayuda(pregunta) => Ok(pindesk_ia::conocimiento::responder(pregunta)),
             Llamada::Buscar(p) => self.buscar(p),
-            Llamada::App(a) if a.herramienta == pixpin_ia::hoja::NOMBRE && self.chat.is_some() => self.hoja_a_lienzo(&a.pedido),
-            Llamada::App(a) if pixpin_ia::acciones::es_de_lienzos(a.herramienta) && self.chat.is_some() => self.lienzos(a),
+            Llamada::App(a) if a.herramienta == pindesk_ia::hoja::NOMBRE && self.chat.is_some() => self.hoja_a_lienzo(&a.pedido),
+            Llamada::App(a) if pindesk_ia::acciones::es_de_lienzos(a.herramienta) && self.chat.is_some() => self.lienzos(a),
             Llamada::App(a) if el_mac_lo_hace(a.herramienta, self.chat.is_some()) => self.accion(a),
             otra => Err(format!("{} aun no se puede hacer en PinDesk para Mac", otra.nombre())),
         }
@@ -1532,8 +1532,8 @@ impl Ejecutor for EjecutorDelMac {
 
     /// **Mirar el lienzo** (`ojos`): quien tiene la escena copia la zona y
     /// Swift la pinta con el pintor del lienzo.
-    fn ver(&mut self, m: &pixpin_ia::ojos::Mirada) -> Result<pixpin_ia::ojos::Vista, String> {
-        if m.zona == pixpin_ia::ojos::Zona::Documento {
+    fn ver(&mut self, m: &pindesk_ia::ojos::Mirada) -> Result<pindesk_ia::ojos::Vista, String> {
+        if m.zona == pindesk_ia::ojos::Zona::Documento {
             return Err("ver un documento anotado aun no se puede en PinDesk para Mac".into());
         }
         if self.chat.as_ref().is_some_and(|c| !c.con_marco) {
@@ -1543,7 +1543,7 @@ impl Ejecutor for EjecutorDelMac {
         let c = self.chat.as_ref().ok_or("aqui no hay lienzo que mirar")?;
         let app = self.app.clone().ok_or("aqui no se puede pintar la vista")?;
         let mut ctx = c.ctx.clone();
-        if m.zona == pixpin_ia::ojos::Zona::Turno {
+        if m.zona == pindesk_ia::ojos::Zona::Turno {
             ctx.ultimos = c.del_turno.clone();
         }
         let t0 = std::time::Instant::now();
@@ -1559,10 +1559,10 @@ impl Ejecutor for EjecutorDelMac {
         self.preguntar.is_some()
     }
 
-    fn preguntar(&mut self, p: &pixpin_ia::preguntar::Pregunta) -> pixpin_ia::preguntar::Contestada {
+    fn preguntar(&mut self, p: &pindesk_ia::preguntar::Pregunta) -> pindesk_ia::preguntar::Contestada {
         match &self.preguntar {
             Some(f) => f(p),
-            None => pixpin_ia::preguntar::Contestada::SinRespuesta,
+            None => pindesk_ia::preguntar::Contestada::SinRespuesta,
         }
     }
 
@@ -1579,7 +1579,7 @@ impl Ejecutor for EjecutorDelMac {
         self.trabajo_en_el_lienzo(super::al_lienzo::Trabajo::VolverA { copia }).map(|_| ())
     }
 
-    /// Lo que se mide sin modelo (`pixpin_ia::lint`) en todo el lienzo.
+    /// Lo que se mide sin modelo (`pindesk_ia::lint`) en todo el lienzo.
     fn comprobar(&mut self) -> Option<Vec<String>> {
         let r = self.trabajo_en_el_lienzo(super::al_lienzo::Trabajo::Comprobar).ok()?;
         Some(r.texto.lines().map(str::trim).filter(|l| !l.is_empty()).map(String::from).collect())
@@ -1587,27 +1587,27 @@ impl Ejecutor for EjecutorDelMac {
 
     /// Lo que dibuja antes que lo que edita (`edicion::en_orden`).
     fn ejecutar_varias(&mut self, llamadas: &[Llamada]) -> Vec<Result<String, String>> {
-        pixpin_ia::edicion::en_orden(llamadas, |l| self.ejecutar(l))
+        pindesk_ia::edicion::en_orden(llamadas, |l| self.ejecutar(l))
     }
 }
 
 /// Pega la vista del lienzo al pedido del usuario (la imagen delante, como
 /// una foto adjunta, y su leyenda detras del texto).
-fn poner_vista(historial: &mut [Mensaje], v: &pixpin_ia::ojos::Vista) {
-    use pixpin_ia::motor::{Parte, Rol};
+fn poner_vista(historial: &mut [Mensaje], v: &pindesk_ia::ojos::Vista) {
+    use pindesk_ia::motor::{Parte, Rol};
     let Some(m) = historial.iter_mut().rev().find(|m| m.rol == Rol::Usuario) else { return };
     m.partes.insert(0, Parte::Imagen { bytes: v.png.clone(), mime: "image/png".into() });
     m.partes.push(Parte::Texto(format!(
         "\n\n(La imagen adjunta es la vista del lienzo ahora; {})",
-        v.texto.trim_start_matches(pixpin_ia::ojos::MARCA).trim()
+        v.texto.trim_start_matches(pindesk_ia::ojos::MARCA).trim()
     )));
 }
 
 /// Cuantas cosas hay en un lienzo (su fichero), para `lienzos_del_chat`.
 fn cuantas_cosas(ruta: &Path) -> Option<usize> {
     let texto = std::fs::read_to_string(ruta).ok()?;
-    let lienzo = pixpin_motor2d::excalidraw::leer(&texto).ok()?;
-    Some(pixpin_motor2d::excalidraw::a_escena(&lienzo).cuantos_visibles())
+    let lienzo = pindesk_motor2d::excalidraw::leer(&texto).ok()?;
+    Some(pindesk_motor2d::excalidraw::a_escena(&lienzo).cuantos_visibles())
 }
 
 /// Recorta a `n` letras diciendolo.
@@ -1656,7 +1656,7 @@ impl FuenteTareas for FuenteDelMac {
     }
 
     fn chats(&self) -> Vec<Chat> {
-        pixpin_proyecto::almacen::Indice::leer_si_esta(self.nucleo.ruta())
+        pindesk_proyecto::almacen::Indice::leer_si_esta(self.nucleo.ruta())
             .map(|i| {
                 i.proyectos
                     .iter()
@@ -1699,13 +1699,13 @@ pub fn ia_hacer_herramienta(
     app: Arc<dyn AppIa>,
 ) -> Result<String, ErrorNucleo> {
     let mal = |detalle: String| ErrorNucleo::Asistente { detalle };
-    let fila = pixpin_ia::acciones::por_nombre(&nombre).ok_or_else(|| mal(format!("herramienta desconocida: {nombre}")))?;
+    let fila = pindesk_ia::acciones::por_nombre(&nombre).ok_or_else(|| mal(format!("herramienta desconocida: {nombre}")))?;
     let args: serde_json::Map<String, Value> = match serde_json::from_str::<Value>(&args_json) {
         Ok(Value::Object(m)) => m,
         Ok(Value::Null) | Err(_) if args_json.trim().is_empty() => serde_json::Map::new(),
         _ => return Err(mal("los argumentos no son un objeto JSON".into())),
     };
-    let accion = pixpin_ia::acciones::validar(fila, &args).map_err(|e| mal(e.to_string()))?;
+    let accion = pindesk_ia::acciones::validar(fila, &args).map_err(|e| mal(e.to_string()))?;
     let ej = EjecutorDelMac::nuevo(Vec::new(), desfase_ms).con_app(app).con_nucleo(Some(nucleo));
     ej.accion(&accion).map_err(mal)
 }

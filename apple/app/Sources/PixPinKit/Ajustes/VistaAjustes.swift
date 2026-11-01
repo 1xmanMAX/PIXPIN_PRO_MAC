@@ -96,7 +96,7 @@ public struct VistaAjustes: View {
             .keyboardShortcut("z", modifiers: .command)
             .disabled(!modelo.sePuedeDeshacer)
             .help("Deshacer el último cambio (⌘Z)")
-            Text("Se guarda al momento en pixpinmax.toml. ● = distinto del valor de fábrica.")
+            Text("Se guarda al momento en pindesk.toml. ● = distinto del valor de fábrica.")
                 .font(.caption2).foregroundStyle(P.gris)
                 .padding(.horizontal, 4).padding(.bottom, 12)
         }
