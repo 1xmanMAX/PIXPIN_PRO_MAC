@@ -54,7 +54,7 @@ public enum BibliotecaAudio {
         }
         if !n.isEmpty { return n }
         let fecha = Date(timeIntervalSince1970: TimeInterval(cuando) / 1000)
-        return "Voz · " + fecha.formatted(date: .abbreviated, time: .shortened)
+        return "Voz · " + fecha.formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Lengua.locale))
     }
 
     /// El titulo de un mensaje de voz.

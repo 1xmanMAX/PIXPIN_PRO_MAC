@@ -36,35 +36,38 @@ import SwiftUI
 
 /// Los textos de las carpetas, los de Windows (`carpeta-*` de `main.ftl`).
 enum TextosCarpeta {
-    static let nueva = "Carpeta de páginas"
-    static let pagina = "Página"
-    static func paginas(_ n: Int) -> String { n == 1 ? "1 página" : "\(n) páginas" }
-    static let vaciaDetalle = "Vacía"
-    static let anadirA = "Añadir a carpeta…"
-    static let nuevaCon = "Nueva carpeta con esta página"
-    static func anadida(_ carpeta: String, como titulo: String) -> String { "Añadida a «\(carpeta)» como «\(titulo)»" }
-    static func yaEstaba(_ carpeta: String) -> String { "Ya está en «\(carpeta)»" }
-    static let abrir = "Abrir la carpeta"
-    static let nuevaPagina = "Nueva página"
-    static let exportarPdf = "Exportar PDF"
-    static let exportando = "Exportando el PDF…"
-    static let noSeExporto = "No se pudo exportar: no hay ninguna página con algo dentro"
-    static let vacia = "Esta carpeta está vacía. Pulsa «Nueva página», o en el chat elige «Añadir a carpeta…» en el menú de un lienzo o de una imagen."
-    static let antes = "Antes"
-    static let despues = "Después"
-    static let renombrar = "Renombrar"
-    static let quitar = "Quitar de la carpeta"
-    static let noEsta = "Esa carpeta ya no está en el chat"
-    static let pista = "Arrastra una página para cambiarla de sitio · F2 cambia su título · ⌫ la quita (vuelve a verse en el chat)"
-    static let escribeTitulo = "Escribe el título y pulsa Intro"
-    static let noSePudo = "No se pudo: mira el registro de PixPin"
+    static let nueva = Lengua.t("carpeta-nueva")
+    static let pagina = Lengua.t("carpeta-pagina")
+    static func paginas(_ n: Int) -> String { Lengua.t("carpeta-paginas", ["n": n]) }
+    static let vaciaDetalle = Lengua.t("carpeta-vacia-detalle")
+    static let anadirA = Lengua.t("carpeta-anadir-a")
+    static let nuevaCon = Lengua.t("carpeta-nueva-con")
+    static func anadida(_ carpeta: String, como titulo: String) -> String {
+        Lengua.t("carpeta-anadida", ["carpeta": carpeta, "titulo": titulo])
+    }
+    static func yaEstaba(_ carpeta: String) -> String { Lengua.t("carpeta-ya-estaba", ["carpeta": carpeta]) }
+    static let abrir = Lengua.t("carpeta-abrir")
+    static let nuevaPagina = Lengua.t("carpeta-nueva-pagina")
+    static let exportarPdf = Lengua.t("carpeta-exportar-pdf")
+    static let exportando = Lengua.t("carpeta-exportando")
+    static let noSeExporto = Lengua.t("carpeta-no-se-exporto")
+    static let vacia = Lengua.t("carpeta-vacia")
+    static let antes = Lengua.t("carpeta-antes")
+    static let despues = Lengua.t("carpeta-despues")
+    static let renombrar = Lengua.t("carpeta-renombrar")
+    static let quitar = Lengua.t("carpeta-quitar")
+    static let noEsta = Lengua.t("carpeta-no-esta")
+    // La de Windows dice «Supr»; en el Mac es ⌫.
+    static let pista = Lengua.t("carpeta-pista").replacingOccurrences(of: "Supr", with: "⌫")
+    static let escribeTitulo = Lengua.t("carpeta-escribe-titulo")
+    static let noSePudo = Lengua.t("chat-no-se-pudo")
     // La carpeta de una grabacion (`carpeta-grabacion*`, `carpeta-adjunt*`).
-    static let grabacion = "Grabación"
-    static let estudiar = "Estudiar"
-    static let adjuntoInsignia = "Adjunto · no es de la grabación"
-    static let adjuntar = "Adjuntar a la clase"
-    static func adjuntado(_ nombre: String) -> String { "Adjuntado a la clase: \(nombre)" }
-    static let grabacionPista = "Pulsa una pieza para estudiarla en su minuto · «Adjuntar a la clase» suma un archivo, una foto o una nota sin mezclarlo con lo grabado"
+    static let grabacion = Lengua.t("carpeta-grabacion")
+    static let estudiar = Lengua.t("carpeta-estudiar")
+    static let adjuntoInsignia = Lengua.t("carpeta-adjunto-insignia")
+    static let adjuntar = Lengua.t("carpeta-adjuntar")
+    static func adjuntado(_ nombre: String) -> String { Lengua.t("carpeta-adjuntado", ["nombre": nombre]) }
+    static let grabacionPista = Lengua.t("carpeta-grabacion-pista")
 }
 
 /// El color de lo adjuntado a una clase (no es de lo grabado): un ambar que
@@ -383,7 +386,7 @@ struct BurbujaCarpeta: View {
 
     private var nombre: String {
         let n = mensaje.nombre.trimmingCharacters(in: .whitespaces)
-        return n.isEmpty ? "Cuaderno" : n
+        return n.isEmpty ? Lengua.t("carpeta-nombre-de-serie") : n
     }
 
     var body: some View {
@@ -533,7 +536,7 @@ struct BurbujaGrabacion: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { CarpetasDelChat.abrirGrabacion(mensaje, chat: chat, almacen: almacen) }
-        .help("Estudiar la clase")
+        .help(Lengua.t("chat-estudiar-clase"))
         .task(id: mensaje.texto) {
             // La foto de la tarjeta: la primera captura que este en el chat.
             let capturas = Set(g?.capturas ?? [])
@@ -563,7 +566,7 @@ final class VentanasDeCarpeta: NSObject, NSWindowDelegate {
         let ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
                                styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                backing: .buffered, defer: false)
-        ventana.title = titulo.isEmpty ? "Cuaderno" : titulo
+        ventana.title = titulo.isEmpty ? Lengua.t("carpeta-nombre-de-serie") : titulo
         ventana.contentViewController = NSHostingController(rootView: VistaCarpeta(modelo: modelo))
         ventana.setContentSize(NSSize(width: 900, height: 700))
         ventana.minSize = NSSize(width: 480, height: 360)
@@ -848,7 +851,7 @@ struct VistaCarpeta: View {
             }
             if !modelo.perdida {
                 Button { modelo.compartir() } label: {
-                    Label("Compartir", systemImage: "square.and.arrow.up").frame(minWidth: 120)
+                    Label(Lengua.t("compartir-titulo"), systemImage: "square.and.arrow.up").frame(minWidth: 120)
                 }
                 .controlSize(.large)
                 .help("HTML, PDF, imágenes, Word, Markdown, el original o el .pixpin")
@@ -1019,7 +1022,7 @@ struct VistaCarpeta: View {
             if encima, !fijo { destino = id } else if destino == id { destino = nil }
         }
         .contextMenu {
-            Button { modelo.abrir(p) } label: { Label("Abrir", systemImage: "arrow.up.right.square") }
+            Button { modelo.abrir(p) } label: { Label(Lengua.t("info-abrir"), systemImage: "arrow.up.right.square") }
             Button { modelo.empezarARenombrar(id) } label: { Label(TextosCarpeta.renombrar, systemImage: "pencil") }
             Button { modelo.mover(k, k - 1) } label: { Label(TextosCarpeta.antes, systemImage: "chevron.left") }
                 .disabled(k == 0 || fijo)

@@ -176,7 +176,7 @@ struct BurbujaDibujo: View {
                     }
                     .alDobleClic(editar)
                 } else if falta {
-                    Label(mensaje.nombre.isEmpty ? "Dibujo" : mensaje.nombre,
+                    Label(mensaje.nombre.isEmpty ? Lengua.t("chat-clase-dibujo") : mensaje.nombre,
                           systemImage: "scribble.variable")
                 } else {
                     ProgressView()
@@ -217,7 +217,7 @@ struct BurbujaDibujo: View {
     private func editar() {
         guard let referencia = mensaje.referencia, !referencia.isEmpty else { return }
         VentanasDeLienzo.compartidas.abrir(referencia: referencia, en: chat,
-                                           titulo: mensaje.nombre.isEmpty ? "Dibujo" : mensaje.nombre,
+                                           titulo: mensaje.nombre.isEmpty ? Lengua.t("chat-clase-dibujo") : mensaje.nombre,
                                            almacen: almacen)
     }
 }
@@ -253,10 +253,10 @@ struct AccionesDeFichero: ViewModifier {
                 EntradasDeMensaje {
                     if let nucleo { MenuDeDocumento(url: url, nucleo: nucleo) }
                     if let anotar {
-                        Button { anotar() } label: { Label("Anotar encima", systemImage: "pencil.tip.crop.circle") }
+                        Button { anotar() } label: { Label(Lengua.t("v2menus-anotar-encima"), systemImage: "pencil.tip.crop.circle") }
                     }
                     Button { vistaRapida = url } label: { Label("Vista rápida", systemImage: "eye") }
-                    Button { NSWorkspace.shared.open(url) } label: { Label("Abrir", systemImage: "arrow.up.right.square") }
+                    Button { NSWorkspace.shared.open(url) } label: { Label(Lengua.t("info-abrir"), systemImage: "arrow.up.right.square") }
                     Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
                         Label("Mostrar en el Finder", systemImage: "folder")
                     }

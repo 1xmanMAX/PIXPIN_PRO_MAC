@@ -350,7 +350,7 @@ enum CompartirTimeline {
 enum ImagenDeMomento {
     static func hacer(_ m: MomentoTimeline) -> NSImage? {
         let vista = VStack(alignment: .leading, spacing: 10) {
-            Text(fechaDe(ms: m.cuando).formatted(date: .long, time: .shortened))
+            Text(fechaDe(ms: m.cuando).formatted(Date.FormatStyle(date: .long, time: .shortened, locale: Lengua.locale)))
                 .font(.system(size: 12)).foregroundStyle(Paleta.v2.gris)
             Text(m.titulo).font(.system(size: 20, weight: .bold)).foregroundStyle(Paleta.v2.texto)
             if !m.descripcion.isEmpty {

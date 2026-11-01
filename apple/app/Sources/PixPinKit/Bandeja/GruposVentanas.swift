@@ -147,7 +147,7 @@ public enum ReglasGruposVentanas {
     public static func entradas(abiertas: Int, grupos: [GrupoVentanas]) -> [EntradaGrupos] {
         var v: [EntradaGrupos] = []
         if abiertas == 0 {
-            v.append(EntradaGrupos(titulo: "No hay lienzos, documentos ni notas abiertos que guardar", que: .nada))
+            v.append(EntradaGrupos(titulo: Lengua.t("grupos-nada-abierto"), que: .nada))
         } else {
             let t = abiertas == 1 ? "Guardar la ventana abierta como grupo…"
                 : "Guardar las \(abiertas) ventanas abiertas como grupo…"
@@ -324,7 +324,7 @@ public final class GruposVentanas {
     /// El menu de los grupos (para el de la barra de menus y el panel). Se
     /// arma al pedirlo: lo abierto y lo guardado de ahora.
     public func menu() -> NSMenu {
-        let menu = NSMenu(title: "Grupos de ventanas")
+        let menu = NSMenu(title: Lengua.t("bandeja2-grupos"))
         menu.autoenablesItems = false
         let grupos = raiz.map(ReglasGruposVentanas.leer) ?? []
         let hay = fotografiar()
@@ -367,7 +367,7 @@ public final class GruposVentanas {
             guard let g = grupos.first(where: { $0.id == id }) else { return }
             if abrir(g) < g.ventanas.count {
                 CentroAvisos.compartido.avisar(Aviso(id: "pixpin.grupos-ventanas", categoria: .mini, titulo: "PixPin",
-                                                     texto: "Alguna ventana del grupo ya no se puede abrir"))
+                                                     texto: Lengua.t("grupos-alguna-falta")))
             }
         case let .borrar(id):
             do { try ReglasGruposVentanas.escribir(raiz, ReglasGruposVentanas.sinGrupo(grupos, id: id)) } catch { NSSound.beep() }
@@ -377,9 +377,9 @@ public final class GruposVentanas {
     /// El nombre, en una caja con «Guardar» y «Cancelar».
     private func pedirNombre(propuesto: String) -> String? {
         let alerta = NSAlert()
-        alerta.messageText = "Nombre del grupo de ventanas"
-        alerta.addButton(withTitle: "Guardar")
-        alerta.addButton(withTitle: "Cancelar")
+        alerta.messageText = Lengua.t("grupos-nombre")
+        alerta.addButton(withTitle: Lengua.t("grupos-guardar-boton"))
+        alerta.addButton(withTitle: Lengua.t("chat-cancelar-caja"))
         let campo = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         campo.stringValue = propuesto
         alerta.accessoryView = campo

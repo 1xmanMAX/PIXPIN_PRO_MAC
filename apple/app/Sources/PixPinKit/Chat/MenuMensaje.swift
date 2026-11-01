@@ -147,7 +147,7 @@ final class ChatAbierto: ObservableObject {
         guard !texto.isEmpty else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(texto, forType: .string)
-        avisar("Copiado")
+        avisar(Lengua.t("chat-copiado"))
         if ids.count > 1 { soltarElegidos() }
     }
 
@@ -177,15 +177,15 @@ final class ChatAbierto: ObservableObject {
     func pinear(_ m: MensajeChat) {
         if ChatAbierto.esListaDeTareas(m) {
             GestorPines.compartido.pinearMiniapp(chat: chat, mensaje: m.id, miniapp: "tareas", documento: m.texto)
-            avisar("Pineado")
+            avisar(Lengua.t("chat-pineado"))
             return
         }
         guard let url = fichero(m) else {
-            avisar("Este mensaje no tiene un archivo en este equipo")
+            avisar(Lengua.t("chat-sin-archivo"))
             return
         }
         if GestorPines.compartido.pinear(fichero: url) {
-            avisar("Pineado")
+            avisar(Lengua.t("chat-pineado"))
         } else {
             avisar("No se pudo pinear este archivo")
         }
@@ -244,7 +244,7 @@ final class ChatAbierto: ObservableObject {
         Task {
             guard await almacen.cambiar(mensaje: m.id, en: chat, .recordar(cuando: nil)) != nil else { return }
             RecordatoriosDeMensajes.cancelar(chat: chat, id: m.id)
-            avisar("Recordatorio quitado")
+            avisar(Lengua.t("chat-recordatorio-quitado"))
         }
     }
 
@@ -288,7 +288,7 @@ final class ChatAbierto: ObservableObject {
     func reenviar(_ ids: [String]) {
         let otros = otrosChats
         guard !otros.isEmpty else {
-            avisar("No hay otro proyecto al que mandarlo")
+            avisar(Lengua.t("chat-sin-proyectos-otros"))
             return
         }
         MenuEmergente.mostrar(otros.map { f in
@@ -305,7 +305,7 @@ final class ChatAbierto: ObservableObject {
             let n = await almacen.reenviar(mensajes: ids, de: chat, a: destino)
             if n > 0 {
                 soltarElegidos()
-                avisar("Reenviado")
+                avisar(Lengua.t("chat-reenviado"))
             }
         }
     }
@@ -467,30 +467,30 @@ private struct MenuDeMensaje<Propias: View>: View {
         Divider()
 
         // ── Lo diario ──
-        Button { c.responder(m) } label: { Label("Responder", systemImage: "arrowshape.turn.up.left") }
+        Button { c.responder(m) } label: { Label(Lengua.t("v2menus-responder"), systemImage: "arrowshape.turn.up.left") }
             .keyboardShortcut("r", modifiers: [])
         if AsistenteEnElChat.sePuedeGuardarReceta(m, chat: c.chat, almacen: c.almacen) {
             Button { AsistenteEnElChat.compartido.guardarReceta(desde: m, chat: c.chat, almacen: c.almacen) } label: {
-                Label("Guardar como receta", systemImage: "star")
+                Label(Lengua.t("asistente-receta-guardar"), systemImage: "star")
             }
         }
         if ChatAbierto.sePuedeCopiar(m) {
-            Button { c.copiar([m.id]) } label: { Label("Copiar", systemImage: "doc.on.doc") }
+            Button { c.copiar([m.id]) } label: { Label(Lengua.t("chat-copiar"), systemImage: "doc.on.doc") }
                 .keyboardShortcut("c", modifiers: .command)
         }
         if m.ruta?.isEmpty == false || ChatAbierto.esListaDeTareas(m) {
-            Button { c.pinear(m) } label: { Label("Pinear", systemImage: "pin") }
+            Button { c.pinear(m) } label: { Label(Lengua.t("chat-pinear"), systemImage: "pin") }
                 .keyboardShortcut("p", modifiers: [])
         }
         if m.sePuedeDescribir {
             Button { c.escritura = .describir(m) } label: {
                 Label(m.texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? "Añadir descripción" : "Editar descripción", systemImage: "captions.bubble")
+                    ? Lengua.t("chat-describir") : Lengua.t("chat-describir-editar"), systemImage: "captions.bubble")
             }
             .keyboardShortcut("e", modifiers: [])
         }
         if m.clase == "NOTA" {
-            Button { c.editarNota(m) } label: { Label("Abrir en el editor de notas", systemImage: "square.and.pencil") }
+            Button { c.editarNota(m) } label: { Label(Lengua.t("chat-editar-nota"), systemImage: "square.and.pencil") }
                 .keyboardShortcut("n", modifiers: [])
         }
         propias
@@ -507,20 +507,20 @@ private struct MenuDeMensaje<Propias: View>: View {
 
         // ── Mandarlo a otro sitio y acordarse ──
         Divider()
-        Button { c.reenviar(c.sobre(m)) } label: { Label("Reenviar", systemImage: "arrowshape.turn.up.right") }
+        Button { c.reenviar(c.sobre(m)) } label: { Label(Lengua.t("chat-reenviar"), systemImage: "arrowshape.turn.up.right") }
             .keyboardShortcut("f", modifiers: [])
-        Button { c.compartir(c.sobre(m)) } label: { Label("Compartir…", systemImage: "square.and.arrow.up") }
+        Button { c.compartir(c.sobre(m)) } label: { Label(Lengua.t("chat-compartir"), systemImage: "square.and.arrow.up") }
         // Una clase grabada (su nota, sus capturas o su video): estudiarla en
         // su ventana, con el texto y las capturas al lado (Windows ce6c058).
         if let clase = ClaseEnElChat.deUnaClase(m, chat: c.chat, nucleo: c.almacen.nucleo) {
             Button {
                 EstudiarClase.abrir(chat: c.chat, mensaje: clase.voz, ms: clase.ms, almacen: c.almacen)
             } label: {
-                Label("Estudiar la clase", systemImage: "book")
+                Label(Lengua.t("chat-estudiar-clase"), systemImage: "book")
             }
         }
         if m.recuerdaEn != nil {
-            Button { c.olvidar(m) } label: { Label("Quitar el recordatorio", systemImage: "alarm") }
+            Button { c.olvidar(m) } label: { Label(Lengua.t("chat-recordatorio-quitar"), systemImage: "alarm") }
         } else {
             Menu {
                 // Una nota de voz con hora es una llamada secreta: primero,
@@ -535,24 +535,24 @@ private struct MenuDeMensaje<Propias: View>: View {
                 ForEach(HorasDeRecordar.atajos(ahora: Date()), id: \.titulo) { h in
                     Button { c.recordar(m, en: h.cuando) } label: { Label(h.titulo, systemImage: "alarm") }
                 }
-                Button { c.escritura = .hora(m) } label: { Label("Elegir la hora…", systemImage: "pencil") }
+                Button { c.escritura = .hora(m) } label: { Label(Lengua.t("chat-recordar-hora"), systemImage: "pencil") }
             } label: {
-                Label("Recordármelo", systemImage: "alarm")
+                Label(Lengua.t("chat-recordar"), systemImage: "alarm")
             }
         }
         if !m.esLeccion, m.clase != "ARCHIVO" {
-            Button { c.hacerLeccion(m) } label: { Label("Hacer lección", systemImage: "lightbulb") }
+            Button { c.hacerLeccion(m) } label: { Label(Lengua.t("chat-hacer-leccion"), systemImage: "lightbulb") }
                 .keyboardShortcut("l", modifiers: [])
         }
         // Tarjetas de estudio: de una clase grabada, una foto o una nota.
         if c.sePuedeAnki(m) {
-            Button { c.enviarAAnki(m) } label: { Label("Enviar a Anki", systemImage: "book") }
+            Button { c.enviarAAnki(m) } label: { Label(Lengua.t("anki-enviar"), systemImage: "book") }
         }
         // Un lienzo (lo que hizo el asistente, o uno propio), a la biblioteca
         // de figuras de un clic (`chat-guardar-en-figuras` de Windows).
         if m.clase == "DIBUJO", m.referencia?.isEmpty == false {
             Button { c.guardarEnFiguras(m) } label: {
-                Label("Guardar en mis figuras", systemImage: "rectangle.stack.badge.plus")
+                Label(Lengua.t("chat-guardar-en-figuras"), systemImage: "rectangle.stack.badge.plus")
             }
         }
 
@@ -560,11 +560,11 @@ private struct MenuDeMensaje<Propias: View>: View {
         Divider()
         Menu {
             if m.sePuedeRenombrar {
-                Button { c.escritura = .renombrar(m) } label: { Label("Cambiar el nombre", systemImage: "pencil") }
+                Button { c.escritura = .renombrar(m) } label: { Label(Lengua.t("chat-renombrar"), systemImage: "pencil") }
                     .keyboardShortcut(teclaF2, modifiers: [])
             }
             Button { c.fijar([m.id]) } label: {
-                Label(m.fijado ? "Quitar de arriba" : "Fijar arriba", systemImage: m.fijado ? "flag.slash" : "flag")
+                Label(m.fijado ? Lengua.t("chat-soltar") : Lengua.t("chat-fijar"), systemImage: m.fijado ? "flag.slash" : "flag")
             }
             if CarpetasDelChat.seOfrece(m), !CarpetasDelChat.aLaVista(m) {
                 Button { c.anadirACarpeta(m) } label: { Label(TextosCarpeta.anadirA, systemImage: "book") }
@@ -575,26 +575,26 @@ private struct MenuDeMensaje<Propias: View>: View {
             // Exportar o imprimir la hoja de un lienzo (G2 de Windows): la
             // hoja de compartir comun (D1) y el dialogo de imprimir.
             if m.clase == "DIBUJO", m.referencia?.isEmpty == false {
-                Button { c.compartir([m.id]) } label: { Label("Exportar…", systemImage: "square.and.arrow.up.on.square") }
-                Button { c.imprimir(m) } label: { Label("Imprimir…", systemImage: "printer") }
+                Button { c.compartir([m.id]) } label: { Label(Lengua.t("exportar-chat"), systemImage: "square.and.arrow.up.on.square") }
+                Button { c.imprimir(m) } label: { Label(Lengua.t("imprimir-chat"), systemImage: "printer") }
             }
             if m.enBuzon {
-                Button { c.cambiar([m.id], .rescatar) } label: { Label("Guardar esto", systemImage: "bookmark") }
+                Button { c.cambiar([m.id], .rescatar) } label: { Label(Lengua.t("chat-rescatar"), systemImage: "bookmark") }
             }
             if c.cargados.contains(where: { $0.respondeA == m.id }) {
-                Button { c.verHilo(m) } label: { Label("Ver comentarios", systemImage: "bubble.left.and.bubble.right") }
+                Button { c.verHilo(m) } label: { Label(Lengua.t("chat-ver-hilo"), systemImage: "bubble.left.and.bubble.right") }
             }
             Divider()
             Button(action: a.marcar) {
                 Label(a.marcado ? "Quitar de los elegidos" : "Elegir varios (⌘-clic)", systemImage: "checkmark.square")
             }
         } label: {
-            Label("Más", systemImage: "ellipsis.circle")
+            Label(Lengua.t("v2menus-mas"), systemImage: "ellipsis.circle")
         }
 
         // ── Borrar, en rojo y aparte ──
         Divider()
-        Button(role: .destructive, action: a.borrar) { Label("Borrar", systemImage: "trash") }
+        Button(role: .destructive, action: a.borrar) { Label(Lengua.t("chat-borrar"), systemImage: "trash") }
             .keyboardShortcut(.delete, modifiers: [])
     }
 }
@@ -671,11 +671,11 @@ enum HorasDeRecordar {
 
     static func atajos(ahora: Date, calendario: Calendar = .current) -> [Atajo] {
         [
-            Atajo(titulo: "Dentro de 10 minutos", cuando: ahora.addingTimeInterval(10 * 60)),
-            Atajo(titulo: "Dentro de 1 hora", cuando: ahora.addingTimeInterval(60 * 60)),
-            Atajo(titulo: "Dentro de 3 horas", cuando: ahora.addingTimeInterval(3 * 60 * 60)),
-            Atajo(titulo: "Esta tarde (18:00)", cuando: aLas(18, 0, dias: 0, ahora: ahora, calendario: calendario)),
-            Atajo(titulo: "Mañana (9:00)", cuando: aLas(9, 0, dias: 1, ahora: ahora, calendario: calendario)),
+            Atajo(titulo: Lengua.t("chat-recordar-10-min"), cuando: ahora.addingTimeInterval(10 * 60)),
+            Atajo(titulo: Lengua.t("chat-recordar-1-hora"), cuando: ahora.addingTimeInterval(60 * 60)),
+            Atajo(titulo: Lengua.t("chat-recordar-3-horas"), cuando: ahora.addingTimeInterval(3 * 60 * 60)),
+            Atajo(titulo: Lengua.t("chat-recordar-esta-tarde"), cuando: aLas(18, 0, dias: 0, ahora: ahora, calendario: calendario)),
+            Atajo(titulo: Lengua.t("chat-recordar-manana"), cuando: aLas(9, 0, dias: 1, ahora: ahora, calendario: calendario)),
         ]
     }
 
@@ -735,7 +735,7 @@ enum HorasDeRecordar {
     /// Lo que se ensena al vencer (`Mensaje::resumen`).
     static func resumen(de m: MensajeChat) -> String {
         let r = m.resumen.trimmingCharacters(in: .whitespacesAndNewlines)
-        return r.isEmpty ? (m.nombre.isEmpty ? "Recordatorio" : m.nombre) : r
+        return r.isEmpty ? (m.nombre.isEmpty ? Lengua.t("chat-recordatorio-titulo") : m.nombre) : r
     }
 }
 
@@ -755,7 +755,7 @@ enum RecordatoriosDeMensajes {
         guard let centro, cuando > Date() else { return }
         centro.requestAuthorization(options: [.alert, .sound]) { _, _ in }
         let contenido = UNMutableNotificationContent()
-        contenido.title = "Recordatorio"
+        contenido.title = Lengua.t("chat-recordatorio-titulo")
         contenido.body = texto
         contenido.sound = .default
         let partes = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: cuando)
@@ -783,31 +783,31 @@ struct HojaEscritura: View {
     private var titulo: String {
         switch escritura {
         case let .describir(m):
-            m.texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Añadir descripción" : "Editar descripción"
-        case .renombrar: "Cambiar el nombre"
-        case .hora: "Avisar a las"
+            m.texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Lengua.t("chat-describir") : Lengua.t("chat-describir-editar")
+        case .renombrar: Lengua.t("chat-renombrar")
+        case .hora: Lengua.t("chat-recordar-hora-a-las")
         case .quienLlama: "Quién llama"
         }
     }
 
     private var etiqueta: String {
         switch escritura {
-        case .describir: "Descripción:"
-        case .renombrar: "Nombre:"
+        case .describir: Lengua.t("chat-describir-barra")
+        case .renombrar: Lengua.t("chat-renombrar-barra")
         case .hora: "Hora:"
-        case .quienLlama: "Quién llama:"
+        case .quienLlama: Lengua.t("chat-quien-llama-barra")
         }
     }
 
     private var pie: String {
         switch escritura {
         case .hora:
-            if texto.isEmpty { return "Escribe la hora · Intro la pone · Esc la deja" }
+            if texto.isEmpty { return Lengua.t("chat-recordar-hora-teclas") }
             if let c = HorasDeRecordar.horaEscrita(texto, ahora: Date()) {
                 return "Intro: \(HorasDeRecordar.legible(c, ahora: Date()))"
             }
-            return "Eso no es una hora: escríbela como 18:30"
-        case .renombrar: return "Intro guarda · Esc deja el de antes"
+            return Lengua.t("chat-recordar-hora-mal")
+        case .renombrar: return Lengua.t("chat-renombrar-teclas")
         case .quienLlama: return "Intro guarda · en blanco vuelve el nombre de la nota"
         case .describir: return "Intro guarda · Esc lo deja como estaba"
         }
@@ -835,9 +835,9 @@ struct HojaEscritura: View {
             Text(pie).font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button("Cancelar") { cerrar() }
+                Button(Lengua.t("chat-cancelar-caja")) { cerrar() }
                     .keyboardShortcut(.cancelAction)
-                Button("Guardar", action: hecho)
+                Button(Lengua.t("chat-letra-guardar"), action: hecho)
                     .keyboardShortcut(.defaultAction)
                     .disabled(!vale)
             }
@@ -904,7 +904,7 @@ struct MarcasDeMensaje: View {
             if let ms = mensaje.recuerdaEn {
                 let cuando = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
                 Label(HorasDeRecordar.legible(cuando, ahora: Date()), systemImage: "alarm")
-                    .help("Recordatorio")
+                    .help(Lengua.t("chat-recordatorio-titulo"))
             }
             if let e = mensaje.emoji, !e.isEmpty {
                 Text(e)
@@ -952,7 +952,7 @@ struct BarraDeFijado: View {
             HStack(spacing: 8) {
                 Image(systemName: "flag.fill").foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Mensaje fijado").font(.caption.weight(.medium)).foregroundStyle(.tint)
+                    Text(Lengua.t("chat-fijado")).font(.caption.weight(.medium)).foregroundStyle(.tint)
                     Text(fijado.resumen.isEmpty ? fijado.nombre : fijado.resumen)
                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
@@ -997,7 +997,7 @@ final class VentanasDeLeccion {
         let ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 520, height: 640),
                                styleMask: [.titled, .closable, .resizable, .miniaturizable],
                                backing: .buffered, defer: false)
-        ventana.title = "Nueva lección"
+        ventana.title = Lengua.t("chat-leccion-nueva")
         ventana.isReleasedWhenClosed = false
         let cerrar: (FichaLeccion?) -> Void = { [weak ventana] _ in ventana?.close() }
         ventana.contentView = NSHostingView(rootView: FichaLeccionVista(modelo: modelo, ficha: nil, inicial: b, alAcabar: cerrar))

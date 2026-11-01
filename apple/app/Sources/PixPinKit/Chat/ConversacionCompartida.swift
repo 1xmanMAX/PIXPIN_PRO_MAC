@@ -22,11 +22,11 @@ import SwiftUI
 /// Los textos de los chats compartidos que salen en la lista y el chat
 /// (`cc-*` y `chat-nuevo-*` de Windows).
 enum TextosCompartido {
-    static let normal = "Chat normal"
-    static let normalDetalle = "Solo tú y tus aparatos"
-    static let compartido = "Chat compartido"
-    static let compartidoDetalle = "Con otras personas, cada una en su lado"
-    static let nuevoError = "No se pudo compartir el chat nuevo: queda como chat normal"
+    static let normal = Lengua.t("chat-nuevo-normal")
+    static let normalDetalle = Lengua.t("chat-nuevo-normal-detalle")
+    static let compartido = Lengua.t("chat-nuevo-compartido")
+    static let compartidoDetalle = Lengua.t("chat-nuevo-compartido-detalle")
+    static let nuevoError = Lengua.t("cc-nuevo-error")
 
     /// `cc-chapa-personas`.
     static func chapa(_ n: UInt32) -> String {

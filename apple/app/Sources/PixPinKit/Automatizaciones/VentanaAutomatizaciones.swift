@@ -210,7 +210,7 @@ struct FilaAutomatizacion: View {
         var t = ficha.detalle
         if let a = ficha.otroAparato { t += " · corre en \(a.isEmpty ? "otro aparato" : a)" }
         if let u = ficha.ultimaVez {
-            let f = fechaDeLocales(u).formatted(date: .abbreviated, time: .shortened)
+            let f = fechaDeLocales(u).formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Lengua.locale))
             t += " · última vez: \(f)"
         }
         return t
@@ -282,7 +282,7 @@ struct FilaVuelta: View {
                     Text(vuelta.nombre).font(.system(size: 13, weight: .medium)).foregroundStyle(Paleta.v2.texto)
                     Text(disparo).font(.system(size: 11)).foregroundStyle(Paleta.v2.gris)
                     Spacer()
-                    Text(fechaDe(ms: vuelta.cuando).formatted(date: .abbreviated, time: .shortened))
+                    Text(fechaDe(ms: vuelta.cuando).formatted(Date.FormatStyle(date: .abbreviated, time: .shortened, locale: Lengua.locale)))
                         .font(.system(size: 11))
                         .foregroundStyle(Paleta.v2.gris)
                 }

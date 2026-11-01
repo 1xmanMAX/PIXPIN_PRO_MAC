@@ -53,7 +53,7 @@ public struct VistaAjustes: View {
 
     private var columna: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("Ajustes")
+            Text(Lengua.t("ajustes2-titulo"))
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(P.texto)
                 .padding(.horizontal, 8)
@@ -61,7 +61,7 @@ public struct VistaAjustes: View {
                 .padding(.bottom, 6)
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass").foregroundStyle(P.gris)
-                TextField("Buscar un ajuste…", text: $busqueda)
+                TextField(Lengua.t("ajustes2-buscar"), text: $busqueda)
                     .textFieldStyle(.plain)
                     .focused($buscando)
                     .onExitCommand { busqueda = "" }
@@ -89,7 +89,7 @@ public struct VistaAjustes: View {
             Button {
                 modelo.deshacer()
             } label: {
-                Label("Deshacer", systemImage: "arrow.uturn.backward")
+                Label(Lengua.t("ajustes2-deshacer"), systemImage: "arrow.uturn.backward")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(BotonAjustes())
@@ -383,10 +383,10 @@ struct ClaveNube: View {
             if let guardada {
                 HStack(spacing: 8) {
                     Text(guardada).font(.system(.caption, design: .monospaced)).foregroundStyle(Paleta.v2.verde)
-                    Button("Probar") { probar() }.buttonStyle(BotonAjustes())
+                    Button(Lengua.t("sinc-probar")) { probar() }.buttonStyle(BotonAjustes())
                         .disabled(probando)
                         .help("Una llamada mínima con la clave (unos pocos tokens)")
-                    Button("Borrar") { borrar() }.buttonStyle(BotonAjustes())
+                    Button(Lengua.t("ajustes2-clave-borrar")) { borrar() }.buttonStyle(BotonAjustes())
                 }
             }
             switch prueba {
@@ -400,11 +400,11 @@ struct ClaveNube: View {
                 EmptyView()
             }
             HStack(spacing: 6) {
-                SecureField(guardada == nil ? "Pega aquí la clave" : "Pega otra para cambiarla", text: $escrita)
+                SecureField(guardada == nil ? Lengua.t("ajustes2-clave-marcador") : "Pega otra para cambiarla", text: $escrita)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 200)
                     .onSubmit(guardar)
-                Button("Guardar", action: guardar)
+                Button(Lengua.t("ajustes2-conexion-guardar"), action: guardar)
                     .buttonStyle(BotonAjustes())
                     .disabled(escrita.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }

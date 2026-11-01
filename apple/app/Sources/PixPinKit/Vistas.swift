@@ -71,13 +71,13 @@ public struct VentanaProyectos: View {
                 ListaProyectos(almacen: almacen, elegido: $elegido) { chat in
                     // Todo el proyecto en la hoja de compartir comun (D1):
                     // sus hojas en PDF, web..., sus originales y el .pixpin.
-                    Button("Compartir…") { HojaCompartir.abrir(.proyectos([chat]), almacen: almacen) }
+                    Button(Lengua.t("chat-compartir")) { HojaCompartir.abrir(.proyectos([chat]), almacen: almacen) }
                     // La musica y las notas de voz de todos, como en Windows (D3).
                     if chat.esGuardados {
-                        Button("Biblioteca de audio") { BibliotecaAudio.abrir(almacen: almacen) }
+                        Button(Lengua.t("chat-biblioteca-audio")) { BibliotecaAudio.abrir(almacen: almacen) }
                     }
                     if !chat.esGuardados {
-                        Button("Borrar", role: .destructive) { aBorrar = chat }
+                        Button(Lengua.t("chat-borrar"), role: .destructive) { aBorrar = chat }
                     }
                 }
                 // Como `confirmar_destructivo` de Windows: el borrado viaja.
@@ -85,7 +85,7 @@ public struct VentanaProyectos: View {
                                     isPresented: Binding(get: { aBorrar != nil },
                                                          set: { if !$0 { aBorrar = nil } }),
                                     titleVisibility: .visible, presenting: aBorrar) { chat in
-                    Button("Borrar", role: .destructive) {
+                    Button(Lengua.t("chat-borrar"), role: .destructive) {
                         if elegido == chat.id { elegido = nil }
                         Task { await almacen.borrarProyecto(chat.id) }
                     }
@@ -315,7 +315,7 @@ public struct VistaChat: View {
                 .defaultScrollAnchor(.bottom)
                 .overlay {
                     if buscador.filtrando, !buscador.cargando, buscador.hallados.isEmpty {
-                        Text("Nada con eso")
+                        Text(Lengua.t("chat-buscar-nada"))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 10).padding(.vertical, 4)

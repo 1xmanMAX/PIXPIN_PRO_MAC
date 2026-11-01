@@ -22,7 +22,7 @@ import PixPinCore
 import SwiftUI
 
 enum TextosBuscarEnChats {
-    static let idioma = Locale.preferredLanguages.first ?? "es"
+    static let idioma = Lengua.catalogo.etiqueta()
     static let medidas = medidasDeBuscarEnChats()
 }
 

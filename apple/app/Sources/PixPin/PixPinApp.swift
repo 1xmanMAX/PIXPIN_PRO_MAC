@@ -17,7 +17,7 @@ struct PixPinApp: App {
         // Al abrir PixPin se ve la ventana de Proyectos (si no, solo estaria
         // el icono de la barra de menus, que tras la muesca ni se ve), y al
         // abrirla otra vez con la app ya abierta, vuelve a salir.
-        Window("Proyectos", id: "proyectos") {
+        Window(Lengua.t("lista-icono-proyectos"), id: "proyectos") {
             Group {
                 if let almacen = estado.almacen {
                     // Se encoge hasta 380 como en Windows: estrecha, la
@@ -35,7 +35,7 @@ struct PixPinApp: App {
         }
         .defaultSize(width: 980, height: 680)
         .defaultLaunchBehavior(.presented)
-        Window("Sincronizar", id: "sincronizar") {
+        Window(Lengua.t("lista-icono-sincronizar"), id: "sincronizar") {
             Group {
                 if let sincro = estado.sincro {
                     VistaSincro(sincro: sincro)
@@ -48,7 +48,7 @@ struct PixPinApp: App {
             .ventanaLisa()
         }
         .defaultSize(width: 520, height: 600)
-        Window("Lecciones", id: "lecciones") {
+        Window(Lengua.t("bandeja2-lecciones"), id: "lecciones") {
             Group {
                 if let almacen = estado.almacen {
                     VentanaLecciones(nucleo: almacen.nucleo)
@@ -62,7 +62,7 @@ struct PixPinApp: App {
             .ventanaLisa()
         }
         .defaultSize(width: 960, height: 640)
-        Window("Asistente", id: "asistente") {
+        Window(Lengua.t("ajustes2-sec-asistente"), id: "asistente") {
             VentanaAsistente(almacen: estado.almacen)
                 .ventanaLisa()
         }
@@ -81,24 +81,24 @@ struct PixPinApp: App {
             }
             .ventanaLisa()
         }
-        Window("Galería de capturas", id: IdVentana.galeria) {
+        Window(Lengua.t("bandeja2-galeria"), id: IdVentana.galeria) {
             ConAlmacen(estado.almacen, error: estado.error) { VentanaGaleria(almacen: $0) }
                 .ventanaLisa()
         }
         .defaultSize(width: 900, height: 640)
-        Window("Timeline", id: IdVentana.timeline) {
+        Window(Lengua.t("funciones-timeline"), id: IdVentana.timeline) {
             ConAlmacen(estado.almacen, error: estado.error) { VentanaTimeline(almacen: $0) }
                 .ventanaLisa()
         }
         .defaultSize(width: 860, height: 640)
-        Window("Tareas", id: IdVentana.tareas) {
+        Window(Lengua.t("bandeja2-tareas"), id: IdVentana.tareas) {
             ConAlmacen(estado.almacen, error: estado.error) { VentanaTareas(almacen: $0) }
                 .ventanaLisa()
         }
         .defaultSize(width: 620, height: 640)
         // En un `Group`: un `SceneBuilder` admite diez escenas seguidas.
         Group {
-            Window("Buscar en PixPin", id: IdVentana.buscar) {
+            Window(Lengua.t("buscar-todo-titulo"), id: IdVentana.buscar) {
                 ConAlmacen(estado.almacen, error: estado.error) { VentanaBuscar(almacen: $0) }
                     .ventanaLisa()
             }
@@ -110,7 +110,7 @@ struct PixPinApp: App {
                     .ventanaLisa()
             }
             .defaultSize(width: 460, height: 560)
-            Window("Chats compartidos", id: "compartidos") {
+            Window(Lengua.t("cc-portada-titulo"), id: "compartidos") {
                 ConAlmacen(estado.almacen, error: estado.error) {
                     VistaCompartidos(almacen: $0, sincro: estado.sincro)
                 }
@@ -118,7 +118,7 @@ struct PixPinApp: App {
             }
             .defaultSize(width: 520, height: 640)
             // Las automatizaciones del asistente (E6).
-            Window("Automatizaciones", id: "automatizaciones") {
+            Window(Lengua.t("ajustes2-g-automatizaciones"), id: "automatizaciones") {
                 ConAlmacen(estado.almacen, error: estado.error) { VentanaAutomatizaciones(almacen: $0) }
                     .ventanaLisa()
             }

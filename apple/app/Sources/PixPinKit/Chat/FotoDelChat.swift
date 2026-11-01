@@ -28,7 +28,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum TextosFoto {
-    static let actuales = textosDeLaFoto(locale: Locale.preferredLanguages.first ?? "es")
+    static let actuales = textosDeLaFoto(locale: Lengua.catalogo.etiqueta())
 }
 
 /// Que chat cambia de foto: la ventana de los chats ensena la hoja mientras

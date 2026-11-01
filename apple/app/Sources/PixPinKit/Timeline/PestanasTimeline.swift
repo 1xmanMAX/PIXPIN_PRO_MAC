@@ -248,7 +248,7 @@ struct DetalleMomento: View {
             if let m = momento {
                 VStack(spacing: 12) {
                     HStack {
-                        Text(fechaDe(ms: m.cuando).formatted(date: .long, time: .shortened))
+                        Text(fechaDe(ms: m.cuando).formatted(Date.FormatStyle(date: .long, time: .shortened, locale: Lengua.locale)))
                             .foregroundStyle(Paleta.v2.gris)
                         Spacer()
                         if !m.fotos.isEmpty {

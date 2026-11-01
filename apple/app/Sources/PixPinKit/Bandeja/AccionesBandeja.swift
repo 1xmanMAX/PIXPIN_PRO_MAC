@@ -25,12 +25,12 @@ public enum AccionBandeja: Hashable, Sendable {
     /// Las que no son comandos, con su nombre estable (el de
     /// `[bandeja] favoritos`) y su titulo.
     static let otras: [(accion: AccionBandeja, nombre: String, titulo: String)] = [
-        (.lecciones, "lecciones", "Lecciones"),
-        (.nuevaLeccion, "nueva-leccion", "Nueva lección"),
-        (.galeria, "galeria-capturas", "Galería de capturas"),
-        (.tareas, "tareas", "Tareas"),
-        (.abrirDocumento, "abrir-documento", "Abrir documento…"),
-        (.gruposVentanas, "grupos-ventanas", "Grupos de ventanas"),
+        (.lecciones, "lecciones", Lengua.t("bandeja2-lecciones")),
+        (.nuevaLeccion, "nueva-leccion", Lengua.t("bandeja2-nueva-leccion")),
+        (.galeria, "galeria-capturas", Lengua.t("bandeja2-galeria")),
+        (.tareas, "tareas", Lengua.t("bandeja2-tareas")),
+        (.abrirDocumento, "abrir-documento", Lengua.t("bandeja2-documento")),
+        (.gruposVentanas, "grupos-ventanas", Lengua.t("bandeja2-grupos")),
     ]
 
     /// Cuantos favoritos caben: dos filas de cuatro, una con «Añadir».
@@ -54,10 +54,10 @@ public enum AccionBandeja: Hashable, Sendable {
     /// El titulo: los de la maqueta, mas cortos que los del menu.
     public var titulo: String {
         switch self {
-        case .comando(.pinearPortapapeles): return "Pinear copiado"
-        case .comando(.anotar): return "Anotar pantalla"
-        case .comando(.pinearEnVivo): return "Pin en vivo"
-        case .comando(.abrirChat): return "Abrir PixPin"
+        case .comando(.pinearPortapapeles): return Lengua.t("bandeja2-fav-pinear-copiado")
+        case .comando(.anotar): return Lengua.t("bandeja2-fav-anotar")
+        case .comando(.pinearEnVivo): return Lengua.t("bandeja2-fav-pin-vivo")
+        case .comando(.abrirChat): return Lengua.t("bandeja2-abrir-pixpin")
         case let .comando(c): return c.titulo
         default: return Self.otras.first { $0.accion == self }?.titulo ?? ""
         }
@@ -168,12 +168,12 @@ public enum AccionBandeja: Hashable, Sendable {
     /// La fila de modos de «Capturar». Como en Windows, sin «Ventana» ni
     /// «Pantalla»: la zona ya engancha ventanas y ⌘A coge la pantalla.
     public static let modos: [(comando: ComandoAtajo, titulo: String)] = [
-        (.capturarRegion, "Zona"),
-        (.capturarConScroll, "Scroll"),
-        (.grabarGif, "GIF"),
-        (.copiarTexto, "Texto"),
-        (.capturarConRetardo, "Retardo"),
-        (.cuentagotas, "Color"),
+        (.capturarRegion, Lengua.t("bandeja2-modo-zona")),
+        (.capturarConScroll, Lengua.t("bandeja2-modo-scroll")),
+        (.grabarGif, Lengua.t("bandeja2-modo-gif")),
+        (.copiarTexto, Lengua.t("bandeja2-modo-texto")),
+        (.capturarConRetardo, Lengua.t("bandeja2-modo-retardo")),
+        (.cuentagotas, Lengua.t("bandeja2-modo-color")),
     ]
 
     /// Las ventanas de la rejilla de abajo.
@@ -237,11 +237,11 @@ public enum ReglasBandeja {
     public static func haceCuanto(_ cuando: Int64, ahora: Int64) -> String {
         let min = max(0, ahora - cuando) / 60_000
         switch min {
-        case 0: return "ahora mismo"
-        case 1...59: return "hace \(min) min"
-        case 60...1439: return "hace \(min / 60) h"
-        case 1440...2879: return "ayer"
-        default: return "hace \(min / 1440) días"
+        case 0: return Lengua.t("bandeja2-hace-nada")
+        case 1...59: return Lengua.t("bandeja2-hace-min", ["n": min])
+        case 60...1439: return Lengua.t("bandeja2-hace-h", ["n": min / 60])
+        case 1440...2879: return Lengua.t("bandeja2-ayer")
+        default: return Lengua.t("bandeja2-hace-dias", ["n": min / 1440])
         }
     }
 

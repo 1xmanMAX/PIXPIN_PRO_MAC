@@ -25,23 +25,23 @@ public enum SeccionAjustes: String, CaseIterable, Identifiable, Sendable {
 
     public var titulo: String {
         switch self {
-        case .general: "General"
-        case .captura: "Captura"
-        case .voz: "Voz y transcripción"
-        case .asistente: "Asistente"
-        case .atajos: "Atajos"
-        case .sincro: "Sincronizar"
-        case .apariencia: "Apariencia"
-        case .avanzado: "Avanzado"
+        case .general: Lengua.t("ajustes2-sec-general")
+        case .captura: Lengua.t("ajustes2-sec-captura")
+        case .voz: Lengua.t("ajustes2-sec-voz")
+        case .asistente: Lengua.t("ajustes2-sec-asistente")
+        case .atajos: Lengua.t("ajustes2-sec-atajos")
+        case .sincro: Lengua.t("ajustes2-sec-sincro")
+        case .apariencia: Lengua.t("ajustes2-sec-apariencia")
+        case .avanzado: Lengua.t("ajustes2-sec-avanzado")
         }
     }
 
     public var subtitulo: String {
         switch self {
-        case .general: "Cómo arranca PixPin y qué hace con los PDF del chat."
-        case .captura: "Cómo se hace una captura y qué pasa con ella después."
-        case .voz: "Pasar a texto las notas de voz con dos idiomas."
-        case .asistente: "Quién contesta en el chat «Asistente»: Claude o DeepSeek, con tu clave."
+        case .general: Lengua.t("ajustes2-sec-general-sub")
+        case .captura: Lengua.t("ajustes2-sec-captura-sub")
+        case .voz: Lengua.t("ajustes2-sec-voz-sub")
+        case .asistente: Lengua.t("ajustes2-sec-asistente-sub")
         case .atajos: "Pulsa «Cambiar» y luego la combinación. ⌫ la deja sin atajo; Esc cancela."
         case .sincro: "Cómo se encuentra este Mac con el móvil y los demás equipos."
         case .apariencia: "El aspecto de PixPin."
@@ -158,11 +158,13 @@ public enum FilasAjustes {
         }
     }
 
-    nonisolated static func segundos(_ n: Int) -> String { "\(n) s" }
+    nonisolated static func segundos(_ n: Int) -> String { Lengua.t("ajustes2-u-s", ["n": n]) }
     nonisolated static func pixeles(_ n: Int) -> String {
-        "\(n.formatted(.number.grouping(.automatic).locale(Locale(identifier: "es_ES")))) px"
+        Lengua.t("ajustes2-u-px", ["n": n.formatted(.number.grouping(.automatic).locale(Lengua.locale))])
     }
-    nonisolated static func dias(_ n: Int) -> String { n == 0 ? "Nunca" : n == 1 ? "1 día" : "\(n) días" }
+    nonisolated static func dias(_ n: Int) -> String {
+        n == 0 ? Lengua.t("ajustes2-nunca") : Lengua.t("ajustes2-u-dias", ["n": n])
+    }
 
     /// Todas las filas de una seccion.
     public static func de(_ s: SeccionAjustes) -> [FilaAjuste] {
@@ -183,7 +185,7 @@ public enum FilasAjustes {
     // MARK: General
 
     static var general: [FilaAjuste] {
-        let g = "Al arrancar"
+        let g = Lengua.t("ajustes2-g-arranque")
         var arranque = FilaAjuste(
             id: "arranque", seccion: .general, grupo: g, titulo: "Abrir al iniciar sesión",
             ayuda: "Se queda en la barra de menús sin abrir ninguna ventana. Se puede quitar también en Ajustes del Sistema › General › Elementos de inicio.",
@@ -192,10 +194,19 @@ public enum FilasAjustes {
         arranque.cambiada = { !$0.abrirAlIniciar }
         return [
             arranque,
-            opcion(.general, g, "idioma", "Idioma", "Vale desde el próximo arranque. Lo comparte con PixPin para Windows.",
-                   \.idioma, [("El del Mac", "sistema"), ("Español", "es"), ("English", "en")]),
+            filaIdioma(g),
             filaPdfAligerar(), filaPdfNivel(), filaEscala(),
         ]
+    }
+
+    /// **El idioma** (Windows: «−» y «+» recorren los catorce; aqui, un
+    /// menu): el del Mac y los catorce, cada uno con su nombre en su lengua,
+    /// y el mismo codigo en `idioma` de `pixpinmax.toml` (`sistema`, `es`,
+    /// `zh-CN`…), para que sincronice con Windows.
+    static func filaIdioma(_ g: String) -> FilaAjuste {
+        toml(.general, g, "idioma", Lengua.t("ajustes-idioma"), Lengua.t("ajustes2-ayuda-idioma"), \.idioma) { get, set in
+            .vista { m in AnyView(SelectorDeIdioma(modelo: m, get: get, set: set)) }
+        }
     }
 
     /// **La escala de la interfaz** (Windows c687285: sale del menu ⋮ del
@@ -205,7 +216,7 @@ public enum FilasAjustes {
     /// van al lado en Windows, aun no estan en el Mac.
     static func filaEscala() -> FilaAjuste {
         var f = FilaAjuste(
-            id: "escala", seccion: .general, grupo: "Ventanas", titulo: "Escala de la interfaz",
+            id: "escala", seccion: .general, grupo: Lengua.t("ajustes2-g-ventanas"), titulo: Lengua.t("ajustes2-escala"),
             ayuda: "El tamaño de todo en el chat. Se aplica al momento; en el chat también con ⌘ + «+», «−» y «0».",
             control: .vista { _ in AnyView(ControlEscalaInterfaz()) })
         f.cambiada = { _ in
@@ -218,9 +229,9 @@ public enum FilasAjustes {
 
     static func filaPdfAligerar() -> FilaAjuste {
         var f = FilaAjuste(
-            id: "pdf-aligerar", seccion: .general, grupo: "Documentos PDF",
+            id: "pdf-aligerar", seccion: .general, grupo: Lengua.t("ajustes2-g-pdf"),
             titulo: "Aligerar los PDF al meterlos en un chat",
-            ayuda: "Después de meterlo al chat, en segundo plano.",
+            ayuda: Lengua.t("ajustes2-ayuda-pdf-aligerar"),
             control: .interruptor(get: { ($0.pdf ?? ModeloAjustes.pdfDeFabrica).aligerarAlEntrar },
                                   set: { m, v in m.cambiarPdf { $0.aligerarAlEntrar = v } }))
         f.cambiada = { ($0.pdf ?? ModeloAjustes.pdfDeFabrica).aligerarAlEntrar != ModeloAjustes.pdfDeFabrica.aligerarAlEntrar }
@@ -229,11 +240,11 @@ public enum FilasAjustes {
     }
 
     static func filaPdfNivel() -> FilaAjuste {
-        let niveles: [(String, NivelAligerar)] = [("Exacto", .sinPerdida), ("Medio", .equilibrado),
-                                                   ("Chico", .pequeno), ("Máx.", .extremo)]
+        let niveles: [(String, NivelAligerar)] = [(Lengua.t("ajustes-pdf-nivel-sin-perdida"), .sinPerdida), (Lengua.t("ajustes-pdf-nivel-equilibrado"), .equilibrado),
+                                                   (Lengua.t("ajustes-pdf-nivel-pequeno"), .pequeno), (Lengua.t("ajustes-pdf-nivel-extremo"), .extremo)]
         var f = FilaAjuste(
-            id: "pdf-nivel", seccion: .general, grupo: "Documentos PDF", titulo: "Cuánto se aligera",
-            ayuda: "Al entrar solo se usan Exacto y Medio; Chico y Máx. quedan para «Aligerar el PDF» a mano.",
+            id: "pdf-nivel", seccion: .general, grupo: Lengua.t("ajustes2-g-pdf"), titulo: Lengua.t("ajustes2-pdf-nivel"),
+            ayuda: Lengua.t("ajustes2-ayuda-pdf-nivel"),
             control: .opcion(niveles.map(\.0),
                              get: { m in niveles.firstIndex { $0.1 == (m.pdf ?? ModeloAjustes.pdfDeFabrica).nivel } ?? 1 },
                              set: { m, i in m.cambiarPdf { $0.nivel = niveles[i].1 } }))
@@ -245,26 +256,26 @@ public enum FilasAjustes {
     // MARK: Captura
 
     static var captura: [FilaAjuste] {
-        let al = "Al capturar", gif = "Grabar GIF", guardar = "Guardar y limpiar"
+        let al = Lengua.t("ajustes2-g-al-capturar"), gif = Lengua.t("ajustes2-g-gif"), guardar = Lengua.t("ajustes2-g-guardar")
         return [
-            numero(.captura, al, "retardo", "Captura con retardo",
-                   "Cuenta atrás para abrir un menú o un tooltip antes de capturar.",
+            numero(.captura, al, "retardo", Lengua.t("ajustes2-retardo"),
+                   Lengua.t("ajustes2-ayuda-retardo"),
                    \.retardoCapturaS, 0 ... 30, paso: 1, texto: segundos),
-            opcion(.captura, al, "color", "Formato del color", "Cómo se copia el color con el cuentagotas.",
+            opcion(.captura, al, "color", Lengua.t("ajustes2-color"), Lengua.t("ajustes2-ayuda-color"),
                    \.formatoColor, [("HEX", "hex"), ("RGB", "rgb"), ("HSL", "hsl")]),
-            numero(.captura, al, "scroll", "Alto máximo con scroll",
-                   "Tope de la captura larga, para que una página infinita no agote la memoria.",
+            numero(.captura, al, "scroll", Lengua.t("ajustes2-scroll"),
+                   Lengua.t("ajustes2-ayuda-scroll"),
                    \.limiteScrollPx, 2_000 ... 100_000, paso: 2_000, texto: pixeles),
-            numero(.captura, gif, "gif-ritmo", "Fotogramas por segundo",
-                   "Menos = archivo más ligero. Para tutoriales basta con 10 o 15.",
+            numero(.captura, gif, "gif-ritmo", Lengua.t("ajustes2-gif-ritmo"),
+                   Lengua.t("ajustes2-ayuda-gif-ritmo"),
                    \.gifPorSegundo, 5 ... 30, paso: 5, texto: { "\($0)" }),
-            numero(.captura, gif, "gif-retardo", "Cortesía antes de grabar",
-                   "Segundos entre pulsar «Grabar» y el primer fotograma.",
+            numero(.captura, gif, "gif-retardo", Lengua.t("ajustes2-gif-retardo"),
+                   Lengua.t("ajustes2-ayuda-gif-retardo"),
                    \.gifRetardoS, 0 ... 10, paso: 1, texto: segundos),
-            FilaAjuste(id: "carpeta", seccion: .captura, grupo: guardar, titulo: "Carpeta de las capturas",
+            FilaAjuste(id: "carpeta", seccion: .captura, grupo: guardar, titulo: Lengua.t("ajustes2-carpeta"),
                        ayuda: "La carpeta «capturas» de la carpeta de datos: ahí van las de la galería.",
-                       control: .boton("Abrir") { $0.mostrarCarpetaCapturas() }),
-            numero(.captura, guardar, "caducidad", "Días hasta borrar",
+                       control: .boton(Lengua.t("ajustes2-abrir")) { $0.mostrarCarpetaCapturas() }),
+            numero(.captura, guardar, "caducidad", Lengua.t("ajustes2-caducidad"),
                    "Pasado el plazo se van a la Papelera, salvo las conservadas.",
                    \.diasCaducidad, 0 ... 90, paso: 1, texto: dias),
             // La de la pila y los gestos, tal cual (`GestosAlt.swift`): sin
@@ -282,48 +293,48 @@ public enum FilasAjustes {
     // MARK: Voz
 
     static var voz: [FilaAjuste] {
-        let g = "Notas de voz"
+        let g = Lengua.t("ajustes2-g-voz")
         return [
-            opcion(.voz, g, "voz-segundo", "Segundo idioma de las notas de voz",
+            opcion(.voz, g, "voz-segundo", Lengua.t("ajustes-voz-segundo"),
                    "Whisper entiende también este idioma dentro de la misma nota (en Windows; el dictado del Mac usa uno solo).",
-                   \.vozSegundoIdioma, [("Ninguno", ""), ("Inglés", "en"), ("Español", "es"), ("Portugués", "pt")]),
-            opcion(.voz, g, "voz-modo", "Con dos idiomas", "Qué hacer con lo dicho en el segundo idioma.",
-                   \.vozModoDeIdiomas, [("Cada trozo como se dijo", "cada_uno"), ("Todo en el primero", "todo_en_uno")]),
+                   \.vozSegundoIdioma, [(Lengua.t("ajustes-voz-ninguno"), ""), (Lengua.t("ajustes-voz-ingles"), "en"), (Lengua.t("ajustes-voz-espanol"), "es"), (Lengua.t("ajustes-voz-portugues"), "pt")]),
+            opcion(.voz, g, "voz-modo", Lengua.t("ajustes-voz-modo"), Lengua.t("ajustes2-ayuda-voz-modo"),
+                   \.vozModoDeIdiomas, [(Lengua.t("ajustes-voz-modo-cada-uno"), "cada_uno"), (Lengua.t("ajustes-voz-modo-todo-en-uno"), "todo_en_uno")]),
         ]
     }
 
     // MARK: Asistente
 
     static var asistente: [FilaAjuste] {
-        let g = "Motor del asistente", v = "Voz del asistente", c = "Claves de API"
+        let g = Lengua.t("ajustes2-g-asistente"), v = Lengua.t("ajustes2-g-asistente-voz"), c = Lengua.t("ajustes2-g-claves")
         var filas = [
             // Sin modelo local desde el 27-oct-2026 (Windows `f86732c`): lo
             // vacio o el `local` de antes salen como Claude. Sin ninguna clave
             // contesta Apple Intelligence, si este Mac la tiene.
-            opcion(.asistente, g, "asistente-motor", "Motor",
+            opcion(.asistente, g, "asistente-motor", Lengua.t("ajustes2-asistente-motor"),
                    "Contesta por internet con tu clave: Claude Haiku o DeepSeek. Sin clave, Apple Intelligence (si este Mac la tiene).",
                    \.asistenteMotor, [("Claude", "claude"), ("DeepSeek", "deepseek")]),
-            opcion(.asistente, g, "asistente-pensar", "Pensar antes de contestar",
+            opcion(.asistente, g, "asistente-pensar", Lengua.t("ajustes-asistente-pensar"),
                    "Antes de actuar, el asistente piensa y escribe lo que entendió. Pensar tarda: en automático solo piensa en las tareas complejas o si se lo pides («piénsalo», «paso a paso»).",
-                   \.asistentePensar, [("Automático", nil), ("Siempre", true), ("Nunca", false)]),
-            opcion(.asistente, g, "asistente-docs", "Tus documentos y la nube",
-                   "Con Claude o DeepSeek, lo que el asistente encuentre en tus PDF, notas y chats sale por internet para contestarte.",
-                   \.asistenteDocumentosALaNube, [("Preguntar", ""), ("Permitir", "si"), ("No permitir", "no")]),
-            interruptor(.asistente, v, "asistente-revisar", "Ver lo dicho antes de enviarlo",
-                        "Con el micrófono del chat «Asistente»: lo que dices queda escrito en la caja para corregirlo y lo envías tú. Apagado, se envía solo.",
+                   \.asistentePensar, [(Lengua.t("ajustes-nivel-auto"), nil), (Lengua.t("ajustes2-siempre"), true), (Lengua.t("ajustes2-nunca"), false)]),
+            opcion(.asistente, g, "asistente-docs", Lengua.t("ajustes2-asistente-docs-nube"),
+                   Lengua.t("ajustes2-ayuda-asistente-docs-nube"),
+                   \.asistenteDocumentosALaNube, [(Lengua.t("ajustes2-docs-nube-preguntar"), ""), (Lengua.t("ajustes2-docs-nube-si"), "si"), (Lengua.t("ajustes2-docs-nube-no"), "no")]),
+            interruptor(.asistente, v, "asistente-revisar", Lengua.t("ajustes2-asistente-revisar-voz"),
+                        Lengua.t("ajustes2-ayuda-asistente-revisar-voz"),
                         \.asistenteRevisarLoDicho),
         ]
         // Lo que quedo bajado del asistente local, mientras siga ahi
         // (`ajustes2-asistente-borrar-locales` de Windows).
         if let b = iaModelosViejosOcupan(carpeta: carpetaDeModelosViejos().path) {
             filas.append(FilaAjuste(
-                id: "asistente-borrar-locales", seccion: .asistente, grupo: g, titulo: "Modelos locales antiguos",
+                id: "asistente-borrar-locales", seccion: .asistente, grupo: g, titulo: Lengua.t("ajustes2-asistente-borrar-locales"),
                 ayuda: "Lo que se bajó para el asistente local, que ya no se usa: \(ModelosViejos.tamano(b)) en ~/Library/Application Support/PixPinMax/modelos.",
                 control: .vista { _ in AnyView(FilaModelosViejos()) }))
         }
         for p in ProveedorNube.allCases {
             filas.append(FilaAjuste(
-                id: "clave-\(p.rawValue)", seccion: .asistente, grupo: c, titulo: "Clave de \(p.nombre)",
+                id: "clave-\(p.rawValue)", seccion: .asistente, grupo: c, titulo: Lengua.t("ajustes2-clave-de", ["proveedor": p.nombre]),
                 ayuda: "Se guarda en el Llavero de este Mac, nunca en claro. Sácala en \(p.consola).",
                 control: .vista { _ in AnyView(ClaveNube(proveedor: p)) }))
         }
@@ -343,21 +354,21 @@ public enum FilasAjustes {
     /// La seccion «Atajos» es `SeccionAtajos` entera; esta fila es para que
     /// el buscador la encuentre.
     static var atajos: [FilaAjuste] {
-        [FilaAjuste(id: "atajos", seccion: .atajos, grupo: "Atajos generales", titulo: "Atajos de teclado",
+        [FilaAjuste(id: "atajos", seccion: .atajos, grupo: Lengua.t("ajustes2-g-atajos"), titulo: "Atajos de teclado",
                     ayuda: "Todos los comandos, las regiones guardadas, silenciar los atajos y las apps ignoradas.",
                     control: .boton("Abrir") { _ in NotificationCenter.default.post(name: .pixpinIrASeccionAjustes, object: SeccionAjustes.atajos.rawValue) })]
     }
 
     static var sincro: [FilaAjuste] {
-        let g = "En la red local"
+        let g = Lengua.t("ajustes2-g-sincro")
         return [
-            interruptor(.sincro, g, "presencia", "Dejarse encontrar",
+            interruptor(.sincro, g, "presencia", Lengua.t("ajustes2-presencia"),
                         "El móvil ve este Mac en cuanto abre Sincronizar. Apagado no se abre ninguna puerta en la red.",
                         \.sincroPresencia),
             interruptor(.sincro, g, "automatica", "Sincronizar sola con los aparatos del grupo",
                         "Al aparecer un aparato del grupo en la Wi‑Fi, 30 s después de un cambio y cada 10 min. Se pausa en modo de bajo consumo.",
                         \.sincroAutomatica),
-            interruptor(.sincro, g, "lo-mio", "Lo mío manda",
+            interruptor(.sincro, g, "lo-mio", Lengua.t("ajustes2-lo-mio"),
                         "Al sincronizar, lo de este Mac se impone: del otro lado solo llega lo que aquí no existe. Es como empieza el interruptor de «¿Qué sincronizar?».",
                         \.sincroLoMioManda),
         ]
@@ -365,7 +376,7 @@ public enum FilasAjustes {
 
     static var apariencia: [FilaAjuste] {
         var tema = FilaAjuste(
-            id: "tema", seccion: .apariencia, grupo: "Tema", titulo: "Aspecto",
+            id: "tema", seccion: .apariencia, grupo: Lengua.t("ajustes2-g-tema"), titulo: "Aspecto",
             ayuda: "Claro, oscuro o como el Mac. Es de este Mac: no va en el archivo de ajustes.",
             control: .opcion(Tema.allCases.map(\.nombre),
                              get: { Tema.allCases.firstIndex(of: $0.tema) ?? 0 },
@@ -376,11 +387,11 @@ public enum FilasAjustes {
     }
 
     static var avanzado: [FilaAjuste] {
-        let g = "El archivo de ajustes"
+        let g = Lengua.t("ajustes2-g-fichero")
         return [
-            FilaAjuste(id: "fichero", seccion: .avanzado, grupo: g, titulo: "Archivo de ajustes",
+            FilaAjuste(id: "fichero", seccion: .avanzado, grupo: g, titulo: Lengua.t("ajustes2-fichero"),
                        ayuda: "pixpinmax.toml, el mismo que PixPin para Windows. Lo que no está aquí sigue ahí, con sus comentarios. Lo cambiado a mano vale al reiniciar.",
-                       control: .boton("Abrir el archivo") { m in Task { await m.abrirFicheroAjustes() } }),
+                       control: .boton(Lengua.t("ajustes2-abrir-fichero")) { m in Task { await m.abrirFicheroAjustes() } }),
             FilaAjuste(id: "datos", seccion: .avanzado, grupo: g, titulo: "Carpeta de datos",
                        ayuda: "Proyectos, capturas, sincronización y el archivo de ajustes.",
                        control: .boton("Mostrar en Finder") { $0.mostrarCarpetaEnFinder() }),
@@ -429,6 +440,25 @@ public enum FilasAjustes {
             m.cambiar { r(&$0, fabrica) }
         }
         f.restablecerOtro?(m)
+    }
+}
+
+/// El menu del idioma: «el del Mac» y los catorce, con su nombre en su
+/// lengua («日本語», «العربية»), para que lo encuentre quien no lee el actual.
+struct SelectorDeIdioma: View {
+    @ObservedObject var modelo: ModeloAjustes
+    let get: @MainActor (ModeloAjustes) -> String
+    let set: @MainActor (ModeloAjustes, String) -> Void
+
+    var body: some View {
+        Picker("", selection: Binding(get: { get(modelo) }, set: { set(modelo, $0) })) {
+            ForEach(Lengua.opciones, id: \.valor) { o in
+                Text(verbatim: o.nombre).tag(o.valor)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .fixedSize()
     }
 }
 

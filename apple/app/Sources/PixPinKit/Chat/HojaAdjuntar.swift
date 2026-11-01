@@ -69,37 +69,37 @@ enum HojaAdjuntar {
 
     /// Las de Windows, en su orden, con sus colores y sus sinonimos.
     static let opciones: [OpcionAdjuntar] = [
-        .init("Foto o vídeo", "imagen foto video photo image", .foto,
+        .init(Lengua.t("adjuntar-imagen"), "imagen foto video photo image", .foto,
               color: 0x0A6CD6, simbolo: "photo", numero: 1),
-        .init("Archivo", "pdf documento word excel fichero file", .archivo,
+        .init(Lengua.t("chat-clase-archivo"), "pdf documento word excel fichero file", .archivo,
               color: 0x636366, simbolo: "doc.text.fill", numero: 2),
-        .init("Lienzo", "dibujo pizarra canvas draw", .lienzo,
+        .init(Lengua.t("chat-lienzo"), "dibujo pizarra canvas draw", .lienzo,
               color: 0xC77700, simbolo: "pencil.and.scribble", numero: 3),
-        .init("Nota", "nota markdown texto note", .nota,
+        .init(Lengua.t("chat-adj-nota-md"), "nota markdown texto note", .nota,
               color: 0x248A3D, simbolo: "list.bullet", numero: 4),
-        .init("Lista de tareas", "tareas lista todo checklist", .mini("tareas"),
+        .init(Lengua.t("v2menus-adj-tareas"), "tareas lista todo checklist", .mini("tareas"),
               color: 0x1E7A4A, simbolo: "checklist", numero: 5),
-        .init("Tabla", "tabla hoja calculo excel table", .tabla,
+        .init(Lengua.t("chat-tabla"), "tabla hoja calculo excel table", .tabla,
               color: 0x4B49C8, simbolo: "tablecells.fill", numero: 6),
-        .init("Conversación", "conversacion voz traducir conversation", .conversacion,
+        .init(Lengua.t("v2menus-adj-conversacion"), "conversacion voz traducir conversation", .conversacion,
               color: 0x9A3FC4, simbolo: "person.wave.2.fill", numero: 7),
-        .init("Captura", "captura pantalla recorte screenshot", .captura,
+        .init(Lengua.t("v2menus-adj-captura"), "captura pantalla recorte screenshot", .captura,
               color: 0xC93C35, simbolo: "crop", numero: 8),
         // Una figura de la biblioteca (Windows 1d50a7c): abre la ventana de
         // las figuras para elegirla viendola, con su boton «Adjuntar».
-        .init("Figura", "figura plantilla biblioteca dibujo shape", .figura),
-        .init("Página de un proyecto", "pagina proyecto page", .pagina),
-        .init("Proyecto entero", "proyecto entero project", .proyecto),
-        .init("Carpeta de páginas", "carpeta cuaderno diario libreta folder notebook", .carpeta),
-        .init("Teleprónter", "teleprompter leer", .telepronter),
-        .init("Pronunciar", "pronunciar ingles pronounce", .pronunciar),
-        .init("Cronómetro", "cronometro stopwatch mini-app", .mini("cronometro")),
-        .init("Temporizador", "temporizador timer mini-app", .mini("temporizador")),
-        .init("Contador", "contador counter mini-app", .mini("contador")),
-        .init("Ruleta", "ruleta sorteo mini-app", .mini("ruleta")),
-        .init("Gastos", "gastos dinero mini-app", .mini("gastos")),
-        .init("Alarma", "alarma despertador mini-app", .mini("alarma")),
-        .init("Traer del móvil", "movil telefono wifi phone", .delMovil),
+        .init(Lengua.t("asistente-adj-figura"), "figura plantilla biblioteca dibujo shape", .figura),
+        .init(Lengua.t("v2menus-adj-pagina"), "pagina proyecto page", .pagina),
+        .init(Lengua.t("v2menus-adj-proyecto"), "proyecto entero project", .proyecto),
+        .init(Lengua.t("carpeta-nueva"), "carpeta cuaderno diario libreta folder notebook", .carpeta),
+        .init(Lengua.t("chat-adj-telepronter"), "teleprompter leer", .telepronter),
+        .init(Lengua.t("chat-adj-pronunciar"), "pronunciar ingles pronounce", .pronunciar),
+        .init(Lengua.t("mini-cronometro"), "cronometro stopwatch mini-app", .mini("cronometro")),
+        .init(Lengua.t("mini-temporizador"), "temporizador timer mini-app", .mini("temporizador")),
+        .init(Lengua.t("mini-contador"), "contador counter mini-app", .mini("contador")),
+        .init(Lengua.t("mini-ruleta"), "ruleta sorteo mini-app", .mini("ruleta")),
+        .init(Lengua.t("mini-gastos"), "gastos dinero mini-app", .mini("gastos")),
+        .init(Lengua.t("mini-alarma"), "alarma despertador mini-app", .mini("alarma")),
+        .init(Lengua.t("v2menus-adj-movil"), "movil telefono wifi phone", .delMovil),
     ]
 
     /// **La hoja del chat del asistente** (`para_el_asistente` de Windows,
@@ -112,12 +112,12 @@ enum HojaAdjuntar {
             o.numero = numero
             return o
         }
-        var v = [OpcionAdjuntar("Figura", "figura plantilla biblioteca mejorar shape", .figura,
+        var v = [OpcionAdjuntar(Lengua.t("asistente-adj-figura"), "figura plantilla biblioteca mejorar shape", .figura,
                                 color: 0x8E44B8, simbolo: "paintpalette.fill", numero: 1)]
         for a in [AccionAdjuntar.foto, .archivo, .captura, .lienzo, .nota] {
             if let o = de(a, v.count + 1) { v.append(o) }
         }
-        v.append(OpcionAdjuntar("Pedir una figura nueva", "nueva crear hazme dibuja", .pedirFigura))
+        v.append(OpcionAdjuntar(Lengua.t("asistente-adj-pedir-figura"), "nueva crear hazme dibuja", .pedirFigura))
         for a in [AccionAdjuntar.pagina, .proyecto, .tabla, .delMovil] {
             if let o = de(a, nil) { v.append(o) }
         }
@@ -184,7 +184,7 @@ struct VistaHojaAdjuntar: View {
         VStack(alignment: .leading, spacing: 10) {
             buscador
             if visibles.isEmpty {
-                Text("Nada coincide con lo buscado")
+                Text(Lengua.t("v2menus-adj-nada"))
                     .font(.system(size: 13))
                     .foregroundStyle(Paleta.proyectos.apagado)
                     .frame(maxWidth: .infinity, minHeight: 44)
@@ -199,7 +199,7 @@ struct VistaHojaAdjuntar: View {
             }
             if !chips.isEmpty {
                 HStack(spacing: 8) {
-                    Text("MÁS").font(.system(size: 11, weight: .semibold))
+                    Text(Lengua.t("v2menus-adj-mas")).font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Paleta.proyectos.apagado)
                     Paleta.proyectos.separador.frame(height: 1)
                 }
@@ -221,7 +221,7 @@ struct VistaHojaAdjuntar: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 13, weight: .medium))
                 .foregroundStyle(Paleta.proyectos.apagado)
-            CampoDeUnaLinea(texto: $busqueda, invitacion: "Buscar: tabla, cronómetro, PDF…",
+            CampoDeUnaLinea(texto: $busqueda, invitacion: Lengua.t("v2menus-adj-buscar"),
                             tamano: 14, foco: true) { t in
                 self.tecla(t)
             } alCambiar: { escrito in
@@ -381,7 +381,7 @@ enum AdjuntarEnChat {
             Task {
                 guard let m = await almacen.crearLienzo(en: chat), let referencia = m.referencia else { return }
                 VentanasDeLienzo.compartidas.abrir(referencia: referencia, en: chat,
-                                                   titulo: "Lienzo nuevo", almacen: almacen)
+                                                   titulo: Lengua.t("adjuntar-lienzo"), almacen: almacen)
             }
         case .nota:
             // Windows abre el editor con una nota por nacer; aqui la nota
@@ -525,7 +525,7 @@ enum AdjuntarEnChat {
         let nucleo = almacen.nucleo
         Task {
             let r = await Task.detached(priority: .userInitiated) { () -> Result<MensajeChat, Error> in
-                Result { try nucleo.crearTabla(chat: chat, nombre: "Tabla") }
+                Result { try nucleo.crearTabla(chat: chat, nombre: Lengua.t("chat-tabla")) }
             }.value
             switch r {
             case let .success(m):

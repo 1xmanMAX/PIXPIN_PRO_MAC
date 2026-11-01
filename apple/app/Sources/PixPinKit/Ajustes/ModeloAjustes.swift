@@ -131,6 +131,8 @@ public final class ModeloAjustes: ObservableObject {
         case let .success((a, p)):
             valores = a
             pdf = p
+            // Por si el idioma se cambio en otro aparato (llega con el TOML).
+            ModeloAjustes.aplicar(idioma: a.idioma, en: defaults)
             sincro?.automatica = a.sincroAutomatica
             error = nil
         case let .failure(e):
@@ -209,12 +211,21 @@ public final class ModeloAjustes: ObservableObject {
         }
     }
 
-    /// El idioma de la app (`AppleLanguages` de este programa): vale desde el
-    /// proximo arranque, como en Windows. «sistema» lo deja en el del Mac.
+    /// El idioma de la app (`AppleLanguages` de este programa, para lo que
+    /// escribe el propio macOS): vale desde el proximo arranque, como en
+    /// Windows. «sistema» lo deja en el del Mac. Los textos de PixPin salen
+    /// del catalogo de Windows con el mismo codigo (`Lengua`).
     nonisolated static func aplicar(idioma: String, en defaults: UserDefaults) {
         switch idioma {
-        case "es", "en": defaults.set([idioma], forKey: "AppleLanguages")
-        default: defaults.removeObject(forKey: "AppleLanguages")
+        case "sistema", "": defaults.removeObject(forKey: "AppleLanguages")
+        // El chino del catalogo es el simplificado: en Apple, `zh-Hans`.
+        case "zh-CN": defaults.set(["zh-Hans"], forKey: "AppleLanguages")
+        default:
+            if Lengua.codigos.contains(idioma) {
+                defaults.set([idioma], forKey: "AppleLanguages")
+            } else {
+                defaults.removeObject(forKey: "AppleLanguages")
+            }
         }
     }
 

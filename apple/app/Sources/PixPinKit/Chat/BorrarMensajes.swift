@@ -23,8 +23,8 @@ import SwiftUI
 /// defecto: Intro no borra nada.
 @MainActor
 enum ConfirmarBorrar {
-    nonisolated static let titulo = "Borrar"
-    nonisolated static let aviso = "Se quitará de la conversación. Un archivo adjunto se borra con él. ¿Seguir?"
+    nonisolated static let titulo = Lengua.t("chat-borrar")
+    nonisolated static let aviso = Lengua.t("chat-borrar-aviso")
 
     /// El titulo con cuantos son, si es mas de uno.
     nonisolated static func titulo(cuantos: Int) -> String {
@@ -36,10 +36,10 @@ enum ConfirmarBorrar {
         alerta.alertStyle = .warning
         alerta.messageText = titulo(cuantos: cuantos)
         alerta.informativeText = aviso
-        let borrar = alerta.addButton(withTitle: "Borrar")
+        let borrar = alerta.addButton(withTitle: Lengua.t("chat-borrar"))
         borrar.hasDestructiveAction = true
         borrar.keyEquivalent = ""
-        let cancelar = alerta.addButton(withTitle: "Cancelar")
+        let cancelar = alerta.addButton(withTitle: Lengua.t("chat-cancelar-caja"))
         cancelar.keyEquivalent = "\r"
         return alerta.runModal() == .alertFirstButtonReturn
     }
@@ -106,18 +106,18 @@ struct BarraDeElegidos: View {
             Text(cuantos == 1 ? "1 elegido" : "\(cuantos) elegidos")
                 .font(.callout.weight(.medium))
             Spacer()
-            Button(action: copiar) { Label("Copiar", systemImage: "doc.on.doc") }
-            Button(action: compartir) { Label("Compartir", systemImage: "square.and.arrow.up") }
+            Button(action: copiar) { Label(Lengua.t("chat-copiar"), systemImage: "doc.on.doc") }
+            Button(action: compartir) { Label(Lengua.t("compartir-titulo"), systemImage: "square.and.arrow.up") }
             Button(action: fijar) { Label("Fijar", systemImage: "flag") }
-            Button(action: reenviar) { Label("Reenviar", systemImage: "arrowshape.turn.up.right") }
+            Button(action: reenviar) { Label(Lengua.t("chat-reenviar"), systemImage: "arrowshape.turn.up.right") }
             if let unirPdf {
                 Button(action: unirPdf) { Label("Unir PDF", systemImage: "doc.on.doc.fill") }
             }
             Button(role: .destructive, action: borrar) {
-                Label("Borrar", systemImage: "trash")
+                Label(Lengua.t("chat-borrar"), systemImage: "trash")
             }
             .foregroundStyle(.red)
-            Button("Cancelar", action: cancelar)
+            Button(Lengua.t("chat-cancelar-caja"), action: cancelar)
                 .keyboardShortcut(.cancelAction)
         }
         .padding(.horizontal, 12)

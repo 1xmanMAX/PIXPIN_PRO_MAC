@@ -152,6 +152,8 @@ pub mod red;
 pub mod sincro;
 pub mod sincro_auto;
 pub mod tareas;
+/// Los textos de la interfaz Swift en los catorce idiomas de Windows.
+pub mod textos;
 pub mod timeline;
 pub mod turnos;
 pub mod unidades;

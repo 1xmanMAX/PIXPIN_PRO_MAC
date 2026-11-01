@@ -27,7 +27,7 @@ struct FranjaProyectos: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Text("PixPin Max")
+            Text(Lengua.t("app-nombre"))
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Paleta.proyectos.texto)
                 .padding(.leading, 12)
@@ -219,12 +219,12 @@ struct ListaProyectos<Menu: View>: View {
                         .padding(6)
                     } else {
                         HStack {
-                            TextField(nuevoCompartido == true ? TextosCompartido.compartido : "Proyecto nuevo",
+                            TextField(nuevoCompartido == true ? TextosCompartido.compartido : Lengua.t("ubicacion-nuevo"),
                                       text: $nuevo)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 220)
                                 .onSubmit(crear)
-                            Button("Crear", action: crear)
+                            Button(Lengua.t("buscar-todo-accion-crear"), action: crear)
                                 .keyboardShortcut(.defaultAction)
                                 .disabled(nuevo.trimmingCharacters(in: .whitespaces).isEmpty)
                         }
@@ -346,13 +346,13 @@ struct CapsulaBuscar: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            TextField("", text: $texto, prompt: Text("Buscar").foregroundStyle(Paleta.proyectos.apagado))
+            TextField("", text: $texto, prompt: Text(Lengua.t("chat-buscar")).foregroundStyle(Paleta.proyectos.apagado))
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundStyle(Paleta.proyectos.texto)
             if !texto.isEmpty {
                 Button { texto = "" } label: {
-                    Label("Vaciar", systemImage: "xmark.circle.fill")
+                    Label(Lengua.t("clase-temas-vaciar"), systemImage: "xmark.circle.fill")
                         .labelStyle(.iconOnly)
                         .foregroundStyle(Paleta.proyectos.apagado)
                 }
@@ -396,7 +396,7 @@ struct BotonNuevo: View {
 
     var body: some View {
         Button(action: accion) {
-            Label("Proyecto nuevo", systemImage: "plus")
+            Label(Lengua.t("ubicacion-nuevo"), systemImage: "plus")
                 .labelStyle(.iconOnly)
                 .font(.system(size: 24, weight: .light))
                 .foregroundStyle(.white)
@@ -408,7 +408,7 @@ struct BotonNuevo: View {
         }
         .buttonStyle(.plain)
         .onHover { encima = $0 }
-        .help("Proyecto nuevo")
+        .help(Lengua.t("ubicacion-nuevo"))
     }
 }
 

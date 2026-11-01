@@ -73,7 +73,7 @@ pub const GIF_RITMO_MINIMO: u32 = 5;
 pub const GIF_RITMO_MAXIMO: u32 = 30;
 pub const GIF_RETARDO_MAXIMO: u32 = 10;
 
-fn texto_idioma(i: PreferenciaIdioma) -> &'static str {
+pub(crate) fn texto_idioma(i: PreferenciaIdioma) -> &'static str {
     // Los mismos codigos que el fichero de ajustes de Windows (`serde`).
     match i {
         PreferenciaIdioma::Sistema => "sistema",
@@ -94,7 +94,7 @@ fn texto_idioma(i: PreferenciaIdioma) -> &'static str {
     }
 }
 
-fn idioma_de(t: &str) -> Option<PreferenciaIdioma> {
+pub(crate) fn idioma_de(t: &str) -> Option<PreferenciaIdioma> {
     if t == "sistema" {
         return Some(PreferenciaIdioma::Sistema);
     }

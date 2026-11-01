@@ -538,7 +538,7 @@ public final class ModeloTimeline: ObservableObject {
         c.day = Int(d.dia)
         c.hour = 12
         guard let f = Calendar.current.date(from: c) else { return d.iso }
-        return f.formatted(.dateTime.weekday(.wide).day().month(.wide).year())
+        return f.formatted(Lengua.fechas.weekday(.wide).day().month(.wide).year())
     }
 
     /// El dia (`AAAA-MM-DD`, en el huso de aqui) de un momento.

@@ -227,7 +227,7 @@ struct BurbujaProyecto: View {
                 .font(.system(size: 26 * escala))
                 .foregroundStyle(ficha == nil ? Color.secondary : Color.accentColor)
             VStack(alignment: .leading, spacing: 2) {
-                Text(ficha?.nombre ?? (mensaje.nombre.isEmpty ? "Proyecto" : mensaje.nombre))
+                Text(ficha?.nombre ?? (mensaje.nombre.isEmpty ? Lengua.t("chat-clase-proyecto") : mensaje.nombre))
                     .font(.system(size: 13 * escala, weight: .semibold))
                 Group {
                     if let ficha {
@@ -397,7 +397,7 @@ func leerFotoAnotada(_ m: MensajeChat, chat: String, almacen: Almacen) async -> 
 @MainActor
 func anotarFoto(_ m: MensajeChat, chat: String, almacen: Almacen) {
     let (nucleo, id) = (almacen.nucleo, m.id)
-    let titulo = m.nombre.isEmpty ? "Foto" : m.nombre
+    let titulo = m.nombre.isEmpty ? Lengua.t("compartir-tipo-foto") : m.nombre
     Task {
         let lienzo = await Task.detached(priority: .userInitiated) {
             try? nucleo.asegurarLienzoDeFoto(chat: chat, id: id)
@@ -455,7 +455,7 @@ struct PieDelMovil: View {
             Button {
                 abrirLienzo(l, titulo: "Lienzo del asistente")
             } label: {
-                Label("Abrir lienzo", systemImage: "scribble.variable").font(.system(size: 12 * escala))
+                Label(Lengua.t("asistente-abrir-lienzo"), systemImage: "scribble.variable").font(.system(size: 12 * escala))
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -502,7 +502,7 @@ struct BurbujaTareas: View {
         if !mensaje.nombre.isEmpty { return mensaje.nombre }
         let primera = mensaje.texto.split(separator: "\n").first.map(String.init) ?? ""
         let limpia = primera.trimmingCharacters(in: CharacterSet(charactersIn: "# ").union(.whitespaces))
-        return limpia.isEmpty ? "Tareas" : limpia
+        return limpia.isEmpty ? Lengua.t("funciones-tareas") : limpia
     }
 
     var body: some View {
@@ -527,7 +527,7 @@ struct BurbujaTareas: View {
         .help("Abrir la lista en Tareas")
         .contextMenu {
             EntradasDeMensaje {
-                Button { abrir() } label: { Label("Abrir en Tareas", systemImage: "checklist") }
+                Button { abrir() } label: { Label(Lengua.t("horario-abrir-tareas"), systemImage: "checklist") }
             }
         }
     }
@@ -579,7 +579,7 @@ struct BurbujaHojaNota: View {
             cuerpo.append(l)
         }
         let c = cuerpo.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-        return (titulo.isEmpty ? "Nota" : titulo, c, audio)
+        return (titulo.isEmpty ? Lengua.t("chat-adj-nota-md") : titulo, c, audio)
     }
 
     var body: some View {

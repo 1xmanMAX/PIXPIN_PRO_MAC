@@ -92,7 +92,7 @@ final class BuscadorDelChat: ObservableObject {
     /// «3 de 12», «Nada con eso» o nada (sin filtro).
     var cuenta: String? {
         guard filtrando, !cargando else { return nil }
-        guard !hallados.isEmpty else { return "Nada con eso" }
+        guard !hallados.isEmpty else { return Lengua.t("chat-buscar-nada") }
         return "\((elegido ?? hallados.count - 1) + 1) de \(hallados.count)"
     }
 
@@ -209,7 +209,7 @@ struct BarraBuscarEnChat: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundStyle(Paleta.proyectos.apagado)
-                CampoDeUnaLinea(texto: $buscador.texto, invitacion: "Buscar aquí…", tamano: 13,
+                CampoDeUnaLinea(texto: $buscador.texto, invitacion: Lengua.t("chat-buscar-aqui"), tamano: 13,
                                 pedirFoco: buscador.focoPedido) { t in tecla(t) }
                 if buscador.cargando {
                     ProgressView().controlSize(.small)
@@ -288,7 +288,7 @@ struct BarraDeResultados: View {
                 .font(.system(size: 12))
                 .foregroundStyle(Paleta.proyectos.texto)
             Spacer()
-            Button("Ver en contexto", action: verEnContexto)
+            Button(Lengua.t("chat-buscar-en-contexto"), action: verEnContexto)
                 .buttonStyle(.plain)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(Paleta.chat.enviar)

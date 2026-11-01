@@ -34,7 +34,7 @@ enum FigurasDelChat {
             elegirFigura(chat: chat, almacen: almacen, avisar: avisar, empezar: empezar)
             return true
         case .pedirFigura:
-            empezar("Hazme una figura de ")
+            empezar(Lengua.t("asistente-pide-figura"))
             return true
         default:
             return false
@@ -79,7 +79,7 @@ enum FigurasDelChat {
                 }
                 empezar?("Mejora la figura «\(nombre)»: ")
             case .failure:
-                avisar("No se pudo: mira el registro de PixPin")
+                avisar(Lengua.t("chat-no-se-pudo"))
             }
         }
     }
@@ -106,9 +106,9 @@ extension ChatAbierto {
                 avisar("Guardada en tus figuras como «\(guardada)»")
                 VentanaFiguras.releer()
             case .success(nil):
-                avisar("Ese lienzo está vacío: no hay nada que guardar")
+                avisar(Lengua.t("chat-figura-vacia"))
             case .failure:
-                avisar("No se pudo: mira el registro de PixPin")
+                avisar(Lengua.t("chat-no-se-pudo"))
             }
         }
     }

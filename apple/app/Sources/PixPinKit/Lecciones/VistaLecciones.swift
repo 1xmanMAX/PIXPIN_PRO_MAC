@@ -286,7 +286,7 @@ struct FichaLeccionVista: View {
     private func textoDeRepaso(_ f: FichaLeccion) -> String {
         if f.tocaRepasar { return "Toca repasarla hoy." }
         let cuando = Date(timeIntervalSince1970: Double(f.repasar) / 1000)
-        return "Próximo repaso: " + cuando.formatted(date: .abbreviated, time: .omitted)
+        return "Próximo repaso: " + cuando.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted, locale: Lengua.locale))
     }
 
     private func repasar(_ nota: NotaRepaso) {

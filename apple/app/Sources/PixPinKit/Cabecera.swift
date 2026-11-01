@@ -126,7 +126,7 @@ struct CajaBuscador: View {
                 Chapa(texto: "⌘F")
             } else {
                 Button { buscador.texto.wrappedValue = "" } label: {
-                    Label("Vaciar", systemImage: "xmark")
+                    Label(Lengua.t("clase-temas-vaciar"), systemImage: "xmark")
                         .labelStyle(.iconOnly)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Paleta.v2.gris)
@@ -134,7 +134,7 @@ struct CajaBuscador: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help("Vaciar")
+                .help(Lengua.t("clase-temas-vaciar"))
             }
         }
         .padding(.leading, 12)

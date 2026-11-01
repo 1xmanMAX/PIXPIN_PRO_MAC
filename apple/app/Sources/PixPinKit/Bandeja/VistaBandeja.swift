@@ -115,7 +115,7 @@ public struct VistaBandeja: View {
             } contenido: { encima in
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.triangle.2.circlepath")
-                    Text("Sincronizar ahora")
+                    Text(Lengua.t("bandeja2-sincronizar"))
                 }
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(ColoresBandeja.enlace)
@@ -133,7 +133,7 @@ public struct VistaBandeja: View {
                     .frame(width: 30, height: 30)
                     .background(encima ? ColoresBandeja.cartaEncima : ColoresBandeja.carta, in: RoundedRectangle(cornerRadius: 10))
             }
-            .help("Ajustes")
+            .help(Lengua.t("comando-abrir-ajustes"))
         }
         .frame(height: 30)
     }
@@ -143,7 +143,7 @@ public struct VistaBandeja: View {
     private var buscador: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass").foregroundStyle(ColoresBandeja.suave)
-            TextField(modelo.editando ? "Buscar qué poner de favorito…" : "Buscar una acción… (escribe sin más)",
+            TextField(modelo.editando ? Lengua.t("bandeja2-buscar-favorito") : Lengua.t("bandeja2-buscar"),
                       text: $modelo.consulta)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11.9))
@@ -202,8 +202,8 @@ public struct VistaBandeja: View {
                         Image(systemName: "viewfinder").font(.system(size: 18.7, weight: .medium))
                             .frame(width: 28)
                         VStack(alignment: .leading, spacing: 1) {
-                            Text("Capturar").font(.system(size: 13.6, weight: .semibold))
-                            Text("Elige la zona con el ratón").font(.system(size: 10.2)).opacity(0.8)
+                            Text(Lengua.t("bandeja2-capturar")).font(.system(size: 13.6, weight: .semibold))
+                            Text(Lengua.t("bandeja2-capturar-sub")).font(.system(size: 10.2)).opacity(0.8)
                         }
                         Spacer()
                         if let a = modelo.chapita(.comando(.capturarRegion)) {
@@ -222,7 +222,7 @@ public struct VistaBandeja: View {
                 } contenido: { encima in
                     VStack(spacing: 2) {
                         Image(systemName: "mic").font(.system(size: 15, weight: .medium))
-                        Text("Grabar").font(.system(size: 10.2, weight: .medium)).lineLimit(1)
+                        Text(Lengua.t("bandeja2-grabar")).font(.system(size: 10.2, weight: .medium)).lineLimit(1)
                     }
                     .foregroundStyle(ColoresBandeja.rojo)
                     .frame(width: 64, height: 40)
@@ -258,10 +258,10 @@ public struct VistaBandeja: View {
     private var favoritos: some View {
         VStack(spacing: Self.hueco) {
             HStack {
-                Etiqueta("Favoritos")
+                Etiqueta(Lengua.t("bandeja2-favoritos"))
                 Spacer()
                 BotonBandeja { modelo.empezarAEditar() } contenido: { encima in
-                    Text("Editar").font(.system(size: 11, weight: .medium))
+                    Text(Lengua.t("bandeja2-editar")).font(.system(size: 11, weight: .medium))
                         .foregroundStyle(ColoresBandeja.enlace)
                         .padding(.horizontal, 12)
                         .frame(height: 21)
@@ -277,7 +277,7 @@ public struct VistaBandeja: View {
                 }
                 if modelo.favoritos.count < AccionBandeja.tope {
                     BotonBandeja { modelo.empezarAEditar() } contenido: { encima in
-                        Ficha(simbolo: "plus", titulo: "Añadir", color: ColoresBandeja.suave, encima: encima, discreta: true)
+                        Ficha(simbolo: "plus", titulo: Lengua.t("bandeja2-anadir"), color: ColoresBandeja.suave, encima: encima, discreta: true)
                     }
                 }
             }
@@ -289,16 +289,16 @@ public struct VistaBandeja: View {
             Etiqueta(modelo.aLaVista == 1 ? "Pines · 1 a la vista" : "Pines · \(modelo.aLaVista) a la vista")
                 .padding(.leading, 12)
                 .frame(height: 16)
-            FilaInterruptor(titulo: "Ocultar los pines", subtitulo: nil, chapita: modelo.chapita(.comando(.alternarPines)),
+            FilaInterruptor(titulo: Lengua.t("bandeja2-ocultar-pines"), subtitulo: nil, chapita: modelo.chapita(.comando(.alternarPines)),
                             encendido: modelo.ocultos) { modelo.pedir(.comando(.alternarPines)) }
             if modelo.atajos.disponible(.alternarPasoDeClics) {
-                FilaInterruptor(titulo: "Dejar pasar el clic", subtitulo: nil,
+                FilaInterruptor(titulo: Lengua.t("bandeja2-paso-clic"), subtitulo: nil,
                                 chapita: modelo.chapita(.comando(.alternarPasoDeClics)),
                                 encendido: modelo.pasantes) { modelo.pedir(.comando(.alternarPasoDeClics)) }
             }
             Rectangle().fill(ColoresBandeja.borde).frame(height: 1).padding(.horizontal, 12).padding(.vertical, 4)
-            Etiqueta("Atajos").padding(.leading, 12).frame(height: 16)
-            FilaInterruptor(titulo: "Silenciar los atajos", subtitulo: "para jugar o presentar",
+            Etiqueta(Lengua.t("bandeja2-atajos")).padding(.leading, 12).frame(height: 16)
+            FilaInterruptor(titulo: Lengua.t("bandeja2-silenciar"), subtitulo: Lengua.t("bandeja2-silenciar-sub"),
                             chapita: nil, encendido: modelo.silenciados) { modelo.pedir(.comando(.silenciarAtajos)) }
         }
         .padding(4)
@@ -308,10 +308,10 @@ public struct VistaBandeja: View {
     private var ultimas: some View {
         VStack(spacing: Self.hueco) {
             HStack {
-                Etiqueta("Últimas capturas")
+                Etiqueta(Lengua.t("bandeja2-ultimas"))
                 Spacer()
                 BotonBandeja { modelo.pedir(.galeria) } contenido: { encima in
-                    Text("Ver la galería").font(.system(size: 11, weight: .medium))
+                    Text(Lengua.t("bandeja2-ver-galeria")).font(.system(size: 11, weight: .medium))
                         .foregroundStyle(ColoresBandeja.enlace)
                         .padding(.horizontal, 10)
                         .frame(height: 21)
@@ -319,7 +319,7 @@ public struct VistaBandeja: View {
                 }
             }
             if modelo.capturas.isEmpty {
-                Text("Aún no hay capturas")
+                Text(Lengua.t("bandeja2-sin-capturas"))
                     .font(.system(size: 11))
                     .foregroundStyle(ColoresBandeja.suave)
                     .frame(maxWidth: .infinity)
@@ -362,7 +362,7 @@ public struct VistaBandeja: View {
             if viva {
                 Color.black.opacity(0.35)
                 HStack(spacing: 4) {
-                    BotonMini(simbolo: "pin", color: .white) { modelo.pinearCaptura(i) }.help("Pinear")
+                    BotonMini(simbolo: "pin", color: .white) { modelo.pinearCaptura(i) }.help(Lengua.t("chat-pinear"))
                     BotonMini(simbolo: "doc.on.doc", color: .white) { modelo.copiarCaptura(i) }.help("Copiar (⌘C)")
                     BotonMini(simbolo: "trash", color: Color(hex: 0xFF6961)) { modelo.borrarCaptura(i) }.help("Borrar (⌦)")
                 }
@@ -384,9 +384,9 @@ public struct VistaBandeja: View {
     /// «10:02» si es de hoy, «ayer», o la fecha corta.
     static func cuando(_ ms: Int64, ahora: Date = Date(), calendario: Calendar = .current) -> String {
         let f = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
-        if calendario.isDate(f, inSameDayAs: ahora) { return f.formatted(.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)) }
+        if calendario.isDate(f, inSameDayAs: ahora) { return f.formatted(Lengua.fechas.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)) }
         if let ayer = calendario.date(byAdding: .day, value: -1, to: ahora), calendario.isDate(f, inSameDayAs: ayer) { return "ayer" }
-        return f.formatted(.dateTime.day().month(.abbreviated))
+        return f.formatted(Lengua.fechas.day().month(.abbreviated))
     }
 
     private var ventanas: some View {
@@ -436,9 +436,9 @@ public struct VistaBandeja: View {
         BotonBandeja { modelo.pedir(.comando(.salir)) } contenido: { encima in
             HStack(spacing: 10) {
                 Image(systemName: "power").font(.system(size: 13.6)).frame(width: 22)
-                Text("Salir de PixPin").font(.system(size: 11.9, weight: .medium))
+                Text(Lengua.t("bandeja2-salir")).font(.system(size: 11.9, weight: .medium))
                 Spacer()
-                Text("los pines se cierran").font(.system(size: 10.2)).opacity(0.75)
+                Text(Lengua.t("bandeja2-salir-sub")).font(.system(size: 10.2)).opacity(0.75)
             }
             .foregroundStyle(ColoresBandeja.rojo)
             .padding(.horizontal, 12)
@@ -457,7 +457,7 @@ public struct VistaBandeja: View {
                     .foregroundStyle(ColoresBandeja.texto)
                 Spacer()
                 BotonBandeja { modelo.terminarDeEditar() } contenido: { encima in
-                    Text("Hecho").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
+                    Text(Lengua.t("bandeja2-hecho")).font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
                         .frame(width: 72, height: 30)
                         .background(encima ? ColoresBandeja.azulEncima : ColoresBandeja.azul, in: RoundedRectangle(cornerRadius: 10))
                 }
@@ -466,7 +466,7 @@ public struct VistaBandeja: View {
         }
         let filas = modelo.filas
         if filas.isEmpty {
-            Text("Ninguna acción se llama así")
+            Text(Lengua.t("bandeja2-sin-resultados"))
                 .font(.system(size: 11))
                 .foregroundStyle(ColoresBandeja.suave)
                 .frame(maxWidth: .infinity, minHeight: Self.fila)
@@ -505,7 +505,7 @@ public struct VistaBandeja: View {
             HStack(spacing: 12) {
                 Text(t).font(.system(size: 11)).foregroundStyle(.white).lineLimit(2)
                 if modelo.puedeDeshacer {
-                    Button("Deshacer") { modelo.deshacer() }
+                    Button(Lengua.t("bandeja2-deshacer")) { modelo.deshacer() }
                         .buttonStyle(.plain)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(Color(hex: 0x64D2FF))

@@ -274,12 +274,12 @@ public final class ModeloGaleria: ObservableObject {
 
     /// «Hoy · jueves 15 oct», «Ayer · …» o «lunes 12 oct».
     nonisolated static func rotulo(_ fecha: Date, ahora: Date = Date(), calendario: Calendar = .current) -> String {
-        let dia = fecha.formatted(.dateTime.weekday(.wide).day().month(.abbreviated))
+        let dia = fecha.formatted(Lengua.fechas.weekday(.wide).day().month(.abbreviated))
         if calendario.isDate(fecha, inSameDayAs: ahora) { return "Hoy · \(dia)" }
         if let ayer = calendario.date(byAdding: .day, value: -1, to: ahora),
            calendario.isDate(fecha, inSameDayAs: ayer) { return "Ayer · \(dia)" }
         if !calendario.isDate(fecha, equalTo: ahora, toGranularity: .year) {
-            return fecha.formatted(.dateTime.weekday(.wide).day().month(.abbreviated).year())
+            return fecha.formatted(Lengua.fechas.weekday(.wide).day().month(.abbreviated).year())
         }
         return dia
     }

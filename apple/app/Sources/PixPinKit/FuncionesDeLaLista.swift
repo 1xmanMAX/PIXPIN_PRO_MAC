@@ -24,7 +24,7 @@ import SwiftUI
 /// Los textos de Funciones y del interruptor, del catalogo de Windows en el
 /// idioma de la app (los mismos que `main.ftl`).
 enum TextosFunciones {
-    static let actuales = textosDeFunciones(locale: Locale.preferredLanguages.first ?? "es")
+    static let actuales = textosDeFunciones(locale: Lengua.catalogo.etiqueta())
 }
 
 /// Las vistas de Tareas a las que se va desde fuera: el mosaico Horario abre

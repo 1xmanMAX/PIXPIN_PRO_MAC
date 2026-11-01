@@ -1528,6 +1528,294 @@ public func FfiConverterTypeBusqueda_lower(_ value: Busqueda) -> UInt64 {
 
 
 /**
+ * El catalogo de textos de la app, ya resuelto a un idioma.
+ */
+public protocol CatalogoDeTextosProtocol: AnyObject, Sendable {
+    
+    /**
+     * Solo el idioma (`es`, `zh`, `ar`…).
+     */
+    func codigo()  -> String
+    
+    /**
+     * El texto de `clave` con sus `{ $argumentos }`.
+     */
+    func conArgumentos(clave: String, argumentos: [String: String])  -> String
+    
+    /**
+     * Si se escribe de derecha a izquierda (el arabe).
+     */
+    func deDerechaAIzquierda()  -> Bool
+    
+    /**
+     * La etiqueta BCP 47 del idioma (`es-ES`, `ar-SA`…): el `Locale` de
+     * las fechas y los numeros.
+     */
+    func etiqueta()  -> String
+    
+    /**
+     * Las quince opciones del selector, en el orden de Windows: el del
+     * sistema y los catorce idiomas, cada uno con su nombre en su lengua.
+     */
+    func opcionesDeIdioma()  -> [OpcionDeIdioma]
+    
+    /**
+     * El codigo guardado en los ajustes con el que se creo.
+     */
+    func preferencia()  -> String
+    
+    /**
+     * Si sigue al idioma del Mac (`idioma = "sistema"`).
+     */
+    func sigueAlSistema()  -> Bool
+    
+    /**
+     * El texto de `clave` (la propia clave si no esta en ningun catalogo).
+     */
+    func t(clave: String)  -> String
+    
+    /**
+     * Si `clave` esta en algun catalogo (el elegido, ingles o espanol).
+     */
+    func tiene(clave: String)  -> Bool
+    
+}
+/**
+ * El catalogo de textos de la app, ya resuelto a un idioma.
+ */
+open class CatalogoDeTextos: CatalogoDeTextosProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_catalogodetextos(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_catalogodetextos(handle, $0) }
+    }
+
+    
+    /**
+     * `idioma`: el codigo de `pixpinmax.toml` (`sistema`, `es`, `zh-CN`…;
+     * uno desconocido, `sistema`). `locale_sistema`: el del Mac
+     * (`Locale.preferredLanguages.first`).
+     */
+public static func nuevo(idioma: String, localeSistema: String) -> CatalogoDeTextos  {
+    return try!  FfiConverterTypeCatalogoDeTextos_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_constructor_catalogodetextos_nuevo(
+        FfiConverterString.lower(idioma),
+        FfiConverterString.lower(localeSistema),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+    /**
+     * Solo el idioma (`es`, `zh`, `ar`…).
+     */
+open func codigo() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_codigo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El texto de `clave` con sus `{ $argumentos }`.
+     */
+open func conArgumentos(clave: String, argumentos: [String: String]) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_con_argumentos(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clave),
+        FfiConverterDictionaryStringString.lower(argumentos),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si se escribe de derecha a izquierda (el arabe).
+     */
+open func deDerechaAIzquierda() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_de_derecha_a_izquierda(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La etiqueta BCP 47 del idioma (`es-ES`, `ar-SA`…): el `Locale` de
+     * las fechas y los numeros.
+     */
+open func etiqueta() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_etiqueta(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Las quince opciones del selector, en el orden de Windows: el del
+     * sistema y los catorce idiomas, cada uno con su nombre en su lengua.
+     */
+open func opcionesDeIdioma() -> [OpcionDeIdioma]  {
+    return try!  FfiConverterSequenceTypeOpcionDeIdioma.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_opciones_de_idioma(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El codigo guardado en los ajustes con el que se creo.
+     */
+open func preferencia() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_preferencia(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si sigue al idioma del Mac (`idioma = "sistema"`).
+     */
+open func sigueAlSistema() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_sigue_al_sistema(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El texto de `clave` (la propia clave si no esta en ningun catalogo).
+     */
+open func t(clave: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_t(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clave),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si `clave` esta en algun catalogo (el elegido, ingles o espanol).
+     */
+open func tiene(clave: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_catalogodetextos_tiene(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clave),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCatalogoDeTextos: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = CatalogoDeTextos
+
+    public static func lift(_ handle: UInt64) throws -> CatalogoDeTextos {
+        return CatalogoDeTextos(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: CatalogoDeTextos) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CatalogoDeTextos {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: CatalogoDeTextos, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCatalogoDeTextos_lift(_ handle: UInt64) throws -> CatalogoDeTextos {
+    return try FfiConverterTypeCatalogoDeTextos.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCatalogoDeTextos_lower(_ value: CatalogoDeTextos) -> UInt64 {
+    return FfiConverterTypeCatalogoDeTextos.lower(value)
+}
+
+
+
+
+
+
+/**
  * **Los comentarios de una nota abierta.** Cada cambio se escribe enseguida,
  * junto con lo que haya llegado al disco (otro equipo).
  */
@@ -33564,6 +33852,79 @@ public func FfiConverterTypeOfertaRecibida_lower(_ value: OfertaRecibida) -> Rus
 
 
 /**
+ * Una opcion del selector de idioma de Ajustes.
+ */
+public struct OpcionDeIdioma: Equatable, Hashable {
+    /**
+     * Lo que se guarda en `idioma` de `pixpinmax.toml` (`sistema`, `es`,
+     * `zh-CN`…), igual que Windows.
+     */
+    public var valor: String
+    /**
+     * El nombre en su propia lengua («日本語», «العربية»); el de `sistema`,
+     * en el idioma actual.
+     */
+    public var nombre: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Lo que se guarda en `idioma` de `pixpinmax.toml` (`sistema`, `es`,
+         * `zh-CN`…), igual que Windows.
+         */valor: String, 
+        /**
+         * El nombre en su propia lengua («日本語», «العربية»); el de `sistema`,
+         * en el idioma actual.
+         */nombre: String) {
+        self.valor = valor
+        self.nombre = nombre
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OpcionDeIdioma: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOpcionDeIdioma: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OpcionDeIdioma {
+        return
+            try OpcionDeIdioma(
+                valor: FfiConverterString.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OpcionDeIdioma, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.valor, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionDeIdioma_lift(_ buf: RustBuffer) throws -> OpcionDeIdioma {
+    return try FfiConverterTypeOpcionDeIdioma.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionDeIdioma_lower(_ value: OpcionDeIdioma) -> RustBuffer {
+    return FfiConverterTypeOpcionDeIdioma.lower(value)
+}
+
+
+/**
  * Una opcion de la tarjeta: lo que pone el boton y que pasa si se elige.
  */
 public struct OpcionIa: Equatable, Hashable {
@@ -53290,6 +53651,31 @@ fileprivate struct FfiConverterSequenceTypeNoDibujado: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeOpcionDeIdioma: FfiConverterRustBuffer {
+    typealias SwiftType = [OpcionDeIdioma]
+
+    public static func write(_ value: [OpcionDeIdioma], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOpcionDeIdioma.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [OpcionDeIdioma] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [OpcionDeIdioma]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOpcionDeIdioma.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeOpcionIa: FfiConverterRustBuffer {
     typealias SwiftType = [OpcionIa]
 
@@ -54384,6 +54770,32 @@ fileprivate struct FfiConverterSequenceSequenceString: FfiConverterRustBuffer {
             seq.append(try FfiConverterSequenceString.read(from: &buf))
         }
         return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
+    public static func write(_ value: [String: String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterString.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: String] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: String]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterString.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
     }
 }
 
@@ -57507,6 +57919,19 @@ public func gruposDeTareas(listas: [ListaTareas], busqueda: String, desfaseMs: I
 })
 }
 /**
+ * **El catalogo de la app**: el idioma de `pixpinmax.toml` de la carpeta
+ * de datos `raiz` (si no se puede leer, el del Mac).
+ */
+public func textosDeLaApp(raiz: String, localeSistema: String) -> CatalogoDeTextos  {
+    return try!  FfiConverterTypeCatalogoDeTextos_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_textos_de_la_app(
+        FfiConverterString.lower(raiz),
+        FfiConverterString.lower(localeSistema),uniffiCallStatus
+    )
+})
+}
+/**
  * **Los turnos de la conversacion** a partir de sus teclas: lo que Swift
  * guarda al terminar (sin los ratos de nadie, con el tope de los tropiezos).
  */
@@ -58396,6 +58821,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_grupos_de_tareas() != 62351) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_textos_de_la_app() != 51172) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_turnos_de_la_conversacion() != 47376) {
@@ -60174,6 +60602,33 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_relojsincro_ver_cambios() != 40349) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_codigo() != 7717) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_con_argumentos() != 3640) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_de_derecha_a_izquierda() != 57818) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_etiqueta() != 62480) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_opciones_de_idioma() != 26390) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_preferencia() != 56595) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_sigue_al_sistema() != 29711) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_t() != 43517) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_tiene() != 11558) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_constructor_nucleo_abrir() != 47148) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -60214,6 +60669,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_relojsincro_new() != 30980) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_constructor_catalogodetextos_nuevo() != 9098) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_avancealigerar_avance() != 54882) {

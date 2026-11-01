@@ -242,7 +242,7 @@ public final class ModeloBandeja: ObservableObject {
         let p = NSPasteboard.general
         p.clearContents()
         p.writeObjects([img])
-        avisar("Copiada")
+        avisar(Lengua.t("bandeja2-copiada"))
     }
 
     /// A la papelera de PixPin, con «Deshacer» (no se pregunta antes).
@@ -253,7 +253,7 @@ public final class ModeloBandeja: ObservableObject {
             borradas = try nucleo.borrarCapturas(nombres: [nombre])
             capturas.remove(at: i)
             encima = nil
-            avisar("A la papelera", deshacer: true)
+            avisar(Lengua.t("bandeja2-borrada"), deshacer: true)
             Task { await cargar() }
         } catch {
             avisar("No se pudo: \(error.localizedDescription)")
@@ -265,7 +265,7 @@ public final class ModeloBandeja: ObservableObject {
         let b = borradas
         borradas = []
         let vueltas = (try? nucleo.devolverCapturas(borradas: b)) ?? 0
-        avisar(vueltas > 0 ? "Devuelta" : "No se pudo: ya no esta en la papelera")
+        avisar(vueltas > 0 ? Lengua.t("bandeja2-devuelta") : "No se pudo: ya no esta en la papelera")
         Task { await cargar() }
     }
 

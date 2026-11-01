@@ -291,6 +291,8 @@ public extension View {
 struct ModificadorVentanaLisa: ViewModifier {
     func body(content: Content) -> some View {
         content
+            // El arabe, de derecha a izquierda; las fechas, en su idioma.
+            .idiomaDeLaApp()
             .toolbar(removing: .title)
             .toolbarBackground(.hidden, for: .windowToolbar)
             .background(AccesoVentana { VentanaLisa.vestirSinFranja($0) })

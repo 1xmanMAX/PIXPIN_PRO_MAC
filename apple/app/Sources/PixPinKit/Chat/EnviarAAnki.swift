@@ -27,11 +27,11 @@ extension ChatAbierto {
         let id = m.id
         Task {
             let hecho = await Task.detached(priority: .userInitiated) { () -> Result<EnvioAnki, Error> in
-                Result { try nucleo.enviarAAnki(chat: chat, mensaje: id, preguntaDeLaClase: "¿Qué se explicó aquí?") }
+                Result { try nucleo.enviarAAnki(chat: chat, mensaje: id, preguntaDeLaClase: Lengua.t("anki-pregunta-clase")) }
             }.value
             switch hecho {
             case let .success(r): avisar(ChatAbierto.textoDeAnki(r))
-            case .failure: avisar("No se pudo: mira el registro de PixPin")
+            case .failure: avisar(Lengua.t("chat-no-se-pudo"))
             }
         }
     }

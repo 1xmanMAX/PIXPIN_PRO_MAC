@@ -30,12 +30,12 @@ enum MenuBandeja {
 
         // Capturar.
         menu.addItem(comando("Capturar zona", .capturarRegion))
-        menu.addItem(comando("Capturar y anotar", .capturarYAnotar))
+        menu.addItem(comando(Lengua.t("comando-capturar-y-anotar"), .capturarYAnotar))
         menu.addItem(comando("Capturar con retardo (3 s)", .capturarConRetardo))
-        menu.addItem(comando("Copiar el texto de una zona", .copiarTexto))
-        menu.addItem(comando("Anotar la pantalla", .anotar))
+        menu.addItem(comando(Lengua.t("comando-copiar-texto"), .copiarTexto))
+        menu.addItem(comando(Lengua.t("comando-anotar"), .anotar))
         menu.addItem(comando("Anotar la pantalla congelada", .anotarCongelada))
-        menu.addItem(comando("Cuentagotas", .cuentagotas))
+        menu.addItem(comando(Lengua.t("comando-cuentagotas"), .cuentagotas))
         menu.addItem(comando("Grabar un GIF", .grabarGif))
         menu.addItem(comando(grabador.grabando ? "Detener grabación" : "Grabar pantalla", .grabarPantalla))
         let sonido = cierre("Grabar con el sonido del sistema") { grabador.conSonido.toggle() }
@@ -51,7 +51,7 @@ enum MenuBandeja {
         menu.addItem(comando("Sincronizar…", .sincronizar))
         // Detras de Sincronizar, como la bandeja de Windows (`bandeja-figuras`).
         if let nucleo = IconoBandeja.compartido.nucleo {
-            menu.addItem(cierre("Figuras…") { VentanaFiguras.abrir(nucleo: nucleo, destino: nil) })
+            menu.addItem(cierre(Lengua.t("bandeja-figuras")) { VentanaFiguras.abrir(nucleo: nucleo, destino: nil) })
         }
         if let sincro { menu.addItem(enviarA(sincro)) }
         menu.addItem(comando("Enviar y recibir por Wi-Fi…", .recibirDelMovil))
@@ -60,15 +60,15 @@ enum MenuBandeja {
         menu.addItem(ventana("Asistente…", "asistente"))
         menu.addItem(ventana("Automatizaciones…", "automatizaciones"))
         menu.addItem(comando("Buscar en PixPin…", .buscar, siNo: KeyboardShortcut("f", modifiers: [.command, .option])))
-        menu.addItem(ventana("Galería de capturas…", IdVentana.galeria))
+        menu.addItem(ventana(Lengua.t("bandeja-galeria-capturas"), IdVentana.galeria))
         menu.addItem(ventana("Timeline…", IdVentana.timeline))
         menu.addItem(ventana("Tareas…", IdVentana.tareas))
         if let nucleo = IconoBandeja.compartido.nucleo {
             menu.addItem(cierre("Horario de clases…") { HorarioClases.abrir(nucleo: nucleo) })
             menu.addItem(cierre("Nota de voz para la próxima clase") { HorarioClases.grabarParaLaProxima(nucleo: nucleo) })
         }
-        menu.addItem(cierre("Abrir documento…") { IconoBandeja.abrirDocumento() })
-        let grupos = NSMenuItem(title: "Grupos de ventanas", action: nil, keyEquivalent: "")
+        menu.addItem(cierre(Lengua.t("bandeja2-documento")) { IconoBandeja.abrirDocumento() })
+        let grupos = NSMenuItem(title: Lengua.t("bandeja2-grupos"), action: nil, keyEquivalent: "")
         grupos.submenu = GruposVentanas.compartidos.menu()
         menu.addItem(grupos)
         menu.addItem(.separator())
@@ -80,15 +80,15 @@ enum MenuBandeja {
         menu.addItem(comando("Ventana encima (pin en vivo)", .ventanaEncima))
         let nuevo = NSMenuItem(title: "Nuevo pin", action: nil, keyEquivalent: "")
         let sub = NSMenu()
-        sub.addItem(cierre("Nota") { pines.pinearNota() })
-        for (t, mini) in [("Lista de tareas", "tareas"), ("Contador", "contador"), ("Ruleta", "ruleta"),
-                          ("Gastos", "gastos"), ("Cronómetro", "cronometro"), ("Temporizador", "temporizador"),
-                          ("Alarma", "alarma")] {
+        sub.addItem(cierre(Lengua.t("chat-adj-nota-md")) { pines.pinearNota() })
+        for (t, mini) in [(Lengua.t("mini-tareas"), "tareas"), (Lengua.t("mini-contador"), "contador"), (Lengua.t("mini-ruleta"), "ruleta"),
+                          (Lengua.t("mini-gastos"), "gastos"), (Lengua.t("mini-cronometro"), "cronometro"), (Lengua.t("mini-temporizador"), "temporizador"),
+                          (Lengua.t("mini-alarma"), "alarma")] {
             sub.addItem(cierre(t) { pines.pinearMiniapp(mini) })
         }
         nuevo.submenu = sub
         menu.addItem(nuevo)
-        menu.addItem(cierre("Pines abiertos…") { pines.mostrarPanelAbiertos() })
+        menu.addItem(cierre(Lengua.t("pin-v2-pines-abiertos")) { pines.mostrarPanelAbiertos() })
         menu.addItem(comando("Mostrar u ocultar los pines", .alternarPines))
         if atajos.disponible(.restaurarUltimoPin) {
             menu.addItem(comando("Restaurar el último pin", .restaurarUltimoPin))
@@ -96,10 +96,10 @@ enum MenuBandeja {
         if atajos.disponible(.alternarPasoDeClics) {
             menu.addItem(comando("Pines: dejar pasar el clic", .alternarPasoDeClics))
         }
-        menu.addItem(comando("Cerrar todos los pines", .cerrarTodosLosPines))
+        menu.addItem(comando(Lengua.t("comando-cerrar-todos-los-pines"), .cerrarTodosLosPines))
         let ocultos = pines.gruposOcultos()
         if !ocultos.isEmpty {
-            let item = NSMenuItem(title: "Grupos ocultos", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: Lengua.t("grupos-ocultos"), action: nil, keyEquivalent: "")
             let sub = NSMenu()
             for g in ocultos {
                 let i = cierre(g.etiqueta) { if pines.mostrarGrupo(g.id) == 0 { NSSound.beep() } }
@@ -112,7 +112,7 @@ enum MenuBandeja {
         menu.addItem(.separator())
 
         // Siempre en el menu: con los atajos soltados, es la unica vuelta.
-        let silenciar = cierre("Silenciar los atajos") { atajos.silenciar(!atajos.silenciados) }
+        let silenciar = cierre(Lengua.t("bandeja2-silenciar")) { atajos.silenciar(!atajos.silenciados) }
         silenciar.state = atajos.silenciados ? .on : .off
         menu.addItem(silenciar)
         let ajustes = cierre("Ajustes…") {
@@ -122,7 +122,7 @@ enum MenuBandeja {
         ajustes.keyEquivalent = ","
         menu.addItem(ajustes)
         menu.addItem(.separator())
-        let salir = cierre("Salir de PixPin") { NSApp.terminate(nil) }
+        let salir = cierre(Lengua.t("bandeja2-salir")) { NSApp.terminate(nil) }
         salir.keyEquivalent = "q"
         menu.addItem(salir)
         return menu
@@ -150,7 +150,7 @@ enum MenuBandeja {
                 panel.canChooseFiles = true
                 panel.canChooseDirectories = false
                 panel.allowsMultipleSelection = true
-                panel.prompt = "Enviar"
+                panel.prompt = Lengua.t("sinc-enviar")
                 NSApp.activate()
                 guard panel.runModal() == .OK else { return }
                 let urls = panel.urls

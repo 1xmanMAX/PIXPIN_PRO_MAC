@@ -110,7 +110,7 @@ public final class IconoBandeja: NSObject, NSMenuDelegate {
         let p = panel ?? PanelBandejaNS()
         panel = p
         // Nueva cada vez: el buscador con el foco y arriba del todo.
-        let vista = NSHostingView(rootView: VistaBandeja(modelo: modelo, altoMaximo: altoMaximo))
+        let vista = NSHostingView(rootView: VistaBandeja(modelo: modelo, altoMaximo: altoMaximo).idiomaDeLaApp())
         p.contentView = vista
         let ancho = VistaBandeja.ancho
         let bajoIcono = ventanaBoton.convertToScreen(boton.frame)
@@ -205,7 +205,7 @@ public final class IconoBandeja: NSObject, NSMenuDelegate {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        panel.prompt = "Abrir"
+        panel.prompt = Lengua.t("info-abrir")
         NSApp.activate()
         guard panel.runModal() == .OK else { return }
         for u in panel.urls { HacerPedidos.compartidos.abrir(fichero: u) }

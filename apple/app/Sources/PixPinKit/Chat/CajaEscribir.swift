@@ -130,7 +130,7 @@ struct IslaDeEscribir: View {
                                 enviar: enviar, escaparVacio: escaparVacio)
                     .overlay(alignment: .topLeading) {
                         if borrador.isEmpty {
-                            Text("Escribe algo…")
+                            Text(Lengua.t("chat-escribe"))
                                 .font(.system(size: MedidasIsla.letra * f))
                                 .foregroundStyle(Paleta.chat.campoApagado)
                                 .allowsHitTesting(false)

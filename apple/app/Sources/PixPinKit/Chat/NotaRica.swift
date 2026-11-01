@@ -244,11 +244,11 @@ struct BurbujaNotaRica: View {
     private func abrir(_ foto: FotoDeNota) {
         let avisar: (String) -> Void = { texto in acciones?.chat.avisar(texto) }
         guard let ruta = foto.ruta, FileManager.default.fileExists(atPath: ruta) else {
-            avisar("Este mensaje no tiene un archivo en este equipo")
+            avisar(Lengua.t("chat-sin-archivo"))
             return
         }
         if GestorPines.compartido.pinear(fichero: URL(fileURLWithPath: ruta)) {
-            avisar("Pineado")
+            avisar(Lengua.t("chat-pineado"))
         } else {
             avisar("No se pudo pinear este archivo")
         }
@@ -391,7 +391,7 @@ extension EntradaDeFicheros {
                 }
             }.value
             guard !renglones.isEmpty else {
-                avisar("No se pudo hacer")
+                avisar(Lengua.t("salida-no-se-pudo"))
                 return
             }
             // Donde este la rayita ahora, cada foto en su renglon.
@@ -403,7 +403,7 @@ extension EntradaDeFicheros {
             campo.insertText(s, replacementRange: r)
             // Lo dice, que si no la foto parece no haber entrado: en la caja
             // solo se ve su renglon.
-            avisar("Foto añadida a lo escrito: se envía todo en una sola nota")
+            avisar(Lengua.t("chat-foto-en-la-nota"))
         }
         return true
     }

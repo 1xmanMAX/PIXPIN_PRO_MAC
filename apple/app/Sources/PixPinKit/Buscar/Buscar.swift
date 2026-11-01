@@ -762,12 +762,12 @@ func subtituloDe(_ r: ResultadoBusqueda) -> String {
 func fechaCorta(_ ms: Int64, ahora: Date = Date()) -> String {
     let f = fechaDe(ms: ms)
     let cal = Calendar.current
-    if cal.isDateInToday(f) { return "hoy " + f.formatted(date: .omitted, time: .shortened) }
+    if cal.isDateInToday(f) { return "hoy " + f.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: Lengua.locale)) }
     if cal.isDateInYesterday(f) { return "ayer" }
     if cal.isDate(f, equalTo: ahora, toGranularity: .year) {
-        return f.formatted(.dateTime.day().month(.abbreviated))
+        return f.formatted(Lengua.fechas.day().month(.abbreviated))
     }
-    return f.formatted(.dateTime.day().month(.abbreviated).year())
+    return f.formatted(Lengua.fechas.day().month(.abbreviated).year())
 }
 
 /// `texto` con las letras de `posiciones` (en UTF-16) resaltadas.

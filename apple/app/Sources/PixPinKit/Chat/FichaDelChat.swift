@@ -83,16 +83,16 @@ enum MedidasFicha {
 enum TextosFicha {
     static func rotulo(_ s: SeccionFicha) -> String {
         switch s {
-        case .galeria: "Galería"
-        case .todo: "Todo"
-        case .fotos: "Fotos"
-        case .videos: "Vídeos"
-        case .archivos: "Archivos"
-        case .enlaces: "Enlaces"
-        case .voz: "Voz"
-        case .dibujos: "Dibujos"
-        case .fijados: "Fijados"
-        case .buzon: "Buzón"
+        case .galeria: Lengua.t("info-galeria")
+        case .todo: Lengua.t("info-todo")
+        case .fotos: Lengua.t("info-fotos")
+        case .videos: Lengua.t("info-videos")
+        case .archivos: Lengua.t("info-archivos")
+        case .enlaces: Lengua.t("info-enlaces")
+        case .voz: Lengua.t("info-voz")
+        case .dibujos: Lengua.t("info-dibujos")
+        case .fijados: Lengua.t("info-fijados")
+        case .buzon: Lengua.t("info-buzon")
         }
     }
 
@@ -112,16 +112,16 @@ enum TextosFicha {
     /// La frase de una seccion vacia (`info-vacia-*`).
     static func vacia(_ s: SeccionFicha) -> String {
         switch s {
-        case .galeria: "Las hojas del proyecto saldrán aquí"
-        case .fotos: "Las fotos del chat saldrán aquí"
-        case .videos: "Los vídeos del chat saldrán aquí"
-        case .archivos: "Los archivos del chat saldrán aquí"
-        case .enlaces: "Los enlaces del chat saldrán aquí"
-        case .voz: "Las notas de voz saldrán aquí"
-        case .dibujos: "Los dibujos del chat saldrán aquí"
-        case .fijados: "Lo que fijes saldrá aquí"
-        case .buzon: "El buzón está vacío"
-        case .todo: "Aquí no hay nada todavía"
+        case .galeria: Lengua.t("info-vacia-galeria")
+        case .fotos: Lengua.t("info-vacia-fotos")
+        case .videos: Lengua.t("info-vacia-videos")
+        case .archivos: Lengua.t("info-vacia-archivos")
+        case .enlaces: Lengua.t("info-vacia-enlaces")
+        case .voz: Lengua.t("info-vacia-voz")
+        case .dibujos: Lengua.t("info-vacia-dibujos")
+        case .fijados: Lengua.t("info-vacia-fijados")
+        case .buzon: Lengua.t("info-vacia-buzon")
+        case .todo: Lengua.t("info-vacia")
         }
     }
 
@@ -134,13 +134,13 @@ enum TextosFicha {
     /// «24 cosas» (`chat-cosas`), debajo del nombre en la cabecera.
     static func cosas(_ n: UInt64) -> String { n == 1 ? "1 cosa" : "\(n) cosas" }
 
-    static let nada = "Nada con eso"
-    static let buscar = "Buscar"
-    static let abrir = "Abrir"
-    static let abrirEnlace = "Abrir enlace"
-    static let reproducir = "Reproducir"
-    static let verEnElChat = "Ver en el chat"
-    static let notaDeVoz = "Nota de voz"
+    static let nada = Lengua.t("chat-buscar-nada")
+    static let buscar = Lengua.t("chat-buscar")
+    static let abrir = Lengua.t("info-abrir")
+    static let abrirEnlace = Lengua.t("info-abrir-enlace")
+    static let reproducir = Lengua.t("pin-reproducir")
+    static let verEnElChat = Lengua.t("info-ver-en-el-chat")
+    static let notaDeVoz = Lengua.t("chat-clase-voz")
 
     /// «3 de 24» (`info-previa-posicion`).
     static func posicion(_ k: Int, de n: Int) -> String { "\(k) de \(n)" }
@@ -185,8 +185,8 @@ enum TextosFicha {
     /// Cuando: la hora si es de hoy; si no, el dia (`etiqueta_hora`).
     static func hora(_ ms: Int64) -> String {
         let d = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
-        if Calendar.current.isDateInToday(d) { return d.formatted(date: .omitted, time: .shortened) }
-        return d.formatted(.dateTime.day().month(.abbreviated).year())
+        if Calendar.current.isDateInToday(d) { return d.formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: Lengua.locale)) }
+        return d.formatted(Lengua.fechas.day().month(.abbreviated).year())
     }
 
     static func tamano(_ bytes: Int64) -> String {
@@ -523,7 +523,7 @@ enum AbrirDeLaFicha {
         case "DIBUJO":
             guard let r = m.referencia, !r.isEmpty else { return false }
             VentanasDeLienzo.compartidas.abrir(referencia: r, en: chat,
-                                               titulo: m.nombre.isEmpty ? "Dibujo" : m.nombre, almacen: almacen)
+                                               titulo: m.nombre.isEmpty ? Lengua.t("chat-clase-dibujo") : m.nombre, almacen: almacen)
             return true
         case "NOTA":
             EditoresDeNotas.compartidos.abrir(m, en: chat, almacen: almacen)
@@ -761,7 +761,7 @@ struct IslaFichaDelChat: View {
             BotonRedondoFicha(simbolo: "magnifyingglass", ayuda: TextosFicha.buscar, puesto: ficha.buscando) {
                 if ficha.buscando { ficha.apagarLupa() } else { ficha.buscando = true }
             }
-            BotonRedondoFicha(simbolo: "xmark", ayuda: "Cerrar") { ficha.cerrar() }
+            BotonRedondoFicha(simbolo: "xmark", ayuda: Lengua.t("pin-cerrar")) { ficha.cerrar() }
                 .padding(.leading, MedidasFicha.botonHueco)
         }
         .padding(.leading, MedidasFicha.relleno)
@@ -786,7 +786,7 @@ struct IslaFichaDelChat: View {
                 ficha.abrirLaPrevia()
             }
             .padding(.leading, MedidasFicha.botonHueco)
-            BotonRedondoFicha(simbolo: "xmark", ayuda: "Cerrar") { ficha.cerrar() }
+            BotonRedondoFicha(simbolo: "xmark", ayuda: Lengua.t("pin-cerrar")) { ficha.cerrar() }
                 .padding(.leading, MedidasFicha.botonHueco)
         }
         .padding(.leading, MedidasFicha.relleno)

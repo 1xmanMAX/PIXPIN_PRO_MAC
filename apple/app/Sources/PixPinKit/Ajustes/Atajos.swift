@@ -63,7 +63,16 @@ public enum ComandoAtajo: String, CaseIterable, Identifiable, Sendable {
         ComandoAtajo(rawValue: nombre)
     }
 
+    /// El de Windows (`comando-<nombre>` del catalogo), en el idioma de la
+    /// app; el del Mac (en espanol) para los que Windows no tiene o nombran
+    /// algo de Windows (el Explorador).
     public var titulo: String {
+        let clave = "comando-\(rawValue)"
+        if self != .pinearSeleccion, Lengua.catalogo.tiene(clave: clave) { return Lengua.t(clave) }
+        return tituloDelMac
+    }
+
+    var tituloDelMac: String {
         switch self {
         case .capturarRegion: "Capturar una zona"
         case .capturarYCopiar: "Capturar y copiar"
