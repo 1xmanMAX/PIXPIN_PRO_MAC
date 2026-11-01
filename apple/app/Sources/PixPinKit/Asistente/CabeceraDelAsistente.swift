@@ -1,5 +1,6 @@
 // La barra de arriba del chat «Asistente» (Windows, 17-oct): la pastilla
-// del modelo (Local / Claude Haiku / DeepSeek), que cambia el MISMO ajuste
+// del modelo (Claude Haiku / DeepSeek: sin modelo local desde el 27-oct-2026,
+// como Windows), que cambia el MISMO ajuste
 // que Ajustes → Asistente → Motor, al instante; y «+ Nuevo chat» (la
 // «Conversación nueva» de Windows, 22 y 23-oct, siempre a la vista), una
 // nota del asistente que corta el contexto que se le manda (lo de antes
@@ -13,11 +14,10 @@ struct CabeceraDelAsistente: View {
     let chat: String
     @State private var motor = ""
 
-    static let motores: [(id: String, nombre: String)] = [("", "Local"), ("claude", "Claude Haiku"),
-                                                           ("deepseek", "DeepSeek")]
+    static let motores: [(id: String, nombre: String)] = [("claude", "Claude Haiku"), ("deepseek", "DeepSeek")]
 
     static func nombre(de motor: String) -> String {
-        motores.first { $0.id == motor }?.nombre ?? "Local"
+        motores.first { $0.id == motor }?.nombre ?? "Claude Haiku"
     }
 
     var body: some View {
@@ -49,7 +49,14 @@ struct CabeceraDelAsistente: View {
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 5)
-        .task { motor = (try? almacen.nucleo.ajustes().asistenteMotor) ?? "" }
+        .task {
+            // Vacio (o el `local` de antes): la nube que tenga clave, como al
+            // contestar (`iaQueMotor`).
+            let id = (try? almacen.nucleo.ajustes().asistenteMotor) ?? ""
+            motor = await Task.detached(priority: .utility) {
+                iaQueMotor(ajustes: AjustesIa(motor: id, pensar: nil, documentosALaNube: "")).proveedor
+            }.value
+        }
     }
 
     /// «+ Nuevo chat» (`asistente-nuevo-chat`): una «Conversación nueva»,

@@ -892,10 +892,11 @@ fn ninguna_va_estricta_y_los_nombres_valen() {
     p.herramientas = catalogo();
     let c = claude::cuerpo(&p, &std::collections::HashMap::new(), 100);
     let tools = c["tools"].as_array().unwrap();
-    // Las de la app y las dos de la web (`claude::herramientas_web`).
+    // Las de la app sin la web de PixPin (`claude::cuerpo` la quita) y las
+    // dos de la web de la API (`claude::herramientas_web`).
     assert_eq!(
         tools.len(),
-        catalogo().len() + claude::herramientas_web().len()
+        catalogo().len() - crate::web::NOMBRES.len() + claude::herramientas_web().len()
     );
     assert!(tools.iter().all(|t| t.get("strict").is_none()));
     for t in tools {

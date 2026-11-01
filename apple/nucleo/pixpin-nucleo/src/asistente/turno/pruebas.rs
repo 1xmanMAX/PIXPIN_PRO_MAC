@@ -214,36 +214,52 @@ fn la_nube_ve_el_catalogo_sin_lo_que_el_mac_aun_no_hace() {
 }
 
 #[test]
-fn sin_clave_la_nube_lo_dice_y_sin_modelo_el_local_tambien() {
-    let d = carpeta();
+fn sin_clave_la_nube_lo_dice_y_el_local_de_antes_pasa_a_la_nube() {
     let mut a = AjustesIa {
         motor: "deepseek".into(),
-        modelo: String::new(),
         pensar: None,
-        respaldo_local: true,
-        mejor_vista: false,
         documentos_a_la_nube: String::new(),
-        carpeta_modelos: d.display().to_string(),
-        puerto_usuario: 9,
     };
     // Sin Llavero instalado en las pruebas: no hay clave.
-    match ia_que_motor(a.clone()) {
-        MotorIa::Nube { proveedor, modelo, .. } => {
-            assert_eq!(proveedor, "deepseek");
-            assert_eq!(modelo, pixpin_ia::nube::deepseek::MODELO);
-        }
-        otro => panic!("{otro:?}"),
+    let m = ia_que_motor(a.clone());
+    assert_eq!(m.proveedor, "deepseek");
+    assert_eq!(m.modelo, pixpin_ia::nube::deepseek::MODELO);
+    assert!(!m.con_clave);
+    let e = motor_del_turno(&a, "hola").err().expect("sin clave no hay nube");
+    assert!(e.to_string().contains("Falta la clave de DeepSeek"), "{e}");
+    // Quien tenia el modelo local (vacio o `local`): la nube, y sin
+    // ninguna clave, Claude (que pide la suya).
+    for viejo in ["", "local", "otro"] {
+        a.motor = viejo.into();
+        assert_eq!(ia_que_motor(a.clone()).proveedor, "claude");
+        let e = motor_del_turno(&a, "hola").err().expect("sin clave no hay nube");
+        assert!(e.to_string().contains("Falta la clave de Claude"), "{e}");
     }
-    let e = motor_del_turno(&a, "hola", false).err().expect("sin clave no hay nube");
-    assert!(e.to_string().contains("Falta la clave"), "{e}");
-    a.motor = "local".into();
-    assert_eq!(ia_que_motor(a.clone()), MotorIa::Ninguno);
-    let e = motor_del_turno(&a, "hola", false).err().expect("sin modelo no hay local");
-    assert!(e.to_string().contains("modelo local"), "{e}");
+    // Una orden simple se hace sin clave (el camino rapido no usa modelo).
+    let (_, nombre) = motor_del_turno(&a, "apunta comprar pan").expect("la orden va sin clave");
+    assert_eq!(nombre, "Claude Haiku 5.5");
+    assert!(ia_es_orden_rapida("apunta comprar pan".into()));
+    assert!(!ia_es_orden_rapida("explícame la entropía".into()));
     // Caso negativo: un pedido vacio ni llega al motor.
     let r = ia_turno(a, peticion("  "), None, Arc::new(Manos::default()), Arc::new(Apunta::default()), CorteIa::nuevo());
     assert!(matches!(r, Err(ErrorNucleo::Argumento { .. })));
-    let _ = std::fs::remove_dir_all(d);
+}
+
+/// La eleccion de Windows (`nube::eleccion_con`): lo de los ajustes si es
+/// un proveedor; si no, el primero con clave, y sin ninguna, Claude.
+#[test]
+fn la_eleccion_es_la_de_windows() {
+    use pixpin_ia::nube::Proveedor;
+    let nada = |_| false;
+    assert_eq!(eleccion_con("", nada), Proveedor::Claude);
+    assert_eq!(eleccion_con("claude", nada), Proveedor::Claude);
+    assert_eq!(eleccion_con("deepseek", nada), Proveedor::DeepSeek);
+    for viejo in ["", "local", "otro"] {
+        assert_eq!(eleccion_con(viejo, |p| p == Proveedor::DeepSeek), Proveedor::DeepSeek);
+        assert_eq!(eleccion_con(viejo, |_| true), Proveedor::Claude);
+    }
+    // Con la de los ajustes, la clave de la otra no cambia nada.
+    assert_eq!(eleccion_con("claude", |p| p == Proveedor::DeepSeek), Proveedor::Claude);
 }
 
 #[test]

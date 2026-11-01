@@ -53,16 +53,11 @@ pub struct AjustesMac {
     pub voz_segundo_idioma: String,
     /// `cada_uno` o `todo_en_uno` (`[voz] modo_de_idiomas`).
     pub voz_modo_de_idiomas: String,
-    /// Quien contesta: vacio (local), `claude` o `deepseek`.
+    /// Quien contesta: `claude` o `deepseek`; vacio (o el `local` de antes
+    /// del 27-oct-2026), la nube que tenga clave.
     pub asistente_motor: String,
-    /// El modelo local: vacio (el 2B) o `qwen3.5-0.8b`.
-    pub asistente_modelo: String,
     /// Pensar antes de contestar: `None` automatico, o siempre/nunca.
     pub asistente_pensar: Option<bool>,
-    /// Si la nube falla, seguir con el modelo local.
-    pub asistente_respaldo_local: bool,
-    /// Gemma 4 E2B para mirar fotos.
-    pub asistente_mejor_vista: bool,
     /// Los documentos propios a la nube: vacio (preguntar), `si` o `no`.
     pub asistente_documentos_a_la_nube: String,
     /// Lo dicho al microfono se deja en la caja para repasarlo.
@@ -143,10 +138,7 @@ impl From<&ajustes::Ajustes> for AjustesMac {
             voz_segundo_idioma: a.voz.segundo_idioma.clone(),
             voz_modo_de_idiomas: texto_modo(a.voz.modo_de_idiomas).into(),
             asistente_motor: a.asistente.motor.clone(),
-            asistente_modelo: a.asistente.modelo.clone(),
             asistente_pensar: a.asistente.pensar,
-            asistente_respaldo_local: a.asistente.respaldo_local,
-            asistente_mejor_vista: a.asistente.mejor_vista,
             asistente_documentos_a_la_nube: a.asistente.documentos_a_la_nube.clone(),
             asistente_revisar_lo_dicho: a.asistente.revisar_lo_dicho,
         }
@@ -208,10 +200,7 @@ impl AjustesMac {
         a.voz.segundo_idioma = self.voz_segundo_idioma.clone();
         a.voz.modo_de_idiomas = modo;
         a.asistente.motor = self.asistente_motor.clone();
-        a.asistente.modelo = self.asistente_modelo.clone();
         a.asistente.pensar = self.asistente_pensar;
-        a.asistente.respaldo_local = self.asistente_respaldo_local;
-        a.asistente.mejor_vista = self.asistente_mejor_vista;
         a.asistente.documentos_a_la_nube = self.asistente_documentos_a_la_nube.clone();
         a.asistente.revisar_lo_dicho = self.asistente_revisar_lo_dicho;
         Ok(())
@@ -294,7 +283,6 @@ mod pruebas {
         assert_eq!(a.limite_scroll_px, 30_000);
         assert_eq!((a.gif_por_segundo, a.gif_retardo_s), (10, 0));
         assert_eq!(a.voz_modo_de_idiomas, "cada_uno");
-        assert!(a.asistente_respaldo_local);
         assert_eq!(a.asistente_pensar, None);
         n.guardar_ajustes(AjustesMac {
             dias_caducidad: 30,
@@ -324,10 +312,7 @@ mod pruebas {
             voz_segundo_idioma: "pt".into(),
             voz_modo_de_idiomas: "todo_en_uno".into(),
             asistente_motor: "claude".into(),
-            asistente_modelo: "qwen3.5-0.8b".into(),
             asistente_pensar: Some(false),
-            asistente_respaldo_local: false,
-            asistente_mejor_vista: true,
             asistente_documentos_a_la_nube: "no".into(),
             asistente_revisar_lo_dicho: true,
             ..n.ajustes_de_fabrica()

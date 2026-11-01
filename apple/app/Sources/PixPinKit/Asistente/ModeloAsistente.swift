@@ -1,16 +1,19 @@
 // El asistente del Mac: un chat con el motor que dicen los ajustes
-// `[asistente]` (los mismos que Windows, Ajustes → Asistente):
+// `[asistente]` (los mismos que Windows, Ajustes → Asistente). Como Windows
+// desde el 27-oct-2026 (`f86732c`) y Android, **contesta la nube**: Claude
+// Haiku 5.5 o DeepSeek V4.1 Flash con la clave del Llavero, por el HTTPS de
+// URLSession (`TransporteHttps`). El modelo local (llama.cpp con Qwen3.5 y
+// Gemma, su descarga y sus ajustes) ya no esta; lo que quedo bajado se
+// ofrece borrar una vez (`ModelosViejos.swift`).
 //
-// - `motor = claude | deepseek`: la nube (Claude Haiku 5.5 o DeepSeek V4.1
-//   Flash, con la clave del Llavero) por el HTTPS de URLSession
-//   (`TransporteHttps`); si falla y `respaldo_local`, el local (el modelo
-//   bajado, o Apple Intelligence).
-// - local (vacio): el modelo bajado (Qwen3.5 2B u 0.8B, `modelo`; Gemma 4
-//   E2B para mirar fotos con `mejor_vista`) con su `llama-server`; si no
-//   esta, **Foundation Models** (macOS 26 con Apple Intelligence,
-//   `MotorApple.swift`); si tampoco, un `llama-server` del usuario en
-//   127.0.0.1:8080; y si no hay nada, se dice como tener uno (y la ventana
-//   ofrece bajar el modelo).
+// **Apple Intelligence** (Foundation Models, macOS 26: `MotorApple.swift`)
+// es solo del Mac y sigue como la opcion **sin la nube**: contesta cuando
+// no hay clave de Claude ni de DeepSeek. Es del sistema (no se baja nada ni
+// hay ajustes que tocar) y no sale del Mac. Con la clave guardada contesta
+// siempre la nube; si la nube falla, se dice, como en Windows.
+//
+// Las ordenes simples del camino rapido («apunta pan», «¿que tengo
+// pendiente?») se hacen sin modelo y sin clave (`iaEsOrdenRapida`).
 //
 // Lo que no es Foundation Models va entero por el nucleo de Rust
 // (`iaTurno`): el bucle del agente de Windows con pensar (`pensar`: en
@@ -33,21 +36,15 @@ import UniformTypeIdentifiers
 public final class ModeloAsistente: ObservableObject {
     /// Que motor contesta.
     public enum Motor: Equatable, Sendable {
+        /// Apple Intelligence: solo sin clave de la nube (lo del Mac).
         case apple
-        case llamaLocal(UInt16)
-        /// El modelo bajado, con su `llama-server` (su nombre).
-        case descargado(String)
         /// Claude o DeepSeek (su nombre); `conClave` si hay clave guardada.
         case nube(String, conClave: Bool)
-        case ninguno
 
         public var nombre: String {
             switch self {
             case .apple: return "Apple Intelligence (en este Mac)"
-            case let .llamaLocal(p): return "llama-server local (127.0.0.1:\(p))"
-            case let .descargado(n): return n + " · en este Mac"
             case let .nube(n, conClave): return conClave ? n : n + " · falta la clave"
-            case .ninguno: return "Sin motor"
             }
         }
 
@@ -143,12 +140,29 @@ public final class ModeloAsistente: ObservableObject {
     }
 
     public static let textoSinMotor = """
-    No hay motor para el asistente en este Mac. Opciones:
-    • Baja el modelo local (Qwen3.5) desde esta ventana: gratis y sin red.
-    • macOS 26 con Apple Intelligence activado (Ajustes del Sistema > Apple Intelligence y Siri).
+    No hay quien conteste en este Mac. Opciones:
     • Claude o DeepSeek con tu clave: Ajustes → Asistente.
-    • O un llama-server propio escuchando en 127.0.0.1:8080 (por ejemplo: llama-server -m modelo.gguf --port 8080).
+    • macOS 26 con Apple Intelligence activado (Ajustes del Sistema > Apple Intelligence y Siri).
     """
+
+    /// Donde se saca la clave de quien contesta («Claude Haiku 5.5»).
+    static func paginaDeClaves(_ nombre: String) -> String {
+        nombre.localizedCaseInsensitiveContains("deepseek") ? ProveedorNube.deepseek.consola
+            : ProveedorNube.claude.consola
+    }
+
+    /// El aviso de que falta la clave (Windows, `nube::falta_la_clave`), en
+    /// la burbuja o en la barra del chat.
+    public static func faltaLaClave(_ nombre: String) -> String {
+        "Falta la clave de \(nombre): pégala en Ajustes → Asistente (se saca en \(paginaDeClaves(nombre)))."
+    }
+
+    /// Lo de la tarjeta «Falta la clave de la nube» (`asistente-nube-explica`
+    /// de Windows).
+    public static func explicaLaClave(_ nombre: String) -> String {
+        "El asistente contesta con \(nombre): pega su clave en Ajustes → Asistente (se saca en \(paginaDeClaves(nombre))). "
+            + "Las órdenes simples («apunta pan», «abre la galería») funcionan sin clave."
+    }
 
     @Published public private(set) var burbujas: [Burbuja] = []
     @Published public private(set) var ocupado = false
@@ -160,79 +174,46 @@ public final class ModeloAsistente: ObservableObject {
     @Published public var pendientes: [Adjunto] = []
     @Published public private(set) var pregunta: Pregunta?
 
-    public let puertoLlama: UInt16
     private let usarApple: Bool
     private weak var almacen: Almacen?
     private let historial: HistorialAsistente?
     /// Lo que se manda a Foundation Models como historial, como mucho.
     static let historialMaximo = 8
 
-    public init(almacen: Almacen?, puertoLlama: UInt16 = 8080, usarApple: Bool = true,
-                historial: HistorialAsistente? = nil) {
+    public init(almacen: Almacen?, usarApple: Bool = true, historial: HistorialAsistente? = nil) {
         self.almacen = almacen
-        self.puertoLlama = puertoLlama
         self.usarApple = usarApple
         self.historial = historial
         TransporteHttps.instalar()
-        ModeloAsistente.alArrancar()
         if let historial {
             guardadas = historial.todas()
         }
     }
 
-    /// Una vez por proceso: matar el `llama-server` que dejo una PixPin que
-    /// murio de golpe, y soltar los modelos al salir de la app.
-    private static var arrancado = false
-    private static func alArrancar() {
-        guard !arrancado else { return }
-        arrancado = true
-        let carpeta = carpetaDeModelos().path
-        Task.detached(priority: .utility) { _ = iaLimpiarHuerfanos(carpeta: carpeta) }
-        NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil,
-                                               queue: nil) { _ in iaSoltarMotores() }
-    }
-
     // MARK: Ajustes y motor
 
     /// Los ajustes `[asistente]` de la carpeta de datos (sin ella, los de
-    /// fabrica y sin modelos bajados).
+    /// fabrica).
     func ajustes() -> AjustesIa {
         let a = almacen.flatMap { try? $0.nucleo.ajustes() }
         return AjustesIa(motor: a?.asistenteMotor ?? "",
-                         modelo: a?.asistenteModelo ?? "",
                          pensar: a?.asistentePensar,
-                         respaldoLocal: a?.asistenteRespaldoLocal ?? true,
-                         mejorVista: a?.asistenteMejorVista ?? false,
-                         documentosALaNube: a?.asistenteDocumentosALaNube ?? "",
-                         carpetaModelos: almacen == nil ? "" : carpetaDeModelos().path,
-                         puertoUsuario: puertoLlama)
+                         documentosALaNube: a?.asistenteDocumentosALaNube ?? "")
     }
 
     public var revisarLoDicho: Bool { almacen.flatMap { try? $0.nucleo.ajustes().asistenteRevisarLoDicho } ?? false }
 
-    /// Mira que motor hay ahora segun los ajustes. Barato: el disco, una
-    /// consulta al sistema y, si hace falta, un `GET /health` local.
+    /// Mira quien contesta ahora segun los ajustes: la nube elegida y, sin
+    /// su clave, Apple Intelligence si esta. Barato: el TOML, el Llavero y
+    /// una consulta al sistema.
     @discardableResult
     public func comprobarMotor() async -> Motor {
         let a = ajustes()
         let visto = await Task.detached(priority: .utility) { iaQueMotor(ajustes: a) }.value
-        let apple = usarApple && motorAppleDisponible()
-        let elegido: Motor
-        switch visto {
-        case let .nube(_, nombre, _, conClave): elegido = .nube(nombre, conClave: conClave)
-        case let .descargado(_, nombre): elegido = .descargado(nombre)
-        case let .usuario(puerto): elegido = apple ? .apple : .llamaLocal(puerto)
-        case .ninguno: elegido = apple ? .apple : .ninguno
-        }
+        let elegido: Motor = !visto.conClave && usarApple && motorAppleDisponible()
+            ? .apple : .nube(visto.nombre, conClave: visto.conClave)
         motor = elegido
         return elegido
-    }
-
-    /// Si falta bajar el modelo local de los ajustes (para la tarjeta).
-    public var modeloLocalPorBajar: String? {
-        let a = ajustes()
-        guard a.motor.isEmpty || a.motor == "local" else { return nil }
-        return a.modelo.isEmpty ? "qwen3.5-2b" : a.modelo
     }
 
     // MARK: Conversaciones
@@ -329,26 +310,27 @@ public final class ModeloAsistente: ObservableObject {
             guardar()
         }
         let motor = await comprobarMotor()
+        // Las ordenes simples las hace el nucleo sin modelo (ni clave).
+        let orden = iaEsOrdenRapida(pedido: pedido)
         switch motor {
-        case .apple:
-            await conApple(pedido, historial: Array(historialTexto.suffix(ModeloAsistente.historialMaximo)), aviso: nil)
-        case .ninguno:
-            burbujas.append(Burbuja(delUsuario: false, texto: ModeloAsistente.textoSinMotor, esAviso: true))
-        case .llamaLocal, .descargado, .nube:
+        case .apple where !orden:
+            await conApple(pedido, historial: Array(historialTexto.suffix(ModeloAsistente.historialMaximo)))
+        case let .nube(nombre, conClave) where !conClave && !orden:
+            burbujas.append(Burbuja(delUsuario: false, texto: ModeloAsistente.faltaLaClave(nombre), esAviso: true))
+        default:
             let foto = nuevos.first(where: \.esImagen).map(\.ruta)
-            await turno(pedido, historial: historialTexto, foto: foto, motor: motor)
+            await turno(pedido, historial: historialTexto, foto: foto)
         }
     }
 
-    /// Un turno con Foundation Models. `aviso`: lo que va delante (la nube
-    /// fallo y sigue Apple).
-    private func conApple(_ pedido: String, historial: [MensajeIa], aviso: String?) async {
+    /// Un turno con Foundation Models.
+    private func conApple(_ pedido: String, historial: [MensajeIa]) async {
         do {
             guard let r = try await preguntarAApple(pedido, historial: historial) else {
                 burbujas.append(Burbuja(delUsuario: false, texto: ModeloAsistente.textoSinMotor, esAviso: true))
                 return
             }
-            var b = Burbuja(delUsuario: false, texto: (aviso ?? "") + r.texto,
+            var b = Burbuja(delUsuario: false, texto: r.texto,
                             herramientas: r.herramientas.map(ModeloAsistente.hecha), lienzo: r.lienzo)
             b.motor = Motor.apple.nombre
             burbujas.append(b)
@@ -390,7 +372,7 @@ public final class ModeloAsistente: ObservableObject {
     /// va llenando con las tandas (cada ~60 ms como mucho, nunca una llamada
     /// por palabra); al acabar se pone la respuesta entera, con lo pensado,
     /// sus herramientas y lo dibujado.
-    func turno(_ pedido: String, historial: [MensajeIa], foto: String?, motor: Motor) async {
+    func turno(_ pedido: String, historial: [MensajeIa], foto: String?) async {
         let corte = CorteIa.nuevo()
         self.corte = corte
         defer {
@@ -441,16 +423,6 @@ public final class ModeloAsistente: ObservableObject {
             }
         case let .failure(e):
             let texto = ModeloAjustes.texto(de: e)
-            // La nube fallo antes de decir nada y no hay local bajado: si
-            // el usuario quiere respaldo, sigue Apple Intelligence.
-            let vacia = burbujas.first { $0.id == id }?.texto.isEmpty ?? true
-            if motor.esNube, vacia, a.respaldoLocal, usarApple, motorAppleDisponible(), !corte.cortado() {
-                cerradas.insert(id)
-                burbujas.removeAll { $0.id == id }
-                await conApple(pedido, historial: Array(historial.suffix(ModeloAsistente.historialMaximo)),
-                               aviso: "⚠️ \(texto)\nSigo con Apple Intelligence.\n\n")
-                return
-            }
             cerrar(id) { b in
                 b.texto = texto
                 b.esAviso = true
@@ -489,11 +461,6 @@ public final class ModeloAsistente: ObservableObject {
         cambio(&burbujas[i])
     }
 
-    /// Compatibilidad: un turno con el `llama-server` del usuario.
-    func preguntarEnVivo(puerto: UInt16, historial: [MensajeIa], pedido: String) async {
-        await turno(pedido, historial: historial, foto: nil, motor: .llamaLocal(puerto))
-    }
-
     // MARK: Documentos
 
     /// Abre lo citado (el lector en su pagina, o el chat en su mensaje).
@@ -509,7 +476,7 @@ public final class ModeloAsistente: ObservableObject {
     /// ventana), para que la primera busqueda no espere. Solo si hay quien
     /// conteste: quien no usa el asistente no paga nada.
     public func prepararDocumentos() {
-        guard let nucleo = almacen?.nucleo, !ModeloAsistente.indexando, motor != nil, motor != .ninguno else { return }
+        guard let nucleo = almacen?.nucleo, !ModeloAsistente.indexando, motor != nil else { return }
         ModeloAsistente.indexando = true
         let manos = ManosDelAsistente(nucleo: nucleo, corte: CorteIa.nuevo()) { _, responder in responder(false) }
         DispatchQueue.global(qos: .background).async {

@@ -269,7 +269,7 @@ impl Nucleo {
         let pregunta = mensajes.iter().find(|m| m.id == e.pregunta).and_then(|m| ia_chat::pregunta_de(m, e.asistente));
         let mut decision = que_hacer(e, ahora, pregunta.is_some());
         if decision == Retomar::OtraVez
-            && let Err(err) = super::turno::motor_del_turno(ajustes, pregunta.as_deref().unwrap_or_default(), false)
+            && let Err(err) = super::turno::motor_del_turno(ajustes, pregunta.as_deref().unwrap_or_default())
         {
             decision = Retomar::Avisar(Motivo::NoSePudo(match err {
                 crate::ErrorNucleo::Asistente { detalle } => detalle,
@@ -429,13 +429,8 @@ mod pruebas {
         let sin_motor = apuntar_uno("dibuja una casa", false);
         let ajustes = AjustesIa {
             motor: String::new(),
-            modelo: String::new(),
             pensar: None,
-            respaldo_local: false,
-            mejor_vista: false,
             documentos_a_la_nube: String::new(),
-            carpeta_modelos: String::new(),
-            puerto_usuario: 0,
         };
         let r = n.ia_retomar_al_arrancar(ajustes.clone());
         assert_eq!(r.len(), 2);

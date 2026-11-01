@@ -193,6 +193,11 @@ impl GrabacionParaCompartir {
                 })
                 .collect(),
             adjuntos: self.adjuntos.iter().map(PathBuf::from).collect(),
+            // Lo de Jev (lo importante, los temas y el acta en vivo) no
+            // viaja en la grabacion compartida.
+            importantes: Vec::new(),
+            temas: Vec::new(),
+            acta: Default::default(),
         }
     }
 }
@@ -871,6 +876,9 @@ mod pruebas {
                 texto: "ojo".into(),
             }],
             adjuntos: vec![],
+            importantes: vec![],
+            temas: vec![],
+            acta: Default::default(),
         };
         GrabacionParaCompartir::de(&c, 0, "PixPin::Fisica".into())
     }

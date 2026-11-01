@@ -178,18 +178,15 @@ pub fn guardar_en_segundo_plano(motor: Arc<dyn pixpin_ia::Motor>, memoria: Memor
 }
 
 /// **Al cerrar una conversacion** («Conversación nueva»): lo duradero de la
-/// que se cierra, con Claude Haiku y solo si el usuario usa la nube y tiene
-/// su clave (Windows). Sin clave no se hace nada: la memoria sigue como
-/// estaba.
+/// que se cierra, con Claude Haiku y solo si hay su clave (Windows). Sin
+/// clave no se hace nada: la memoria sigue como estaba.
 pub fn al_cerrar(nucleo: &Nucleo, conversacion: Vec<(bool, String)>, desfase_ms: i64) {
-    use pixpin_ia::nube::{MotorConRespaldo, MotorNube, Proveedor, claves};
-    let Ok(a) = pixpin_store::ajustes::cargar(&nucleo.ubicacion()) else { return };
-    if Proveedor::por_id(&a.asistente.motor).is_none() || !pixpin_ia::nube::http::hay_transporte() {
+    use pixpin_ia::nube::{MotorNube, Proveedor, claves};
+    if !pixpin_ia::nube::http::hay_transporte() {
         return;
     }
     let Some(clave) = claves::leer(Proveedor::Claude) else { return };
-    let nube: Arc<dyn pixpin_ia::Motor> = Arc::new(MotorNube::nuevo(Proveedor::Claude, clave).pensando(false));
-    let motor: Arc<dyn pixpin_ia::Motor> = Arc::new(MotorConRespaldo::nuevo(nube, None, Proveedor::Claude.nombre()));
+    let motor: Arc<dyn pixpin_ia::Motor> = Arc::new(MotorNube::nuevo(Proveedor::Claude, clave).pensando(false));
     let Some(m) = de(nucleo, Proveedor::Claude.nombre(), desfase_ms) else { return };
     guardar_en_segundo_plano(motor, m, conversacion);
 }

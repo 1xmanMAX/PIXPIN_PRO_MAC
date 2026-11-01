@@ -63,27 +63,21 @@
 //! Esta copia vive en `apple/nucleo/` y compila sin Windows. Lo que en
 //! Windows hace el sistema va aparte:
 //!
-//! - **Bajar** el motor y los modelos por HTTPS: en Windows con WinHTTP
-//!   ([`descarga`]); en Apple con URLSession desde Swift, que despues usa
-//!   [`descarga::verificar`] para la huella.
 //! - **La nube** (Claude, DeepSeek): en Windows por WinHTTP
-//!   ([`nube::http`]); fuera, el nucleo solo habla `http://` con este
-//!   equipo y el HTTPS lo pone Swift. Ningun TLS propio en el ejecutable.
-//! - **`llama-server`**: en Windows dentro de un trabajo que lo mata si
-//!   PixPin muere; en Mac en su grupo de procesos y muerto al soltarlo
-//!   ([`servidor`]). En iPad e iPhone no hay procesos: llama.cpp con Metal
-//!   iria enlazado desde Swift.
+//!   ([`nube::http`]); fuera, el HTTPS lo pone Swift (URLSession). Ningun
+//!   TLS propio en el ejecutable. La web de PixPin para DeepSeek
+//!   (`nube::http::bajar_web`) aun no baja nada fuera de Windows.
 //! - **Las claves**: DPAPI en Windows; en Apple el Llavero, que Swift
 //!   instala con [`nube::claves::instalar_llavero`].
 //!
-//! **El asistente por omision en Apple es Foundation Models** (el modelo
-//! del sistema, gratis y en el aparato) y llama.cpp con Metal el respaldo
-//! (el mismo GGUF que en Windows y Android). Para que los dos hagan lo
-//! mismo, las herramientas no dependen del motor: el catalogo, la
+//! Sin modelo local desde el 27-oct-2026 (Windows `f86732c`/`ab3632a`):
+//! contesta la nube. En el Mac, sin clave de la nube, contesta **Foundation
+//! Models** (Apple Intelligence, el modelo del sistema). Para que los dos
+//! hagan lo mismo, las herramientas no dependen del motor: el catalogo, la
 //! validacion y el paso al lienzo son funciones puras de JSON a JSON
 //! ([`puente::catalogo_para`], [`puente::llamar`]) que Swift llama desde el
-//! *tool calling* de Foundation Models igual que [`agente`] las usa con
-//! llama.cpp.
+//! *tool calling* de Foundation Models igual que [`agente`] las usa con la
+//! nube.
 //!
 //! ## Puntos de enganche para la UI (otros agentes)
 //!

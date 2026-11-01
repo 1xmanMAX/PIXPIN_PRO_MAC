@@ -1,5 +1,7 @@
-// El motor por omision en Mac: **Foundation Models** (el modelo de Apple en
-// el aparato, gratis y sin red), solo en macOS 26 con Apple Intelligence.
+// El motor del Mac **sin la nube**: **Foundation Models** (el modelo de
+// Apple en el aparato, gratis y sin red), solo en macOS 26 con Apple
+// Intelligence. Contesta cuando no hay clave de Claude ni de DeepSeek
+// (`ModeloAsistente.comprobarMotor`); con la clave, la nube, como Windows.
 //
 // La CI compila con Xcode 16.4 (SDK de macOS 15), donde el framework no
 // existe: todo lo suyo va dentro de `#if canImport(FoundationModels)` y

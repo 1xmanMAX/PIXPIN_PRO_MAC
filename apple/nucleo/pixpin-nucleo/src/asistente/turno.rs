@@ -1,22 +1,22 @@
 //! **Un turno del asistente con los ajustes de `[asistente]`**, como el de
 //! Windows (`apps/pixpin/src/asistente/{turno,nube,motor,acciones}.rs`).
 //!
-//! - **Quien contesta** ([`ia_que_motor`]): `motor = "claude" | "deepseek"`
-//!   es la nube (Claude Haiku 5.5 o DeepSeek V4.1 Flash, los modelos que
-//!   fija `pixpin_ia::nube`) con la clave del Llavero y, si
-//!   `respaldo_local`, el local detras ([`MotorConRespaldo`]); vacio o
-//!   `local` es el modelo bajado (`modelo`: Qwen3.5 2B u 0.8B; con
-//!   `mejor_vista` y una foto que mirar, Gemma 4 E2B si esta bajado) o, si
-//!   no hay, el `llama-server` del usuario. Foundation Models no pasa por
-//!   aqui: lo decide Swift (`ModeloAsistente`).
+//! - **Quien contesta** ([`ia_que_motor`]): siempre la nube, como Windows
+//!   desde el 27-oct-2026 (`f86732c`: fuera el modelo local, su descarga y
+//!   sus ajustes `modelo`, `respaldo_local` y `mejor_vista`). `motor =
+//!   "claude" | "deepseek"` es Claude Haiku 5.5 o DeepSeek V4.1 Flash (los
+//!   modelos que fija `pixpin_ia::nube`) con la clave del Llavero; vacio o
+//!   el `local` de antes, la nube que tenga clave, y sin ninguna, Claude
+//!   ([`eleccion_con`]). Apple Intelligence (Foundation Models) no pasa por
+//!   aqui: lo decide Swift (`ModeloAsistente`) cuando no hay clave.
 //! - **Pensar** (`pensar`): lo de los ajustes o, en automatico, solo las
 //!   tareas complejas (`pixpin_ia::complejidad`), con la vuelta de planear,
 //!   la hoja de trabajo de la conversacion y el reinicio del contexto al
 //!   70 % (`buscar_historial` para lo viejo).
 //! - **Las herramientas**: la nube recibe el catalogo entero (sin lo que el
 //!   Mac aun no hace: hoja→lienzo, anotar documentos, las acciones de
-//!   documentos y las del chat); el local, las pocas que vienen a cuento
-//!   (`seleccion`). Editar el lienzo y las figuras guardadas solo en una
+//!   documentos y las del chat); para calcar una imagen, solo las que vienen
+//!   a cuento (`seleccion`). Editar el lienzo y las figuras guardadas solo en una
 //!   conversacion ([`super::en_la_conversacion`], E1), que tiene lienzo. El
 //!   camino rapido (`pixpin_ia::rapido`) hace las ordenes simples sin
 //!   modelo.
@@ -42,16 +42,14 @@ use pixpin_ia::contexto::{self, Fuente};
 use pixpin_ia::fechas::{self, Momento};
 use pixpin_ia::herramientas::{Herramienta, Llamada};
 use pixpin_ia::hoja_trabajo::{HojaDeTrabajo, ResumenDelTurno};
-use pixpin_ia::modelos::GEMMA4_E2B;
 use pixpin_ia::motor::{Mensaje, Motor, Seguir};
-use pixpin_ia::nube::{MotorConRespaldo, MotorNube, Proveedor, claves};
+use pixpin_ia::nube::{MotorNube, Proveedor, claves};
 use pixpin_ia::pensar::Plan;
 use pixpin_ia::tareas::{Chat, Fijas, FuenteTareas, VistaLista, VistaTarea};
 use serde_json::Value;
 
-use super::local;
 use super::documentos::{self, LectorDelMac};
-use super::{CitaIa, CorteIa, HerramientaUsada, LlamaDelUsuario, MensajeIa, OyenteIa, RespuestaIa, Tanda};
+use super::{CitaIa, CorteIa, HerramientaUsada, MensajeIa, OyenteIa, RespuestaIa, Tanda};
 use crate::{ErrorNucleo, Nucleo};
 
 /// La ventana que se mide con Claude o DeepSeek (la de Windows,
@@ -84,84 +82,78 @@ pub fn nota_de_ahora(ahora_utc_ms: i64, desfase_ms: i64) -> String {
 const LEIDO_PARA_EL_MODELO: usize = 6000;
 
 /// **Los ajustes `[asistente]`** que usa el turno (Swift los lee con
-/// `Nucleo::ajustes`), mas donde viven los modelos y el puerto del
-/// `llama-server` del usuario.
+/// `Nucleo::ajustes`).
 #[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
 pub struct AjustesIa {
-    /// `""`/`local`, `claude` o `deepseek`.
+    /// `claude` o `deepseek`; vacio o `local` (de cuando habia modelo
+    /// local): la nube que tenga clave ([`eleccion_con`]).
     pub motor: String,
-    /// El modelo local (`qwen3.5-2b`, `qwen3.5-0.8b`; vacio: el 2B).
-    pub modelo: String,
     /// `None`: automatico.
     pub pensar: Option<bool>,
-    pub respaldo_local: bool,
-    pub mejor_vista: bool,
     /// `""` preguntar, `si`, `no`. `buscar_en_mis_cosas` lo lee (y lo
     /// guarda al preguntar) de la carpeta de datos; aqui va para saberlo.
     pub documentos_a_la_nube: String,
-    /// La carpeta de los modelos bajados.
-    pub carpeta_modelos: String,
-    /// El puerto del `llama-server` propio del usuario (8080).
-    pub puerto_usuario: u16,
 }
 
-/// **Quien contestaria ahora.**
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
-pub enum MotorIa {
-    /// Claude o DeepSeek. `con_clave`: si hay clave en el Llavero.
-    Nube { proveedor: String, nombre: String, modelo: String, con_clave: bool },
-    /// El modelo bajado, con el `llama-server` de PixPin.
-    Descargado { modelo: String, nombre: String },
-    /// Un `llama-server` que arranco el usuario.
-    Usuario { puerto: u16 },
-    /// Ninguno local (Swift prueba Foundation Models).
-    Ninguno,
+/// **Quien contestaria ahora**: Claude o DeepSeek.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct MotorIa {
+    /// `claude`, `deepseek`.
+    pub proveedor: String,
+    /// «Claude Haiku 5.5».
+    pub nombre: String,
+    /// El modelo que se pide a la API.
+    pub modelo: String,
+    /// Si hay clave en el Llavero.
+    pub con_clave: bool,
 }
 
-/// La eleccion de los ajustes: un proveedor de la nube o el local.
+/// **Quien contesta** (Windows, `nube::eleccion_con`), con `hay_clave`
+/// aparte para probarlo. Lo de los ajustes si es un proveedor; si no
+/// —vacio, o el `local` de cuando habia modelo en este Mac—, el primero que
+/// tenga clave guardada, y sin ninguna, Claude (la ventana pide entonces su
+/// clave).
+pub fn eleccion_con(motor: &str, hay_clave: impl Fn(Proveedor) -> bool) -> Proveedor {
+    Proveedor::por_id(motor).unwrap_or_else(|| {
+        Proveedor::TODOS
+            .into_iter()
+            .find(|p| hay_clave(*p))
+            .unwrap_or(Proveedor::Claude)
+    })
+}
+
+/// Lo elegido con las claves del Llavero (ver [`eleccion_con`]).
+fn eleccion(motor: &str) -> Proveedor {
+    eleccion_con(motor, |p| claves::leer(p).is_some())
+}
+
+/// El aviso de que falta la clave de `p`: que hacer y donde se saca.
+pub fn falta_la_clave(p: Proveedor) -> String {
+    format!(
+        "Falta la clave de {}: pégala en Ajustes → Asistente (se saca en {}).",
+        p.nombre(),
+        p.pagina_de_claves()
+    )
+}
+
 /// **El motor de vision para pasar una hoja** (`motor_de_vision` de
 /// Windows): la nube de los ajustes, en modo ligero (sin pensar). `None`:
-/// sin nube, sin clave o sin HTTPS.
+/// sin clave o sin HTTPS.
 fn motor_de_vision(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
-    let a = pixpin_store::ajustes::cargar(&nucleo.ubicacion()).ok()?;
-    let p = Proveedor::por_id(&a.asistente.motor)?;
-    let clave = claves::leer(p)?;
+    let (p, clave) = nube_elegida(nucleo)?;
     pixpin_ia::nube::http::hay_transporte().then(|| Arc::new(MotorNube::nuevo(p, clave).pensando(false)) as Arc<dyn Motor>)
 }
 
-fn proveedor(a: &AjustesIa) -> Option<Proveedor> {
-    Proveedor::por_id(&a.motor)
-}
-
-/// El local que hay: el modelo de los ajustes si esta bajado, o el
-/// servidor del usuario si contesta.
-fn local_que_hay(a: &AjustesIa) -> MotorIa {
-    let raiz = Path::new(&a.carpeta_modelos);
-    let m = local::modelo_elegido(&a.modelo);
-    if !a.carpeta_modelos.is_empty() && local::listo(raiz, &m) {
-        return MotorIa::Descargado {
-            modelo: m.id.into(),
-            nombre: m.nombre.into(),
-        };
-    }
-    if a.puerto_usuario != 0 && pixpin_ia::servidor::salud(a.puerto_usuario) {
-        return MotorIa::Usuario { puerto: a.puerto_usuario };
-    }
-    MotorIa::Ninguno
-}
-
-/// **Quien contestaria con estos ajustes.** Mira el disco y, si hace falta,
-/// hace un `GET /health` local (≤ 300 ms): fuera del hilo principal.
+/// **Quien contestaria con estos ajustes.** Mira el Llavero: fuera del hilo
+/// principal.
 #[uniffi::export]
 pub fn ia_que_motor(ajustes: AjustesIa) -> MotorIa {
-    match proveedor(&ajustes) {
-        Some(p) => MotorIa::Nube {
-            proveedor: p.id().into(),
-            nombre: p.nombre().into(),
-            modelo: p.modelo().into(),
-            con_clave: claves::leer(p).is_some(),
-        },
-        None => local_que_hay(&ajustes),
+    let p = eleccion(&ajustes.motor);
+    MotorIa {
+        proveedor: p.id().into(),
+        nombre: p.nombre().into(),
+        modelo: p.modelo().into(),
+        con_clave: claves::leer(p).is_some(),
     }
 }
 
@@ -268,7 +260,8 @@ pub struct PalabraLeida {
     pub renglon: u32,
 }
 
-/// Lo que el Mac aun no hace (anotar con la nube y las acciones del chat):
+/// Lo que el Mac aun no hace (anotar con la nube, las acciones del chat y
+/// la web de PixPin):
 /// no se le ofrece al modelo. Las de documentos (tabla de una
 /// foto, anotar, buscar en un documento, abrir por su nombre, exportar), si
 /// (`documentos_acciones`), pero solo con la app (Swift pinta y lee). Editar el
@@ -287,8 +280,12 @@ fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
     if acciones::es_de_lienzos(nombre) {
         return en_chat;
     }
+    // La web de PixPin (para DeepSeek): el HTTPS de Swift aun no sabe pedir
+    // sin seguir redirecciones (`nube::http::bajar_web` no baja nada fuera
+    // de Windows). Con Claude la web la hace su API.
     !(nombre == pixpin_ia::anotacion::NOMBRE
-        || acciones::es_en_el_chat(nombre))
+        || acciones::es_en_el_chat(nombre)
+        || pixpin_ia::web::NOMBRES.contains(&nombre))
 }
 
 pub(crate) fn es_imagen(ruta: &str) -> bool {
@@ -354,16 +351,16 @@ pub fn ia_turno(
             detalle: "el pedido esta vacio".into(),
         });
     }
-    let con_foto = peticion.foto.is_some();
-    let (motor, nombre, nube) = motor_del_turno(&ajustes, &pedido, con_foto)?;
-    // En la nube lo apaga `MotorNube::pensando`; al local se lo dicen las
-    // opciones del turno.
+    let (motor, nombre) = motor_del_turno(&ajustes, &pedido)?;
+    // En la nube lo apaga `MotorNube::pensando`; las opciones del turno lo
+    // saben tambien.
     let pensar = pixpin_ia::complejidad::decidir(ajustes.pensar, &pedido);
+    let nube = true;
     let entorno = Entorno {
         nombre,
         nube,
         pensar,
-        ventana: if nube { VENTANA_NUBE } else { pixpin_ia::servidor::CONTEXTO },
+        ventana: VENTANA_NUBE,
         cada: Duration::from_millis(super::CADA_TANDA_MS),
         guardar_con: None,
     };
@@ -374,41 +371,56 @@ pub fn ia_turno(
     turno_con(motor.as_ref(), &entorno, peticion, &mut ejecutor, oyente.as_ref(), &corte)
 }
 
-/// El motor de este turno, su nombre y si es de la nube.
-pub(crate) fn motor_del_turno(a: &AjustesIa, pedido: &str, con_foto: bool) -> Result<(Arc<dyn Motor>, String, bool), ErrorNucleo> {
-    let raiz = PathBuf::from(&a.carpeta_modelos);
-    // El local de este turno (Gemma si toca mirar una foto y esta bajado).
-    let local_para = |pedido: &str| -> Option<(Arc<dyn Motor>, String)> {
-        if a.mejor_vista && pixpin_ia::seleccion::pide_mejor_vista(pedido, con_foto) && local::listo(&raiz, &GEMMA4_E2B) {
-            return local::del_proceso(&raiz, &GEMMA4_E2B).map(|m| (m, GEMMA4_E2B.nombre.to_string()));
+/// **El motor de este turno** y su nombre: la nube elegida con su clave.
+/// Sin ella (falta la clave o el HTTPS), una orden simple del camino rapido
+/// («apunta pan», «¿que tengo pendiente?») se hace igual con [`SinMotor`]
+/// (Windows, `asistente::rapido::motor_o_sin`); lo demas es `Err`, con el
+/// aviso para el usuario.
+pub(crate) fn motor_del_turno(a: &AjustesIa, pedido: &str) -> Result<(Arc<dyn Motor>, String), ErrorNucleo> {
+    let p = eleccion(&a.motor);
+    match motor_de_la_nube(a, p, pedido) {
+        Ok(m) => Ok((m, p.nombre().to_string())),
+        Err(aviso) if es_orden_rapida(pedido) => {
+            Ok((Arc::new(SinMotor(aviso)), p.nombre().to_string()))
         }
-        match local_que_hay(a) {
-            MotorIa::Descargado { .. } => {
-                let m = local::modelo_elegido(&a.modelo);
-                local::del_proceso(&raiz, &m).map(|x| (x, m.nombre.to_string()))
-            }
-            MotorIa::Usuario { puerto } => Some((Arc::new(LlamaDelUsuario { puerto }) as Arc<dyn Motor>, format!("llama-server (127.0.0.1:{puerto})"))),
-            _ => None,
-        }
-    };
-    match proveedor(a) {
-        Some(p) => {
-            let clave = claves::leer(p).ok_or_else(|| ErrorNucleo::Asistente {
-                detalle: format!("Falta la clave de {}: pégala en Ajustes → Asistente (se saca en {}).", p.nombre(), p.pagina_de_claves()),
-            })?;
-            if !pixpin_ia::nube::http::hay_transporte() {
-                return Err(ErrorNucleo::Asistente {
-                    detalle: format!("No hay conexion con {} desde esta app (falta el HTTPS del sistema).", p.nombre()),
-                });
-            }
-            let pensar = pixpin_ia::complejidad::decidir(a.pensar, pedido);
-            let nube: Arc<dyn Motor> = Arc::new(MotorNube::nuevo(p, clave).pensando(pensar));
-            let respaldo = if a.respaldo_local { local_para(pedido).map(|(m, _)| m) } else { None };
-            Ok((Arc::new(MotorConRespaldo::nuevo(nube, respaldo, p.nombre())), p.nombre().to_string(), true))
-        }
-        None => local_para(pedido).map(|(m, n)| (m, n, false)).ok_or_else(|| ErrorNucleo::Asistente {
-            detalle: "No hay modelo local: bájalo desde la ventana del asistente o elige Claude o DeepSeek en Ajustes → Asistente.".into(),
-        }),
+        Err(detalle) => Err(ErrorNucleo::Asistente { detalle }),
+    }
+}
+
+/// Si `pedido` es una orden del camino rapido. Solo para saberlo: la hora
+/// exacta no cambia eso.
+fn es_orden_rapida(pedido: &str) -> bool {
+    pixpin_ia::rapido::interpretar(pedido.trim(), Momento::de_ms_locales(crate::ahora_ms())).is_some()
+}
+
+/// **Si `pedido` es una orden simple** del camino rapido («apunta pan»,
+/// «¿que tengo pendiente?»): se hace sin modelo y, por eso, tambien sin
+/// clave de la nube (Windows, `asistente::rapido::es_orden`).
+#[uniffi::export]
+pub fn ia_es_orden_rapida(pedido: String) -> bool {
+    es_orden_rapida(&pedido)
+}
+
+fn motor_de_la_nube(a: &AjustesIa, p: Proveedor, pedido: &str) -> Result<Arc<dyn Motor>, String> {
+    let clave = claves::leer(p).ok_or_else(|| falta_la_clave(p))?;
+    if !pixpin_ia::nube::http::hay_transporte() {
+        return Err(format!("No hay conexion con {} desde esta app (falta el HTTPS del sistema).", p.nombre()));
+    }
+    let pensar = pixpin_ia::complejidad::decidir(a.pensar, pedido);
+    Ok(Arc::new(MotorNube::nuevo(p, clave).pensando(pensar)))
+}
+
+/// **El «motor» cuando no hay ninguno** (Windows, `rapido::SinMotor`): el
+/// camino rapido no lo necesita y, si hiciera falta, dice por que no hay.
+pub(crate) struct SinMotor(pub String);
+
+impl Motor for SinMotor {
+    fn completar(
+        &self,
+        _: &pixpin_ia::motor::Peticion,
+        _: &mut dyn FnMut(&pixpin_ia::motor::Trozo) -> Seguir,
+    ) -> Result<pixpin_ia::motor::Respuesta, pixpin_ia::ErrorIa> {
+        Err(pixpin_ia::ErrorIa::Nube(self.0.clone()))
     }
 }
 
@@ -825,15 +837,14 @@ fn apuntar_evento(a: &mut pixpin_ia::diario::Entrada, dicho: &mut String, e: &Ev
 /// El proveedor de la nube elegido en los ajustes, con su clave.
 fn nube_elegida(nucleo: &Nucleo) -> Option<(Proveedor, String)> {
     let a = pixpin_store::ajustes::cargar(&nucleo.ubicacion()).ok()?;
-    let p = Proveedor::por_id(&a.asistente.motor)?;
+    let p = eleccion(&a.asistente.motor);
     Some((p, claves::leer(p)?))
 }
 
 /// **El critico de respaldo** de la revision con rubrica (Windows,
 /// `nube::critico`): con Claude elegido y su clave, Sonnet con la misma
 /// clave, sin pensar (solo puntua una vista). Entra solo si Haiku no da una
-/// nota que se lea o ya suspendio dos veces. Con DeepSeek o el local,
-/// ninguno.
+/// nota que se lea o ya suspendio dos veces. Con DeepSeek, ninguno.
 fn critico(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
     // Las pruebas nunca salen a la red.
     if cfg!(test) {
@@ -850,7 +861,7 @@ fn critico(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
 /// **El jefe** (Windows, `nube::jefe`, `pixpin_ia::orquesta`): el modelo
 /// fuerte del mismo proveedor y con la misma clave: Sonnet con Claude,
 /// DeepSeek V4 Pro con DeepSeek. Piensa (planear y supervisar es donde mas
-/// rinde). Con el local, ninguno.
+/// rinde).
 fn jefe(nucleo: &Nucleo) -> Option<Arc<dyn Motor>> {
     if cfg!(test) {
         return None;

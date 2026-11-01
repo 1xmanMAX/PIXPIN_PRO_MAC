@@ -4,8 +4,9 @@
 // lienzo o guardarlo en «Mensajes guardados»), la pregunta de «¿seguro?»
 // con «Sí» y «No», el altavoz de cada respuesta, y la caja con el clip
 // (PDF, fotos: también arrastrarlos o pegarlos), el micrófono y enviar o
-// parar. Arriba, quién contesta; si no hay nadie, la tarjeta para bajar el
-// modelo local.
+// parar. Arriba, quién contesta (Claude o DeepSeek; sin su clave, Apple
+// Intelligence si está); sin clave, la tarjeta para ponerla, y una vez, la
+// de liberar los modelos locales que quedaron bajados.
 
 import AppKit
 import PixPinCore
@@ -14,7 +15,7 @@ import UniformTypeIdentifiers
 
 public struct VentanaAsistente: View {
     @StateObject private var modelo: ModeloAsistente
-    @StateObject private var descarga = DescargaModelos.compartida
+    @ObservedObject private var viejos = ModelosViejos.compartidos
     @StateObject private var dictado = DictadoAsistente()
     @State private var texto = ""
     @State private var guardado: UUID?
@@ -44,9 +45,7 @@ public struct VentanaAsistente: View {
         .task {
             await modelo.comprobarMotor()
             modelo.prepararDocumentos()
-        }
-        .onChange(of: descarga.estado) { _, e in
-            if e == .lista { Task { await modelo.comprobarMotor() } }
+            await viejos.mirar()
         }
         .onDrop(of: [.fileURL], isTargeted: $encima) { proveedores in
             soltar(proveedores)
@@ -68,7 +67,7 @@ public struct VentanaAsistente: View {
                 .buttonStyle(.borderless)
                 .help(lateral ? "Ocultar las conversaciones" : "Ver las conversaciones")
             Image(systemName: icono)
-                .foregroundStyle(modelo.motor == .ninguno ? Color.orange : Color.accentColor)
+                .foregroundStyle(sinClave ? Color.orange : Color.accentColor)
             Text(modelo.motor?.nombre ?? "Buscando motor…")
                 .font(.caption).foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -80,13 +79,8 @@ public struct VentanaAsistente: View {
                 .help("Volver a mirar quién contesta (tras cambiar los ajustes)")
             SettingsLink { Image(systemName: "gearshape") }
                 .buttonStyle(.borderless)
-                .help("Ajustes → Asistente: motor, modelo, pensar, claves")
-                .simultaneousGesture(TapGesture().onEnded {
-                    // Tras abrirse la ventana de Ajustes, a su seccion.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        NotificationCenter.default.post(name: .pixpinIrASeccionAjustes, object: SeccionAjustes.asistente.rawValue)
-                    }
-                })
+                .help("Ajustes → Asistente: motor, pensar, claves")
+                .simultaneousGesture(TapGesture().onEnded { VentanaAsistente.irAAjustes() })
             Button("Nueva") { modelo.nuevaConversacion() }
                 .disabled(modelo.burbujas.isEmpty || modelo.ocupado)
                 .keyboardShortcut("n", modifiers: [.command, .shift])
@@ -96,10 +90,22 @@ public struct VentanaAsistente: View {
 
     private var icono: String {
         switch modelo.motor {
-        case .ninguno: return "exclamationmark.triangle"
-        case .nube: return "cloud"
+        case .nube: return sinClave ? "exclamationmark.triangle" : "cloud"
         case .apple: return "apple.logo"
         default: return "sparkles"
+        }
+    }
+
+    /// La nube elegida sin su clave (y sin Apple Intelligence que conteste).
+    private var sinClave: Bool {
+        if case let .nube(_, conClave)? = modelo.motor { return !conClave }
+        return false
+    }
+
+    /// Tras abrirse la ventana de Ajustes, a su seccion «Asistente».
+    static func irAAjustes() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(name: .pixpinIrASeccionAjustes, object: SeccionAjustes.asistente.rawValue)
         }
     }
 
@@ -156,15 +162,15 @@ public struct VentanaAsistente: View {
     @ViewBuilder
     private var vacia: some View {
         VStack(alignment: .leading, spacing: 10) {
-            if modelo.motor == .ninguno {
-                Text(ModeloAsistente.textoSinMotor).foregroundStyle(.secondary)
-            } else {
-                Text("Pregunta algo, pide un dibujo («dibuja una casa con un árbol»), apunta una tarea («recuérdame comprar pan mañana a las 10») o adjunta un PDF y pregunta qué dice.")
-                    .foregroundStyle(.secondary)
+            Text("Pregunta algo, pide un dibujo («dibuja una casa con un árbol»), apunta una tarea («recuérdame comprar pan mañana a las 10») o adjunta un PDF y pregunta qué dice.")
+                .foregroundStyle(.secondary)
+            if case let .nube(nombre, conClave)? = modelo.motor, !conClave {
+                TarjetaFaltaClave(nombre: nombre)
+            } else if modelo.motor == .apple {
+                Text("Contesta Apple Intelligence, en este Mac. Con la clave de Claude o DeepSeek (Ajustes → Asistente) contesta la nube.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
-            if let id = modelo.modeloLocalPorBajar, modelo.motor == .ninguno || modelo.motor == .apple {
-                TarjetaDescarga(descarga: descarga, id: id)
-            }
+            TarjetaModelosViejos(viejos: viejos)
         }
         .padding()
     }
@@ -300,40 +306,24 @@ struct ListaConversaciones: View {
     }
 }
 
-/// «Bajar el modelo local» con su barra.
-struct TarjetaDescarga: View {
-    @ObservedObject var descarga: DescargaModelos
-    let id: String
+/// «Falta la clave de la nube» (Windows, `asistente-nube-titulo`), con
+/// «Abrir Ajustes».
+struct TarjetaFaltaClave: View {
+    let nombre: String
 
     var body: some View {
-        let falta = descarga.faltan(id)
         VStack(alignment: .leading, spacing: 8) {
-            Label("Modelo local (\(nombre)): gratis, sin red, en este Mac", systemImage: "arrow.down.circle")
+            Label("Falta la clave de la nube", systemImage: "key")
                 .font(.headline)
-            switch descarga.estado {
-            case let .bajando(f, fichero):
-                ProgressView(value: f) { Text("Bajando \(fichero)…").font(.caption) }
-                Button("Cancelar") { descarga.cancelar() }.controlSize(.small)
-            case let .comprobando(fichero):
-                ProgressView { Text("Comprobando \(fichero)…").font(.caption) }
-            case let .error(e):
-                Text(e).font(.caption).foregroundStyle(.red)
-                Button("Volver a intentarlo") { descarga.bajar(id) }
-            case .lista:
-                Label("Listo. Ya puedes preguntar.", systemImage: "checkmark.circle").foregroundStyle(.green)
-            case .quieta:
-                Text("Se bajan \(ByteCountFormatter.string(fromByteCount: Int64(falta), countStyle: .file)) (el motor llama.cpp y el modelo). Se cambia en Ajustes → Asistente.")
-                    .font(.caption).foregroundStyle(.secondary)
-                Button("Bajar el modelo") { descarga.bajar(id) }
-                    .buttonStyle(.borderedProminent)
-            }
+            Text(ModeloAsistente.explicaLaClave(nombre))
+                .font(.caption).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            SettingsLink { Text("Abrir Ajustes") }
+                .buttonStyle(.borderedProminent)
+                .simultaneousGesture(TapGesture().onEnded { VentanaAsistente.irAAjustes() })
         }
         .padding(12)
         .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 10))
-    }
-
-    private var nombre: String {
-        descarga.catalogo().modelos.first { $0.id == id }?.nombre ?? id
     }
 }
 

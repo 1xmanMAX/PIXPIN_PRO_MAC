@@ -73,9 +73,11 @@ pub const ORDEN: [SeccionFicha; 11] = [
 ];
 
 impl SeccionFicha {
-    fn del_cuaderno(self) -> Seccion {
-        match self {
-            SeccionFicha::Proyectos => Seccion::Proyectos,
+    /// La del cuaderno. Los proyectos no son una seccion del cuaderno
+    /// (Windows `e16087a` la quito de alli, como Android): ninguna.
+    fn del_cuaderno(self) -> Option<Seccion> {
+        Some(match self {
+            SeccionFicha::Proyectos => return None,
             SeccionFicha::Galeria => Seccion::Galeria,
             SeccionFicha::Todo => Seccion::Todo,
             SeccionFicha::Fotos => Seccion::Fotos,
@@ -86,7 +88,7 @@ impl SeccionFicha {
             SeccionFicha::Dibujos => Seccion::Dibujos,
             SeccionFicha::Fijados => Seccion::Fijados,
             SeccionFicha::Buzon => Seccion::Buzon,
-        }
+        })
     }
 }
 
@@ -186,7 +188,10 @@ pub fn de_la_seccion(
     hojas: &std::collections::BTreeSet<String>,
 ) -> Vec<usize> {
     if seccion != SeccionFicha::Galeria {
-        let mut v = cuaderno::indices_de_seccion(mensajes, seccion.del_cuaderno());
+        let Some(s) = seccion.del_cuaderno() else {
+            return Vec::new();
+        };
+        let mut v = cuaderno::indices_de_seccion(mensajes, s);
         v.retain(|&n| !es_de_leccion(&mensajes[n]));
         return v;
     }
@@ -248,7 +253,7 @@ pub fn pestanas(
             (n > 0 || actual == Some(*s)).then(|| PestanaFicha {
                 seccion: *s,
                 cuenta: n as u32,
-                cuadricula: s.del_cuaderno().es_cuadricula(),
+                cuadricula: s.del_cuaderno().is_some_and(Seccion::es_cuadricula),
             })
         })
         .collect()
@@ -587,7 +592,7 @@ mod pruebas {
         assert_eq!(ORDEN[1], SeccionFicha::Galeria);
         // Cada una de la ficha es una del cuaderno distinta.
         for s in cuaderno::Seccion::TODAS {
-            assert_eq!(ORDEN.iter().filter(|x| x.del_cuaderno() == s).count(), 1);
+            assert_eq!(ORDEN.iter().filter(|x| x.del_cuaderno() == Some(s)).count(), 1);
         }
     }
 

@@ -1,6 +1,6 @@
 // Las capturas caducadas a la Papelera, saltar a un mensaje desde Buscar,
-// las claves en el Llavero, el asistente en vivo (SSE de un llama-server
-// falso) y las acciones de Atajos. Cruzan el puente de verdad sobre
+// las claves en el Llavero y las acciones de Atajos (el asistente en vivo,
+// con la nube falsa de `AsistenteD6Tests`). Cruzan el puente de verdad sobre
 // carpetas temporales; nada pide permisos de pantalla ni de micro.
 
 import Foundation
@@ -219,73 +219,6 @@ final class LlaveroDelSistemaTests: XCTestCase {
 
 // MARK: - Asistente en vivo
 
-/// Un `llama-server` de mentira: a cada peticion contesta lo mismo, un
-/// flujo SSE como el de verdad (`data: {...}` y `data: [DONE]`).
-final class LlamaFalso: @unchecked Sendable {
-    let listener: NWListener
-    let cola = DispatchQueue(label: "pixpin.pruebas.llama-falso")
-
-    static let cuerpo: String = {
-        func trozo(_ t: String) -> String {
-            "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\(t)\"}}]}\n\n"
-        }
-        return trozo("Hola") + trozo(", que tal")
-            + "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
-            + "data: [DONE]\n\n"
-    }()
-
-    init() throws {
-        listener = try NWListener(using: .tcp, on: .any)
-        let respuesta = Data(("HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n"
-            + "Content-Length: \(LlamaFalso.cuerpo.utf8.count)\r\nConnection: close\r\n\r\n"
-            + LlamaFalso.cuerpo).utf8)
-        let cola = self.cola
-        listener.newConnectionHandler = { conexion in
-            conexion.start(queue: cola)
-            LlamaFalso.atender(conexion, leido: Data(), respuesta: respuesta)
-        }
-    }
-
-    /// Lee la peticion entera (cabecera y cuerpo) y contesta.
-    static func atender(_ c: NWConnection, leido: Data, respuesta: Data) {
-        c.receive(minimumIncompleteLength: 1, maximumLength: 65536) { datos, _, completo, error in
-            var todo = leido
-            if let datos { todo.append(datos) }
-            if completo || error != nil || peticionEntera(todo) {
-                c.send(content: respuesta, contentContext: .finalMessage, isComplete: true,
-                       completion: .contentProcessed { _ in c.cancel() })
-            } else {
-                atender(c, leido: todo, respuesta: respuesta)
-            }
-        }
-    }
-
-    static func peticionEntera(_ d: Data) -> Bool {
-        guard let fin = d.range(of: Data("\r\n\r\n".utf8)) else { return false }
-        let cabecera = String(decoding: d[..<fin.lowerBound], as: UTF8.self).lowercased()
-        let largo = cabecera.split(separator: "\r\n")
-            .first { $0.hasPrefix("content-length:") }
-            .flatMap { Int($0.dropFirst("content-length:".count).trimmingCharacters(in: .whitespaces)) } ?? 0
-        return d.count - fin.upperBound >= largo
-    }
-
-    /// Empieza a escuchar y da el puerto.
-    func arrancar() async throws -> UInt16 {
-        let listo = XCTestExpectation(description: "escuchando")
-        listener.stateUpdateHandler = { estado in
-            if case .ready = estado { listo.fulfill() }
-        }
-        listener.start(queue: cola)
-        _ = await XCTWaiter().fulfillment(of: [listo], timeout: 5)
-        guard let puerto = listener.port?.rawValue else { throw XCTSkip("no se pudo escuchar") }
-        return puerto
-    }
-
-    deinit {
-        listener.cancel()
-    }
-}
-
 /// Lo que llega por el oyente, apuntado desde el hilo del turno.
 final class Tandas: @unchecked Sendable {
     private let cerrojo = NSLock()
@@ -300,58 +233,6 @@ final class Tandas: @unchecked Sendable {
         cerrojo.lock()
         defer { cerrojo.unlock() }
         return lista
-    }
-}
-
-final class AsistenteEnVivoTests: XCTestCase {
-    func testElTextoLlegaPorElOyenteMientrasSeEscribe() async throws {
-        let llama = try LlamaFalso()
-        let puerto = try await llama.arrancar()
-        let tandas = Tandas()
-        let oyente = OyenteDelAsistente(alTexto: { tandas.meter($0) })
-        let corte = CorteIa.nuevo()
-        let r = try await Task.detached {
-            try llamaLocalPreguntarEnVivo(puerto: puerto, historial: [], pedido: "saluda",
-                                          oyente: oyente, corte: corte)
-        }.value
-        XCTAssertEqual(r.texto, "Hola, que tal")
-        XCTAssertFalse(tandas.todas.isEmpty)
-        XCTAssertEqual(tandas.todas.joined(), "Hola, que tal")
-        XCTAssertFalse(corte.cortado())
-    }
-
-    func testCortadoAntesDeEmpezarNoHablaConNadie() async throws {
-        let corte = CorteIa.nuevo()
-        corte.cancelar()
-        let tandas = Tandas()
-        // Un puerto donde no escucha nadie: si llamara, daria error.
-        let r = try await Task.detached {
-            try llamaLocalPreguntarEnVivo(puerto: 9, historial: [], pedido: "hola",
-                                          oyente: OyenteDelAsistente(alTexto: { tandas.meter($0) }), corte: corte)
-        }.value
-        XCTAssertTrue(r.texto.isEmpty)
-        XCTAssertTrue(tandas.todas.isEmpty)
-        // Caso negativo: un pedido vacio es un error de argumento.
-        XCTAssertThrowsError(try llamaLocalPreguntarEnVivo(puerto: 9, historial: [], pedido: "  ",
-                                                           oyente: OyenteDelAsistente(alTexto: { _ in }),
-                                                           corte: CorteIa.nuevo()))
-    }
-
-    @MainActor
-    func testElModeloLlenaLaBurbujaEnVivoYAlFinalLaDejaEntera() async throws {
-        let llama = try LlamaFalso()
-        let puerto = try await llama.arrancar()
-        let modelo = ModeloAsistente(almacen: nil, puertoLlama: puerto, usarApple: false)
-        await modelo.enviar("saluda")
-        XCTAssertEqual(modelo.motor, .llamaLocal(puerto))
-        XCTAssertEqual(modelo.burbujas.count, 2)
-        XCTAssertEqual(modelo.burbujas[1].texto, "Hola, que tal")
-        XCTAssertFalse(modelo.burbujas[1].esAviso)
-        XCTAssertFalse(modelo.ocupado)
-        XCTAssertFalse(modelo.sePuedeParar)
-        // Lo que llegue tarde por el oyente no se pega dos veces.
-        modelo.pegar("de mas", en: modelo.burbujas[1].id)
-        XCTAssertEqual(modelo.burbujas[1].texto, "Hola, que tal")
     }
 }
 

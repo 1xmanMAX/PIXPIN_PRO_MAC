@@ -163,16 +163,21 @@ final class AsistenteTests: XCTestCase {
     }
 
     @MainActor
-    func testSinMotorSeDiceClaro() async throws {
-        // Un puerto que nadie escucha y sin Foundation Models.
-        let modelo = ModeloAsistente(almacen: nil, puertoLlama: 9, usarApple: false)
+    func testSinClaveSeDiceClaro() async throws {
+        // Sin clave de la nube y sin Foundation Models: contesta la nube de
+        // siempre (Claude), que pide su clave.
+        XCTAssertTrue(LlaveroDelSistema.instalar(LlaveroDelSistema.dePruebas))
+        try? iaBorrarClave(proveedorId: "claude")
+        try? iaBorrarClave(proveedorId: "deepseek")
+        let modelo = ModeloAsistente(almacen: nil, usarApple: false)
         let motor = await modelo.comprobarMotor()
-        XCTAssertEqual(motor, .ninguno)
+        XCTAssertEqual(motor, .nube("Claude Haiku 5.5", conClave: false))
         await modelo.enviar("hola")
         XCTAssertEqual(modelo.burbujas.count, 2)
         XCTAssertTrue(modelo.burbujas[1].esAviso)
-        XCTAssertEqual(modelo.burbujas[1].texto, ModeloAsistente.textoSinMotor)
-        XCTAssertFalse(llamaLocalActivo(puerto: 9))
+        XCTAssertEqual(modelo.burbujas[1].texto, ModeloAsistente.faltaLaClave("Claude Haiku 5.5"))
+        XCTAssertTrue(modelo.burbujas[1].texto.contains("console.anthropic.com"))
+        XCTAssertTrue(ModeloAsistente.faltaLaClave("DeepSeek V4.1 Flash").contains("platform.deepseek.com"))
     }
 
     func testElHistorialVaDelanteDelPedido() {
