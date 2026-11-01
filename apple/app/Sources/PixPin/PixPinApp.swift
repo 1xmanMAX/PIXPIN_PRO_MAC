@@ -244,6 +244,8 @@ final class EstadoApp: ObservableObject {
         AnotadorPantalla.compartido.almacen = almacen
         // Grabar una clase o una reunion: guarda en el proyecto que se elija.
         GrabarClase.compartida.almacen = almacen
+        // Las clases que se quedaron sin texto, de fondo (Windows 5f4616f).
+        GrabarClase.compartida.retomarLosTextos()
         AnotadorPantalla.compartido.alCopiar = { pila.copiar($0, escala: $1) }
         gestos.alPinEnVivo = pinEnVivo
         gestos.arrancarSiToca()

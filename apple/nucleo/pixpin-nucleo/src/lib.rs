@@ -64,6 +64,7 @@ pub mod buscar;
 pub mod chats;
 /// Grabar una clase o una reunion: lo que se guarda en el chat (Windows edd0ffa).
 pub mod clase;
+pub mod cola_de_texto;
 pub mod compartidos;
 pub mod compartir;
 /// Compartir una grabacion: su pagina web, sus hojas A4, Word, Markdown,
@@ -142,6 +143,7 @@ pub mod modelos3d;
 pub mod nota_rica;
 pub mod notas;
 pub mod office;
+pub mod opciones_del_mensaje;
 pub mod paginas;
 pub mod planos;
 // Renombrar y archivar proyectos (iPad, 25-oct).
@@ -170,7 +172,7 @@ pub use anki::EnvioAnki;
 pub use asistente::{CorteIa, HerramientaUsada, MensajeIa, OyenteIa, RespuestaIa};
 pub use buscar::{Busqueda, ClaseDeResultado, PaginaBusqueda, ResultadoBusqueda};
 pub use chats::{FichaChat, MensajeChat, PaginaMensajes};
-pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
+pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada, ClipClase};
 pub use compartidos::{
     AvisoInvitacion, ChatCompartidoMac, CodigoDeInvitacion, Invitacion, PersonaCompartida,
     ResumenPersona,

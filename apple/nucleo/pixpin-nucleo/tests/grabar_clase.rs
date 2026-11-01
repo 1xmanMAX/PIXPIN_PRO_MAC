@@ -6,7 +6,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use pixpin_nucleo::{CapturaClase, EnvioAnki, Nucleo};
+use pixpin_nucleo::{CapturaClase, ClipClase, EnvioAnki, Nucleo};
 use pixpin_proyecto::{almacen, cuaderno};
 
 struct Temporal(PathBuf);
@@ -379,4 +379,77 @@ fn el_video_que_no_entra_queda_en_la_carpeta_del_proyecto() {
     assert_eq!(std::fs::read(carpeta.join(&rescatados[0])).unwrap(), b"mp4");
     // Caso negativo: el temporal ya no esta (no hay dos copias de una hora).
     assert!(!std::path::Path::new(&video).exists());
+}
+
+/// **Una sola grabacion** (Windows 5b06484): «Pantalla» encendida a mitad
+/// deja un trozo que entra como clip en su minuto, sin `fuente`, y la nota
+/// lo lleva en `clips`; la carpeta lo pone con «▶ m:ss».
+#[test]
+fn los_trozos_de_la_pantalla_entran_como_clips() {
+    let t = Temporal::nueva("trozos");
+    let n = t.nucleo();
+    let chat = n.crear_chat("Reunión".into()).unwrap().id;
+    let hecho = n
+        .guardar_clase_con_clips(
+            chat.clone(),
+            Some(t.fichero("clase.m4a", b"m4a")),
+            300_000,
+            vec![],
+            Some(t.fichero("principal.mp4", b"mp4-0")),
+            vec![CapturaClase {
+                ms: 10_000,
+                ruta_png: t.fichero("c.png", b"png"),
+            }],
+            vec![ClipClase {
+                ms: 125_000,
+                duracion_ms: 30_000,
+                ruta_mp4: t.fichero("trozo.mp4", b"mp4-1"),
+            }],
+            0,
+        )
+        .unwrap();
+    assert!(hecho.video.is_some());
+    assert_eq!(hecho.clips.len(), 1);
+    let c = cuaderno::Cuaderno::leer_de(&almacen::carpeta(&t.datos(), &chat)).unwrap();
+    let voz = &c.mensajes[0];
+    let nombre = voz.nombre.trim_end_matches(".m4a").to_string();
+    let clip = c
+        .mensajes
+        .iter()
+        .find(|m| m.id == hecho.clips[0].id)
+        .unwrap();
+    assert_eq!(clip.nombre, format!("{nombre} · pantalla 1.mp4"));
+    assert!(!clip.resto.contains_key("fuente"), "no es de la camara");
+    assert_eq!(
+        clip.resto.get("enGrabacion"),
+        Some(&serde_json::json!({ "de": voz.id, "ms": 125_000, "duracionMs": 30_000 }))
+    );
+    assert_eq!(
+        voz.resto.get("clips"),
+        Some(&serde_json::json!([{ "ms": 125_000, "id": clip.id, "duracionMs": 30_000 }]))
+    );
+    let carpeta = c.mensajes.last().unwrap();
+    let doc = serde_json::from_str::<serde_json::Value>(&carpeta.texto).unwrap();
+    let paginas = doc["paginas"].as_array().unwrap();
+    assert_eq!(paginas.last().unwrap()["titulo"], "▶ 2:05");
+    assert_eq!(paginas.last().unwrap()["id"], clip.id.as_str());
+
+    // Caso negativo: sin clips, la nota no lleva la clave (byte a byte la
+    // de antes).
+    let sin = n
+        .guardar_clase_con_clips(
+            chat.clone(),
+            Some(t.fichero("otra.m4a", b"m4a")),
+            60_000,
+            vec![],
+            None,
+            vec![],
+            vec![],
+            0,
+        )
+        .unwrap();
+    let c = cuaderno::Cuaderno::leer_de(&almacen::carpeta(&t.datos(), &chat)).unwrap();
+    let id = sin.voz.as_ref().map(|v| v.id.clone()).unwrap();
+    let otra = c.mensajes.iter().find(|m| m.id == id).unwrap();
+    assert!(!otra.resto.contains_key("clips"));
 }

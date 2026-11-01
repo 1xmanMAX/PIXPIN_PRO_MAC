@@ -129,6 +129,17 @@ pub struct MensajeChat {
     /// chat compartido dice de quien es ([`crate::conversacion`]).
     #[uniffi(default = None)]
     pub aparato: Option<String>,
+    /// Lo que es, a efectos de su menu (Windows 12e107b): ver
+    /// [`crate::opciones_del_mensaje`].
+    #[uniffi(default = None)]
+    pub tipo: Option<crate::opciones_del_mensaje::TipoDeMensaje>,
+    /// Donde va «Recordármelo» sin recordatorio puesto (`None`: no se
+    /// ofrece; con uno puesto, «Quitar el recordatorio» va siempre a la vista).
+    #[uniffi(default = None)]
+    pub menu_recordar: Option<crate::opciones_del_mensaje::SitioEnElMenu>,
+    /// Donde va «Hacer lección» (`None`: no se ofrece).
+    #[uniffi(default = None)]
+    pub menu_leccion: Option<crate::opciones_del_mensaje::SitioEnElMenu>,
 }
 
 /// Una pagina de mensajes, del mas antiguo al mas nuevo.
@@ -186,7 +197,15 @@ impl From<Mensaje> for MensajeChat {
         let picos = crate::voz::picos_de(&m);
         let es_leccion = crate::lecciones::es_leccion(&m);
         let (viene_de, viene_de_dibujo) = crate::burbujas::viene_de(&m).unzip();
+        let tipo = crate::opciones_del_mensaje::tipo_de(&m);
         MensajeChat {
+            tipo: Some(tipo),
+            menu_recordar: crate::opciones_del_mensaje::recordar(tipo, false),
+            menu_leccion: if es_leccion {
+                None
+            } else {
+                crate::opciones_del_mensaje::leccion(tipo)
+            },
             punto: None,
             solo_la_foto: crate::burbujas::solo_la_foto(&m),
             viene_de,

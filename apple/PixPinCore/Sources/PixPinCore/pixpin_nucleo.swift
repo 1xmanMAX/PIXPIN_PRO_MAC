@@ -4230,9 +4230,16 @@ public protocol GaleriaFigurasProtocol: AnyObject, Sendable {
     func categorias()  -> [CategoriaDeFiguras]
     
     /**
-     * Cuantas hay (el subtitulo: «N figuras y plantillas»).
+     * Cuantas hay en el modo puesto (el subtitulo: «N figuras y
+     * plantillas»).
      */
     func cuantas()  -> UInt32
+    
+    /**
+     * **Si va de noche** (el interruptor ☀/☾). Se relee de `estado.toml`:
+     * el de la otra ventana de figuras pudo cambiarlo.
+     */
+    func deNoche()  -> Bool
     
     /**
      * De que piezas esta hecha y los textos que lleva.
@@ -4260,6 +4267,12 @@ public protocol GaleriaFigurasProtocol: AnyObject, Sendable {
      * esta o no tiene piezas.
      */
     func plano(id: String)  -> LienzoPlano?
+    
+    /**
+     * **Pone el interruptor ☀/☾** y lo recuerda (uno para todos los paneles
+     * de figuras). Si no se puede guardar solo se pierde que se recuerde.
+     */
+    func ponerDeNoche(noche: Bool) 
     
     /**
      * **Lo que saldria con ese intervalo** («4 hojas») o lo que falla;
@@ -4378,12 +4391,26 @@ open func categorias() -> [CategoriaDeFiguras]  {
 }
     
     /**
-     * Cuantas hay (el subtitulo: «N figuras y plantillas»).
+     * Cuantas hay en el modo puesto (el subtitulo: «N figuras y
+     * plantillas»).
      */
 open func cuantas() -> UInt32  {
     return try!  FfiConverterUInt32.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_galeriafiguras_cuantas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Si va de noche** (el interruptor ☀/☾). Se relee de `estado.toml`:
+     * el de la otra ventana de figuras pudo cambiarlo.
+     */
+open func deNoche() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_de_noche(
             self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
@@ -4451,6 +4478,19 @@ open func plano(id: String) -> LienzoPlano?  {
         FfiConverterString.lower(id),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * **Pone el interruptor ☀/☾** y lo recuerda (uno para todos los paneles
+     * de figuras). Si no se puede guardar solo se pierde que se recuerde.
+     */
+open func ponerDeNoche(noche: Bool)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_galeriafiguras_poner_de_noche(
+            self.uniffiCloneHandle(),
+        FfiConverterBool.lower(noche),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -8194,6 +8234,40 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func guardarClase(chat: String, rutaAudio: String?, duracionMs: Int64, picos: [Int32], rutaVideo: String?, capturas: [CapturaClase], desfaseMs: Int64) throws  -> ClaseGuardada
     
     /**
+     * La de [`Nucleo::guardar_clase`] con **los trozos de la pantalla**
+     * encendida a mitad («Pantalla» de la barra, Windows 5b06484): cada uno
+     * entra como un clip en su minuto («Clase … · pantalla N.mp4», sin
+     * `fuente`, con `enGrabacion {de, ms, duracionMs}`) y la nota los lleva
+     * en `clips`, como el movil. Un clip que no entra se queda en la
+     * carpeta del proyecto.
+     */
+    func guardarClaseConClips(chat: String, rutaAudio: String?, duracionMs: Int64, picos: [Int32], rutaVideo: String?, capturas: [CapturaClase], clips: [ClipClase], desfaseMs: Int64) throws  -> ClaseGuardada
+    
+    /**
+     * **Apunta la nota `id` de `chat` para pasarla a texto**, antes de
+     * empezar (si PixPin se cierra a mitad, se retoma al arrancar).
+     */
+    func apuntarTextoPendiente(chat: String, id: String) 
+    
+    /**
+     * **El reconocedor fallo con ella**: un intento mas; tras tres, fuera.
+     * Devuelve si sigue en la cola.
+     */
+    func falloTextoPendiente(id: String)  -> Bool
+    
+    /**
+     * **Ya tiene su texto** (o el usuario no lo quiere): fuera de la cola.
+     */
+    func quitarTextoPendiente(id: String) 
+    
+    /**
+     * **Lo que hay que retomar al arrancar**: las notas apuntadas que aun
+     * estan y no tienen texto. Las que ya lo tienen o ya no estan salen de
+     * la cola aqui mismo.
+     */
+    func textosPorRetomar()  -> [TextoPendiente]
+    
+    /**
      * El chat compartido de la ficha `ficha` (`FichaChat.id`), si lo esta.
      */
     func chatCompartido(ficha: String) throws  -> ChatCompartidoMac?
@@ -11057,6 +11131,85 @@ open func guardarClase(chat: String, rutaAudio: String?, duracionMs: Int64, pico
         FfiConverterOptionString.lower(rutaVideo),
         FfiConverterSequenceTypeCapturaClase.lower(capturas),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * La de [`Nucleo::guardar_clase`] con **los trozos de la pantalla**
+     * encendida a mitad («Pantalla» de la barra, Windows 5b06484): cada uno
+     * entra como un clip en su minuto («Clase … · pantalla N.mp4», sin
+     * `fuente`, con `enGrabacion {de, ms, duracionMs}`) y la nota los lleva
+     * en `clips`, como el movil. Un clip que no entra se queda en la
+     * carpeta del proyecto.
+     */
+open func guardarClaseConClips(chat: String, rutaAudio: String?, duracionMs: Int64, picos: [Int32], rutaVideo: String?, capturas: [CapturaClase], clips: [ClipClase], desfaseMs: Int64)throws  -> ClaseGuardada  {
+    return try  FfiConverterTypeClaseGuardada_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_guardar_clase_con_clips(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterOptionString.lower(rutaAudio),
+        FfiConverterInt64.lower(duracionMs),
+        FfiConverterSequenceInt32.lower(picos),
+        FfiConverterOptionString.lower(rutaVideo),
+        FfiConverterSequenceTypeCapturaClase.lower(capturas),
+        FfiConverterSequenceTypeClipClase.lower(clips),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Apunta la nota `id` de `chat` para pasarla a texto**, antes de
+     * empezar (si PixPin se cierra a mitad, se retoma al arrancar).
+     */
+open func apuntarTextoPendiente(chat: String, id: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_apuntar_texto_pendiente(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **El reconocedor fallo con ella**: un intento mas; tras tres, fuera.
+     * Devuelve si sigue en la cola.
+     */
+open func falloTextoPendiente(id: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_fallo_texto_pendiente(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Ya tiene su texto** (o el usuario no lo quiere): fuera de la cola.
+     */
+open func quitarTextoPendiente(id: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_quitar_texto_pendiente(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(id),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Lo que hay que retomar al arrancar**: las notas apuntadas que aun
+     * estan y no tienen texto. Las que ya lo tienen o ya no estan salen de
+     * la cola aqui mismo.
+     */
+open func textosPorRetomar() -> [TextoPendiente]  {
+    return try!  FfiConverterSequenceTypeTextoPendiente.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_textos_por_retomar(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -22133,14 +22286,22 @@ public struct ClaseGuardada: Equatable, Hashable {
     public var video: MensajeChat?
     public var capturas: [MensajeChat]
     public var carpeta: MensajeChat?
+    /**
+     * Los trozos de la pantalla que entraron como clips (Windows 5b06484).
+     */
+    public var clips: [MensajeChat]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(voz: MensajeChat?, video: MensajeChat?, capturas: [MensajeChat], carpeta: MensajeChat?) {
+    public init(voz: MensajeChat?, video: MensajeChat?, capturas: [MensajeChat], carpeta: MensajeChat?, 
+        /**
+         * Los trozos de la pantalla que entraron como clips (Windows 5b06484).
+         */clips: [MensajeChat] = []) {
         self.voz = voz
         self.video = video
         self.capturas = capturas
         self.carpeta = carpeta
+        self.clips = clips
     }
 
     
@@ -22162,7 +22323,8 @@ public struct FfiConverterTypeClaseGuardada: FfiConverterRustBuffer {
                 voz: FfiConverterOptionTypeMensajeChat.read(from: &buf), 
                 video: FfiConverterOptionTypeMensajeChat.read(from: &buf), 
                 capturas: FfiConverterSequenceTypeMensajeChat.read(from: &buf), 
-                carpeta: FfiConverterOptionTypeMensajeChat.read(from: &buf)
+                carpeta: FfiConverterOptionTypeMensajeChat.read(from: &buf), 
+                clips: FfiConverterSequenceTypeMensajeChat.read(from: &buf)
         )
     }
 
@@ -22171,6 +22333,7 @@ public struct FfiConverterTypeClaseGuardada: FfiConverterRustBuffer {
         FfiConverterOptionTypeMensajeChat.write(value.video, into: &buf)
         FfiConverterSequenceTypeMensajeChat.write(value.capturas, into: &buf)
         FfiConverterOptionTypeMensajeChat.write(value.carpeta, into: &buf)
+        FfiConverterSequenceTypeMensajeChat.write(value.clips, into: &buf)
     }
 }
 
@@ -22300,6 +22463,69 @@ public func FfiConverterTypeClaseParaEstudiar_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeClaseParaEstudiar_lower(_ value: ClaseParaEstudiar) -> RustBuffer {
     return FfiConverterTypeClaseParaEstudiar.lower(value)
+}
+
+
+/**
+ * Un trozo del video de la pantalla encendido a mitad de la grabacion
+ * («Pantalla» de la barra, Windows 5b06484): su minuto en la nota, lo que
+ * dura y el MP4 ya cerrado en un temporal (se mueve al chat).
+ */
+public struct ClipClase: Equatable, Hashable {
+    public var ms: Int64
+    public var duracionMs: Int64
+    public var rutaMp4: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ms: Int64, duracionMs: Int64, rutaMp4: String) {
+        self.ms = ms
+        self.duracionMs = duracionMs
+        self.rutaMp4 = rutaMp4
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ClipClase: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeClipClase: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ClipClase {
+        return
+            try ClipClase(
+                ms: FfiConverterInt64.read(from: &buf), 
+                duracionMs: FfiConverterInt64.read(from: &buf), 
+                rutaMp4: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ClipClase, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.ms, into: &buf)
+        FfiConverterInt64.write(value.duracionMs, into: &buf)
+        FfiConverterString.write(value.rutaMp4, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClipClase_lift(_ buf: RustBuffer) throws -> ClipClase {
+    return try FfiConverterTypeClipClase.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeClipClase_lower(_ value: ClipClase) -> RustBuffer {
+    return FfiConverterTypeClipClase.lower(value)
 }
 
 
@@ -32323,6 +32549,20 @@ public struct MensajeChat: Equatable, Hashable {
      * chat compartido dice de quien es ([`crate::conversacion`]).
      */
     public var aparato: String?
+    /**
+     * Lo que es, a efectos de su menu (Windows 12e107b): ver
+     * [`crate::opciones_del_mensaje`].
+     */
+    public var tipo: TipoDeMensaje?
+    /**
+     * Donde va «Recordármelo» sin recordatorio puesto (`None`: no se
+     * ofrece; con uno puesto, «Quitar el recordatorio» va siempre a la vista).
+     */
+    public var menuRecordar: SitioEnElMenu?
+    /**
+     * Donde va «Hacer lección» (`None`: no se ofrece).
+     */
+    public var menuLeccion: SitioEnElMenu?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -32402,7 +32642,18 @@ public struct MensajeChat: Equatable, Hashable {
         /**
          * El codigo corto (`K7Q2`) del aparato donde nacio (`aparato`): en un
          * chat compartido dice de quien es ([`crate::conversacion`]).
-         */aparato: String? = nil) {
+         */aparato: String? = nil, 
+        /**
+         * Lo que es, a efectos de su menu (Windows 12e107b): ver
+         * [`crate::opciones_del_mensaje`].
+         */tipo: TipoDeMensaje? = nil, 
+        /**
+         * Donde va «Recordármelo» sin recordatorio puesto (`None`: no se
+         * ofrece; con uno puesto, «Quitar el recordatorio» va siempre a la vista).
+         */menuRecordar: SitioEnElMenu? = nil, 
+        /**
+         * Donde va «Hacer lección» (`None`: no se ofrece).
+         */menuLeccion: SitioEnElMenu? = nil) {
         self.id = id
         self.cuando = cuando
         self.clase = clase
@@ -32433,6 +32684,9 @@ public struct MensajeChat: Equatable, Hashable {
         self.recibidoDe = recibidoDe
         self.lienzoIa = lienzoIa
         self.aparato = aparato
+        self.tipo = tipo
+        self.menuRecordar = menuRecordar
+        self.menuLeccion = menuLeccion
     }
 
     
@@ -32480,7 +32734,10 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
                 vieneDeDibujo: FfiConverterOptionString.read(from: &buf), 
                 recibidoDe: FfiConverterOptionString.read(from: &buf), 
                 lienzoIa: FfiConverterOptionString.read(from: &buf), 
-                aparato: FfiConverterOptionString.read(from: &buf)
+                aparato: FfiConverterOptionString.read(from: &buf), 
+                tipo: FfiConverterOptionTypeTipoDeMensaje.read(from: &buf), 
+                menuRecordar: FfiConverterOptionTypeSitioEnElMenu.read(from: &buf), 
+                menuLeccion: FfiConverterOptionTypeSitioEnElMenu.read(from: &buf)
         )
     }
 
@@ -32515,6 +32772,9 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
         FfiConverterOptionString.write(value.recibidoDe, into: &buf)
         FfiConverterOptionString.write(value.lienzoIa, into: &buf)
         FfiConverterOptionString.write(value.aparato, into: &buf)
+        FfiConverterOptionTypeTipoDeMensaje.write(value.tipo, into: &buf)
+        FfiConverterOptionTypeSitioEnElMenu.write(value.menuRecordar, into: &buf)
+        FfiConverterOptionTypeSitioEnElMenu.write(value.menuLeccion, into: &buf)
     }
 }
 
@@ -39493,6 +39753,67 @@ public func FfiConverterTypeTextoHallado_lift(_ buf: RustBuffer) throws -> Texto
 #endif
 public func FfiConverterTypeTextoHallado_lower(_ value: TextoHallado) -> RustBuffer {
     return FfiConverterTypeTextoHallado.lower(value)
+}
+
+
+/**
+ * Una nota por retomar: su chat y la nota tal cual esta.
+ */
+public struct TextoPendiente: Equatable, Hashable {
+    public var chat: String
+    public var voz: MensajeChat
+    public var intentos: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(chat: String, voz: MensajeChat, intentos: UInt32) {
+        self.chat = chat
+        self.voz = voz
+        self.intentos = intentos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension TextoPendiente: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTextoPendiente: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TextoPendiente {
+        return
+            try TextoPendiente(
+                chat: FfiConverterString.read(from: &buf), 
+                voz: FfiConverterTypeMensajeChat.read(from: &buf), 
+                intentos: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TextoPendiente, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterTypeMensajeChat.write(value.voz, into: &buf)
+        FfiConverterUInt32.write(value.intentos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextoPendiente_lift(_ buf: RustBuffer) throws -> TextoPendiente {
+    return try FfiConverterTypeTextoPendiente.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTextoPendiente_lower(_ value: TextoPendiente) -> RustBuffer {
+    return FfiConverterTypeTextoPendiente.lower(value)
 }
 
 
@@ -46841,6 +47162,81 @@ public func FfiConverterTypeSeccionFicha_lower(_ value: SeccionFicha) -> RustBuf
 
 
 /**
+ * Donde va una entrada del menu.
+ */
+
+public enum SitioEnElMenu: Equatable, Hashable {
+    
+    /**
+     * A la vista.
+     */
+    case vista
+    /**
+     * En el submenu «Más».
+     */
+    case mas
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension SitioEnElMenu: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSitioEnElMenu: FfiConverterRustBuffer {
+    typealias SwiftType = SitioEnElMenu
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SitioEnElMenu {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .vista
+        
+        case 2: return .mas
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SitioEnElMenu, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .vista:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .mas:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSitioEnElMenu_lift(_ buf: RustBuffer) throws -> SitioEnElMenu {
+    return try FfiConverterTypeSitioEnElMenu.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSitioEnElMenu_lower(_ value: SitioEnElMenu) -> RustBuffer {
+    return FfiConverterTypeSitioEnElMenu.lower(value)
+}
+
+
+
+/**
  * Una tecla con el teclado en la rejilla.
  */
 
@@ -47033,6 +47429,185 @@ public func FfiConverterTypeTinteReflujo_lift(_ buf: RustBuffer) throws -> Tinte
 #endif
 public func FfiConverterTypeTinteReflujo_lower(_ value: TinteReflujo) -> RustBuffer {
     return FfiConverterTypeTinteReflujo.lower(value)
+}
+
+
+
+/**
+ * Lo que es el mensaje, a efectos de su menu (`OpcionesDelMensaje.Tipo`).
+ */
+
+public enum TipoDeMensaje: Equatable, Hashable {
+    
+    /**
+     * Una nota escrita.
+     */
+    case nota
+    /**
+     * Una nota escrita que lleva una direccion web.
+     */
+    case enlace
+    /**
+     * Una nota de voz.
+     */
+    case voz
+    /**
+     * Una cancion (`estadoDelTexto = letra`).
+     */
+    case musica
+    /**
+     * La nota de una clase o reunion grabada.
+     */
+    case grabacion
+    case foto
+    case video
+    /**
+     * Un documento que se lee: PDF, Word, libro, pagina, texto...
+     */
+    case documento
+    /**
+     * Cualquier otro archivo: un zip, un plano, un instalador.
+     */
+    case archivo
+    /**
+     * Lo que se abre como hoja: un lienzo, una pagina de un PDF, un croquis.
+     */
+    case hoja
+    /**
+     * Una lista de tareas, una tabla u otra mini-app.
+     */
+    case miniApp
+    /**
+     * Una carpeta de paginas, la de una grabacion o el acceso a un proyecto.
+     */
+    case carpeta
+    /**
+     * Una respuesta del asistente.
+     */
+    case asistente
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension TipoDeMensaje: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTipoDeMensaje: FfiConverterRustBuffer {
+    typealias SwiftType = TipoDeMensaje
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TipoDeMensaje {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .nota
+        
+        case 2: return .enlace
+        
+        case 3: return .voz
+        
+        case 4: return .musica
+        
+        case 5: return .grabacion
+        
+        case 6: return .foto
+        
+        case 7: return .video
+        
+        case 8: return .documento
+        
+        case 9: return .archivo
+        
+        case 10: return .hoja
+        
+        case 11: return .miniApp
+        
+        case 12: return .carpeta
+        
+        case 13: return .asistente
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: TipoDeMensaje, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .nota:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .enlace:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .voz:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .musica:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .grabacion:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .foto:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .video:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .documento:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .archivo:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .hoja:
+            writeInt(&buf, Int32(10))
+        
+        
+        case .miniApp:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .carpeta:
+            writeInt(&buf, Int32(12))
+        
+        
+        case .asistente:
+            writeInt(&buf, Int32(13))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTipoDeMensaje_lift(_ buf: RustBuffer) throws -> TipoDeMensaje {
+    return try FfiConverterTypeTipoDeMensaje.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTipoDeMensaje_lower(_ value: TipoDeMensaje) -> RustBuffer {
+    return FfiConverterTypeTipoDeMensaje.lower(value)
 }
 
 
@@ -50370,6 +50945,54 @@ fileprivate struct FfiConverterOptionTypeSeccionFicha: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeSitioEnElMenu: FfiConverterRustBuffer {
+    typealias SwiftType = SitioEnElMenu?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSitioEnElMenu.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSitioEnElMenu.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeTipoDeMensaje: FfiConverterRustBuffer {
+    typealias SwiftType = TipoDeMensaje?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeTipoDeMensaje.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeTipoDeMensaje.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeVistaTareas: FfiConverterRustBuffer {
     typealias SwiftType = VistaTareas?
 
@@ -51557,6 +52180,31 @@ fileprivate struct FfiConverterSequenceTypeCitaIa: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCitaIa.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeClipClase: FfiConverterRustBuffer {
+    typealias SwiftType = [ClipClase]
+
+    public static func write(_ value: [ClipClase], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeClipClase.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ClipClase] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ClipClase]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeClipClase.read(from: &buf))
         }
         return seq
     }
@@ -54007,6 +54655,31 @@ fileprivate struct FfiConverterSequenceTypeTextoHallado: FfiConverterRustBuffer 
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeTextoHallado.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTextoPendiente: FfiConverterRustBuffer {
+    typealias SwiftType = [TextoPendiente]
+
+    public static func write(_ value: [TextoPendiente], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTextoPendiente.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TextoPendiente] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TextoPendiente]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTextoPendiente.read(from: &buf))
         }
         return seq
     }
@@ -58707,6 +59380,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_clase() != 11818) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_guardar_clase_con_clips() != 40791) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_texto_pendiente() != 26595) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_fallo_texto_pendiente() != 19557) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_quitar_texto_pendiente() != 24917) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_textos_por_retomar() != 52134) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_compartido() != 45518) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -59646,7 +60334,10 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_categorias() != 15298) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_cuantas() != 20789) {
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_cuantas() != 33512) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_de_noche() != 6424) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_detalle() != 59172) {
@@ -59659,6 +60350,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_plano() != 39440) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_poner_de_noche() != 24067) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_galeriafiguras_previa() != 45791) {

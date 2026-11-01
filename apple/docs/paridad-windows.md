@@ -517,6 +517,29 @@ Revisados el 25-oct. Los visores (`lector_pin`, `lector_pdf*`, `visor_hoja*`, `v
 | 1fb6514, ead5ca3 | El panel de propiedades del pin con las medidas del panel compacto (168 × 60) | no aplica: el pin del Mac no tiene panel de propiedades al lado (sigue al panel del lienzo) |
 | ba59dd6 (`lector_pin`) | `quitar_barra`: el lienzo sin barra mientras se edita | va con «el lienzo abre mirando» (lienzo) |
 
+### 3.4 La interfaz de Windows ae96b89..2847782 fuera de idiomas y del asistente (1-nov-2026)
+
+Repasado `git log --no-merges ae96b89..2847782 -- apps/pixpin` entero. Lo de los catorce idiomas y de Jev y el asistente va aparte.
+
+| Commit | Qué | En el Mac |
+|---|---|---|
+| 12e107b | El menú del mensaje según su tipo: «Recordármelo» y «Hacer lección» solo donde tienen sentido, a la vista o en «Más» | **completo**: `N/opciones_del_mensaje.rs` (con las pruebas de Windows) decide y `MensajeChat` lo trae (`tipo`, `menuRecordar`, `menuLeccion`); `K/Chat/MenuMensaje.swift` lo pone. «Letra» de una clase: el Mac no tiene la entrada «Letra» de las notas de voz, nada que quitar |
+| 5b06484 | Una sola grabación: sin modos, «Empezar grabando la pantalla», el reloj (clic pausa; mantenido 0,65 s termina, llenándose de rojo), Captura (clic: la pantalla entera; mantenida o clic derecho: una zona), Pantalla (enciende y apaga el vídeo con el audio siempre) | **parcial**: todo eso, con los trozos de la pantalla como clips en su minuto (`Nucleo.guardarClaseConClips`, «Clase … · pantalla N.mp4», `clips` en la nota, `▶ m:ss` en la carpeta, como Windows). **Falta**: Foto y Clip (la cámara del Mac), los temas, la pantalla completa con la transcripción en vivo (necesitan la cámara, los temas y la escucha de Jev, que el Mac aún no tiene) |
+| 5f4616f | La cola del texto: toda clase se pasa a texto aunque PixPin se cierre | **completo**: `N/cola_de_texto.rs` con el mismo `voz/textos-pendientes/<id>.json`; `GrabarClase` apunta antes de pasar a texto, quita al acabar o con «Dejarlo sin texto», y retoma al arrancar (tres fallos y se deja) |
+| 4d7c01e, 9848a06, 22878f0 | Figuras: interruptor ☀/☾ (de noche las gemelas «(noche)» en el sitio de las de día), recordado en `estado.toml` (`figuras_de_noche`) | **completo**: `GaleriaFiguras.deNoche/ponerDeNoche` con `figuras_de_serie::segun_el_modo`; el botón «Día»/«Noche» en la cabecera de la ventana de figuras (la misma para el lienzo y el chat) |
+| bd006fc (scroll-sin-saltos) | El historial no salta al subir | **parcial**: la foto que aún se lee tiene ya su caja exacta (de la cabecera de la imagen, `Miniaturas.medida`) y la ruta ya resuelta se usa al momento; el ancla al prepender la da `defaultScrollAnchor(.bottom)` de SwiftUI y la rueda animada es del sistema. **Falta**: la hoja de espera con el alto final de una página de PDF o de proyecto (`BurbujaPagina` aún crece al leerla) |
+| 013cc70, 2c5a3cf | El «↓» de Telegram vuelve al último mensaje | **parcial**: el «↓» sale subido más de un tercio y vuelve al final (también desde un salto). **Falta**: la chapa de lo no visto y abrir cada chat donde se dejó (`chats-donde-se-dejo.json`, local) |
+| 058ae2b | La letra de una canción se mueve, sin tira y «Sincronizar sola» | **parcial** (ya venía de 4430c86): mover a mano, sin tira, A−/A+ y ✕. **Falta** «Sincronizar sola» (`pixpin_voz::alinear_letra` y Whisper con palabras; `pixpin-voz` no está en el núcleo del Mac). La canción se reconoce ya por `MensajeChat.tipo` sin leer el cuaderno |
+| 3f62a5a, 40c2510, 692e39e, 752b213 | «Guardar» en un chat lo abierto de paso (visores, planos y modelos) | **falta**: el Mac no tiene aún el modo «de paso» (abrir un fichero de fuera y anotarlo junto a él); va todo junto con `guardar_de_paso` |
+| 9018912, 108ac78 | El riel se va con la barra y vuelve con ella | **no aplica** de momento: las barras de los visores y planos del Mac no se esconden |
+| 2650264, 2262c27, 767b776, b7f60ae, bbbd9fc | Lectura Veloz (la app aparte, `lecturaveloz://`), ya solo en el chat | **falta**: no hay Lectura Veloz para Mac que responda; lo puro está en `pixpin-docs/lectura_veloz.rs` |
+| 851979e | Los puntitos del estado de Claude, DeepSeek y Jev | del asistente (agente J) |
+| 4a6112d | Compartir un cuaderno con todos los formatos | sin revisar en esta tanda (el Mac comparte por un solo camino desde 9a59181; falta ver si la carpeta ofrece todos los formatos) |
+| 86b5b39, 66c1d74, e16087a, 262fa86, 4961930, 6cf11d2, 56294c0, 81fedaf | Buscar en todos los chats, cabecera sin «N cosas», ficha sin Proyectos, insignias de listas compartidas, versión propia de lo de otro | ya portados en rondas anteriores |
+| 3476eec | La tinta de una hoja de noche contra su papel | del lienzo (fuera de esta tanda) |
+| d2937be, 509c7de, 9b61bda, 71e36b6, 28602e7, 69ac5a8, be89185, d0c2ebf, 9c09c0f, da06b85, d1ffc12, a995b3f, ee44de6, 09d9ea0, 592bb6a, 066ec4f, f85f912, 5bf40d7, b0b23a5, eef9f76, 50e8797, 8639128 | Grabar sin perder nada (diario, recuperar), presencial con cámara, el móvil como cámara, temas y reunión en vivo | **falta**: van con la cámara y la escucha de Jev; el formato de lo guardado ya es el de Windows |
+| af8918a, 6ca8c83, 8b6ca18, f54c33f, e3e1428, 1c138b6, bd3efbd, 00ee234, 8de3f9c, 10b96f8, 323d88c, 50c778a | Vista rápida del Explorador, ventanas Win32, miniaturas en su hilo, sincronización | no aplica (Windows) o del núcleo |
+
 ---
 
 ## 4. Plan de trabajo por tandas

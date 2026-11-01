@@ -102,8 +102,9 @@ fn la_ventana_busca_pinta_alarga_inserta_renombra_y_quita() {
     let r = raiz("ventana");
     let n = nucleo(&r);
     let g = n.clone().galeria_de_figuras().unwrap();
-    // Las de serie entran solas, una vez por version.
-    assert!(g.cuantas() as usize >= serie::catalogo().len());
+    // Las de serie entran solas, una vez por version (de dia, sin sus
+    // gemelas de noche).
+    assert!(g.cuantas() as usize >= del_modo(&serie::catalogo(), false).len());
     assert_eq!(
         std::fs::read_to_string(r.join(crate::editor_figuras::MARCA_DE_SERIE)).unwrap(),
         serie::VERSION.to_string()
@@ -497,4 +498,47 @@ fn la_vista_previa_se_acerca_se_aleja_y_se_mueve() {
             .escala
             .is_finite()
     );
+}
+
+/// **El interruptor ☀/☾** (Windows 22878f0, 4d7c01e): sin tocar, de dia y
+/// sin ninguna gemela «(noche)»; de noche, cada una en el sitio de su de
+/// dia; se recuerda en `estado.toml` para la otra ventana.
+#[test]
+fn de_dia_o_de_noche_nunca_las_dos() {
+    let r = raiz("noche");
+    let n = nucleo(&r);
+    let g = n.clone().galeria_de_figuras().unwrap();
+    assert!(!g.de_noche(), "sin tocar, de dia");
+    let de_dia = g.visibles(None, String::new());
+    assert!(!de_dia.is_empty());
+    assert!(
+        de_dia
+            .iter()
+            .all(|f| !serie::es_gemela_de_noche(&f.id, &f.nombre)),
+        "de dia no sale ninguna gemela"
+    );
+    g.poner_de_noche(true);
+    let de_noche = g.visibles(None, String::new());
+    assert_eq!(
+        de_noche.len(),
+        de_dia.len(),
+        "cada una en el sitio de la suya"
+    );
+    assert!(
+        de_noche
+            .iter()
+            .any(|f| serie::es_gemela_de_noche(&f.id, &f.nombre))
+    );
+    assert_eq!(g.cuantas() as usize, de_noche.len());
+    // Se recuerda: otra ventana (o la misma, al abrirse) la abre de noche.
+    let otra = n.clone().galeria_de_figuras().unwrap();
+    assert!(otra.de_noche());
+    assert_eq!(
+        pixpin_store::estado::cargar(&n.ubicacion()).figuras_de_noche,
+        Some(true)
+    );
+    // Y de vuelta.
+    otra.poner_de_noche(false);
+    assert!(!g.de_noche(), "se relee lo que cambio la otra");
+    let _ = std::fs::remove_dir_all(&r);
 }

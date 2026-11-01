@@ -36,6 +36,9 @@ enum MusicaChat {
     /// del chat (el puente no trae `estadoDelTexto`). Se relee si el
     /// cuaderno cambio.
     static func esMusica(_ m: MensajeChat, chat: String, nucleo: Nucleo) -> Bool {
+        // El puente ya trae lo que es (`opciones_del_mensaje`): sin leer el
+        // cuaderno entero.
+        if let tipo = m.tipo { return tipo == .musica }
         guard m.clase == "VOZ",
               let ruta = try? nucleo.rutaAbsoluta(chat: chat, rutaRelativa: "guardados.jsonl") else { return false }
         let url = URL(fileURLWithPath: ruta)

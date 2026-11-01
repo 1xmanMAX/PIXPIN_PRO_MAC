@@ -34,7 +34,9 @@ struct BurbujaImagen: View {
             if let anotada {
                 VistaFotoAnotada(leida: anotada, soloLaFoto: mensaje.soloLaFoto, version: recargas) { anotar() }
                     .modifier(AccionesSiHay(url: url, nombre: mensaje.nombre, anotar: anotar))
-            } else if let url {
+            } else if let url = url ?? mensaje.ruta.flatMap({ almacen.urlResuelta(deRuta: $0, en: chat) }) {
+                // La ruta ya resuelta se usa al momento: sin la linea de
+                // espera, que luego crecia hasta la foto (Windows bd006fc).
                 MiniaturaVista(url: url, lado: ladoDeBurbuja * escala)
                     .modifier(AccionesDeFichero(url: url, nombre: mensaje.nombre, anotar: anotar))
             } else {
