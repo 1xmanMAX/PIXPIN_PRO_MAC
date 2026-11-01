@@ -763,6 +763,15 @@ final class ModeloCarpeta: ObservableObject {
         }
     }
 
+    /// **«Compartir»** (Windows 4a6112d4): la hoja de compartir de toda la
+    /// app con el cuaderno entero y todos sus formatos; la carpeta de una
+    /// grabacion, como la grabacion que es.
+    func compartir() {
+        guard let carpeta else { return }
+        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PixPin"
+        HojaCompartir.abrir(.mensajes(chat: chat, titulo: titulo, [carpeta.mensaje]), almacen: almacen)
+    }
+
     /// **«Exportar PDF»**: una pagina por cada una, con el dialogo de guardar.
     func exportar() {
         guard !exportando, let carpeta else { return }
@@ -838,9 +847,14 @@ struct VistaCarpeta: View {
                 .controlSize(.large)
             }
             if !modelo.perdida {
+                Button { modelo.compartir() } label: {
+                    Label("Compartir", systemImage: "square.and.arrow.up").frame(minWidth: 120)
+                }
+                .controlSize(.large)
+                .help("HTML, PDF, imágenes, Word, Markdown, el original o el .pixpin")
                 Button { modelo.exportar() } label: {
                     Label(modelo.exportando ? TextosCarpeta.exportando : TextosCarpeta.exportarPdf,
-                          systemImage: "square.and.arrow.up").frame(minWidth: 120)
+                          systemImage: "doc.richtext").frame(minWidth: 120)
                 }
                 .controlSize(.large)
                 .disabled(modelo.exportando)

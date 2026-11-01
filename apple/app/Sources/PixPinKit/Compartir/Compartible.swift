@@ -56,6 +56,30 @@ enum IdFormato {
     static let anki = "anki"
 }
 
+/// **El simbolo de cada formato, por su clase** (el mismo en toda la app,
+/// `icono_de` de Windows): la clase la dice el nucleo
+/// (`claseDeFormatoCompartido`); lo propio de un contenido (el DXF de un
+/// plano) lleva el suyo.
+enum SimbolosCompartir {
+    static func de(clase: String, propio: String) -> String {
+        switch clase {
+        case "web": "globe"
+        case "pdf": "doc.richtext"
+        case "word": "doc.text"
+        case "png", "jpg": "photo"
+        case "svg": "scribble"
+        case "pixpin": "shippingbox"
+        case "texto": "text.alignleft"
+        case "csv": "tablecells"
+        case "md": "square.and.pencil"
+        case "anki": "book"
+        case "wifi": "wifi"
+        case "original": "paperclip"
+        default: propio.isEmpty ? "paperclip" : propio
+        }
+    }
+}
+
 /// Un formato que se ofrece.
 struct FormatoCompartir: Equatable {
     var id: String
@@ -72,6 +96,10 @@ struct Compartible: Equatable {
     var formatos: [FormatoCompartir]
     /// Las marcadas al abrir; `nil`, todas.
     var marcadas: Set<String>?
+    /// El formato puesto al abrir, por su posicion en `formatos` (`inicial`
+    /// de Windows): lo que mas se comparte desde ahi (una foto o un PDF, su
+    /// original), no el primero de la fila.
+    var inicial: Int = 0
 }
 
 /// **Lo que se ha elegido en la hoja** (`Estado` de Windows).
@@ -80,9 +108,9 @@ struct EstadoHoja: Equatable {
     var formato: Int
     var marcadas: Set<String>
 
-    /// Al abrir: el primer formato y lo que diga `marcadas` (o todo).
+    /// Al abrir: el formato `inicial` y lo que diga `marcadas` (o todo).
     init(_ c: Compartible) {
-        formato = 0
+        formato = c.formatos.indices.contains(c.inicial) ? c.inicial : 0
         marcadas = c.marcadas ?? Set(c.paginas.map(\.clave))
     }
 

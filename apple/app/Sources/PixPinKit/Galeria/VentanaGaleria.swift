@@ -230,7 +230,12 @@ public struct VentanaGaleria: View {
         let varias = nombres.count > 1
         Button(varias ? "Pinear \(nombres.count)" : "Pinear") { pinear(nombres) }
         Button("Copiar") { copiar(nombres) }
-        Button("Compartir…") { CompartirMac.mostrar(urls(nombres)) }
+        // La hoja de compartir de toda la app (HTML, PDF, PNG, JPG, SVG y el
+        // original), como un pin o un fichero suelto.
+        Button("Compartir…") {
+            let titulo = varias ? "\(nombres.count) capturas" : TextosCompartir.sinExtension(c.nombre)
+            HojaCompartir.abrir(.ficheros(titulo: titulo, urls(nombres)), almacen: nil)
+        }
         Button("Guardar como…") { guardarComo(nombres) }
         Menu("Mandar a un proyecto") {
             ForEach(proyectos.chats, id: \.id) { chat in

@@ -293,36 +293,54 @@ struct MenuCompartirMomento: View {
                 modelo.avisar("No se pudo guardar el fichero")
             }
         }
-        Button("Compartir como imagen…") {
-            guard let png = ImagenDeMomento.hacer(momento).flatMap(ImagenDeMomento.png) else { return }
-            let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(momento.id).png")
-            try? png.write(to: url)
-            CompartirMac.mostrar([url])
-        }
-        Button("Compartir como página web…") {
-            Task {
-                let nucleo = modelo.nucleo
-                let desfase = desfaseLocalMs()
-                let iso = ModeloTimeline.iso(de: momento.cuando)
-                guard let p = try? await Task.detached(priority: .userInitiated, operation: {
-                    try nucleo.timelineExportar(que: .dias(isos: [iso]), desfaseMs: desfase)
-                }).value else { return }
-                let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(p.nombre).html")
-                try? p.html.write(to: url, atomically: true, encoding: .utf8)
-                CompartirMac.mostrar([url])
-            }
-        }
+        // La hoja de compartir de toda la app: la tarjeta como imagen (PNG,
+        // JPG, SVG, PDF), la pagina web de su dia y sus fotos tal cual.
+        Button("Compartir…") { CompartirTimeline.abrir(momento, nucleo: modelo.nucleo) }
     }
 }
 
-/// La hoja de compartir del sistema, junto al raton.
+/// **El timeline en la hoja de compartir de toda la app** (antes iba a la
+/// hoja del Mac, que sin ventana delante no salia y no decia nada).
 @MainActor
-enum CompartirMac {
-    static func mostrar(_ urls: [URL]) {
-        guard let ventana = NSApp.keyWindow, let vista = ventana.contentView else { return }
-        let p = ventana.mouseLocationOutsideOfEventStream
-        let r = NSRect(x: p.x, y: p.y, width: 1, height: 1)
-        NSSharingServicePicker(items: urls).show(relativeTo: vista.convert(r, from: nil), of: vista, preferredEdge: .minY)
+enum CompartirTimeline {
+    /// Un momento: su tarjeta como imagen, la pagina web de su dia y sus
+    /// fotos.
+    static func abrir(_ momento: MomentoTimeline, nucleo: Nucleo) {
+        let titulo = momento.titulo.trimmingCharacters(in: .whitespacesAndNewlines)
+        let p = PreparadoCompartir(titulo: titulo.isEmpty ? "Momento" : titulo)
+        if let img = ImagenDeMomento.hacer(momento)?.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+            p.anadir(PiezasCompartir.foto(img, clave: "momento", nombre: p.titulo))
+        }
+        let desfase = desfaseLocalMs()
+        let iso = ModeloTimeline.iso(de: momento.cuando)
+        let base = p.base
+        p.paginaWeb = { carpeta in
+            let pagina = try await Task.detached(priority: .userInitiated) {
+                try nucleo.timelineExportar(que: .dias(isos: [iso]), desfaseMs: desfase)
+            }.value
+            let url = carpeta.appendingPathComponent(base).appendingPathExtension("html")
+            try Data(pagina.html.utf8).write(to: url, options: .atomic)
+            return [url]
+        }
+        PrepararCompartir.anadirOriginales(p, momento.fotos.map { URL(fileURLWithPath: $0) })
+        HojaCompartir.abrir(.preparado(p), almacen: nil)
+    }
+
+    /// Una pagina del timeline ya hecha: la pagina web y su PDF.
+    static func pagina(_ html: String, titulo: String) -> PreparadoCompartir {
+        let p = PreparadoCompartir(titulo: titulo)
+        let base = p.base
+        p.extras.append(ExtraCompartir(
+            formato: FormatoCompartir(id: IdFormato.web, nombre: "HTML", cuantas: .ninguna, simbolo: "globe"),
+            que: .escrito(nombre: base + ".html") { Data(html.utf8) }))
+        p.extras.append(ExtraCompartir(
+            formato: FormatoCompartir(id: IdFormato.pdf, nombre: "PDF", cuantas: .ninguna, simbolo: "doc.richtext"),
+            que: .lote { carpeta in
+                let url = carpeta.appendingPathComponent(base).appendingPathExtension("pdf")
+                try await PaginaAPdf.guardar(html, en: url)
+                return [url]
+            }))
+        return p
     }
 }
 

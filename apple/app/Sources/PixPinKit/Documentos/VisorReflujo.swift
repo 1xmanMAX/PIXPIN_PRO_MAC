@@ -1699,11 +1699,9 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         HojaCompartir.abrir(.preparado(p), almacen: nil)
     }
 
-    func compartir() {
-        let r = contenedor.bounds
-        let ancla = NSRect(x: r.midX - 1, y: r.maxY - 10, width: 2, height: 2)
-        NSSharingServicePicker(items: [url]).show(relativeTo: ancla, of: contenedor, preferredEdge: .minY)
-    }
+    /// «Compartir…»: la hoja de compartir de toda la app (la misma que
+    /// «Exportar»), no la del Mac suelta.
+    func compartir() { exportar() }
 
     func ponerEncima(_ si: Bool) {
         modelo.encima = si

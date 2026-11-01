@@ -16,6 +16,13 @@
 // es la hoja del Mac (AirDrop, Mail, Mensajes...), lo que en Windows es el
 // panel Compartir; **Guardar como…** y **Copiar**.
 //
+// **Que siempre se vea a donde fue** (el usuario: «elijo HTML, pulso
+// Compartir y no pasa nada»): la Salida nacia sin tamano (se media con el
+// `fittingSize` de una vista que no da ninguno) y no se veia; ahora se
+// mide sola (`Salida.tamano`). Lo que falla tampoco se calla: el pie lo
+// dice en rojo, una salida pulsada con el fallo lo repite con un pitido, y
+// si la Salida no puede ensenar el fichero la hoja sigue abierta y lo dice.
+//
 // Teclado: ← → cambian de formato, ↩ comparte, ⌘S guarda, ⌘C copia, ⎋
 // cierra.
 
@@ -118,6 +125,8 @@ final class ModeloHojaCompartir: ObservableObject {
     @Published private(set) var hecho: [URL]?
     @Published private(set) var fallo: String?
     @Published private(set) var aviso: String?
+    /// Si el aviso es de algo que fallo (se pinta en rojo).
+    @Published private(set) var avisoDeFallo = false
     /// Una salida pulsada antes de que estuviera hecho: se hace en cuanto
     /// este.
     private var pendiente: SalidaHoja?
@@ -186,7 +195,14 @@ final class ModeloHojaCompartir: ObservableObject {
                 }
             } catch {
                 guard t == turno else { return }
-                fallo = error.localizedDescription
+                // Se dice siempre (el pie, en rojo) y, si se habia pulsado
+                // ya una salida, tambien con el pitido.
+                fallo = ErrorCompartir.explicar(error)
+                NSLog("PixPin: compartir %@ fallo: %@", f.id, String(describing: error))
+                if pendiente != nil {
+                    pendiente = nil
+                    avisar(fallo ?? "No se pudo preparar", fallo: true)
+                }
             }
         }
     }
@@ -201,31 +217,49 @@ final class ModeloHojaCompartir: ObservableObject {
         return TextosCompartir.peso(bytes, ficheros: hecho.count)
     }
 
-    func avisar(_ texto: String) {
+    func avisar(_ texto: String, fallo: Bool = false) {
         aviso = texto
+        avisoDeFallo = fallo
+        if fallo { NSSound.beep() }
         turnoAviso += 1
         let t = turnoAviso
         Task {
             try? await Task.sleep(nanoseconds: 3_500_000_000)
-            if t == turnoAviso { aviso = nil }
+            if t == turnoAviso {
+                aviso = nil
+                avisoDeFallo = false
+            }
         }
     }
 
+    /// Si lo de abajo es un fallo (el pie en rojo).
+    var pieEsFallo: Bool { aviso == nil ? (fallo.map(Self.esFallo) ?? false) : avisoDeFallo }
+
+    /// «Marca alguna página» no es un fallo: es lo que falta elegir.
+    private static func esFallo(_ texto: String) -> Bool { texto != ErrorCompartir.sinPaginas.localizedDescription }
+
     /// **Una salida pulsada.**
     func salir(_ s: SalidaHoja) {
-        if let fallo { return avisar(fallo) }
+        if let fallo { return avisar(fallo, fallo: Self.esFallo(fallo)) }
         guard let hecho else {
             pendiente = s
             return avisar("En cuanto esté preparado")
         }
         switch s {
         case .compartir:
-            Salida.compartida.mostrar(hecho, titulo: Salida.listo)
+            // La Salida, con el fichero hecho: arrastrarlo, copiarlo,
+            // abrirlo o verlo en el Finder. Si no lo puede ensenar (se borro
+            // entre medias), la hoja sigue y lo dice.
+            guard Salida.compartida.mostrar(hecho, titulo: Salida.listo) else {
+                return avisar("No se pudo preparar: el archivo ya no está", fallo: true)
+            }
             cerrar()
         case .mas:
-            guard let anclaje else { return }
+            guard let ancla = anclaje ?? NSApp.keyWindow?.contentView else {
+                return avisar("No se pudo abrir la hoja del Mac", fallo: true)
+            }
             NSSharingServicePicker(items: hecho)
-                .show(relativeTo: anclaje.bounds, of: anclaje, preferredEdge: .minY)
+                .show(relativeTo: ancla.bounds, of: ancla, preferredEdge: .minY)
         case .guardar:
             guardar(hecho)
         case .copiar:
@@ -267,7 +301,7 @@ final class ModeloHojaCompartir: ObservableObject {
             avisar(escritos.count == 1 ? "Guardado: \(escritos[0].lastPathComponent)" : "Guardado")
             Salida.compartida.mostrar(escritos, titulo: Salida.guardado)
         } catch {
-            avisar("No se pudo guardar: \(error.localizedDescription)")
+            avisar("No se pudo guardar: \(error.localizedDescription)", fallo: true)
         }
     }
 
@@ -294,6 +328,8 @@ private enum ColoresHoja {
     static let texto = Color(red: 0xe8 / 255, green: 0xe8 / 255, blue: 0xec / 255)
     static let apagado = Color(red: 0x9a / 255, green: 0x9a / 255, blue: 0xa2 / 255)
     static let encendido = Color(red: 0x1e / 255, green: 0x88 / 255, blue: 0xe5 / 255)
+    /// Lo que fallo, legible sobre el fondo oscuro de la hoja.
+    static let fallo = Color(red: 0xff / 255, green: 0x6b / 255, blue: 0x6b / 255)
 }
 
 struct VistaHojaCompartir: View {
@@ -310,7 +346,7 @@ struct VistaHojaCompartir: View {
                 formatos(c, e)
                 paginas(c, e)
             } else if let fallo = modelo.fallo {
-                Text(fallo).foregroundStyle(ColoresHoja.apagado)
+                Label(fallo, systemImage: "exclamationmark.triangle.fill").foregroundStyle(ColoresHoja.fallo)
             } else {
                 HStack { ProgressView().controlSize(.small); Text("Preparando…") }
                     .foregroundStyle(ColoresHoja.apagado)
@@ -335,8 +371,12 @@ struct VistaHojaCompartir: View {
                                 .font(.system(size: 20))
                                 .frame(width: 56, height: 56)
                                 .background(i == e.formato ? ColoresHoja.encendido : ColoresHoja.redondel, in: Circle())
+                            // Los nombres de toda la app («Página web
+                            // (HTML)»), en dos lineas si no caben en una.
                             Text(f.nombre).font(.system(size: 11))
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .frame(height: 28, alignment: .top)
                         }
                         .foregroundStyle(ColoresHoja.texto)
                         .frame(width: 78)
@@ -402,9 +442,14 @@ struct VistaHojaCompartir: View {
 
     private var pieDeHoja: some View {
         HStack(spacing: 8) {
+            if modelo.pieEsFallo {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(ColoresHoja.fallo)
+            }
             Text(modelo.aviso ?? modelo.pie)
-                .font(.system(size: 12)).foregroundStyle(ColoresHoja.apagado)
-                .lineLimit(1)
+                .font(.system(size: 12, weight: modelo.pieEsFallo ? .semibold : .regular))
+                .foregroundStyle(modelo.pieEsFallo ? ColoresHoja.fallo : ColoresHoja.apagado)
+                .lineLimit(2)
+                .help(modelo.aviso ?? modelo.pie)
             Spacer()
             Button("Copiar") { modelo.salir(.copiar) }
                 .help("Copiar al portapapeles (⌘C)")

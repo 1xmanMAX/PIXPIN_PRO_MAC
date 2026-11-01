@@ -81,6 +81,19 @@ enum ErrorCompartir: Error, LocalizedError {
         case let .noSePudo(que): "No se pudo preparar: \(que)"
         }
     }
+
+    /// **Lo que se le dice al usuario de un fallo al hacer el fichero**:
+    /// el texto propio si lo tiene y, si no (un error del nucleo, del
+    /// disco), «No se pudo preparar» con lo que dijo, nunca nada.
+    static func explicar(_ error: Error) -> String {
+        if let e = error as? ErrorCompartir { return e.localizedDescription }
+        if let e = error as? LocalizedError, let texto = e.errorDescription, !texto.isEmpty {
+            return "No se pudo preparar: \(texto)"
+        }
+        let ns = error as NSError
+        if ns.userInfo[NSLocalizedDescriptionKey] != nil { return "No se pudo preparar: \(ns.localizedDescription)" }
+        return "No se pudo preparar: \(String(describing: error))"
+    }
 }
 
 // MARK: - Lo preparado
@@ -102,6 +115,10 @@ final class PreparadoCompartir {
     /// (`p.clase` de Windows, ver `CompartirGrabacion.swift`). Escribe en la
     /// carpeta dada la pagina (la primera) y lo que va a su lado.
     var paginaWeb: (@MainActor (URL) async throws -> [URL])?
+    /// Lo que se le hace al PDF ya hecho, con las claves de sus paginas en
+    /// orden: el de un cuaderno lleva el titulo de cada pagina en el indice
+    /// (`PdfDeCarpeta.conIndice`).
+    var retocarPdf: (@MainActor ([String], Data) -> Data)?
 
     init(titulo: String) { self.titulo = titulo }
 
@@ -116,13 +133,20 @@ final class PreparadoCompartir {
         marcadas = m
     }
 
+    /// Todo marcado al abrir (un cuaderno: lo que se comparte es el entero).
+    func marcarTodas() { marcadas = nil }
+
     func pieza(_ clave: String) -> PiezaCompartir? { piezas.first { $0.pagina.clave == clave } }
 
     func cambiarDetalle(_ i: Int, _ detalle: String) { piezas[i].pagina.detalle = detalle }
 
     /// **Lo que ve la hoja** (`compartible` de Windows): los formatos de
-    /// paginas (HTML, PDF, PNG, JPG, SVG) y despues lo que va entero, o al
-    /// reves si lo natural es mandar el original.
+    /// paginas (HTML, PDF, PNG, JPG, SVG) y lo que va entero, **en el orden
+    /// y con el nombre de toda la app** (los decide el nucleo,
+    /// `compartir_formatos.rs`: Imagen PNG, Imagen JPG, Dibujo SVG, PDF,
+    /// Página web (HTML), Word, Markdown, Texto, lo propio, PixPin
+    /// (.pixpin), Original, Anki). Se abre con el primero de lo dado: el
+    /// original si lo natural es mandarlo tal cual.
     func compartible() -> Compartible {
         var dePaginas: [FormatoCompartir] = []
         if !piezas.isEmpty {
@@ -138,9 +162,19 @@ final class PreparadoCompartir {
             ]
         }
         let enteros = extras.map(\.formato)
-        return Compartible(titulo: titulo, paginas: piezas.map(\.pagina),
-                           formatos: originalPrimero ? enteros + dePaginas : dePaginas + enteros,
-                           marcadas: marcadas)
+        // Un formato propio sustituye al de las paginas con su id (el HTML
+        // interactivo de un plano en vez del dibujo de sus hojas).
+        dePaginas.removeAll { f in enteros.contains { $0.id == f.id } }
+        let dados = originalPrimero ? enteros + dePaginas : dePaginas + enteros
+        let orden = ordenDeFormatosCompartidos(ids: dados.map(\.id))
+        let puestos: [FormatoCompartir] = orden.orden.map { i in
+            var f = dados[Int(i)]
+            f.nombre = nombreDeFormatoCompartido(id: f.id, propio: f.nombre)
+            f.simbolo = SimbolosCompartir.de(clase: claseDeFormatoCompartido(id: f.id), propio: f.simbolo)
+            return f
+        }
+        return Compartible(titulo: titulo, paginas: piezas.map(\.pagina), formatos: puestos,
+                           marcadas: marcadas, inicial: Int(orden.inicial))
     }
 
     // MARK: Hacer los ficheros
@@ -196,7 +230,8 @@ final class PreparadoCompartir {
             try Data(html.utf8).write(to: url, options: .atomic)
             return [url]
         case IdFormato.pdf:
-            guard let datos = Self.pdf(elegidas) else { throw ErrorCompartir.noSePudo("PDF") }
+            guard var datos = Self.pdf(elegidas) else { throw ErrorCompartir.noSePudo("PDF") }
+            if let retocarPdf { datos = retocarPdf(elegidas.map(\.pagina.clave), datos) }
             let url = carpeta.appendingPathComponent(base).appendingPathExtension("pdf")
             try datos.write(to: url, options: .atomic)
             return [url]

@@ -123,8 +123,14 @@ final class CompartirTests: XCTestCase {
         XCTAssertGreaterThan(p.piezas.count, 1)
         XCTAssertEqual(p.piezas[1].pagina.nivel, 1, "las paginas de detras van sangradas")
         let c = p.compartible()
-        XCTAssertEqual(c.formatos.map(\.id), [IdFormato.web, IdFormato.pdf, IdFormato.png, IdFormato.jpg,
-                                              IdFormato.svg, IdFormato.texto])
+        // En el orden y con el nombre de toda la app (Windows 5df1ecde), y
+        // abierta en la pagina web, que es lo primero que se dio.
+        XCTAssertEqual(c.formatos.map(\.id), [IdFormato.png, IdFormato.jpg, IdFormato.svg, IdFormato.pdf,
+                                              IdFormato.web, IdFormato.texto])
+        XCTAssertEqual(c.formatos.map(\.nombre), ["Imagen PNG", "Imagen JPG", "Dibujo SVG", "PDF",
+                                                  "Página web (HTML)", "Texto"])
+        XCTAssertEqual(c.formatos[c.inicial].id, IdFormato.web)
+        XCTAssertEqual(EstadoHoja(c).formato, c.inicial, "la hoja se abre en el inicial")
         let carpeta = try carpetaTemporal("compartir")
         defer { try? FileManager.default.removeItem(at: carpeta) }
         let todas = c.paginas.map(\.clave)
@@ -166,7 +172,8 @@ final class CompartirTests: XCTestCase {
         try escribirPNG(foto, ancho: 300, alto: 200)
         let p = await PrepararCompartir.preparar(.ficheros(titulo: "fachada", [foto]), almacen: nil)
         let c = p.compartible()
-        XCTAssertEqual(c.formatos.first?.id, IdFormato.original, "lo natural es mandarla tal cual")
+        XCTAssertEqual(c.formatos[c.inicial].id, IdFormato.original, "lo natural es mandarla tal cual")
+        XCTAssertEqual(c.formatos.last?.id, IdFormato.original, "aunque va donde en toda la app")
         XCTAssertEqual(c.paginas.count, 1)
         XCTAssertEqual(p.piezas[0].tamano, CGSize(width: 300, height: 200))
         let tal = try await p.generar(IdFormato.original, claves: [], en: carpeta.appendingPathComponent("s"))
@@ -259,10 +266,11 @@ final class CompartirTests: XCTestCase {
             originales: [audio.path, captura.path], mazo: "PixPin::Física")
         let p = await PrepararCompartir.deGrabacion(g, chat: chat, almacen: almacen)
         let c = p.compartible()
-        XCTAssertEqual(c.formatos.map(\.id), [IdFormato.web, IdFormato.pdf, IdFormato.png, IdFormato.jpg,
-                                              IdFormato.svg, IdFormato.word, IdFormato.md, IdFormato.texto,
-                                              IdFormato.anki, IdFormato.originales, IdFormato.pixpin])
-        XCTAssertEqual(c.formatos[0].cuantas, .ninguna, "la pagina web va entera")
+        XCTAssertEqual(c.formatos.map(\.id), [IdFormato.png, IdFormato.jpg, IdFormato.svg, IdFormato.pdf,
+                                              IdFormato.web, IdFormato.word, IdFormato.md, IdFormato.texto,
+                                              IdFormato.pixpin, IdFormato.originales, IdFormato.anki])
+        XCTAssertEqual(c.formatos[c.inicial].id, IdFormato.web, "lo suyo es su pagina web")
+        XCTAssertEqual(c.formatos[c.inicial].cuantas, .ninguna, "la pagina web va entera")
         XCTAssertEqual(c.paginas.first?.clave, "grabacion")
         XCTAssertEqual(p.piezas[0].tamano, PiezasCompartir.a4)
         let carpeta = raiz.appendingPathComponent("salida")
@@ -301,6 +309,24 @@ final class CompartirTests: XCTestCase {
         XCTAssertEqual(m.actual, a)
         m.vaciar()
         XCTAssertNil(m.actual)
+    }
+
+    /// El caso del usuario: «pulso Compartir y no pasa nada». La Salida
+    /// nacia de 0 × 0; ahora se mide sola y crece con lo que lleva.
+    func testLaSalidaTieneTamanoYDiceSiNoHayNadaQueEnsenar() {
+        let uno = Salida.tamano(ficheros: 1)
+        XCTAssertEqual(uno.width, 380)
+        XCTAssertGreaterThan(uno.height, 150)
+        XCTAssertGreaterThan(Salida.tamano(ficheros: 2).height, uno.height, "con la franja de llevarlos todos")
+        XCTAssertEqual(Salida.tamano(ficheros: 9), Salida.tamano(ficheros: 4), "cuatro a la vista; las demas, corriendo")
+        // Caso negativo: lo que no esta en el disco no se ensena, y se dice.
+        XCTAssertFalse(Salida.compartida.mostrar([URL(fileURLWithPath: "/tmp/pixpin-no-esta/x.html")]))
+    }
+
+    func testUnFalloAlPrepararSeDiceSiempre() {
+        XCTAssertEqual(ErrorCompartir.explicar(ErrorCompartir.sinPaginas), "Marca alguna página")
+        let otro = NSError(domain: "x", code: 1, userInfo: [NSLocalizedDescriptionKey: "disco lleno"])
+        XCTAssertEqual(ErrorCompartir.explicar(otro), "No se pudo preparar: disco lleno")
     }
 
     func testAbrirConDiceQueFaltaElArchivoConSuNombre() throws {

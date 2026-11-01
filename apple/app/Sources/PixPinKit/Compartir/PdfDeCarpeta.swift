@@ -39,6 +39,64 @@ enum PdfDeCarpeta {
         return Preparada(preparado: p, indice: indice)
     }
 
+    /// **Un cuaderno en la hoja de compartir, con todos sus formatos**
+    /// (Windows 4a6112d4, `carpeta::preparar`; el usuario: «que añada todos
+    /// los formatos que tienen los demas: PDF, HTML, PixPin, fotos… Esa
+    /// interfaz tiene que estar siempre unificada»). Vale desde el menu de
+    /// su mensaje del chat y desde su ventana («Compartir»):
+    ///
+    /// - PDF (con el titulo de cada pagina en el indice), pagina web, PNG,
+    ///   JPG y SVG de sus paginas, con la regla del cuaderno;
+    /// - Word, Markdown y Texto, si alguna pagina lleva texto (una nota, la
+    ///   transcripcion de una nota de voz), cada uno bajo su titulo (el
+    ///   nucleo, `textosDeCuaderno`);
+    /// - el original de los ficheros de sus paginas y el `.pixpin` del chat.
+    static func paraCompartir(_ carpeta: CarpetaDePaginas, chat: String, almacen: Almacen) async -> PreparadoCompartir {
+        let preparada = await preparar(carpeta, chat: chat, almacen: almacen)
+        let p = preparada.preparado
+        if carpeta.nombre.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { p.titulo = "Sin nombre" }
+        // Todas sus paginas marcadas al abrir: el cuaderno es lo que se
+        // comparte.
+        p.marcarTodas()
+        var deCadaPagina: [String: String] = [:]
+        for (pieza, nombre) in preparada.indice where p.piezas.indices.contains(pieza) {
+            deCadaPagina[p.piezas[pieza].pagina.clave] = nombre
+        }
+        let titulos = deCadaPagina
+        p.retocarPdf = { claves, datos in
+            var indice: [(pieza: Int, titulo: String)] = []
+            for (k, clave) in claves.enumerated() {
+                if let t = titulos[clave] { indice.append((pieza: k, titulo: t)) }
+            }
+            return PdfDeCarpeta.conIndice(datos, indice)
+        }
+        let base = p.base
+        let titulo = p.titulo
+        if let t = textosDeCuaderno(titulo: titulo, paginas: carpeta.paginas) {
+            let md = t.markdown
+            let llano = t.texto
+            p.extras.append(PrepararCompartir.word(titulo: titulo, markdown: md, nombre: base))
+            p.extras.append(ExtraCompartir(
+                formato: FormatoCompartir(id: IdFormato.md, nombre: "Markdown", cuantas: .ninguna,
+                                          simbolo: "square.and.pencil"),
+                que: .escrito(nombre: "\(base).md") { Data(md.utf8) }))
+            p.extras.append(ExtraCompartir(
+                formato: FormatoCompartir(id: IdFormato.texto, nombre: "Texto", cuantas: .ninguna, simbolo: "text.alignleft"),
+                que: .escrito(nombre: "\(base).txt") { Data(llano.utf8) }))
+        }
+        var originales: [URL] = []
+        for pagina in carpeta.paginas {
+            if let url = await PrepararCompartir.fichero(pagina.mensaje, chat: chat, almacen: almacen) {
+                originales.append(url)
+            }
+        }
+        PrepararCompartir.anadirOriginales(p, originales)
+        if let ficha = almacen.chats.first(where: { $0.id == chat }) {
+            p.extras.append(PrepararCompartir.paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pixpin"))
+        }
+        return p
+    }
+
     /// Las piezas de una pagina: un lienzo, por su plantilla; una foto, una
     /// sola pagina; lo demas, como al compartirlo entre otros mensajes.
     static func anadirPagina(_ p: PreparadoCompartir, _ pagina: PaginaDeCarpeta, chat: String,
