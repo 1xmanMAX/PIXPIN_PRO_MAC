@@ -1,6 +1,6 @@
-# PixPin Max — Turkish strings (tr-TR).
+# PinDesk — Turkish strings (tr-TR).
 
-app-nombre = PixPin Max
+app-nombre = PinDesk
 
 
 resultado-copiar = Kopyala
@@ -8,7 +8,7 @@ resultado-guardar-como = Farklı kaydet…
 resultado-guardar = Kaydet
 resultado-descartar = Vazgeç
 
-error-otra-instancia = PixPin Max zaten çalışıyor.
+error-otra-instancia = PinDesk zaten çalışıyor.
 error-atajo-ocupado = { $atajo } kaydedilemedi: başka bir uygulama kullanıyor.
 
 captura-guardada = Ekran görüntüsü kaydedildi: { $ruta }
@@ -95,7 +95,7 @@ pin-dejar-pasar-clic = Tıklamaların geçmesine izin ver
 
 # Muting the shortcuts for a while (P1.7).
 comando-silenciar-atajos = Kısayolları sustur
-bandeja-silenciada = PixPin Max — kısayollar susturuldu
+bandeja-silenciada = PinDesk — kısayollar susturuldu
 aviso-atajos-silenciados = Kısayollar susturuldu
 aviso-atajos-silenciados-detalle = Aynı menüden yeniden açabilirsiniz.
 aviso-atajos-activos = Kısayollar etkin
@@ -250,7 +250,7 @@ chat-no-hay-biblioteca = Ses kitaplığı Windows'ta henüz yok
 chat-ver-dibujo-entero = Çizimin tamamını göster
 chat-no-hay-pagina = Bir projeden sayfa eklemek Windows'ta henüz yok
 chat-no-hay-telepronter = Teleprompter Windows'ta henüz yok
-chat-no-se-pudo = Yapılamadı: PixPin günlüğüne bakın
+chat-no-se-pudo = Yapılamadı: PinDesk günlüğüne bakın
 chat-fecha = { $dia } { $mes }
 chat-fecha-con-ano = { $dia } { $mes } { $ano }
 chat-mes-1 = Ocak
@@ -321,7 +321,7 @@ menu-foto-lienzo = Tuvalde aç
 menu-foto-pin = Yeniden sabitle
 menu-foto-abrir = Windows ile aç
 recibir-titulo = Telefondan al
-recibir-como = Telefonunuzdaki PixPin ile kodu tarayın
+recibir-como = Telefonunuzdaki PinDesk ile kodu tarayın
 recibir-esperando = Telefon bekleniyor…
 recibir-hecho = { $cuantos } öğe geldi
 recibir-salir = Kapatmak için Esc
@@ -349,7 +349,7 @@ foto-chat-sin-imagen = Kopyalanmış görüntü yok
 foto-chat-error = Sohbet fotoğrafı kaydedilemedi
 proyecto-borrar = Projeyi sil
 proyecto-borrar-varios = Seçilenleri sil
-proyecto-borrar-aviso = Listeden çıkacak ve klasörü PixPin çöp kutusuna gidecek. Devam edilsin mi?
+proyecto-borrar-aviso = Listeden çıkacak ve klasörü PinDesk çöp kutusuna gidecek. Devam edilsin mi?
 proyecto-papelera = Silinen projeler…
 # Where each project is saved: its chosen folder or the usual place.
 ubicacion-cambiar = Konumu değiştir…
@@ -364,7 +364,7 @@ ubicacion-movido = Proje şuraya kaydedildi: { $ruta }
 ubicacion-vuelto = Proje olağan konumuna döndü
 ubicacion-error-red = Projeler yalnızca bu bilgisayarın bir sürücüsüne kaydedilebilir, ağ sürücüsüne değil.
 ubicacion-error-no-es-carpeta = Bu klasör bu bilgisayarda yok.
-ubicacion-error-dentro = Bu klasör projenin kendisinin veya PixPin verilerinin içinde.
+ubicacion-error-dentro = Bu klasör projenin kendisinin veya PinDesk verilerinin içinde.
 ubicacion-error-mover = Proje taşınamadı; hâlâ olduğu yerde.
 ubicacion-error-abrir = Proje klasörü açılamadı.
 
@@ -383,14 +383,14 @@ sinc-sincronizar = Eşitle
 sinc-probar = Dene
 sinc-con-todos = Tümüyle eşitle ({ $n })
 sinc-con-todos-como = Sormadan: her biriyle son seferde seçtiğinizi kullanır.
-sinc-si-no-aparece = Görünmüyorsa: PixPin açık ve bu Wi-Fi'de olmalı.
+sinc-si-no-aparece = Görünmüyorsa: PinDesk açık ve bu Wi-Fi'de olmalı.
 sinc-con-direccion = Bir adrese bağlan
 sinc-anadir = Başka cihaz ekle
 sinc-anadir-como = Diğer cihazda: Eşitleme → “Kodla katıl”.
 sinc-toca-codigo = Kodu görmek için tıklayın
 sinc-salir = Gruptan ayrıl
 sinc-pasar = Birine bir şey gönder
-sinc-pasar-como = Yalnızca bir kez, Wi-Fi'nizde PixPin kullanan herkese. Grup gerekmez.
+sinc-pasar-como = Yalnızca bir kez, Wi-Fi'nizde PinDesk kullanan herkese. Grup gerekmez.
 sinc-recibir = Al
 sinc-enviar = Gönder
 sinc-pasar-tambien = Gelenler proje listesine veya “Kayıtlı mesajlar”a gider.
@@ -399,7 +399,7 @@ sinc-escuchando = Bu pencere açıkken bu bilgisayar { $dir } adresinde bulunabi
 sinc-nombre-titulo = Bu cihazın adı
 sinc-nombre-como = Diğer cihazlarınız onu böyle görecek.
 sinc-unirme-titulo = Gruba katıl
-sinc-unirme-como = Gruptaki bir cihazda “Başka cihaz ekle” altında gösterilen kodu yazın. O cihazda PixPin açık ve aynı Wi-Fi'de olmalı.
+sinc-unirme-como = Gruptaki bir cihazda “Başka cihaz ekle” altında gösterilen kodu yazın. O cihazda PinDesk açık ve aynı Wi-Fi'de olmalı.
 sinc-codigo = Kod
 sinc-direccion = Adres (yalnızca bulunamazsa)
 sinc-direccion-titulo = Bir adrese bağlan
@@ -498,7 +498,7 @@ ew-pegar = Alıcının kodunu yapıştırın
 ew-pegar-como = Diğer cihazda: Wi-Fi üzerinden al → «Bana gönderebilmeleri için kodumu göster». Altı hanesini buraya yazın veya QR metnini Ctrl+V ile yapıştırın.
 ew-mandar = Gönder
 ew-dejar-de-pegar = Yapıştırmayı bırak
-ew-en-el-otro = Diğer telefonda: PixPin → Eşitleme → Al
+ew-en-el-otro = Diğer telefonda: PinDesk → Eşitleme → Al
 ew-o-escribe = veya bu kodu yazın
 ew-misma-wifi = İkisi de aynı Wi-Fi'de
 ew-misma-wifi-como = Wi-Fi yoksa biri erişim noktasını açabilir, diğeri ona katılır. İnternet kullanılmaz.
@@ -509,10 +509,10 @@ ew-cerrar = Kapat
 ew-grupo = Cihazlarınız · kodsuz
 ew-grupo-como = Grubunuzdalar: doğrudan oraya gider, tarama yok. Açık olan şeye (bir sohbet; tuval yalnızca fotoğraf alır) veya Kayıtlı mesajlara düşer.
 ew-grupo-se-ve = Aynı Wi-Fi'de
-ew-grupo-no-se-ve = Şu an görünmüyor: o cihazda PixPin'i açın
+ew-grupo-no-se-ve = Şu an görünmüyor: o cihazda PinDesk'i açın
 ew-grupo-enviando = Gönderiliyor…
 ew-grupo-todos = Görünen herkese gönder
-ew-grupo-actualiza = { $movil } üzerinde PixPin'i güncelleyin: henüz doğrudan dosya alamıyor. Aşağıdaki kodu kullansın.
+ew-grupo-actualiza = { $movil } üzerinde PinDesk'i güncelleyin: henüz doğrudan dosya alamıyor. Aşağıdaki kodu kullansın.
 
 ## «Update mine / Create as new» when receiving (RecibirActivity.kt)
 rw-ya-tienes = Aynı kodlara sahip «{ $nombre }» zaten sizde var
@@ -590,14 +590,14 @@ papelera-no-se-pudo = «{ $nombre }» kurtarılamadı: { $motivo }
 papelera-recuperados = { $total } projeden { $n } tanesi kurtarıldı
 
 ## The document viewer: Word, EPUB books and web pages (task 2.1)
-visor-html-titulo = PixPin — sayfa
+visor-html-titulo = PinDesk — sayfa
 ## The Office pin: Office's preview as a pin (2026-10-10)
 office-titulo = Office önizlemesi
 office-abriendo = Office önizlemesiyle açılıyor…
 office-tarda = Office biraz zaman alıyor (başlaması gerekiyor). Bekleyebilir veya “Birlikte aç…” ile bir uygulama seçebilirsiniz (çubuktaki ↗ düğmesi).
 office-fallo = Office bu dosyayı önizleyemedi. “Birlikte aç…” ile başka bir uygulamada açın (çubuktaki ↗ düğmesi).
 office-internet = Bu dosya internetten geliyor ve güvenlik nedeniyle Windows önizlemesine izin vermiyor. “Birlikte aç…” ile başka bir uygulamada açın (çubuktaki ↗ düğmesi) veya Özellikler'den engelini kaldırın.
-visor-titulo = PixPin görüntüleyici
+visor-titulo = PinDesk görüntüleyici
 visor-marcador = Buraya yer imi koy
 visor-ajustes = Okuma ayarları
 visor-tamano = Metin boyutu
@@ -623,14 +623,14 @@ lector-grosor-gruesa = Kalın
 lector-quitar-tinta = Notları kaldır
 lector-tinta-quitada = Notlar kaldırıldı (burada kaldığınız sürece Ctrl+Z geri getirir)
 lector-ayuda-docs = Okumak için tekerlek · Ctrl+tekerlek yakınlaştır · L dinle · A not al · M yer imi · I içindekiler · +/− boyut · T yazı · B kalınlık · Çıkmak için Esc
-lector-pdf-titulo = PixPin PDF okuyucu
+lector-pdf-titulo = PinDesk PDF okuyucu
 lector-pdf-no-se-abre = PDF açılamadı
 lector-pdf-abriendo = PDF açılıyor…
 lector-exportando = Notlu PDF kaydediliyor… { $hechas } / { $total }
 lector-exportar-pdf = PDF'yi notlarla kaydet
 lector-anotado = notlu
 lector-ayuda-pdf = Sayfa çevirmek için tekerlek · Ctrl+tekerlek yakınlaştır · Ctrl+[ Ctrl+] not alanı · L dinle · A not al · M yer imi · Çıkmak için Esc
-lector-office-titulo = PixPin'de Word ve PowerPoint
+lector-office-titulo = PinDesk'te Word ve PowerPoint
 lector-ayuda-office = Sayfa çevirmek için tekerlek · Ctrl+tekerlek yakınlaştır · seçmek için metnin üzerinde sürükleyin · Ctrl+C kopyala · Ctrl+F bul · Ctrl+P yazdır · F5 sun · A not al · N negatif · Çıkmak için Esc
 lector-presentar = Sun (F5)
 lector-modo-lectura = Okuma modu (yeniden akıtılmış metin)
@@ -801,7 +801,7 @@ chat-biblioteca-notas = Sesli notlar
 
 # Recording a voice note from the chat.
 chat-voz-muy-corta = Çok kısa: biraz daha uzun basılı tutun.
-chat-voz-sin-microfono = Mikrofon yok veya PixPin'in kullanmasına izin verilmiyor. Ayarlar › Gizlilik › Mikrofon'u kontrol edin.
+chat-voz-sin-microfono = Mikrofon yok veya PinDesk'in kullanmasına izin verilmiyor. Ayarlar › Gizlilik › Mikrofon'u kontrol edin.
 chat-voz-sin-codec = Bu Windows'ta ses kodlayıcı yok (genellikle medya özellik paketi olmayan bir N sürümü).
 chat-voz-fallo = Sesli not kaydedilemedi.
 
@@ -898,7 +898,7 @@ chat-voz-bajar-whisper = Metne dönüştürmek için Whisper konuşma modeli ger
 chat-voz-bajando-whisper = Konuşma modeli indiriliyor… %{ $pct }
 chat-voz-sin-modelo-whisper = Whisper konuşma modeli (yaklaşık { $megas } MB) eksik: indirmek için «Metne dönüştür»e yeniden basın.
 chat-voz-sin-modelo-qwen3 = Qwen3-ASR indirilmedi (yaklaşık { $megas } MB): indirmek için Ayarlar › Ses'ten seçin veya Whisper'a dönün.
-chat-voz-sin-onnx = Bu Windows'ta yapay zekâ çalışma zamanı (onnxruntime.dll) eksik: { $donde } içine veya PixPin'in yanına kopyalayın.
+chat-voz-sin-onnx = Bu Windows'ta yapay zekâ çalışma zamanı (onnxruntime.dll) eksik: { $donde } içine veya PinDesk'in yanına kopyalayın.
 chat-voz-descarga = Konuşma modeli indirilemedi ({ $que }). Bağlantıyı kontrol edip «Metne dönüştür»e yeniden basın.
 chat-voz-onnx = Whisper konuşma motoru başarısız oldu: { $detalle }
 chat-dictado-oyendo = Dinleniyor… konuşun, bitince mikrofona tıklayın
@@ -1023,7 +1023,7 @@ compartir-originales = Özgünler
 compartir-editable = Düzenlenebilir
 compartir-texto = Metin
 compartir-csv = Tablo (CSV)
-compartir-pixpin = PixPin (.pixpin)
+compartir-pixpin = PinDesk (.pixpin)
 compartir-dxf = DXF
 compartir-xlsx = Excel (xlsx)
 compartir-docx = Word (docx)
@@ -1344,7 +1344,7 @@ grupos-sin-nombre = Grup
 grupos-nombre = Pencere grubu adı
 grupos-guardar-boton = Kaydet
 nota-md-nueva = Yeni not
-nota-md-sufijo = PixPin notu
+nota-md-sufijo = PinDesk notu
 nota-md-negrita = Kalın
 nota-md-cursiva = İtalik
 nota-md-tachado = Üstü çizili
@@ -1691,13 +1691,13 @@ pedido-tarea-anadida = “{ $tarea }”, “{ $lista }” listesine eklendi.
 pedido-tarea-hecha = “{ $tarea }” bitti olarak işaretlendi.
 pedido-tarea-pendiente = “{ $tarea }” yeniden bekliyor.
 pedido-roto = Başka bir programdan gelen istekte bir şey eksikti; hiçbir şey yapılmadı.
-pedido-sin-proyecto = O proje artık PixPin'de değil.
+pedido-sin-proyecto = O proje artık PinDesk'te değil.
 pedido-sin-mensaje = O mesaj artık sohbette değil.
 pedido-no-es-lista = O mesaj bir yapılacaklar listesi değil.
 pedido-sin-tarea = Listede { $indice } numaralı görev yok.
 pedido-tarea-vacia = Metni olmayan görev eklenmez.
 pedido-sin-fichero = O dosya artık diskte değil.
-pedido-fallo-disco = İstenen kaydedilemedi. PixPin günlüğüne bakın.
+pedido-fallo-disco = İstenen kaydedilemedi. PinDesk günlüğüne bakın.
 pedido-tarea-movida = “{ $tarea }”, “{ $lista }” listesine taşındı.
 pedido-tarea-cambio = Görev taşınırken liste değişti; hiçbir şeye dokunulmadı. Yeniden bakın.
 pedido-tarea-quitada = “{ $tarea }” listesinden kaldırıldı.
@@ -1716,22 +1716,22 @@ pedido-ocr-no-disponible = Windows OCR yüklü değil: Ayarlar'dan metin tanıma
 pedido-ocr-fallo = Görüntüdeki metin okunamadı: { $motivo }
 
 ## Command line and pixpin:// links (Oct 15)
-orden-titulo = PixPin Max
-orden-confirmar-cabecera = Bir bağlantı PixPin Max'ten şunu istiyor:
+orden-titulo = PinDesk
+orden-confirmar-cabecera = Bir bağlantı PinDesk'ten şunu istiyor:
 orden-confirmar-pregunta = Yapılsın mı?
 orden-motivo-ficheros = Diskinizdeki dosyaları açar veya gönderir.
-orden-motivo-asistente = PixPin'de işlem yapabilen asistana sorar.
+orden-motivo-asistente = PinDesk'te işlem yapabilen asistana sorar.
 orden-motivo-microfono = Mikrofonla kayıt yapar.
 orden-motivo-otros-aparatos = Diğer cihazlarınıza veri gönderir.
 orden-motivo-automatizacion = Bir asistan otomasyonuna dokunur.
 orden-motivo-borra = Bir şey siler.
-orden-motivo-cambia = PixPin verilerini değiştirir.
+orden-motivo-cambia = PinDesk verilerini değiştirir.
 orden-prohibido-ruta-no-local = Bir bağlantı ağ dosyalarını veya bu bilgisayar dışındaki yolları açamaz. Hiçbir şey yapılmadı.
 orden-prohibido-crear-automatizacion = Bir bağlantı otomasyon oluşturamaz. Hiçbir şey yapılmadı.
-orden-no-se-pudo = PixPin Max bunu yapamadı: { $motivo }
-orden-sin-app = PixPin Max açık değil ve başlatılamadı: { $motivo }
-orden-sin-respuesta = PixPin Max yanıt vermedi. Takıldıysa kapatıp yeniden açın.
-orden-version = Bu PixPin Max istekten daha eski: güncelleyin.
+orden-no-se-pudo = PinDesk bunu yapamadı: { $motivo }
+orden-sin-app = PinDesk açık değil ve başlatılamadı: { $motivo }
+orden-sin-respuesta = PinDesk yanıt vermedi. Takıldıysa kapatıp yeniden açın.
+orden-version = Bu PinDesk istekten daha eski: güncelleyin.
 orden-preguntar-titulo = Asistana { $cuantos ->
     [one] { $nombre }
    *[other] { $cuantos } dosya
@@ -1745,7 +1745,7 @@ galeria-vacia = Henüz yakalama yok. Alt + sürükleyerek kopyaladıklarınız b
 galeria-abrir-carpeta = Klasörü aç
 galeria-copiada = Panoya kopyalandı
 galeria-pineada = Sabitlendi
-galeria-borrada = PixPin geri dönüşüm kutusuna taşındı
+galeria-borrada = PinDesk geri dönüşüm kutusuna taşındı
 galeria-no-se-pudo = Yapılamadı: { $motivo }
 galeria-conservada-aviso = Saklandı: Kayıtlı mesajlarda ve silinmeyecek
 bandeja-galeria-capturas = Yakalama galerisi…
@@ -1819,7 +1819,7 @@ ajustes2-resultados-sub = { $n ->
   }
 ajustes2-sin-resultados = Hiçbir ayar “{ $busqueda }” içermiyor. Başka bir kelime deneyin.
 ajustes2-sec-general = Genel
-ajustes2-sec-general-sub = PixPin'in nasıl başladığı ve sohbetteki PDF'lerle ne yaptığı.
+ajustes2-sec-general-sub = PinDesk'in nasıl başladığı ve sohbetteki PDF'lerle ne yaptığı.
 ajustes2-sec-captura = Yakalama
 ajustes2-sec-captura-sub = Yakalamanın nasıl yapıldığı ve sonra ne olduğu.
 ajustes2-sec-lienzo = Tuval ve araçlar
@@ -1831,7 +1831,7 @@ ajustes2-sec-atajos-sub = Bir kutuya tıklayın, ardından tuşlara basın. Dele
 ajustes2-sec-sincro = Eşitleme
 ajustes2-sec-sincro-sub = Bu bilgisayarın telefonu nasıl bulduğu.
 ajustes2-sec-apps = Varsayılan uygulamalar
-ajustes2-sec-apps-sub = Dosya Gezgini'nden görüntü ve videoları PixPin ile açın.
+ajustes2-sec-apps-sub = Dosya Gezgini'nden görüntü ve videoları PinDesk ile açın.
 ajustes2-sec-apariencia = Görünüm
 ajustes2-sec-apariencia-sub = Sohbetin nasıl göründüğü.
 ajustes2-sec-avanzado = Gelişmiş
@@ -1849,7 +1849,7 @@ ajustes2-ayuda-ocr-windows-con-indra = Windows OCR okuyor. Indra hâlâ indirilm
 ajustes2-ocr-bajando = Indra indiriliyor… % { $por-ciento }. Bu arada Windows OCR okuyor.
 ajustes2-ocr-fallo = Indra indirilemedi: { $fallo }. Yeniden denemek için tekrar seçin; bu arada Windows OCR okuyor.
 ajustes2-ocr-licencia = Indra lisansı
-ajustes2-ayuda-ocr-licencia = Indra'nın kodu Apache 2.0; ağırlıkları Datalab'ın değiştirilmiş OpenRAIL-M lisansı. PixPin bunları içermez: Indra'yı seçtiğinizde Hugging Face'ten indirirsiniz.
+ajustes2-ayuda-ocr-licencia = Indra'nın kodu Apache 2.0; ağırlıkları Datalab'ın değiştirilmiş OpenRAIL-M lisansı. PinDesk bunları içermez: Indra'yı seçtiğinizde Hugging Face'ten indirirsiniz.
 ajustes2-ocr-corregir = Sözlükle düzelt
 ajustes2-ayuda-ocr-corregir = Yalnızca Indra ile ve İspanyolca sayfalarda: aksanları ve düşük güvenli harfleri düzeltir. Sayılara, kodlara veya adlara asla dokunmaz.
 ajustes2-ocr-vocabulario = Sözcük dağarcığım
@@ -1918,7 +1918,7 @@ ajustes2-esquina = Kutu köşesi
 ajustes2-ayuda-esquina = Yakalamanın yapıldığı monitörde.
 ajustes2-icono = Ekranda kalma süresi
 ajustes2-ayuda-icono = Son yakalamadan sonra etkin olmayan kutunun ne kadar kalacağı.
-ajustes2-ayuda-ignorado = Bu program öndeyken PixPin kısayolları hiçbir şey yapmaz.
+ajustes2-ayuda-ignorado = Bu program öndeyken PinDesk kısayolları hiçbir şey yapmaz.
 ajustes2-anadir-programa = Program ekle
 ajustes2-ayuda-anadir-programa = Yürütülebilir dosyanın adını yazıp Enter'a basın.
 ajustes2-anadir = Ekle
@@ -1938,12 +1938,12 @@ ajustes2-ayuda-presencia = Telefon Eşitleme'yi açar açmaz bu bilgisayarı gö
 ajustes2-lo-mio = Benimki geçerli
 ajustes2-ayuda-lo-mio = Eşitlerken bu bilgisayar kazanır: diğer taraftan yalnızca burada olmayanlar gelir.
 ajustes2-vista-rapida = Boşluk tuşuyla hızlı bakış
-ajustes2-ayuda-vista-rapida = Dosya Gezgini'nde veya masaüstünde dosyaları seçip Space'e basın: hemen PixPin'de açılırlar (fotoğraflar, videolar, PDF, Word, DWG planları, IFC ve Revit modelleri…). Space yeniden kapatır.
-ajustes2-abrir-con = Görüntü ve videolar için PixPin'i öner
+ajustes2-ayuda-vista-rapida = Dosya Gezgini'nde veya masaüstünde dosyaları seçip Space'e basın: hemen PinDesk'te açılırlar (fotoğraflar, videolar, PDF, Word, DWG planları, IFC ve Revit modelleri…). Space yeniden kapatır.
+ajustes2-abrir-con = Görüntü ve videolar için PinDesk'i öner
 ajustes2-ayuda-abrir-con = “Birlikte aç”ta ve Varsayılan uygulamalarda görünür. Kapatmak kayıt defterine yazılanları kaldırır.
 ajustes2-predeterminada = Varsayılan uygulama
-ajustes2-ayuda-predeterminada = Windows bunu yalnızca Ayarlar'da seçtirir: orada PixPin Max → Varsayılan olarak ayarla.
-ajustes2-hacer-predeterminada = PixPin'i varsayılan uygulama yap…
+ajustes2-ayuda-predeterminada = Windows bunu yalnızca Ayarlar'da seçtirir: orada PinDesk → Varsayılan olarak ayarla.
+ajustes2-hacer-predeterminada = PinDesk'i varsayılan uygulama yap…
 ajustes2-ayuda-cosmos = Sohbet proje listesinin arkasında yıldızlı gökyüzü. Bir sonraki sohbetten itibaren uygulanır.
 ajustes2-nivel = Performans düzeyi
 ajustes2-ayuda-nivel = Otomatik, başlangıçta bilgisayarı ölçer. Bir sonraki başlatmada uygulanır.
@@ -1971,7 +1971,7 @@ ajustes2-nunca = Asla
 ajustes2-siempre = Her zaman
 ajustes2-auto = Otomatik
 ## v2-buscar
-comando-buscar = 🔍 PixPin'de ara…
+comando-buscar = 🔍 PinDesk'te ara…
 comando-grabar-clase = 🎙 Ders veya toplantı kaydet…
 clase-titulo = Ders veya toplantı kaydet
 clase-sub = Sesi kaydeder ve ekran görüntülerini dakikalarına yerleştirir
@@ -2023,10 +2023,10 @@ clase-suspendido = Bilgisayar { $minutos } dk uykuda kaldı; kayıt uyanınca de
 clase-recuperar-titulo = Yarıda kalan kayıt
 clase-recuperar-pregunta =
     “{ $chat }” içinde bir kayıt yarıda kaldı ({ $nombre }, { $minutos } dk).
-    Evet: Kurtar · Hayır: Sil · İptal: PixPin bir sonraki açılışta yeniden sorsun
+    Evet: Kurtar · Hayır: Sil · İptal: PinDesk bir sonraki açılışta yeniden sorsun
 clase-recuperar-sin-nada = “{ $nombre }” kaydından yalnızca açılamayan bir video kaldı. Silinsin mi?
 clase-recuperar-descartar = “{ $nombre }” silinsin mi? Kayıt silinecek ve kurtarılamayacak.
-clase-recuperar-fallo = “{ $nombre }” kurtarılamadı. Kayıt hâlâ güvende ve PixPin açıldığında yeniden önerilecek.
+clase-recuperar-fallo = “{ $nombre }” kurtarılamadı. Kayıt hâlâ güvende ve PinDesk açıldığında yeniden önerilecek.
 clase-texto-de-fondo = Kapat (devam eder)
 clase-modo-pantalla = Ekran ve ses
 clase-modo-capturas = Ses ve ekran görüntüleri
@@ -2054,7 +2054,7 @@ chat-sin-grabacion = Bu sohbette kayıt yok
 chat-colaboradores-todos = Sohbetteki herkes fotoğraf ekleyebilsin
 chat-colaboradores-nadie = Bu kayıtta yalnızca benim fotoğraflarım
 clase-hora-sin-comprobar = saat doğrulanmadı
-baliza-movil-aislado = Aynı ağda olmanıza rağmen telefonunuz görünmüyor: bu Wi-Fi cihazları birbirinden ayırıyor olabilir (misafir, otel ve ofis ağları bunu yapar) veya bir güvenlik duvarı PixPin'i engelliyor olabilir. Bilgisayarı telefonun erişim noktasına veya ikisini başka bir Wi-Fi'ye bağlayın. Çektiğiniz fotoğraflar telefonda bekler ve birbirlerini bulduklarında dakikalarına yerleşir.
+baliza-movil-aislado = Aynı ağda olmanıza rağmen telefonunuz görünmüyor: bu Wi-Fi cihazları birbirinden ayırıyor olabilir (misafir, otel ve ofis ağları bunu yapar) veya bir güvenlik duvarı PinDesk'i engelliyor olabilir. Bilgisayarı telefonun erişim noktasına veya ikisini başka bir Wi-Fi'ye bağlayın. Çektiğiniz fotoğraflar telefonda bekler ve birbirlerini bulduklarında dakikalarına yerleşir.
 baliza-movil-otra-red = Telefonunuz bu bilgisayardan farklı bir ağda. İkisini aynı Wi-Fi'ye (veya bilgisayarı telefonun erişim noktasına) bağlayın. Çektiğiniz fotoğraflar telefonda bekler ve birbirlerini bulduklarında dakikalarına yerleşir.
 # In-person meeting (27-oct-2026): the computer's camera, photos and clips.
 clase-modo-presencial = Yüz yüze
@@ -2093,7 +2093,7 @@ clase-completa-sin-escucha = Canlı döküm için Jev (TypeSafe) anahtarı ve ko
 clase-descartar = Sil
 clase-descartar-otra = Kaydı silmek için “Sil”e yeniden basın
 estudiar-clip = Kamera videosu · { $duracion }
-bandeja-grabando = PixPin Max — Kaydediliyor…
+bandeja-grabando = PinDesk — Kaydediliyor…
 salir-grabando-titulo = Bir toplantı kaydediliyor
 salir-grabando-mensaje =
     Çıkmadan önce kayıt bitirilip kaydedilsin mi?
@@ -2167,7 +2167,7 @@ grabacion-ir-al-minuto = Bu ana git
 grabacion-cerrar = Kapat
 grabacion-audio = Ses
 grabacion-video = Video
-buscar-todo-titulo = PixPin'de ara
+buscar-todo-titulo = PinDesk'te ara
 buscar-todo-pista = Dosya, görev, ders, ekran görüntüsü arayın… veya bir harf yazın
 buscar-todo-pestana-todo = Tümü
 buscar-todo-pestana-archivos = Dosyalar
@@ -2333,7 +2333,7 @@ lec2-nueva-etiqueta = etiket ve Enter
 lec2-relacionadas = İlgili
 lec2-proximo-repaso = Sonraki tekrar: { $cuando }
 lec2-vacia-titulo = Hataları tekrarlamamak için öğrendiklerinizi not edin
-lec2-vacia-texto = Yukarıya tek seferde yazın: “ne oldu…, çünkü…, bir dahaki sefere…”. PixPin bunu böler; alanı, projeyi ve önem derecesini belirler ve daha önce olup olmadığını söyler.
+lec2-vacia-texto = Yukarıya tek seferde yazın: “ne oldu…, çünkü…, bir dahaki sefere…”. PinDesk bunu böler; alanı, projeyi ve önem derecesini belirler ve daha önce olup olmadığını söyler.
 lec2-comprobacion = Başlamadan önce kontrol edin: { $hechas } / { $total }
 lec2-comprobacion-vacia = “Bir dahaki sefere…” altında henüz bir şey yok. Her dersin üçüncü bölümüdür.
 lec2-nada-que-repasar = Bugün tekrar edilecek bir şey yok.
@@ -2399,7 +2399,7 @@ galeria-elegidas = { $cuantas ->
 }
 galeria-elegir-todas = Tümü
 galeria-deshacer = Geri al
-galeria-borradas = { $cuantas } öğe PixPin geri dönüşüm kutusuna taşındı
+galeria-borradas = { $cuantas } öğe PinDesk geri dönüşüm kutusuna taşındı
 galeria-recuperadas = { $cuantas ->
     [one] Geri yüklendi
    *[other] { $cuantas } öğe geri yüklendi
@@ -2537,7 +2537,7 @@ bandeja2-silenciar-sub = oyunlar veya sunumlar için
 bandeja2-ultimas = Son yakalamalar
 bandeja2-ver-galeria = Galeriyi gör
 bandeja2-sin-capturas = Henüz yakalama yok
-bandeja2-abrir-pixpin = PixPin'i aç
+bandeja2-abrir-pixpin = PinDesk'i aç
 bandeja2-tareas = Görevler
 bandeja2-lecciones = Dersler
 bandeja2-nueva-leccion = Yeni ders
@@ -2545,7 +2545,7 @@ bandeja2-galeria = Yakalama galerisi
 bandeja2-documento = Belge aç…
 bandeja2-grupos = Pencere grupları
 bandeja2-para-hoy = Bugün için { $n }
-bandeja2-salir = PixPin'den çık
+bandeja2-salir = PinDesk'ten çık
 bandeja2-salir-sub = sabitlemeler kapanacak
 bandeja2-copiada = Kopyalandı
 bandeja2-borrada = Çöp kutusuna taşındı
@@ -2625,7 +2625,7 @@ timeline-tipo-pdf = PDF belgesi
 timeline-nada-que-exportar = Orada dışa aktarılacak bir şey yok
 timeline-no-exportado = Dosya kaydedilemedi
 timeline-exportado = Kaydedildi: { $nombre }
-timeline-exportado-pie = PixPin Max ile dışa aktarıldı · { $fecha }
+timeline-exportado-pie = PinDesk ile dışa aktarıldı · { $fecha }
 timeline-pdf-haciendo = PDF oluşturuluyor…
 timeline-pdf-sin-edge = PDF için Microsoft Edge gerekir; HTML olarak dışa aktarın
 timeline-pdf-fallo = PDF oluşturulamadı
@@ -2707,7 +2707,7 @@ timeline-guardar-imagen = Görüntü olarak kaydet…
 timeline-imagen-copiada = Görüntü olarak kopyalandı
 timeline-imagen-fallo = Görüntü oluşturulamadı
 timeline-tipo-png = PNG görüntüsü
-timeline-compartido-pie = PixPin Max · Zaman çizelgesi
+timeline-compartido-pie = PinDesk · Zaman çizelgesi
 
 ## tareas-v4
 # The search box hint in the shared top bar: shorter than tareas3-buscar,
@@ -2804,12 +2804,12 @@ al-movil-negados = { $negados ->
     [one] 1 dosya gönderilmedi: fotoğraf değildi ve bir tuval açık
    *[other] { $negados } dosya gönderilmedi: fotoğraf değillerdi ve bir tuval açık
   }
-al-movil-no-esta = { $movil } açık değil: telefonda PixPin'i açın
-al-movil-actualiza = { $movil } üzerinde PixPin'i güncelleyin: henüz doğrudan dosya alamıyor. «Wi-Fi üzerinden gönder» açılıyor.
+al-movil-no-esta = { $movil } açık değil: telefonda PinDesk'i açın
+al-movil-actualiza = { $movil } üzerinde PinDesk'i güncelleyin: henüz doğrudan dosya alamıyor. «Wi-Fi üzerinden gönder» açılıyor.
 al-movil-ocupado = { $movil } başka bir cihazla eşitleniyor. Birazdan yeniden deneyin.
-al-movil-otra-version = { $movil } üzerinde PixPin'in başka bir sürümü var: ikisini de güncelleyin
+al-movil-otra-version = { $movil } üzerinde PinDesk'in başka bir sürümü var: ikisini de güncelleyin
 al-movil-cortado = { $movil } cihazına gönderilemedi: { $motivo }
-al-movil-sin-grupo = Bu bilgisayar bir grupta değil: PixPin Eşitleme'den ayarlayın
+al-movil-sin-grupo = Bu bilgisayar bir grupta değil: PinDesk Eşitleme'den ayarlayın
 al-movil-no-es-del-grupo = O cihaz artık bu bilgisayarın grubunda değil
 al-movil-sin-imagenes = Gönderilecek bir şey yoktu
 al-frente-lienzo = { $de } size “{ $nombre }” gönderdi: açık tuvalde
@@ -2857,7 +2857,7 @@ cc-quitar = Kaldır
 cc-anadir = Ekle
 cc-cerrar-invitacion = Kapat
 cc-sincronizar = Eşitle
-cc-invitacion-como = Diğer cihazda: PixPin → Paylaşılan sohbete katıl. Bunu tarayın veya kodu yazın.
+cc-invitacion-como = Diğer cihazda: PinDesk → Paylaşılan sohbete katıl. Bunu tarayın veya kodu yazın.
 cc-invitacion-vale = Bu ekran açık kaldığı sürece geçerli. Aynı Wi-Fi'de olmalısınız.
 cc-salir-del-chat = Sohbetten ayrıl
 cc-salir-titulo = Sohbetten ayrılınsın mı?
@@ -3317,3 +3317,313 @@ clase-acta-propuestas = Kabul edilmeyen öneriler
 clase-acta-aceptar = Kabul et
 clase-acta-aceptada = Görevler'e eklendi
 clase-acta-anadidas = Görevler gelen kutusuna { $n } soru eklendi
+
+# --- Lo nuevo de noviembre ---
+# El aviso flotante del asistente
+aviso-ia-abrir = Aç
+aviso-ia-si = Evet
+aviso-ia-no = Hayır
+aviso-ia-permiso = 🔐 İzninize ihtiyacım var: { $pregunta }
+
+    Yanıt vermezseniz yapmayacağım.
+# Los turnos del asistente que siguen con el chat cerrado
+ia-fondo-titulo = 🤖 Asistan
+ia-fondo-sigue = “devam et”
+ia-fondo-sigue-fuera = “@asistente devam et”
+ia-fondo-otra-vez = ↻ Ben bitirmeden PinDesk kapandı. Aşağıdaki yanıtta baştan başlıyorum.
+ia-fondo-ya-actuo = Bazı adımlar zaten yapılmıştı, bu yüzden kendiliğimden tekrarlamayacağım (iki kez yapılırdı). { $sigue } yazın, buradan devam edeyim.
+ia-fondo-ya-se-retomo = Bir kez yeniden başlatmıştım ve yine kesildi, bu yüzden burada duruyorum. Yeniden denememi isterseniz { $sigue } yazın.
+ia-fondo-viejo = Kendiliğimden sürdürmek için çok zaman geçti. Hâlâ istiyorsanız { $sigue } yazın.
+ia-fondo-sin-pregunta = İsteğinizi bulamıyorum (silindi mi?), bu yüzden sürdüremiyorum.
+ia-fondo-no-se-pudo = Sürdüremedim: { $aviso }
+ia-fondo-no-empezo = Yanıtlamaya başlayamadım.
+ia-fondo-cortado = ⚠️ Bu bitmeden PinDesk kapandı. { $porque }
+ia-fondo-sigo-en-el-chat = 💬 Sohbette devam edeceğim.
+ia-fondo-sigo-de-fondo = ⏳ Sohbet kapansa da isteğiniz üzerinde çalışmaya devam ediyorum. Bitince haber vereceğim.
+ia-fondo-pregunta = ❓ Sohbette yanıt vermeniz gerekiyor: { $pregunta }
+
+    “Aç”a basın. Yanıt vermezseniz en güvenli seçenekle devam edeceğim.
+# La ficha de una leccion
+leccion-ventana = Ders
+leccion-ventana-nueva = Yeni ders
+leccion-titulo = 💡 Ders
+leccion-titulo-nueva = 💡 Yeni ders
+leccion-tipo-leccion = 💡 Ders
+leccion-tipo-error = ⚠️ Hata
+leccion-tipo-acierto = ✅ Başarı
+leccion-gravedad-leve = Hafif
+leccion-gravedad-importante = Önemli
+leccion-gravedad-grave = Ciddi
+leccion-sin-proyecto = Proje yok (genel sohbet)
+leccion-foto-ilegible = O fotoğraf okunamadı
+leccion-adjunto-no-esta = O dosya henüz bu bilgisayarda değil
+leccion-galeria = 🖼 Galeri
+leccion-guardar = Kaydet
+leccion-pista-titulo = Ne öğrendiniz? Tek seferde yazın veya dikte edin
+leccion-se-parece = Zaten sahip olduğunuz bir derse benziyor
+leccion-paso-otra-vez = 🔁 Yine oldu
+leccion-area = Alan
+leccion-etiquetas = Etiketler
+leccion-anadir-etiqueta = + etiket
+leccion-menos-detalle = ▴  Daha az ayrıntı
+leccion-mas-detalle = ▾  Ne oldu, neden oldu ve neyi farklı yapacağım
+leccion-que-paso = Ne oldu
+leccion-por-que = Neden oldu
+leccion-causas = Nedenler (tek dokunuş)
+leccion-proxima = Bir dahaki sefere… (X olursa Y yapacağım)
+leccion-referencias = Bulmak için kelimeler (virgülle ayrılmış)
+leccion-relacionadas = İlgili
+leccion-volvio-a-pasar = 🔁 Yine başıma geldi
+leccion-volvio-a-pasar-n = 🔁 Yine başıma geldi (şimdiye kadar { $veces } kez)
+leccion-mic-escuchando = 🎙️ Dinliyorum… bitirmek için mikrofona basın
+leccion-mic-sin-dictado = Bu bilgisayarda dikte yok: dersi yazın
+leccion-mic-sin-texto = Hiçbir şey anlaşılamadı
+leccion-mic-no-pasa = Metne dönüştürülemedi
+leccion-mic-corto = Çok kısa: mikrofonu biraz daha uzun açık tutun
+leccion-audio = 🎙 Ses
+leccion-audio-abriendo = 🎙 Açılıyor…
+leccion-audio-guardando = 🎙 Kaydediliyor…
+leccion-audio-parar = ⏹ Durdur { $duracion }
+leccion-audio-sin-microfono = Mikrofon kullanılamadı
+leccion-audio-corto = Çok kısa: kaydedilmedi
+leccion-audio-no-guarda = Ses kaydedilemedi
+# El horario
+horario-evaluacion-en = { $dias ->
+        [1] yarın
+       *[other] { $dias } gün sonra
+    }
+horario-evaluacion-recuerda = Unutma: { $que }, { $en }, { $cuando }
+horario-evento-en = { $evento } · yer: { $lugar }
+horario-dia-0 = Pzt
+horario-dia-1 = Sal
+horario-dia-2 = Çar
+horario-dia-3 = Per
+horario-dia-4 = Cum
+horario-dia-5 = Cmt
+horario-dia-6 = Paz
+# La Jump List del icono de la barra de tareas
+lista-icono-capturar = Yakala
+lista-icono-capturar-largo = Ekranın bir alanını yakala
+lista-icono-mensajes = Kayıtlı mesajlar
+lista-icono-mensajes-largo = Kayıtlı mesajları aç
+lista-icono-proyectos = Projeler
+lista-icono-proyectos-largo = Projelerinizi görün
+lista-icono-sincronizar = Eşitle
+lista-icono-sincronizar-largo = Cihazlarınızla eşitle
+lista-icono-recientes = Son projeler
+lista-icono-proyecto-largo = Projeyi aç: { $nombre }
+# Los visores de planos, modelos y croquis 3D
+cad-plano-abriendo = Çizim açılıyor…
+cad-plano-vacio = Çizimde gösterilecek bir şey yok
+cad-plano-error = Çizim açılamadı
+cad-plano-pista-acotar = Ölçmek için noktalara tıklayın · Çift tıklama veya Enter: bitir · Esc: çık
+cad-plano-todo = Çizimin tamamını göster
+cad-tema = Açık veya koyu arka plan
+cad-acotar = Ölç
+cad-borrar-cotas = Ölçüleri temizle
+cad-encima = Her zaman üstte
+cad-cerrar = Kapat
+cad-tres = 3B görüntüle
+cad-marcos = Yazdırma çerçeveleri
+cad-imprimir = Yazdır…
+cad-exportar = Dışa aktar (HTML, PDF, PNG, DXF…)…
+cad-borrar-marcos = Çerçeveleri temizle
+cad-plano-pista-marcos = Yazdırılacak alanı çerçevelemek için sürükleyin · Ctrl+P: yazdır · Del: sonuncuyu kaldır · Esc: çık
+cad-plano-marcador = Buraya yer imi koy
+cad-anotar = Not ekle
+cad-sin-dibujo-civil = { $n ->
+        [one] { $n } Civil 3D nesnesi grafiği olmadan kaydedilmiş: PROXYGRAPHICS = 1 ile kaydedin veya LandXML'e aktarın
+       *[other] { $n } Civil 3D nesnesi grafikleri olmadan kaydedilmiş: PROXYGRAPHICS = 1 ile kaydedin veya LandXML'e aktarın
+    }
+cad-letras = Çizim yazı tipleri…
+cad-letras-faltan = Bu çizim burada olmayan yazı tipleri istiyor; metinleri benzer yazı tipleriyle gösterilir ve kutularına sığmayabilir:
+cad-letras-no-falta = Çizimin adıyla belirttiği yazı tiplerinden hiçbiri eksik değil.
+cad-letras-donde = SHX yazı tipleri genellikle C:\Program Files\Autodesk\AutoCAD 20xx\Fonts içinde veya size gönderilen çizimin yanında olur;
+    TrueType olanlar C:\Windows\Fonts içinde. Buraya eklediğiniz yazı tipleri AutoCAD, Windows ve PinDesk yazı tiplerine göre önceliklidir.
+cad-letras-anadir = Yazı tipi ekle (SHX, TTF, OTF, TTC)…
+cad-letras-quitar = Benimkileri kaldır ({ $n })
+cad-faltan-letras = Çizimin { $n } yazı tipi eksik: eklemek için yukarıdaki Aa'ya tıklayın
+cad-releyendo = Çizim sizin yazı tiplerinizle okunuyor…
+cad-boton-mover = Taşı (sürükle)
+cad-boton-marcador = Yer imi
+cad-boton-anotar = Not ekle
+cad-boton-letras = Çizim yazı tipleri
+cad-corte = Kesit kutusu
+cad-capas = Kotlar ve kategoriler
+cad-boton-pantalla = Tam ekran
+cad-boton-guardar = Bir sohbete kaydet
+cad-modelo-abriendo = Model açılıyor…
+cad-modelo-vacio = Modelde gösterilecek bir şey yok
+cad-modelo-error = Model açılamadı
+cad-modelo-todo = Modelin tamamını göster
+cad-aislar = Seçili öğeyi yalıt
+cad-niveles = KOTLAR
+cad-categorias = KATEGORİLER
+cad-sin-nivel = Kot yok
+cad-mostrar-todo = Tümünü göster
+cad-aristas = Kenarlar
+cad-planta = Plan görünümü
+cad-altura-corte = Kesit
+cad-modelo-pista = Sürükle: döndür · Sağ sürükle: kaydır · Tekerlek: yakınlaştır · Tıkla: nedir · Tekrar tıkla: yalıt
+cad-modelo-marcador = Buraya yer imi koy (kesit ve gizlenenlerle birlikte)
+cad-imprimir-marcos = Çerçeveleri yazdır…
+cad-modelo-pista-marcos = Yazdırılacak alanı çerçevelemek için sürükleyin · Ctrl+P: yazdır · Del: sonuncuyu kaldır · Sayılar: görünümüne git · Esc: çık
+cad-modelo-pista-anotar = Eklediğiniz notlar yalnızca bu yer iminin görünümünde görünür
+cad-modelo-anotar = Bu görünüme not ekle
+cad-croquis-abriendo = Kroki açılıyor…
+cad-croquis-vacio = Kroki boş
+cad-croquis-error = Kroki açılamadı
+cad-croquis-todo = Krokinin tamamını göster
+cad-croquis-capas = Katmanlar
+cad-croquis-grupos = GRUPLAR
+cad-croquis-tipos = TÜRLER
+cad-croquis-todo-corto = Tümü
+cad-croquis-pista = Sürükle: döndür · Sağ sürükle: kaydır · Tekerlek: yakınlaştır · 1–9: kayıtlı görünümler
+# La pagina HTML de un plano exportado
+cad-web-todo = Tümünü sığdır
+cad-web-tema = Açık / koyu
+cad-web-capas = Katmanlar
+cad-web-grosores = Çizgi kalınlıkları
+cad-web-anotaciones = Notlar
+cad-web-todas = Tümü
+cad-web-ninguna = Hiçbiri
+cad-web-sin-soporte = Bu tarayıcı çizimi açamıyor: güncel bir Edge, Chrome, Firefox veya Safari ile aç.
+cad-web-pista = Tekerlek: yakınlaştır · Sürükle: kaydır · Çift tıklama: sığdır · F, B, L
+# El membrete de un plano impreso
+lamina-proyecto = PROJE
+lamina-lamina = PAFTA
+lamina-titulo = BAŞLIK
+lamina-dibujo = ÇİZEN
+lamina-escala = ÖLÇEK
+lamina-sin-escala = Ölçeksiz
+lamina-fecha = TARİH
+lamina-unidades = BİRİMLER
+lamina-opcion = Pafta
+lamina-con-membrete = Çerçeve ve antetle
+lamina-sin-marco = Çerçevesiz
+# Sincronizar en segundo plano
+sinc-fondo-solo = Bu bilgisayarın grubunda başka kimse yok: Eşitleme'den bir gruba katılın
+sinc-fondo-no-es-del-grupo = O cihaz artık grupta değil
+sinc-fondo-aparatos = { $n ->
+        [one] { $n } cihaz
+       *[other] { $n } cihaz
+    }
+sinc-fondo-sincronizando = Eşitleniyor: { $quien }…
+sinc-fondo-ya-en-marcha = Zaten bir eşitleme sürüyor: bitmesini bekleyin
+sinc-fondo-fallo = Eşitlenemedi: { $error }
+# Leer en voz
+lector-voz-en-linea = çevrimiçi
+# Automatizaciones
+auto-origen = Otomasyon
+# El asistente de la nube sin clave
+ia-nube-falta-la-clave = { $proveedor } anahtarı eksik: Ayarlar → Asistan'a yapıştırın ({ $pagina } adresinden alabilirsiniz).
+# Los campos de una figura que se alarga
+figuras-ventana-no-es-numero = “{ $texto }” bir sayı değil
+figuras-ventana-mes-mal = “{ $texto }”: ayı 2026-11 biçiminde yazın
+# Las teclas
+tecla-intro = Enter
+tecla-supr = Del
+ia-fondo-hecho = ✅ Tamam.
+ia-hecho = Tamam.
+croquis-titulo = Kroki { $id }
+chat-ajustes-bandeja = Ayarlar, sistem tepsisindeki PinDesk simgesinden açılır
+# El estado de la IA
+ia-estado-funciona = çalışıyor
+ia-estado-sin-clave = anahtar yok
+ia-estado-desconocido = henüz denetlenmedi
+ia-estado-clave-mala = anahtar geçerli değil ({ $codigo })
+ia-estado-sin-saldo = hesapta bakiye yok
+ia-estado-limite = çok fazla istek veya kota doldu
+ia-estado-red = bağlantı yok
+ia-estado-servidor = hizmet hata veriyor ({ $codigo })
+ia-estado-otro = düzgün yanıt vermiyor ({ $codigo })
+ia-estado-comprobando = denetleniyor…
+ia-estado-hace-nada = az önce
+ia-estado-hace-min = { $n } dk önce
+ia-estado-hace-horas = { $n } sa önce
+ia-estado-pista = Tıkla: şimdi denetle veya anahtarlara git
+ia-estado-comprobar = Şimdi denetle
+ia-estado-claves = Anahtarlar: Ayarlar → Asistan
+ia-estado-sin-ajustes = Ayarlar, sistem tepsisindeki PinDesk simgesinden açılır
+# El mes dentro de una fecha
+chat-mes-dia-1 = Ocak
+chat-mes-dia-2 = Şubat
+chat-mes-dia-3 = Mart
+chat-mes-dia-4 = Nisan
+chat-mes-dia-5 = Mayıs
+chat-mes-dia-6 = Haziran
+chat-mes-dia-7 = Temmuz
+chat-mes-dia-8 = Ağustos
+chat-mes-dia-9 = Eylül
+chat-mes-dia-10 = Ekim
+chat-mes-dia-11 = Kasım
+chat-mes-dia-12 = Aralık
+# Escuchar la reunion en vivo
+ajustes2-voz-en-vivo = Toplantıyı canlı dinleyen
+ajustes2-voz-en-vivo-sistema = Windows veya Whisper
+ajustes2-voz-en-vivo-vosk = Vosk
+ajustes2-ayuda-voz-en-vivo = Jev ile toplantı konuları ve toplantının geri kalanı için. Vosk söyleneni anında gösterir ve siz sustuktan saniyenin onda birkaçı sonra her cümleyi kapatır (Whisper ile yaklaşık 3 sn), çevrimdışı. Seçince { $megas } MB indirilir (Apache-2.0).
+ajustes2-ayuda-voz-en-vivo-vosk-listo = Vosk ile çevrimdışı dinleniyor: söylenenler kaydın tam ekranında görünür. Bir gün yüklenmezse Windows veya Whisper kullanılır.
+ajustes2-ayuda-voz-en-vivo-sin-idioma = Vosk yalnızca İspanyolca ve İngilizce için indirilir; bu dilde Windows veya Whisper dinler.
+ajustes2-voz-en-vivo-bajando = Vosk indiriliyor… %{ $por-ciento }. Bu sırada Windows veya Whisper dinler.
+ajustes2-voz-en-vivo-fallo = Vosk indirilemedi: { $fallo }. Yeniden denemek için tekrar seçin.
+ajustes2-voz-vosk-borrar = Vosk'u sil
+ajustes2-ayuda-voz-vosk-borrar = İndirileni siler (diskte yaklaşık 100 MB). Seçince yeniden indirilir.
+clase-temas-bateria = Pil zayıf: tasarruf için canlı dinlenmiyor (kayıt sürüyor)
+chat-anotar-fallo-red = Bağlantı yok: Jev bunun başka bir sohbete not edilmesi gerekip gerekmediğine bakamadı. Dikte ettiğiniz hâlâ kutuda.
+chat-anotar-fallo = Jev yanıt vermedi ({ $motivo }). Dikte ettiğiniz hâlâ kutuda.
+# Privacidad y datos
+ajustes2-g-privacidad = Gizlilik ve veriler
+ajustes2-priv-politica = Gizlilik politikası
+ajustes2-ayuda-priv-politica = PinDesk verilerinizle ne yapar (İspanyolca ve İngilizce): aşağıda listelenenler dışında her şey bu bilgisayarda kalır, onlar da yalnızca siz kullandığınızda.
+ajustes2-g-privacidad-sale = Bu bilgisayardan ne çıkar ve nereye gider
+ajustes2-priv-ver-ajustes = Ayarları
+ajustes2-priv-nada-mas = Başka bir şey yok
+ajustes2-ayuda-priv-nada-mas = Reklam yok, analiz yok, çökme raporu yok, hesap yok ve PinDesk sunucusu yok. Dikte ve metne dökme bu bilgisayarda, çevrimdışı çalışır.
+ajustes2-g-privacidad-datos = Verileriniz
+ajustes2-priv-carpeta = Verileriniz, kendi diskinizde
+ajustes2-ayuda-priv-carpeta = Yakalamalar, sohbetler, notlar, kayıtlar ve ayarlar { $carpeta } içinde durur. Yanında götürmek için klasörü kopyalayın; silmek için PinDesk'i kapatın ve klasörü silin. Yapay zekâ anahtarları Windows kullanıcınızla şifrelenir.
+ajustes2-priv-reportes = Yapay zekânın yazdıklarına ilişkin bildirimler
+ajustes2-ayuda-priv-reportes = { $n ->
+    [one] 1 bildirim reportes-ia.jsonl dosyasına kaydedildi (veri klasöründe).
+   *[other] { $n } bildirim reportes-ia.jsonl dosyasına kaydedildi (veri klasöründe).
+}
+privacidad-asistente-que = Asistana sorduğunuz, sohbetin son kısmı ve eklediğiniz dosyalar
+privacidad-asistente-adonde = Anthropic (Claude) veya DeepSeek
+privacidad-asistente-cuando = Yalnızca kendi anahtarınızı yapıştırıp soru sorarsanız. Anahtar bu bilgisayarda şifreli saklanır.
+privacidad-jev-que = Her Jev özelliğinin metni: toplantı cümleleri, ders satırları, görevler, dikte ettiğiniz veya anlattığınız şeyler
+privacidad-jev-adonde = TypeSafe (api.typesafe.ai)
+privacidad-jev-cuando = Yalnızca TypeSafe anahtarınızla ve o özellik açıkken. Ses asla gönderilmez.
+privacidad-web-que = Asistanın aradığı şeyler ve size yanıt vermek için okuduğu sayfalar
+privacidad-web-adonde = DuckDuckGo veya Brave Search ve okuduğu site
+privacidad-web-cuando = Asistan web'de arama yaptığında. Çerez yok, yapay zekâ anahtarınız da yok.
+privacidad-google-que = Seçtiğiniz Drive dosyaları ve takvim etkinlikleri
+privacidad-google-adonde = Google (Drive, Calendar)
+privacidad-google-cuando = Yalnızca Google hesabınızı Ayarlar › Asistan'dan bağlarsanız; bağlantıyı da oradan kesebilirsiniz.
+privacidad-voces-que = Bir Microsoft sesiyle sesli okunan metin
+privacidad-voces-adonde = Microsoft (Edge sesleri)
+privacidad-voces-cuando = Yalnızca okuyucuda bu seslerden birini seçerseniz; Windows sesleri çevrimdışı çalışır.
+privacidad-enlace-que = Bağlantıyla paylaşmayı seçtiğiniz dosya
+privacidad-enlace-adonde = litterbox.catbox.moe veya temp.sh
+privacidad-enlace-cuando = Yalnızca paylaşım bağlantısı istediğinizde; saatler veya günler içinde kendiliğinden silinir.
+privacidad-modelos-que = Size ait hiçbir şey: yalnızca dosyalar istenir
+privacidad-modelos-adonde = huggingface.co, github.com ve alphacephei.com (Whisper, Qwen3-ASR, Vosk, Indra)
+privacidad-modelos-cuando = İstediğinizde bir konuşma veya metin okuma modeli indirilirken.
+privacidad-sincro-que = Eşitlenen yakalamalarınız, notlarınız ve sohbetleriniz
+privacidad-sincro-adonde = Kendi cihazlarınız (telefon), kendi ağınız üzerinden
+privacidad-sincro-cuando = Eşitlerken: doğrudan kendi ağınızda, şifreli, sunuculardan geçmeden.
+# Reportar lo que escribe la IA
+reportar-ia = Yanıtı bildir…
+reportar-ia-motivo-ofensivo = Saldırgan
+reportar-ia-motivo-peligroso = Tehlikeli
+reportar-ia-motivo-falso = Yanlış veya yanıltıcı
+reportar-ia-motivo-otro = Başka bir neden
+reportar-ia-hecho = Bildirim reportes-ia.jsonl dosyasına kaydedildi; göndermek için e-postanız açılıyor
+reportar-ia-asunto = Bir yapay zekâ yanıtının bildirimi
+reportar-ia-campo-motivo = Neden
+reportar-ia-campo-funcion = Özellik
+reportar-ia-campo-fecha = Tarih
+reportar-ia-campo-version = Sürüm
+reportar-ia-campo-contenido = Yapay zekânın yazdığı
+reportar-ia-comentario = (İsterseniz neyin yanlış olduğunu buraya yazın.)
+repaso-jev-fallo-red = Bağlantı yok.

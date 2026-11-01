@@ -1,6 +1,6 @@
-# PixPin Max — Hindi strings.
+# PinDesk — Hindi strings.
 
-app-nombre = PixPin Max
+app-nombre = PinDesk
 
 
 resultado-copiar = कॉपी करें
@@ -8,7 +8,7 @@ resultado-guardar-como = इस रूप में सहेजें…
 resultado-guardar = सहेजें
 resultado-descartar = हटाएँ
 
-error-otra-instancia = PixPin Max पहले से चल रहा है।
+error-otra-instancia = PinDesk पहले से चल रहा है।
 error-atajo-ocupado = { $atajo } रजिस्टर नहीं हो सका: कोई दूसरा ऐप्लिकेशन इसका उपयोग कर रहा है।
 
 captura-guardada = स्क्रीनशॉट { $ruta } में सहेजा गया
@@ -95,7 +95,7 @@ pin-dejar-pasar-clic = क्लिक को आर-पार जाने द�
 
 # Muting the shortcuts for a while (P1.7).
 comando-silenciar-atajos = शॉर्टकट म्यूट करें
-bandeja-silenciada = PixPin Max — शॉर्टकट म्यूट हैं
+bandeja-silenciada = PinDesk — शॉर्टकट म्यूट हैं
 aviso-atajos-silenciados = शॉर्टकट म्यूट किए गए
 aviso-atajos-silenciados-detalle = इन्हें इसी मेनू से फिर से चालू करें।
 aviso-atajos-activos = शॉर्टकट सक्रिय
@@ -250,7 +250,7 @@ chat-no-hay-biblioteca = Windows पर अभी ऑडियो लाइब�
 chat-ver-dibujo-entero = पूरी ड्रॉइंग दिखाएँ
 chat-no-hay-pagina = Windows पर अभी किसी प्रोजेक्ट का पेज संलग्न करने की सुविधा नहीं है
 chat-no-hay-telepronter = Windows पर अभी टेलीप्रॉम्प्टर नहीं है
-chat-no-se-pudo = यह नहीं हो सका: PixPin लॉग देखें
+chat-no-se-pudo = यह नहीं हो सका: PinDesk लॉग देखें
 chat-fecha = { $dia } { $mes }
 chat-fecha-con-ano = { $dia } { $mes } { $ano }
 chat-mes-1 = जनवरी
@@ -321,7 +321,7 @@ menu-foto-lienzo = कैनवस में खोलें
 menu-foto-pin = इसे फिर से पिन करें
 menu-foto-abrir = Windows से खोलें
 recibir-titulo = फ़ोन से प्राप्त करें
-recibir-como = अपने फ़ोन पर PixPin से कोड स्कैन करें
+recibir-como = अपने फ़ोन पर PinDesk से कोड स्कैन करें
 recibir-esperando = फ़ोन की प्रतीक्षा हो रही है…
 recibir-hecho = { $cuantos } आइटम आ गए
 recibir-salir = बंद करने के लिए Esc
@@ -349,7 +349,7 @@ foto-chat-sin-imagen = कोई कॉपी की गई इमेज नह�
 foto-chat-error = चैट फ़ोटो सहेजी नहीं जा सकी
 proyecto-borrar = प्रोजेक्ट हटाएँ
 proyecto-borrar-varios = चुने गए हटाएँ
-proyecto-borrar-aviso = यह सूची से हट जाएगा और इसका फ़ोल्डर PixPin के रीसायकल बिन में चला जाएगा। जारी रखें?
+proyecto-borrar-aviso = यह सूची से हट जाएगा और इसका फ़ोल्डर PinDesk के रीसायकल बिन में चला जाएगा। जारी रखें?
 proyecto-papelera = हटाए गए प्रोजेक्ट…
 # Where each project is saved: its chosen folder or the usual place.
 ubicacion-cambiar = स्थान बदलें…
@@ -364,7 +364,7 @@ ubicacion-movido = प्रोजेक्ट { $ruta } में सहेज�
 ubicacion-vuelto = प्रोजेक्ट सामान्य स्थान पर वापस आ गया है
 ubicacion-error-red = प्रोजेक्ट केवल इस कंप्यूटर की ड्राइव पर सहेजे जा सकते हैं, नेटवर्क ड्राइव पर नहीं।
 ubicacion-error-no-es-carpeta = वह फ़ोल्डर इस कंप्यूटर पर मौजूद नहीं है।
-ubicacion-error-dentro = वह फ़ोल्डर प्रोजेक्ट के अंदर या PixPin के डेटा के अंदर है।
+ubicacion-error-dentro = वह फ़ोल्डर प्रोजेक्ट के अंदर या PinDesk के डेटा के अंदर है।
 ubicacion-error-mover = प्रोजेक्ट को ले जाया नहीं जा सका; वह अपनी जगह पर ही है।
 ubicacion-error-abrir = प्रोजेक्ट फ़ोल्डर खोला नहीं जा सका।
 
@@ -383,14 +383,14 @@ sinc-sincronizar = सिंक करें
 sinc-probar = आज़माएँ
 sinc-con-todos = सभी के साथ सिंक करें ({ $n })
 sinc-con-todos-como = बिना पूछे: हर एक के लिए पिछली बार चुना गया विकल्प इस्तेमाल होता है।
-sinc-si-no-aparece = अगर यह न दिखे: PixPin खुला होना चाहिए और यही Wi-Fi होना चाहिए।
+sinc-si-no-aparece = अगर यह न दिखे: PinDesk खुला होना चाहिए और यही Wi-Fi होना चाहिए।
 sinc-con-direccion = किसी पते से कनेक्ट करें
 sinc-anadir = दूसरा डिवाइस जोड़ें
 sinc-anadir-como = दूसरे डिवाइस पर: सिंक → “कोड से जुड़ें”।
 sinc-toca-codigo = कोड देखने के लिए क्लिक करें
 sinc-salir = समूह छोड़ें
 sinc-pasar = किसी को कुछ भेजें
-sinc-pasar-como = सिर्फ़ एक बार, आपके Wi-Fi पर PixPin वाले किसी को भी। समूह की ज़रूरत नहीं।
+sinc-pasar-como = सिर्फ़ एक बार, आपके Wi-Fi पर PinDesk वाले किसी को भी। समूह की ज़रूरत नहीं।
 sinc-recibir = प्राप्त करें
 sinc-enviar = भेजें
 sinc-pasar-tambien = जो आता है वह प्रोजेक्ट सूची में या “सहेजे गए संदेश” में जाता है।
@@ -399,7 +399,7 @@ sinc-escuchando = जब तक यह विंडो खुली है, य�
 sinc-nombre-titulo = इस डिवाइस का नाम
 sinc-nombre-como = आपके दूसरे डिवाइस इसे इसी नाम से देखेंगे।
 sinc-unirme-titulo = समूह से जुड़ें
-sinc-unirme-como = समूह के किसी डिवाइस पर “दूसरा डिवाइस जोड़ें” के नीचे दिखाया गया कोड लिखें। उस डिवाइस पर PixPin खुला और आपका ही Wi-Fi होना चाहिए।
+sinc-unirme-como = समूह के किसी डिवाइस पर “दूसरा डिवाइस जोड़ें” के नीचे दिखाया गया कोड लिखें। उस डिवाइस पर PinDesk खुला और आपका ही Wi-Fi होना चाहिए।
 sinc-codigo = कोड
 sinc-direccion = पता (केवल तभी जब यह न मिले)
 sinc-direccion-titulo = किसी पते से कनेक्ट करें
@@ -498,7 +498,7 @@ ew-pegar = प्राप्तकर्ता का कोड पेस्ट
 ew-pegar-como = दूसरे डिवाइस पर: Wi-Fi से प्राप्त करें → «मेरा कोड दिखाएँ ताकि वे मुझे भेज सकें»। उसके छह अंक यहाँ लिखें या उसके QR का टेक्स्ट Ctrl+V से पेस्ट करें।
 ew-mandar = भेजें
 ew-dejar-de-pegar = पेस्ट करना बंद करें
-ew-en-el-otro = दूसरे फ़ोन पर: PixPin → सिंक → प्राप्त करें
+ew-en-el-otro = दूसरे फ़ोन पर: PinDesk → सिंक → प्राप्त करें
 ew-o-escribe = या यह कोड लिखें
 ew-misma-wifi = दोनों एक ही Wi-Fi पर
 ew-misma-wifi-como = अगर Wi-Fi नहीं है, तो एक अपना हॉटस्पॉट चालू करे और दूसरा उससे जुड़ जाए। इंटरनेट का उपयोग नहीं होता।
@@ -509,10 +509,10 @@ ew-cerrar = बंद करें
 ew-grupo = आपके डिवाइस · बिना कोड
 ew-grupo-como = वे आपके समूह में हैं: यह सीधे वहाँ जाता है, बिना स्कैन के। यह वहाँ पहुँचता है जो उन्होंने खोल रखा है (कोई चैट; कैनवस केवल फ़ोटो लेता है) या सहेजे गए संदेशों में।
 ew-grupo-se-ve = एक ही Wi-Fi पर
-ew-grupo-no-se-ve = अभी दिखाई नहीं दे रहा: उस डिवाइस पर PixPin खोलें
+ew-grupo-no-se-ve = अभी दिखाई नहीं दे रहा: उस डिवाइस पर PinDesk खोलें
 ew-grupo-enviando = भेजा जा रहा है…
 ew-grupo-todos = दिखाई दे रहे सभी को भेजें
-ew-grupo-actualiza = { $movil } पर PixPin अपडेट करें: यह अभी सीधे फ़ाइलें नहीं ले सकता। उसे नीचे दिया गया कोड इस्तेमाल करने दें।
+ew-grupo-actualiza = { $movil } पर PinDesk अपडेट करें: यह अभी सीधे फ़ाइलें नहीं ले सकता। उसे नीचे दिया गया कोड इस्तेमाल करने दें।
 
 ## «Update mine / Create as new» when receiving (RecibirActivity.kt)
 rw-ya-tienes = आपके पास पहले से समान कोड वाला «{ $nombre }» है
@@ -590,14 +590,14 @@ papelera-no-se-pudo = «{ $nombre }» पुनर्प्राप्त न�
 papelera-recuperados = { $total } में से { $n } प्रोजेक्ट पुनर्प्राप्त किए गए
 
 ## The document viewer: Word, EPUB books and web pages (task 2.1)
-visor-html-titulo = PixPin — पेज
+visor-html-titulo = PinDesk — पेज
 ## The Office pin: Office's preview as a pin (2026-10-10)
 office-titulo = Office प्रीव्यू
 office-abriendo = Office प्रीव्यू से खोला जा रहा है…
 office-tarda = Office को कुछ समय लग रहा है (इसे शुरू होना है)। आप प्रतीक्षा कर सकते हैं, या “इसके साथ खोलें…” (बार पर ↗ बटन) से कोई ऐप चुनें।
 office-fallo = Office इस फ़ाइल का प्रीव्यू नहीं दिखा सका। इसे “इसके साथ खोलें…” (बार पर ↗ बटन) से किसी दूसरे ऐप में खोलें।
 office-internet = यह फ़ाइल इंटरनेट से आई है और सुरक्षा के लिए Windows इसका प्रीव्यू नहीं दिखाने देता। इसे “इसके साथ खोलें…” (बार पर ↗ बटन) से किसी दूसरे ऐप में खोलें, या इसकी प्रॉपर्टीज़ में इसे अनब्लॉक करें।
-visor-titulo = PixPin व्यूअर
+visor-titulo = PinDesk व्यूअर
 visor-marcador = यहाँ बुकमार्क करें
 visor-ajustes = पढ़ने की सेटिंग्स
 visor-tamano = टेक्स्ट का आकार
@@ -623,14 +623,14 @@ lector-grosor-gruesa = बोल्ड
 lector-quitar-tinta = नोट्स हटाएँ
 lector-tinta-quitada = नोट्स हटाए गए (जब तक आप यहाँ हैं, Ctrl+Z से वापस ला सकते हैं)
 lector-ayuda-docs = पढ़ने के लिए व्हील · Ctrl+व्हील ज़ूम · L सुनें · A एनोटेट · M बुकमार्क · I विषय-सूची · +/− आकार · T फ़ॉन्ट · B मोटाई · बाहर निकलने के लिए Esc
-lector-pdf-titulo = PixPin PDF रीडर
+lector-pdf-titulo = PinDesk PDF रीडर
 lector-pdf-no-se-abre = PDF नहीं खुल सका
 lector-pdf-abriendo = PDF खोला जा रहा है…
 lector-exportando = एनोटेट किया गया PDF सहेजा जा रहा है… { $total } में से { $hechas }
 lector-exportar-pdf = नोट्स के साथ PDF सहेजें
 lector-anotado = एनोटेट किया गया
 lector-ayuda-pdf = पेज पलटने के लिए व्हील · Ctrl+व्हील ज़ूम · एनोटेट करने की जगह के लिए Ctrl+[ Ctrl+] · L सुनें · A एनोटेट · M बुकमार्क · बाहर निकलने के लिए Esc
-lector-office-titulo = PixPin में Word और PowerPoint
+lector-office-titulo = PinDesk में Word और PowerPoint
 lector-ayuda-office = पेज पलटने के लिए व्हील · Ctrl+व्हील ज़ूम · चुनने के लिए टेक्स्ट पर खींचें · Ctrl+C कॉपी · Ctrl+F खोजें · Ctrl+P प्रिंट · F5 प्रस्तुत करें · A एनोटेट · N नेगेटिव · बाहर निकलने के लिए Esc
 lector-presentar = प्रस्तुत करें (F5)
 lector-modo-lectura = रीडिंग मोड (पुनर्व्यवस्थित टेक्स्ट)
@@ -801,7 +801,7 @@ chat-biblioteca-notas = वॉइस नोट
 
 # Recording a voice note from the chat.
 chat-voz-muy-corta = बहुत छोटा: इसे थोड़ा और देर तक दबाए रखें।
-chat-voz-sin-microfono = कोई माइक्रोफ़ोन नहीं है, या PixPin को इसकी अनुमति नहीं है। सेटिंग्स › गोपनीयता › माइक्रोफ़ोन देखें।
+chat-voz-sin-microfono = कोई माइक्रोफ़ोन नहीं है, या PinDesk को इसकी अनुमति नहीं है। सेटिंग्स › गोपनीयता › माइक्रोफ़ोन देखें।
 chat-voz-sin-codec = इस Windows में कोई ऑडियो एनकोडर नहीं है (आमतौर पर मीडिया फ़ीचर पैक के बिना N संस्करण)।
 chat-voz-fallo = वॉइस नोट रिकॉर्ड नहीं हो सका।
 
@@ -898,7 +898,7 @@ chat-voz-bajar-whisper = टेक्स्ट में बदलने के 
 chat-voz-bajando-whisper = स्पीच मॉडल डाउनलोड हो रहा है… { $pct }%
 chat-voz-sin-modelo-whisper = Whisper स्पीच मॉडल (लगभग { $megas } MB) मौजूद नहीं है: इसे डाउनलोड करने के लिए «टेक्स्ट में बदलें» फिर से दबाएँ।
 chat-voz-sin-modelo-qwen3 = Qwen3-ASR डाउनलोड नहीं हुआ है (लगभग { $megas } MB): इसे डाउनलोड करने के लिए सेटिंग्स › वॉइस में चुनें, या Whisper पर वापस जाएँ।
-chat-voz-sin-onnx = इस Windows में AI रनटाइम (onnxruntime.dll) नहीं है: इसे { $donde } में या PixPin के पास कॉपी करें।
+chat-voz-sin-onnx = इस Windows में AI रनटाइम (onnxruntime.dll) नहीं है: इसे { $donde } में या PinDesk के पास कॉपी करें।
 chat-voz-descarga = स्पीच मॉडल डाउनलोड नहीं हो सका ({ $que })। कनेक्शन जाँचें और «टेक्स्ट में बदलें» फिर से दबाएँ।
 chat-voz-onnx = Whisper स्पीच इंजन विफल रहा: { $detalle }
 chat-dictado-oyendo = सुन रहा है… बोलें, फिर पूरा होने पर माइक्रोफ़ोन पर क्लिक करें
@@ -1023,7 +1023,7 @@ compartir-originales = मूल फ़ाइलें
 compartir-editable = संपादन योग्य
 compartir-texto = टेक्स्ट
 compartir-csv = टेबल (CSV)
-compartir-pixpin = PixPin (.pixpin)
+compartir-pixpin = PinDesk (.pixpin)
 compartir-dxf = DXF
 compartir-xlsx = Excel (xlsx)
 compartir-docx = Word (docx)
@@ -1345,7 +1345,7 @@ grupos-sin-nombre = समूह
 grupos-nombre = विंडो समूह का नाम
 grupos-guardar-boton = सहेजें
 nota-md-nueva = नया नोट
-nota-md-sufijo = PixPin नोट
+nota-md-sufijo = PinDesk नोट
 nota-md-negrita = बोल्ड
 nota-md-cursiva = इटैलिक
 nota-md-tachado = स्ट्राइकथ्रू
@@ -1692,13 +1692,13 @@ pedido-tarea-anadida = “{ $tarea }” को “{ $lista }” में जो
 pedido-tarea-hecha = “{ $tarea }” को पूरा चिह्नित किया गया।
 pedido-tarea-pendiente = “{ $tarea }” फिर से लंबित है।
 pedido-roto = किसी दूसरे प्रोग्राम के अनुरोध में कुछ कमी थी; कुछ नहीं किया गया।
-pedido-sin-proyecto = वह प्रोजेक्ट अब PixPin में नहीं है।
+pedido-sin-proyecto = वह प्रोजेक्ट अब PinDesk में नहीं है।
 pedido-sin-mensaje = वह संदेश अब चैट में नहीं है।
 pedido-no-es-lista = वह संदेश कार्य सूची नहीं है।
 pedido-sin-tarea = सूची में कार्य संख्या { $indice } नहीं है।
 pedido-tarea-vacia = बिना टेक्स्ट वाला कार्य नहीं जोड़ा जाता।
 pedido-sin-fichero = वह फ़ाइल अब डिस्क पर नहीं है।
-pedido-fallo-disco = जो माँगा गया था वह सहेजा नहीं जा सका। PixPin का लॉग देखें।
+pedido-fallo-disco = जो माँगा गया था वह सहेजा नहीं जा सका। PinDesk का लॉग देखें।
 pedido-tarea-movida = “{ $tarea }” को “{ $lista }” में ले जाया गया।
 pedido-tarea-cambio = कार्य ले जाते समय सूची बदल गई; कुछ नहीं छुआ गया। इसे फिर से खोजें।
 pedido-tarea-quitada = “{ $tarea }” को उसकी सूची से हटाया गया।
@@ -1717,22 +1717,22 @@ pedido-ocr-no-disponible = Windows OCR इंस्टॉल नहीं है
 pedido-ocr-fallo = इमेज का टेक्स्ट पढ़ा नहीं जा सका: { $motivo }
 
 ## Command line and pixpin:// links (Oct 15)
-orden-titulo = PixPin Max
-orden-confirmar-cabecera = एक लिंक PixPin Max से यह करने को कहता है:
+orden-titulo = PinDesk
+orden-confirmar-cabecera = एक लिंक PinDesk से यह करने को कहता है:
 orden-confirmar-pregunta = क्या यह करें?
 orden-motivo-ficheros = यह आपकी डिस्क से फ़ाइलें खोलता या भेजता है।
-orden-motivo-asistente = यह असिस्टेंट से पूछता है, जो PixPin में काम कर सकता है।
+orden-motivo-asistente = यह असिस्टेंट से पूछता है, जो PinDesk में काम कर सकता है।
 orden-motivo-microfono = यह माइक्रोफ़ोन से रिकॉर्ड करता है।
 orden-motivo-otros-aparatos = यह आपके दूसरे डिवाइस पर डेटा भेजता है।
 orden-motivo-automatizacion = यह असिस्टेंट के किसी ऑटोमेशन को बदलता है।
 orden-motivo-borra = यह कुछ हटाता है।
-orden-motivo-cambia = यह PixPin का डेटा बदलता है।
+orden-motivo-cambia = यह PinDesk का डेटा बदलता है।
 orden-prohibido-ruta-no-local = लिंक नेटवर्क फ़ाइलें या इस कंप्यूटर के बाहर के पाथ नहीं खोल सकता। कुछ नहीं किया गया।
 orden-prohibido-crear-automatizacion = लिंक ऑटोमेशन नहीं बना सकता। कुछ नहीं किया गया।
-orden-no-se-pudo = PixPin Max यह नहीं कर सका: { $motivo }
-orden-sin-app = PixPin Max खुला नहीं है और शुरू नहीं हो सका: { $motivo }
-orden-sin-respuesta = PixPin Max ने जवाब नहीं दिया। अगर यह अटका है, तो इसे बंद करके फिर से खोलें।
-orden-version = यह PixPin Max अनुरोध से पुराना है: इसे अपडेट करें।
+orden-no-se-pudo = PinDesk यह नहीं कर सका: { $motivo }
+orden-sin-app = PinDesk खुला नहीं है और शुरू नहीं हो सका: { $motivo }
+orden-sin-respuesta = PinDesk ने जवाब नहीं दिया। अगर यह अटका है, तो इसे बंद करके फिर से खोलें।
+orden-version = यह PinDesk अनुरोध से पुराना है: इसे अपडेट करें।
 orden-preguntar-titulo = असिस्टेंट से { $cuantos ->
     [one] { $nombre }
    *[other] { $cuantos } फ़ाइलों
@@ -1746,7 +1746,7 @@ galeria-vacia = अभी कोई कैप्चर नहीं। Alt + ख
 galeria-abrir-carpeta = फ़ोल्डर खोलें
 galeria-copiada = क्लिपबोर्ड पर कॉपी किया गया
 galeria-pineada = पिन किया गया
-galeria-borrada = PixPin के रीसायकल बिन में ले जाया गया
+galeria-borrada = PinDesk के रीसायकल बिन में ले जाया गया
 galeria-no-se-pudo = यह नहीं हो सका: { $motivo }
 galeria-conservada-aviso = रखा गया: यह सहेजे गए संदेशों में है और हटाया नहीं जाएगा
 bandeja-galeria-capturas = कैप्चर गैलरी…
@@ -1820,7 +1820,7 @@ ajustes2-resultados-sub = { $n ->
   }
 ajustes2-sin-resultados = किसी सेटिंग में “{ $busqueda }” का उल्लेख नहीं है। कोई दूसरा शब्द आज़माएँ।
 ajustes2-sec-general = सामान्य
-ajustes2-sec-general-sub = PixPin कैसे शुरू होता है और चैट में PDF के साथ क्या करता है।
+ajustes2-sec-general-sub = PinDesk कैसे शुरू होता है और चैट में PDF के साथ क्या करता है।
 ajustes2-sec-captura = कैप्चर
 ajustes2-sec-captura-sub = कैप्चर कैसे लिया जाता है और उसके बाद उसका क्या होता है।
 ajustes2-sec-lienzo = कैनवस और टूल
@@ -1832,7 +1832,7 @@ ajustes2-sec-atajos-sub = किसी बॉक्स पर क्लिक �
 ajustes2-sec-sincro = सिंक
 ajustes2-sec-sincro-sub = यह कंप्यूटर फ़ोन को कैसे ढूँढता है।
 ajustes2-sec-apps = डिफ़ॉल्ट ऐप
-ajustes2-sec-apps-sub = फ़ाइल एक्सप्लोरर से इमेज और वीडियो PixPin में खोलें।
+ajustes2-sec-apps-sub = फ़ाइल एक्सप्लोरर से इमेज और वीडियो PinDesk में खोलें।
 ajustes2-sec-apariencia = रूप
 ajustes2-sec-apariencia-sub = चैट कैसी दिखती है।
 ajustes2-sec-avanzado = उन्नत
@@ -1850,7 +1850,7 @@ ajustes2-ayuda-ocr-windows-con-indra = Windows OCR पढ़ रहा है।
 ajustes2-ocr-bajando = Indra डाउनलोड हो रहा है… { $por-ciento } %। इस बीच Windows OCR पढ़ता है।
 ajustes2-ocr-fallo = Indra डाउनलोड नहीं हो सका: { $fallo }। फिर से कोशिश करने के लिए इसे दोबारा चुनें; इस बीच Windows OCR पढ़ता है।
 ajustes2-ocr-licencia = Indra लाइसेंस
-ajustes2-ayuda-ocr-licencia = Indra का कोड Apache 2.0 है; इसके वेट Datalab का संशोधित OpenRAIL-M। PixPin इन्हें साथ नहीं देता: Indra चुनने पर आप इन्हें Hugging Face से डाउनलोड करते हैं।
+ajustes2-ayuda-ocr-licencia = Indra का कोड Apache 2.0 है; इसके वेट Datalab का संशोधित OpenRAIL-M। PinDesk इन्हें साथ नहीं देता: Indra चुनने पर आप इन्हें Hugging Face से डाउनलोड करते हैं।
 ajustes2-ocr-corregir = शब्दकोश से सुधारें
 ajustes2-ayuda-ocr-corregir = केवल Indra के साथ और स्पैनिश पेजों पर: एक्सेंट और कम भरोसे वाले अक्षर ठीक करता है। संख्याओं, कोड या नामों को कभी नहीं छूता।
 ajustes2-ocr-vocabulario = मेरी शब्दावली
@@ -1919,7 +1919,7 @@ ajustes2-esquina = बॉक्स का कोना
 ajustes2-ayuda-esquina = उस मॉनिटर पर जहाँ कैप्चर लिया गया था।
 ajustes2-icono = स्क्रीन पर समय
 ajustes2-ayuda-icono = आखिरी कैप्चर के बाद निष्क्रिय बॉक्स कितनी देर रहता है।
-ajustes2-ayuda-ignorado = जब यह सामने हो, तब PixPin शॉर्टकट कुछ नहीं करते।
+ajustes2-ayuda-ignorado = जब यह सामने हो, तब PinDesk शॉर्टकट कुछ नहीं करते।
 ajustes2-anadir-programa = कोई प्रोग्राम जोड़ें
 ajustes2-ayuda-anadir-programa = एक्ज़ीक्यूटेबल का नाम लिखें और Enter दबाएँ।
 ajustes2-anadir = जोड़ें
@@ -1939,12 +1939,12 @@ ajustes2-ayuda-presencia = फ़ोन सिंक खोलते ही इ�
 ajustes2-lo-mio = मेरा मान्य
 ajustes2-ayuda-lo-mio = सिंक करते समय यह कंप्यूटर मान्य होता है: केवल वही दूसरी तरफ़ से आता है जो यहाँ मौजूद नहीं है।
 ajustes2-vista-rapida = स्पेस बार से क्विक लुक
-ajustes2-ayuda-vista-rapida = फ़ाइल एक्सप्लोरर में या डेस्कटॉप पर फ़ाइलें चुनें और Space दबाएँ: वे तुरंत PixPin में खुलती हैं (फ़ोटो, वीडियो, PDF, Word, DWG प्लान, IFC और Revit मॉडल…)। Space फिर से दबाने पर बंद होता है।
-ajustes2-abrir-con = इमेज और वीडियो के लिए PixPin दिखाएँ
+ajustes2-ayuda-vista-rapida = फ़ाइल एक्सप्लोरर में या डेस्कटॉप पर फ़ाइलें चुनें और Space दबाएँ: वे तुरंत PinDesk में खुलती हैं (फ़ोटो, वीडियो, PDF, Word, DWG प्लान, IFC और Revit मॉडल…)। Space फिर से दबाने पर बंद होता है।
+ajustes2-abrir-con = इमेज और वीडियो के लिए PinDesk दिखाएँ
 ajustes2-ayuda-abrir-con = “इसके साथ खोलें” और डिफ़ॉल्ट ऐप में दिखता है। इसे बंद करने से रजिस्ट्री में लिखा गया हट जाता है।
 ajustes2-predeterminada = डिफ़ॉल्ट ऐप
-ajustes2-ayuda-predeterminada = Windows इसे केवल सेटिंग्स में चुनने देता है: वहाँ, PixPin Max → डिफ़ॉल्ट सेट करें।
-ajustes2-hacer-predeterminada = PixPin को डिफ़ॉल्ट ऐप बनाएँ…
+ajustes2-ayuda-predeterminada = Windows इसे केवल सेटिंग्स में चुनने देता है: वहाँ, PinDesk → डिफ़ॉल्ट सेट करें।
+ajustes2-hacer-predeterminada = PinDesk को डिफ़ॉल्ट ऐप बनाएँ…
 ajustes2-ayuda-cosmos = चैट प्रोजेक्ट सूची के पीछे तारों भरा आकाश। अगली चैट से लागू होता है।
 ajustes2-nivel = प्रदर्शन स्तर
 ajustes2-ayuda-nivel = स्वचालित शुरू होने पर कंप्यूटर को मापता है। अगली बार शुरू होने से लागू होता है।
@@ -1972,7 +1972,7 @@ ajustes2-nunca = कभी नहीं
 ajustes2-siempre = हमेशा
 ajustes2-auto = ऑटो
 ## v2-buscar
-comando-buscar = 🔍 PixPin में खोजें…
+comando-buscar = 🔍 PinDesk में खोजें…
 comando-grabar-clase = 🎙 क्लास या मीटिंग रिकॉर्ड करें…
 clase-titulo = क्लास या मीटिंग रिकॉर्ड करें
 clase-sub = ऑडियो रिकॉर्ड करता है और स्क्रीनशॉट को उनके मिनट पर रखता है
@@ -2024,10 +2024,10 @@ clase-suspendido = कंप्यूटर { $minutos } मिनट तक स
 clase-recuperar-titulo = बाधित रिकॉर्डिंग
 clase-recuperar-pregunta =
     “{ $chat }” में एक रिकॉर्डिंग बाधित हुई ({ $nombre }, { $minutos } मिनट)।
-    हाँ: पुनर्प्राप्त करें · नहीं: हटाएँ · रद्द करें: अगली बार PixPin खुलने पर फिर से पूछें
+    हाँ: पुनर्प्राप्त करें · नहीं: हटाएँ · रद्द करें: अगली बार PinDesk खुलने पर फिर से पूछें
 clase-recuperar-sin-nada = “{ $nombre }” का केवल एक ऐसा वीडियो बचा है जो खुल नहीं सकता। इसे हटाएँ?
 clase-recuperar-descartar = “{ $nombre }” हटाएँ? रिकॉर्डिंग हटा दी जाएगी और पुनर्प्राप्त नहीं की जा सकेगी।
-clase-recuperar-fallo = “{ $nombre }” पुनर्प्राप्त नहीं हो सकी। रिकॉर्डिंग अब भी सुरक्षित है और PixPin खुलने पर फिर से पेश की जाएगी।
+clase-recuperar-fallo = “{ $nombre }” पुनर्प्राप्त नहीं हो सकी। रिकॉर्डिंग अब भी सुरक्षित है और PinDesk खुलने पर फिर से पेश की जाएगी।
 clase-texto-de-fondo = बंद करें (जारी रहता है)
 clase-modo-pantalla = स्क्रीन और ध्वनि
 clase-modo-capturas = ऑडियो और स्क्रीनशॉट
@@ -2055,7 +2055,7 @@ chat-sin-grabacion = इस चैट में कोई रिकॉर्ड�
 chat-colaboradores-todos = चैट में सभी को फ़ोटो जोड़ने दें
 chat-colaboradores-nadie = इस रिकॉर्डिंग में केवल मेरी फ़ोटो
 clase-hora-sin-comprobar = समय सत्यापित नहीं
-baliza-movil-aislado = आप एक ही नेटवर्क पर हैं, फिर भी आपका फ़ोन नहीं दिख रहा: यह Wi-Fi डिवाइस को अलग रख सकता है (गेस्ट, होटल और ऑफ़िस नेटवर्क ऐसा करते हैं) या कोई फ़ायरवॉल PixPin को ब्लॉक कर रहा हो सकता है। PC को फ़ोन के हॉटस्पॉट से, या दोनों को किसी दूसरे Wi-Fi से कनेक्ट करें। आपकी ली गई फ़ोटो फ़ोन पर इंतज़ार करती हैं और एक-दूसरे को मिलते ही अपने मिनट पर जुड़ जाती हैं।
+baliza-movil-aislado = आप एक ही नेटवर्क पर हैं, फिर भी आपका फ़ोन नहीं दिख रहा: यह Wi-Fi डिवाइस को अलग रख सकता है (गेस्ट, होटल और ऑफ़िस नेटवर्क ऐसा करते हैं) या कोई फ़ायरवॉल PinDesk को ब्लॉक कर रहा हो सकता है। PC को फ़ोन के हॉटस्पॉट से, या दोनों को किसी दूसरे Wi-Fi से कनेक्ट करें। आपकी ली गई फ़ोटो फ़ोन पर इंतज़ार करती हैं और एक-दूसरे को मिलते ही अपने मिनट पर जुड़ जाती हैं।
 baliza-movil-otra-red = आपका फ़ोन इस PC से अलग नेटवर्क पर है। दोनों को एक ही Wi-Fi से कनेक्ट करें (या PC को फ़ोन के हॉटस्पॉट से)। आपकी ली गई फ़ोटो फ़ोन पर इंतज़ार करती हैं और एक-दूसरे को मिलते ही अपने मिनट पर जुड़ जाती हैं।
 # In-person meeting (27-oct-2026): the computer's camera, photos and clips.
 clase-modo-presencial = आमने-सामने
@@ -2094,7 +2094,7 @@ clase-completa-sin-escucha = लाइव ट्रांसक्रिप्�
 clase-descartar = हटाएँ
 clase-descartar-otra = रिकॉर्डिंग हटाने के लिए “हटाएँ” फिर से दबाएँ
 estudiar-clip = कैमरा वीडियो · { $duracion }
-bandeja-grabando = PixPin Max — रिकॉर्ड हो रहा है…
+bandeja-grabando = PinDesk — रिकॉर्ड हो रहा है…
 salir-grabando-titulo = एक मीटिंग रिकॉर्ड हो रही है
 salir-grabando-mensaje =
     बाहर निकलने से पहले रिकॉर्डिंग समाप्त करके सहेजें?
@@ -2168,7 +2168,7 @@ grabacion-ir-al-minuto = इस पल पर जाएँ
 grabacion-cerrar = बंद करें
 grabacion-audio = ऑडियो
 grabacion-video = वीडियो
-buscar-todo-titulo = PixPin में खोजें
+buscar-todo-titulo = PinDesk में खोजें
 buscar-todo-pista = फ़ाइलें, कार्य, सबक, स्क्रीनशॉट खोजें… या कोई अक्षर लिखें
 buscar-todo-pestana-todo = सभी
 buscar-todo-pestana-archivos = फ़ाइलें
@@ -2334,7 +2334,7 @@ lec2-nueva-etiqueta = टैग और Enter
 lec2-relacionadas = संबंधित
 lec2-proximo-repaso = अगली दोहराई: { $cuando }
 lec2-vacia-titulo = जो सीखते हैं उसे नोट करें ताकि गलतियाँ न दोहराएँ
-lec2-vacia-texto = इसे ऊपर एक बार में लिखें: “क्या हुआ…, क्योंकि…, अगली बार…”। PixPin इसे बाँटता है, क्षेत्र, प्रोजेक्ट और गंभीरता तय करता है, और बताता है कि क्या यह पहले भी हुआ था।
+lec2-vacia-texto = इसे ऊपर एक बार में लिखें: “क्या हुआ…, क्योंकि…, अगली बार…”। PinDesk इसे बाँटता है, क्षेत्र, प्रोजेक्ट और गंभीरता तय करता है, और बताता है कि क्या यह पहले भी हुआ था।
 lec2-comprobacion = शुरू करने से पहले जाँचें: { $total } में से { $hechas }
 lec2-comprobacion-vacia = अभी “अगली बार…” के नीचे कुछ नहीं है। यह हर सबक का तीसरा ब्लॉक है।
 lec2-nada-que-repasar = आज दोहराने के लिए कुछ नहीं।
@@ -2400,7 +2400,7 @@ galeria-elegidas = { $cuantas ->
  }
 galeria-elegir-todas = सभी
 galeria-deshacer = पूर्ववत करें
-galeria-borradas = { $cuantas } को PixPin के रीसायकल बिन में ले जाया गया
+galeria-borradas = { $cuantas } को PinDesk के रीसायकल बिन में ले जाया गया
 galeria-recuperadas = { $cuantas ->
     [one] पुनर्स्थापित किया गया
    *[other] { $cuantas } पुनर्स्थापित किए गए
@@ -2538,7 +2538,7 @@ bandeja2-silenciar-sub = गेम या प्रेज़ेंटेशन �
 bandeja2-ultimas = हाल के कैप्चर
 bandeja2-ver-galeria = गैलरी देखें
 bandeja2-sin-capturas = अभी कोई कैप्चर नहीं
-bandeja2-abrir-pixpin = PixPin खोलें
+bandeja2-abrir-pixpin = PinDesk खोलें
 bandeja2-tareas = कार्य
 bandeja2-lecciones = सबक
 bandeja2-nueva-leccion = नया सबक
@@ -2546,7 +2546,7 @@ bandeja2-galeria = कैप्चर गैलरी
 bandeja2-documento = दस्तावेज़ खोलें…
 bandeja2-grupos = विंडो समूह
 bandeja2-para-hoy = आज के लिए { $n }
-bandeja2-salir = PixPin से बाहर निकलें
+bandeja2-salir = PinDesk से बाहर निकलें
 bandeja2-salir-sub = पिन बंद हो जाएँगे
 bandeja2-copiada = कॉपी किया गया
 bandeja2-borrada = बिन में ले जाया गया
@@ -2626,7 +2626,7 @@ timeline-tipo-pdf = PDF दस्तावेज़
 timeline-nada-que-exportar = वहाँ एक्सपोर्ट करने के लिए कुछ नहीं है
 timeline-no-exportado = फ़ाइल सहेजी नहीं जा सकी
 timeline-exportado = सहेजा गया: { $nombre }
-timeline-exportado-pie = PixPin Max से एक्सपोर्ट किया गया · { $fecha }
+timeline-exportado-pie = PinDesk से एक्सपोर्ट किया गया · { $fecha }
 timeline-pdf-haciendo = PDF बनाया जा रहा है…
 timeline-pdf-sin-edge = PDF के लिए Microsoft Edge चाहिए; HTML के रूप में एक्सपोर्ट करें
 timeline-pdf-fallo = PDF नहीं बन सका
@@ -2708,7 +2708,7 @@ timeline-guardar-imagen = इमेज के रूप में सहेज�
 timeline-imagen-copiada = इमेज के रूप में कॉपी किया गया
 timeline-imagen-fallo = इमेज नहीं बन सकी
 timeline-tipo-png = PNG इमेज
-timeline-compartido-pie = PixPin Max · टाइमलाइन
+timeline-compartido-pie = PinDesk · टाइमलाइन
 
 ## tareas-v4
 # The search box hint in the shared top bar: shorter than tareas3-buscar,
@@ -2805,12 +2805,12 @@ al-movil-negados = { $negados ->
     [one] 1 फ़ाइल नहीं भेजी गई: यह फ़ोटो नहीं थी और एक कैनवस खुला है
    *[other] { $negados } फ़ाइलें नहीं भेजी गईं: ये फ़ोटो नहीं थीं और एक कैनवस खुला है
   }
-al-movil-no-esta = { $movil } खुला नहीं है: फ़ोन पर PixPin खोलें
-al-movil-actualiza = { $movil } पर PixPin अपडेट करें: यह अभी सीधे फ़ाइलें प्राप्त नहीं कर सकता। «Wi-Fi से भेजें» खोला जा रहा है।
+al-movil-no-esta = { $movil } खुला नहीं है: फ़ोन पर PinDesk खोलें
+al-movil-actualiza = { $movil } पर PinDesk अपडेट करें: यह अभी सीधे फ़ाइलें प्राप्त नहीं कर सकता। «Wi-Fi से भेजें» खोला जा रहा है।
 al-movil-ocupado = { $movil } किसी दूसरे डिवाइस के साथ सिंक हो रहा है। थोड़ी देर में फिर से कोशिश करें।
-al-movil-otra-version = { $movil } पर PixPin का दूसरा संस्करण है: दोनों को अपडेट करें
+al-movil-otra-version = { $movil } पर PinDesk का दूसरा संस्करण है: दोनों को अपडेट करें
 al-movil-cortado = { $movil } को नहीं भेजा जा सका: { $motivo }
-al-movil-sin-grupo = यह PC किसी समूह में नहीं है: इसे PixPin के सिंक में सेट करें
+al-movil-sin-grupo = यह PC किसी समूह में नहीं है: इसे PinDesk के सिंक में सेट करें
 al-movil-no-es-del-grupo = वह डिवाइस अब इस PC के समूह में नहीं है
 al-movil-sin-imagenes = भेजने के लिए कुछ नहीं था
 al-frente-lienzo = { $de } ने आपको “{ $nombre }” भेजा: यह खुले कैनवस पर है
@@ -2858,7 +2858,7 @@ cc-quitar = हटाएँ
 cc-anadir = जोड़ें
 cc-cerrar-invitacion = बंद करें
 cc-sincronizar = सिंक करें
-cc-invitacion-como = दूसरे डिवाइस पर: PixPin → किसी शेयर की गई चैट से जुड़ें। इसे स्कैन करें या कोड लिखें।
+cc-invitacion-como = दूसरे डिवाइस पर: PinDesk → किसी शेयर की गई चैट से जुड़ें। इसे स्कैन करें या कोड लिखें।
 cc-invitacion-vale = जब तक यह स्क्रीन खुली है तब तक मान्य। आपको एक ही Wi-Fi पर होना चाहिए।
 cc-salir-del-chat = चैट छोड़ें
 cc-salir-titulo = चैट छोड़ें?
@@ -3318,3 +3318,313 @@ clase-acta-propuestas = अस्वीकृत प्रस्ताव
 clase-acta-aceptar = स्वीकार करें
 clase-acta-aceptada = कार्य में जोड़ा गया
 clase-acta-anadidas = { $n } प्रश्न कार्य-इनबॉक्स में जोड़े गए
+
+# --- Lo nuevo de noviembre ---
+# El aviso flotante del asistente
+aviso-ia-abrir = खोलें
+aviso-ia-si = हाँ
+aviso-ia-no = नहीं
+aviso-ia-permiso = 🔐 मुझे आपकी अनुमति चाहिए: { $pregunta }
+
+    अगर आप जवाब नहीं देंगे, तो मैं यह नहीं करूँगा।
+# Los turnos del asistente que siguen con el chat cerrado
+ia-fondo-titulo = 🤖 असिस्टेंट
+ia-fondo-sigue = “जारी रखो”
+ia-fondo-sigue-fuera = “@asistente जारी रखो”
+ia-fondo-otra-vez = ↻ मेरे काम पूरा करने से पहले PinDesk बंद हो गया। मैं नीचे दिए जवाब में फिर से शुरू से कर रहा हूँ।
+ia-fondo-ya-actuo = कुछ चरण पहले ही हो चुके थे, इसलिए मैं इसे अपने आप नहीं दोहराऊँगा (वे दो बार हो जाते)। { $sigue } लिखें और मैं यहीं से आगे बढ़ूँगा।
+ia-fondo-ya-se-retomo = मैंने इसे एक बार फिर शुरू किया था और यह फिर कट गया, इसलिए मैं यहीं रुकता हूँ। अगर आप चाहते हैं कि मैं फिर कोशिश करूँ, तो { $sigue } लिखें।
+ia-fondo-viejo = अपने आप फिर शुरू करने के लिए बहुत समय बीत चुका है। अगर आपको अब भी चाहिए, तो { $sigue } लिखें।
+ia-fondo-sin-pregunta = मुझे आपका अनुरोध नहीं मिल रहा (क्या वह हटा दिया गया?), इसलिए मैं इसे फिर शुरू नहीं कर सकता।
+ia-fondo-no-se-pudo = मैं इसे फिर शुरू नहीं कर सका: { $aviso }
+ia-fondo-no-empezo = मैं जवाब देना शुरू नहीं कर सका।
+ia-fondo-cortado = ⚠️ यह पूरा होने से पहले PinDesk बंद हो गया। { $porque }
+ia-fondo-sigo-en-el-chat = 💬 मैं चैट में जारी रखूँगा।
+ia-fondo-sigo-de-fondo = ⏳ चैट बंद होने के बावजूद मैं आपके अनुरोध पर काम कर रहा हूँ। पूरा होने पर बताऊँगा।
+ia-fondo-pregunta = ❓ मुझे चाहिए कि आप चैट में जवाब दें: { $pregunta }
+
+    “खोलें” दबाएँ। अगर आप जवाब नहीं देंगे, तो मैं सबसे सुरक्षित विकल्प चुनूँगा।
+# La ficha de una leccion
+leccion-ventana = सबक
+leccion-ventana-nueva = नया सबक
+leccion-titulo = 💡 सबक
+leccion-titulo-nueva = 💡 नया सबक
+leccion-tipo-leccion = 💡 सबक
+leccion-tipo-error = ⚠️ गलती
+leccion-tipo-acierto = ✅ सफलता
+leccion-gravedad-leve = मामूली
+leccion-gravedad-importante = महत्वपूर्ण
+leccion-gravedad-grave = गंभीर
+leccion-sin-proyecto = कोई प्रोजेक्ट नहीं (सामान्य चैट)
+leccion-foto-ilegible = वह फ़ोटो पढ़ी नहीं जा सकी
+leccion-adjunto-no-esta = वह फ़ाइल अभी इस कंप्यूटर पर नहीं है
+leccion-galeria = 🖼 गैलरी
+leccion-guardar = सहेजें
+leccion-pista-titulo = आपने क्या सीखा? एक बार में लिखें या बोलकर लिखवाएँ
+leccion-se-parece = यह आपके पहले से मौजूद एक सबक जैसा लगता है
+leccion-paso-otra-vez = 🔁 फिर से हुआ
+leccion-area = क्षेत्र
+leccion-etiquetas = टैग
+leccion-anadir-etiqueta = + टैग
+leccion-menos-detalle = ▴  कम विवरण
+leccion-mas-detalle = ▾  क्या हुआ, क्यों हुआ, और मैं अगली बार क्या अलग करूँगा
+leccion-que-paso = क्या हुआ
+leccion-por-que = क्यों हुआ
+leccion-causas = कारण (एक टैप)
+leccion-proxima = अगली बार… (अगर X हो, तो मैं Y करूँगा)
+leccion-referencias = इसे ढूँढने के लिए शब्द (अल्पविराम से अलग)
+leccion-relacionadas = संबंधित
+leccion-volvio-a-pasar = 🔁 मेरे साथ फिर हुआ
+leccion-volvio-a-pasar-n = 🔁 मेरे साथ फिर हुआ (अब तक { $veces } बार)
+leccion-mic-escuchando = 🎙️ सुन रहा हूँ… समाप्त करने के लिए माइक्रोफ़ोन दबाएँ
+leccion-mic-sin-dictado = इस कंप्यूटर पर डिक्टेशन उपलब्ध नहीं है: सबक टाइप करें
+leccion-mic-sin-texto = कुछ समझ नहीं आया
+leccion-mic-no-pasa = टेक्स्ट में नहीं बदला जा सका
+leccion-mic-corto = बहुत छोटा: माइक्रोफ़ोन थोड़ी देर और चालू रखें
+leccion-audio = 🎙 ऑडियो
+leccion-audio-abriendo = 🎙 खुल रहा है…
+leccion-audio-guardando = 🎙 सहेजा जा रहा है…
+leccion-audio-parar = ⏹ रोकें { $duracion }
+leccion-audio-sin-microfono = माइक्रोफ़ोन का उपयोग नहीं हो सका
+leccion-audio-corto = बहुत छोटा: सहेजा नहीं गया
+leccion-audio-no-guarda = ऑडियो सहेजा नहीं जा सका
+# El horario
+horario-evaluacion-en = { $dias ->
+        [1] कल
+       *[other] { $dias } दिन में
+    }
+horario-evaluacion-recuerda = याद रखें: { $que }, { $en }, { $cuando }
+horario-evento-en = { $evento }, { $lugar } में
+horario-dia-0 = सोम
+horario-dia-1 = मंगल
+horario-dia-2 = बुध
+horario-dia-3 = गुरु
+horario-dia-4 = शुक्र
+horario-dia-5 = शनि
+horario-dia-6 = रवि
+# La Jump List del icono de la barra de tareas
+lista-icono-capturar = कैप्चर करें
+lista-icono-capturar-largo = स्क्रीन का एक हिस्सा कैप्चर करें
+lista-icono-mensajes = सहेजे गए संदेश
+lista-icono-mensajes-largo = “सहेजे गए संदेश” खोलें
+lista-icono-proyectos = प्रोजेक्ट
+lista-icono-proyectos-largo = अपने प्रोजेक्ट देखें
+lista-icono-sincronizar = सिंक करें
+lista-icono-sincronizar-largo = अपने डिवाइस के साथ सिंक करें
+lista-icono-recientes = हाल के प्रोजेक्ट
+lista-icono-proyecto-largo = प्रोजेक्ट { $nombre } खोलें
+# Los visores de planos, modelos y croquis 3D
+cad-plano-abriendo = ड्रॉइंग खुल रही है…
+cad-plano-vacio = ड्रॉइंग में दिखाने के लिए कुछ नहीं है
+cad-plano-error = ड्रॉइंग नहीं खोली जा सकी
+cad-plano-pista-acotar = मापने के लिए बिंदुओं पर क्लिक करें · डबल क्लिक या Enter: समाप्त · Esc: बाहर निकलें
+cad-plano-todo = पूरी ड्रॉइंग दिखाएँ
+cad-tema = हल्की या गहरी पृष्ठभूमि
+cad-acotar = मापें
+cad-borrar-cotas = माप साफ़ करें
+cad-encima = हमेशा ऊपर
+cad-cerrar = बंद करें
+cad-tres = 3D में देखें
+cad-marcos = प्रिंट के लिए फ़्रेम
+cad-imprimir = प्रिंट करें…
+cad-exportar = एक्सपोर्ट करें (HTML, PDF, PNG, DXF…)…
+cad-borrar-marcos = फ़्रेम साफ़ करें
+cad-plano-pista-marcos = जो प्रिंट करना है उसे फ़्रेम करने के लिए खींचें · Ctrl+P: प्रिंट · Del: आख़िरी हटाएँ · Esc: बाहर निकलें
+cad-plano-marcador = यहाँ बुकमार्क करें
+cad-anotar = एनोटेट करें
+cad-sin-dibujo-civil = { $n ->
+        [one] { $n } Civil 3D ऑब्जेक्ट उसके ग्राफ़िक्स के बिना सहेजा गया: PROXYGRAPHICS = 1 के साथ सहेजें या LandXML में एक्सपोर्ट करें
+       *[other] { $n } Civil 3D ऑब्जेक्ट उनके ग्राफ़िक्स के बिना सहेजे गए: PROXYGRAPHICS = 1 के साथ सहेजें या LandXML में एक्सपोर्ट करें
+    }
+cad-letras = ड्रॉइंग के फ़ॉन्ट…
+cad-letras-faltan = यह ड्रॉइंग ऐसे फ़ॉन्ट माँगती है जो यहाँ नहीं हैं; इसके टेक्स्ट मिलते-जुलते फ़ॉन्ट में दिखते हैं और अपने बॉक्स में शायद न समाएँ:
+cad-letras-no-falta = ड्रॉइंग जिन फ़ॉन्ट का नाम लेती है, उनमें से कोई कम नहीं है।
+cad-letras-donde = SHX फ़ॉन्ट आमतौर पर C:\Program Files\Autodesk\AutoCAD 20xx\Fonts में या आपको भेजी गई ड्रॉइंग के पास होते हैं;
+    TrueType फ़ॉन्ट C:\Windows\Fonts में। यहाँ जोड़े गए फ़ॉन्ट AutoCAD, Windows और PinDesk के फ़ॉन्ट से ऊपर माने जाते हैं।
+cad-letras-anadir = फ़ॉन्ट जोड़ें (SHX, TTF, OTF, TTC)…
+cad-letras-quitar = मेरे जोड़े हुए हटाएँ ({ $n })
+cad-faltan-letras = ड्रॉइंग के { $n } फ़ॉन्ट नहीं हैं: उन्हें जोड़ने के लिए ऊपर Aa पर क्लिक करें
+cad-releyendo = आपके फ़ॉन्ट के साथ ड्रॉइंग पढ़ी जा रही है…
+cad-boton-mover = खिसकाएँ (खींचें)
+cad-boton-marcador = बुकमार्क
+cad-boton-anotar = एनोटेट करें
+cad-boton-letras = ड्रॉइंग के फ़ॉन्ट
+cad-corte = सेक्शन बॉक्स
+cad-capas = लेवल और श्रेणियाँ
+cad-boton-pantalla = पूर्ण स्क्रीन
+cad-boton-guardar = किसी चैट में सहेजें
+cad-modelo-abriendo = मॉडल खुल रहा है…
+cad-modelo-vacio = मॉडल में दिखाने के लिए कुछ नहीं है
+cad-modelo-error = मॉडल नहीं खोला जा सका
+cad-modelo-todo = पूरा मॉडल दिखाएँ
+cad-aislar = चुने गए तत्व को अलग करें
+cad-niveles = लेवल
+cad-categorias = श्रेणियाँ
+cad-sin-nivel = कोई लेवल नहीं
+cad-mostrar-todo = सब दिखाएँ
+cad-aristas = किनारे
+cad-planta = प्लान व्यू
+cad-altura-corte = सेक्शन
+cad-modelo-pista = खींचें: घुमाएँ · दायाँ खींचें: पैन · व्हील: ज़ूम · क्लिक: यह क्या है · फिर क्लिक: अलग करें
+cad-modelo-marcador = यहाँ बुकमार्क करें (सेक्शन और छिपी चीज़ों के साथ)
+cad-imprimir-marcos = फ़्रेम प्रिंट करें…
+cad-modelo-pista-marcos = जो प्रिंट करना है उसे फ़्रेम करने के लिए खींचें · Ctrl+P: प्रिंट · Del: आख़िरी हटाएँ · संख्याएँ: उसके व्यू पर जाएँ · Esc: बाहर निकलें
+cad-modelo-pista-anotar = आपके एनोटेशन केवल इस बुकमार्क के व्यू में दिखते हैं
+cad-modelo-anotar = इस व्यू पर एनोटेट करें
+cad-croquis-abriendo = स्केच खुल रहा है…
+cad-croquis-vacio = स्केच खाली है
+cad-croquis-error = स्केच नहीं खोला जा सका
+cad-croquis-todo = पूरा स्केच दिखाएँ
+cad-croquis-capas = लेयर
+cad-croquis-grupos = समूह
+cad-croquis-tipos = प्रकार
+cad-croquis-todo-corto = सब
+cad-croquis-pista = खींचें: घुमाएँ · दायाँ खींचें: पैन · व्हील: ज़ूम · 1–9: सहेजे गए व्यू
+# La pagina HTML de un plano exportado
+cad-web-todo = सब फ़िट करें
+cad-web-tema = हल्का / गहरा
+cad-web-capas = लेयर
+cad-web-grosores = लाइन की मोटाई
+cad-web-anotaciones = एनोटेशन
+cad-web-todas = सभी
+cad-web-ninguna = कोई नहीं
+cad-web-sin-soporte = यह ब्राउज़र ड्रॉइंग को अनपैक नहीं कर सकता: इसे हाल के Edge, Chrome, Firefox या Safari से खोलें।
+cad-web-pista = व्हील: ज़ूम · खींचें: पैन · डबल क्लिक: फ़िट करें · F, B, L
+# El membrete de un plano impreso
+lamina-proyecto = प्रोजेक्ट
+lamina-lamina = शीट
+lamina-titulo = शीर्षक
+lamina-dibujo = बनाने वाला
+lamina-escala = स्केल
+lamina-sin-escala = स्केल के अनुसार नहीं
+lamina-fecha = तारीख़
+lamina-unidades = इकाइयाँ
+lamina-opcion = शीट
+lamina-con-membrete = बॉर्डर और टाइटल ब्लॉक के साथ
+lamina-sin-marco = बिना बॉर्डर
+# Sincronizar en segundo plano
+sinc-fondo-solo = इस PC के समूह में और कोई नहीं है: सिंक में किसी समूह से जुड़ें
+sinc-fondo-no-es-del-grupo = वह डिवाइस अब समूह में नहीं है
+sinc-fondo-aparatos = { $n ->
+        [one] { $n } डिवाइस
+       *[other] { $n } डिवाइस
+    }
+sinc-fondo-sincronizando = { $quien } के साथ सिंक हो रहा है…
+sinc-fondo-ya-en-marcha = सिंक पहले से चल रहा है: इसके पूरा होने की प्रतीक्षा करें
+sinc-fondo-fallo = सिंक नहीं हो सका: { $error }
+# Leer en voz
+lector-voz-en-linea = ऑनलाइन
+# Automatizaciones
+auto-origen = ऑटोमेशन
+# El asistente de la nube sin clave
+ia-nube-falta-la-clave = { $proveedor } की कुंजी नहीं है: इसे सेटिंग्स → असिस्टेंट में पेस्ट करें ({ $pagina } पर एक पाएँ)।
+# Los campos de una figura que se alarga
+figuras-ventana-no-es-numero = “{ $texto }” कोई संख्या नहीं है
+figuras-ventana-mes-mal = “{ $texto }”: महीना 2026-11 की तरह लिखें
+# Las teclas
+tecla-intro = Enter
+tecla-supr = Del
+ia-fondo-hecho = ✅ हो गया।
+ia-hecho = हो गया।
+croquis-titulo = स्केच { $id }
+chat-ajustes-bandeja = सेटिंग्स ट्रे में PinDesk आइकन से खुलती हैं
+# El estado de la IA
+ia-estado-funciona = काम कर रहा है
+ia-estado-sin-clave = कोई कुंजी नहीं
+ia-estado-desconocido = अभी जाँचा नहीं गया
+ia-estado-clave-mala = कुंजी मान्य नहीं है ({ $codigo })
+ia-estado-sin-saldo = खाते में क्रेडिट नहीं है
+ia-estado-limite = बहुत अधिक अनुरोध या कोटा खत्म
+ia-estado-red = कोई कनेक्शन नहीं
+ia-estado-servidor = सेवा में खराबी है ({ $codigo })
+ia-estado-otro = ठीक से जवाब नहीं दे रहा ({ $codigo })
+ia-estado-comprobando = जाँच हो रही है…
+ia-estado-hace-nada = अभी-अभी
+ia-estado-hace-min = { $n } मिनट पहले
+ia-estado-hace-horas = { $n } घंटे पहले
+ia-estado-pista = क्लिक: अभी जाँचें या कुंजियों पर जाएँ
+ia-estado-comprobar = अभी जाँचें
+ia-estado-claves = कुंजियाँ सेटिंग्स → असिस्टेंट में
+ia-estado-sin-ajustes = सेटिंग्स ट्रे में PinDesk आइकन से खुलती हैं
+# El mes dentro de una fecha
+chat-mes-dia-1 = जनवरी
+chat-mes-dia-2 = फ़रवरी
+chat-mes-dia-3 = मार्च
+chat-mes-dia-4 = अप्रैल
+chat-mes-dia-5 = मई
+chat-mes-dia-6 = जून
+chat-mes-dia-7 = जुलाई
+chat-mes-dia-8 = अगस्त
+chat-mes-dia-9 = सितंबर
+chat-mes-dia-10 = अक्टूबर
+chat-mes-dia-11 = नवंबर
+chat-mes-dia-12 = दिसंबर
+# Escuchar la reunion en vivo
+ajustes2-voz-en-vivo = मीटिंग को लाइव सुनें, इसके साथ
+ajustes2-voz-en-vivo-sistema = Windows या Whisper
+ajustes2-voz-en-vivo-vosk = Vosk
+ajustes2-ayuda-voz-en-vivo = Jev के साथ मीटिंग के विषयों और बाकी मीटिंग सुविधाओं के लिए। Vosk जो कहा जा रहा है उसे दिखाता है और आपके रुकने के एक पल बाद हर वाक्य पूरा करता है (Whisper के साथ लगभग 3 s), ऑफ़लाइन। इसे चुनने पर { $megas } MB डाउनलोड होता है (Apache-2.0)।
+ajustes2-ayuda-voz-en-vivo-vosk-listo = Vosk से ऑफ़लाइन सुना जा रहा है: जो कहा जा रहा है वह रिकॉर्डिंग की पूर्ण स्क्रीन में दिखता है। अगर कभी यह लोड न हो, तो Windows या Whisper का उपयोग होता है।
+ajustes2-ayuda-voz-en-vivo-sin-idioma = Vosk स्पैनिश और अंग्रेज़ी के लिए डाउनलोड होता है; इस भाषा में Windows या Whisper सुनता है।
+ajustes2-voz-en-vivo-bajando = Vosk डाउनलोड हो रहा है… { $por-ciento } %। तब तक Windows या Whisper सुनता है।
+ajustes2-voz-en-vivo-fallo = Vosk डाउनलोड नहीं हो सका: { $fallo }। फिर से कोशिश करने के लिए इसे दोबारा चुनें।
+ajustes2-voz-vosk-borrar = Vosk हटाएँ
+ajustes2-ayuda-voz-vosk-borrar = डाउनलोड की गई चीज़ें हटाकर जगह खाली करता है (डिस्क पर लगभग 100 MB)। इसे चुनने पर यह फिर डाउनलोड होता है।
+clase-temas-bateria = बैटरी कम है: बचाने के लिए लाइव नहीं सुना जा रहा (रिकॉर्डिंग जारी है)
+chat-anotar-fallo-red = कोई कनेक्शन नहीं: Jev यह नहीं जाँच सका कि इसे किसी दूसरी चैट में नोट करना है या नहीं। आपने जो बोला वह अभी भी बॉक्स में है।
+chat-anotar-fallo = Jev ने जवाब नहीं दिया ({ $motivo })। आपने जो बोला वह अभी भी बॉक्स में है।
+# Privacidad y datos
+ajustes2-g-privacidad = गोपनीयता और डेटा
+ajustes2-priv-politica = गोपनीयता नीति
+ajustes2-ayuda-priv-politica = PinDesk आपके डेटा के साथ क्या करता है (स्पैनिश और अंग्रेज़ी में): नीचे दी गई चीज़ों के अलावा सब कुछ इसी PC पर रहता है, और वह भी केवल तब जब आप उनका उपयोग करते हैं।
+ajustes2-g-privacidad-sale = क्या इस PC से बाहर जाता है और कहाँ जाता है
+ajustes2-priv-ver-ajustes = इसकी सेटिंग्स
+ajustes2-priv-nada-mas = और कुछ नहीं
+ajustes2-ayuda-priv-nada-mas = कोई विज्ञापन नहीं, कोई एनालिटिक्स नहीं, कोई क्रैश रिपोर्ट नहीं, कोई खाता नहीं और कोई PinDesk सर्वर नहीं। डिक्टेशन और ट्रांसक्रिप्शन इसी PC पर, ऑफ़लाइन चलते हैं।
+ajustes2-g-privacidad-datos = आपका डेटा
+ajustes2-priv-carpeta = आपका डेटा, आपकी डिस्क पर
+ajustes2-ayuda-priv-carpeta = कैप्चर, चैट, नोट, रिकॉर्डिंग और सेटिंग्स { $carpeta } में रहते हैं। इन्हें साथ ले जाने के लिए फ़ोल्डर कॉपी करें; हटाने के लिए PinDesk बंद करें और फ़ोल्डर हटा दें। AI कुंजियाँ आपके Windows उपयोगकर्ता से एन्क्रिप्ट की जाती हैं।
+ajustes2-priv-reportes = AI जो लिखता है उसकी रिपोर्ट
+ajustes2-ayuda-priv-reportes = { $n ->
+    [one] 1 रिपोर्ट reportes-ia.jsonl में सहेजी गई (डेटा फ़ोल्डर में)।
+   *[other] { $n } रिपोर्ट reportes-ia.jsonl में सहेजी गईं (डेटा फ़ोल्डर में)।
+}
+privacidad-asistente-que = आप असिस्टेंट से जो पूछते हैं, हाल की चैट और जो आप अटैच करते हैं
+privacidad-asistente-adonde = Anthropic (Claude) या DeepSeek
+privacidad-asistente-cuando = केवल तब, जब आप अपनी कुंजी पेस्ट करके पूछते हैं। कुंजी इस PC पर एन्क्रिप्ट करके रखी जाती है।
+privacidad-jev-que = Jev की हर सुविधा का टेक्स्ट: मीटिंग के वाक्य, क्लास की पंक्तियाँ, कार्य, आप जो बोलते या समझाते हैं
+privacidad-jev-adonde = TypeSafe (api.typesafe.ai)
+privacidad-jev-cuando = केवल आपकी TypeSafe कुंजी और उस सुविधा के चालू होने पर। ऑडियो कभी नहीं।
+privacidad-web-que = असिस्टेंट जो खोजता है और आपको जवाब देने के लिए जो पेज पढ़ता है
+privacidad-web-adonde = DuckDuckGo या Brave Search, और वह साइट जिसे वह पढ़ता है
+privacidad-web-cuando = जब असिस्टेंट वेब पर खोजता है। बिना कुकीज़ और बिना आपकी AI कुंजी के।
+privacidad-google-que = आपकी चुनी हुई Drive फ़ाइलें और कैलेंडर इवेंट
+privacidad-google-adonde = Google (Drive, Calendar)
+privacidad-google-cuando = केवल तब, जब आप सेटिंग्स › असिस्टेंट में अपना Google खाता जोड़ते हैं; वहीं से इसे डिस्कनेक्ट करें।
+privacidad-voces-que = Microsoft आवाज़ से ज़ोर से पढ़ा जाने वाला टेक्स्ट
+privacidad-voces-adonde = Microsoft (Edge की आवाज़ें)
+privacidad-voces-cuando = केवल तब, जब आप रीडर में उनमें से कोई आवाज़ चुनते हैं; Windows की आवाज़ें ऑफ़लाइन काम करती हैं।
+privacidad-enlace-que = वह फ़ाइल जिसे आप लिंक से शेयर करना चुनते हैं
+privacidad-enlace-adonde = litterbox.catbox.moe या temp.sh
+privacidad-enlace-cuando = केवल तब, जब आप शेयर लिंक माँगते हैं; यह कुछ घंटों या दिनों में अपने आप हट जाती है।
+privacidad-modelos-que = आपका कुछ नहीं: केवल फ़ाइलें माँगी जाती हैं
+privacidad-modelos-adonde = huggingface.co, github.com और alphacephei.com (Whisper, Qwen3-ASR, Vosk, Indra)
+privacidad-modelos-cuando = जब आपके कहने पर कोई स्पीच या टेक्स्ट पढ़ने वाला मॉडल डाउनलोड होता है।
+privacidad-sincro-que = आपके सिंक किए गए कैप्चर, नोट और चैट
+privacidad-sincro-adonde = आपके अपने डिवाइस (फ़ोन), आपके नेटवर्क पर
+privacidad-sincro-cuando = सिंक करते समय: सीधे आपके नेटवर्क पर, एन्क्रिप्टेड, बिना किसी सर्वर से गुज़रे।
+# Reportar lo que escribe la IA
+reportar-ia = जवाब की रिपोर्ट करें…
+reportar-ia-motivo-ofensivo = आपत्तिजनक
+reportar-ia-motivo-peligroso = खतरनाक
+reportar-ia-motivo-falso = गलत या भ्रामक
+reportar-ia-motivo-otro = कोई और कारण
+reportar-ia-hecho = रिपोर्ट reportes-ia.jsonl में सहेजी गई; इसे भेजने के लिए आपका ईमेल खुलता है
+reportar-ia-asunto = AI के एक जवाब की रिपोर्ट
+reportar-ia-campo-motivo = कारण
+reportar-ia-campo-funcion = सुविधा
+reportar-ia-campo-fecha = तारीख़
+reportar-ia-campo-version = संस्करण
+reportar-ia-campo-contenido = AI ने क्या लिखा
+reportar-ia-comentario = (अगर आप चाहें, तो यहाँ बताएँ कि क्या गलत है।)
+repaso-jev-fallo-red = कोई कनेक्शन नहीं।

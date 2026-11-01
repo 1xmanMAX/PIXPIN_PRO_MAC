@@ -1120,7 +1120,7 @@ impl EjecutorDelMac {
                     }
                 ))
             }
-            otra => Err(format!("«{otra}» aun no se puede hacer en PixPin para Mac")),
+            otra => Err(format!("«{otra}» aun no se puede hacer en PinDesk para Mac")),
         }
     }
 
@@ -1497,7 +1497,7 @@ impl Ejecutor for EjecutorDelMac {
             Llamada::App(a) if a.herramienta == pixpin_ia::hoja::NOMBRE && self.chat.is_some() => self.hoja_a_lienzo(&a.pedido),
             Llamada::App(a) if pixpin_ia::acciones::es_de_lienzos(a.herramienta) && self.chat.is_some() => self.lienzos(a),
             Llamada::App(a) if el_mac_lo_hace(a.herramienta, self.chat.is_some()) => self.accion(a),
-            otra => Err(format!("{} aun no se puede hacer en PixPin para Mac", otra.nombre())),
+            otra => Err(format!("{} aun no se puede hacer en PinDesk para Mac", otra.nombre())),
         }
     }
 
@@ -1505,7 +1505,7 @@ impl Ejecutor for EjecutorDelMac {
     /// Swift la pinta con el pintor del lienzo.
     fn ver(&mut self, m: &pixpin_ia::ojos::Mirada) -> Result<pixpin_ia::ojos::Vista, String> {
         if m.zona == pixpin_ia::ojos::Zona::Documento {
-            return Err("ver un documento anotado aun no se puede en PixPin para Mac".into());
+            return Err("ver un documento anotado aun no se puede en PinDesk para Mac".into());
         }
         if self.chat.as_ref().is_some_and(|c| !c.con_marco) {
             // Que la rejilla mida desde donde mide el resumen.

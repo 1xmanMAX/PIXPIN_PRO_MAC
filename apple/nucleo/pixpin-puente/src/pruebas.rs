@@ -504,12 +504,12 @@ fn caso_negativo_si_pixpin_no_aparece_se_dice() {
             0
         }
         fn arrancar(&mut self) -> Result<(), String> {
-            Err("No se encuentra pixpinmax.exe".into())
+            Err("No se encuentra pindesk.exe".into())
         }
     }
     assert_eq!(
         entregar(&mut Nadie, "{}").unwrap_err(),
-        "No se encuentra pixpinmax.exe"
+        "No se encuentra pindesk.exe"
     );
 }
 
@@ -537,11 +537,21 @@ fn la_raiz_es_la_del_mac_y_la_app_la_de_su_paquete() {
     let d = carpeta("raiz");
     std::fs::create_dir_all(&d).unwrap();
     let e = Entorno::del_equipo(Some(&d), None).unwrap();
-    assert!(e.raiz.ends_with("Library/Application Support/PixPinMax"), "{:?}", e.raiz);
+    assert!(
+        e.raiz.ends_with("Library/Application Support/PixPinMax"),
+        "{:?}",
+        e.raiz
+    );
     // Dentro de PixPin.app, la app es esa; suelto, la de /Applications.
     let dentro = PathBuf::from("/x/PixPin.app/Contents/MacOS");
-    assert_eq!(exe_de_pixpin(Some(&dentro)), Some(PathBuf::from("/x/PixPin.app")));
-    assert_eq!(exe_de_pixpin(Some(&d)), Some(PathBuf::from("/Applications/PixPin.app")));
+    assert_eq!(
+        exe_de_pixpin(Some(&dentro)),
+        Some(PathBuf::from("/x/PixPin.app"))
+    );
+    assert_eq!(
+        exe_de_pixpin(Some(&d)),
+        Some(PathBuf::from("/Applications/PixPin.app"))
+    );
     assert_eq!(
         Entorno::del_equipo(Some(&d), Some(PathBuf::from("z")))
             .unwrap()

@@ -166,7 +166,7 @@ struct SinImagenes;
 
 impl Anfitrion for SinImagenes {
     fn imagen_nueva(&mut self, _fuente: &str) -> Result<Elemento, String> {
-        Err("pegar imagenes en el lienzo desde el asistente aun no se puede en PixPin para Mac".into())
+        Err("pegar imagenes en el lienzo desde el asistente aun no se puede en PinDesk para Mac".into())
     }
 }
 

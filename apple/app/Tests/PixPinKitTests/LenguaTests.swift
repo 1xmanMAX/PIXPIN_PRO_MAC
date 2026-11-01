@@ -40,12 +40,15 @@ final class LenguaTests: XCTestCase {
     }
 
     func testElIdiomaPoneElDeMacOSParaEstaApp() throws {
-        let d = try XCTUnwrap(UserDefaults(suiteName: "pixpin-lengua-\(UUID().uuidString)"))
+        let nombre = "pixpin-lengua-\(UUID().uuidString)"
+        let d = try XCTUnwrap(UserDefaults(suiteName: nombre))
         ModeloAjustes.aplicar(idioma: "ja", en: d)
         XCTAssertEqual(d.stringArray(forKey: "AppleLanguages"), ["ja"])
         ModeloAjustes.aplicar(idioma: "zh-CN", en: d)
         XCTAssertEqual(d.stringArray(forKey: "AppleLanguages"), ["zh-Hans"])
         ModeloAjustes.aplicar(idioma: "sistema", en: d)
-        XCTAssertNil(d.object(forKey: "AppleLanguages"))
+        // `object(forKey:)` cae al dominio global del Mac (su AppleLanguages):
+        // lo que cuenta es que el de la app ya no lo lleve.
+        XCTAssertNil(d.persistentDomain(forName: nombre)?["AppleLanguages"])
     }
 }

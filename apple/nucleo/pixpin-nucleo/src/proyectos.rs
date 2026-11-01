@@ -155,7 +155,7 @@ fn elemento_de_paquete(p: &Paquete, bytes: i64) -> Elemento {
 fn abrir_paquete(ruta: &Path) -> Result<(Paquete, Elemento), ErrorNucleo> {
     let bytes = std::fs::metadata(ruta).map(|m| m.len() as i64).unwrap_or(0);
     let p = Paquete::abrir(ruta).map_err(|e| ErrorNucleo::Argumento {
-        detalle: format!("no es un proyecto de PixPin: {e}"),
+        detalle: format!("no es un proyecto de PinDesk: {e}"),
     })?;
     let e = elemento_de_paquete(&p, bytes);
     Ok((p, e))

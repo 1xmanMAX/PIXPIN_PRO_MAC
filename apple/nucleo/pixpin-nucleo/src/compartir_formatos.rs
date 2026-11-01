@@ -70,7 +70,7 @@ const FORMATOS_EN_ORDEN: [(ClaseDeFormato, &str, &str); 14] = [
     (ClaseDeFormato::Texto, "texto", "Texto"),
     (ClaseDeFormato::Csv, "csv", "Tabla (CSV)"),
     (ClaseDeFormato::Otro, "otro", ""),
-    (ClaseDeFormato::Pixpin, "pixpin", "PixPin (.pixpin)"),
+    (ClaseDeFormato::Pixpin, "pixpin", "PinDesk (.pixpin)"),
     (ClaseDeFormato::Original, "original", "Original"),
     (ClaseDeFormato::Anki, "anki", "Anki"),
     (ClaseDeFormato::Wifi, "wifi", "Por Wi‑Fi a mis aparatos"),
@@ -355,7 +355,7 @@ mod pruebas {
         assert_eq!(n("web"), "Página web (HTML)");
         assert_eq!(n("svg"), "Dibujo SVG");
         assert_eq!(n("originales"), "Original");
-        assert_eq!(n("editable"), "PixPin (.pixpin)");
+        assert_eq!(n("editable"), "PinDesk (.pixpin)");
         assert_eq!(n("md"), "Markdown");
         // Lo propio lleva el nombre de quien lo ofrece.
         assert_eq!(n("dxf"), "DXF");

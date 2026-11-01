@@ -187,7 +187,7 @@ impl Lector for LectorDelMac {
                 .filter(|t| !t.trim().is_empty())
                 .map(|texto| vec![Unidad { texto, ..Default::default() }])
                 .ok_or_else(|| format!("«{nombre}» no se deja leer")),
-            None => Err(format!("PixPin no sabe leer «{nombre}»")),
+            None => Err(format!("PinDesk no sabe leer «{nombre}»")),
         }
     }
 }
