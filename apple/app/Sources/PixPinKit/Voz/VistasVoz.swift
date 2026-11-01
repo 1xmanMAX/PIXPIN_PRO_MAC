@@ -20,6 +20,24 @@ struct BurbujaVoz: View {
     private var esLaActual: Bool { reproductor.actual == mensaje.id }
 
     var body: some View {
+        if MusicaChat.esMusica(mensaje, chat: chat, nucleo: almacen.nucleo) {
+            // Una cancion es una tarjeta con su portada y su karaoke
+            // (`musica.rs` de Windows), no la onda con la letra entera.
+            TarjetaCancion(mensaje: mensaje, chat: chat, almacen: almacen, url: url)
+                .task(id: mensaje.id) { await buscarFichero() }
+        } else {
+            nota
+        }
+    }
+
+    private func buscarFichero() async {
+        guard url == nil, let ruta = mensaje.ruta else { return }
+        if let u = await almacen.url(deRuta: ruta, en: chat), FileManager.default.fileExists(atPath: u.path) {
+            url = u
+        }
+    }
+
+    private var nota: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 10) {
                 Button(action: alternar) {
@@ -103,12 +121,7 @@ struct BurbujaVoz: View {
                 // comun (`MenuDeMensaje`), tambien en sus capturas y su video.
             }
         }
-        .task(id: mensaje.id) {
-            guard let ruta = mensaje.ruta else { return }
-            if let u = await almacen.url(deRuta: ruta, en: chat), FileManager.default.fileExists(atPath: u.path) {
-                url = u
-            }
-        }
+        .task(id: mensaje.id) { await buscarFichero() }
     }
 
     /// Lo que se dijo, en parrafos y sin los `[m:ss]` dentro del texto.
