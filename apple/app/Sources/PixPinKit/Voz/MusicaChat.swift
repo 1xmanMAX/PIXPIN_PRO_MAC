@@ -209,6 +209,8 @@ enum KaraokeVentana {
         let vista = VistaKaraoke(mensaje: mensaje, url: url, tarjeta: tarjeta, cerrar: { ventana?.close() })
         if let ventana {
             ventana.contentView = NSHostingView(rootView: vista)
+            // La vista nueva tampoco se aparta de la barra del titulo.
+            VentanaLisa.quitarFranja(ventana)
             ventana.makeKeyAndOrderFront(nil)
             NSApp.activate()
             return

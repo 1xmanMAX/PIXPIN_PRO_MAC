@@ -59,6 +59,21 @@ public enum VentanaLisa {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { quitarFranja(ventana) }
     }
 
+    /// **Lisa y sin franja** (1-nov-2026, el usuario: «las ventanas que se
+    /// abren dejan la parte de arriba vacia, como si reservaran la barra del
+    /// titulo»): como `vestir`, con los −, ☐ y ✕ planos flotando arriba a la
+    /// derecha, pero el contenido llega hasta arriba, como en Windows. Para
+    /// las ventanas sin barra propia (formularios, listas, el editor de
+    /// notas); quien tenga botones arriba a la derecha les deja sitio
+    /// (`BotonesDeVentana.anchoFlotante`).
+    public static func vestirSinFranja(_ ventana: NSWindow) {
+        ventana.styleMask.insert(.fullSizeContentView)
+        vestir(ventana)
+        quitarFranja(ventana)
+        DispatchQueue.main.async { quitarFranja(ventana) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { quitarFranja(ventana) }
+    }
+
     /// Que el contenido llegue hasta arriba del todo: las listas y el PDF no
     /// se apartan de la barra del titulo, ni las paginas web ni SwiftUI.
     static func quitarFranja(_ ventana: NSWindow) {
@@ -66,6 +81,12 @@ public enum VentanaLisa {
         let alto = max(0, ventana.frame.height - ventana.contentLayoutRect.height)
         raiz.additionalSafeAreaInsets = NSEdgeInsets(top: -alto, left: 0, bottom: 0, right: 0)
         func recorrer(_ v: NSView) {
+            // SwiftUI no mira `additionalSafeAreaInsets`: su zona segura sale
+            // del `contentLayoutRect` de la ventana, y un `GeometryReader`,
+            // una lista o un `.padding` empezaban 28 puntos mas abajo (la
+            // franja vacia de «Estudiar la clase», de la Letra...). Sin
+            // zonas seguras, lo de SwiftUI llega arriba.
+            if let h = v as? SinZonaSegura { h.quitarZonaSegura() }
             if let s = v as? NSScrollView, s.automaticallyAdjustsContentInsets {
                 s.automaticallyAdjustsContentInsets = false
                 s.contentInsets = NSEdgeInsetsZero
@@ -85,7 +106,10 @@ public enum VentanaLisa {
     /// **Recordar el tamano por tipo de archivo**: la ventana se abre como se
     /// dejo la ultima de su tipo (`clave`: «pdf», «html», «xlsx»…) y lo
     /// apunta al moverla, redimensionarla o cerrarla (no a pantalla completa).
+    /// Una vez por ventana: las de SwiftUI la dan mas de una vez.
     static func recordar(_ ventana: NSWindow, clave: String) {
+        guard !recordadas.contains(ventana) else { return }
+        recordadas.add(ventana)
         let k = "PixPinMarco-" + clave.lowercased()
         if let t = UserDefaults.standard.string(forKey: k) {
             let r = NSRectFromString(t)
@@ -101,6 +125,8 @@ public enum VentanaLisa {
             NotificationCenter.default.addObserver(forName: n, object: ventana, queue: .main, using: apuntar)
         }
     }
+
+    private static let recordadas = NSHashTable<NSWindow>.weakObjects()
 
     /// **⎋ de los visores**: a pantalla completa, el primero sale de ella; si
     /// no, se cierra (el segundo ⎋ en pantalla completa).
@@ -144,6 +170,18 @@ public enum VentanaLisa {
     }
 }
 
+/// Una vista de SwiftUI que puede dejar de apartarse de la barra del titulo.
+@MainActor
+protocol SinZonaSegura: AnyObject {
+    func quitarZonaSegura()
+}
+
+extension NSHostingView: SinZonaSegura {
+    func quitarZonaSegura() {
+        if !safeAreaRegions.isEmpty { safeAreaRegions = [] }
+    }
+}
+
 /// Los botones planos de Windows a la derecha de la barra del titulo.
 final class AccesorioBotones: NSTitlebarAccessoryViewController {
     init(ventana: NSWindow) {
@@ -170,6 +208,13 @@ public final class RefVentana {
 /// (gris; la ✕, roja con la cruz blanca). − solo si la ventana se minimiza,
 /// y ☐ si ademas se estira.
 public struct BotonesDeVentana: View {
+    /// Lo que ocupan arriba a la derecha flotando sobre una ventana sin
+    /// franja (`vestirSinFranja`): −, ☐ y ✕ de 38 y su margen. Lo que vaya
+    /// alli debajo se aparta esto.
+    public nonisolated static let anchoFlotante: CGFloat = 3 * 38 + 8
+    /// Y su alto, con el aire de arriba.
+    public nonisolated static let altoFlotante: CGFloat = 28
+
     let ref: RefVentana
     var minimizar = true
 
@@ -248,7 +293,7 @@ struct ModificadorVentanaLisa: ViewModifier {
         content
             .toolbar(removing: .title)
             .toolbarBackground(.hidden, for: .windowToolbar)
-            .background(AccesoVentana { VentanaLisa.vestir($0) })
+            .background(AccesoVentana { VentanaLisa.vestirSinFranja($0) })
     }
 }
 

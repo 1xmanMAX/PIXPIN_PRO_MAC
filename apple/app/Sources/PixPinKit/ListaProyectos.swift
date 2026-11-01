@@ -111,7 +111,9 @@ struct BotonFranja: View {
                 .labelStyle(.iconOnly)
                 .font(.system(size: simbolo == "square" ? 10 : 11, weight: .light))
                 .foregroundStyle(encima && cerrar ? Color.white : Paleta.proyectos.texto)
-                .frame(width: 44, height: FranjaProyectos.alto)
+                // 36 de ancho (`BOTON_BARRA_ANCHO` de Windows): a 380, lo
+                // mas estrecho, caben al lado del interruptor.
+                .frame(width: 36, height: FranjaProyectos.alto)
                 .background(encima ? (cerrar ? Paleta.proyectos.cerrarEncima : Paleta.proyectos.botonEncima) : .clear)
                 .contentShape(Rectangle())
         }

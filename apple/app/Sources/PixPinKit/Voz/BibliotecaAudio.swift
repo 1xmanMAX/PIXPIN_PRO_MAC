@@ -142,6 +142,9 @@ public enum BibliotecaAudio {
         v.title = "Biblioteca de audio"
         v.isReleasedWhenClosed = false
         v.contentView = NSHostingView(rootView: VistaBibliotecaAudio(almacen: almacen))
+        // Lisa y sin franja: la fila de arriba comparte la altura con los
+        // botones de la ventana.
+        VentanaLisa.vestirSinFranja(v)
         v.center()
         _ = v.setFrameAutosaveName("PixPinBibliotecaAudio")
         ventana = v
@@ -178,6 +181,7 @@ struct VistaBibliotecaAudio: View {
             }
             .buttonStyle(.borderless)
             .padding(.horizontal, 12)
+            .padding(.trailing, BotonesDeVentana.anchoFlotante - 12)
             .padding(.vertical, 6)
             if let filas {
                 if filas.isEmpty {

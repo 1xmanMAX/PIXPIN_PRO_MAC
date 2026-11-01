@@ -27,8 +27,28 @@ public struct VentanaProyectos: View {
     @ObservedObject private var peticion = PeticionDeChat.compartida
     @Environment(\.openWindow) private var abrirVentana
 
-    /// La ventana no cabe lista y chat: se ve como el movil.
-    @State private var estrecho = false
+    /// El ancho de la ventana: por debajo de `anchoDosColumnas` no caben
+    /// lista y chat, y se ve como el movil.
+    @State private var anchoVentana: CGFloat = 980
+    private var estrecho: Bool { anchoVentana < Self.anchoDosColumnas }
+    /// Las medidas de Windows (`pixpin_ui::chat`): con menos de 640 solo
+    /// cabe una columna (`ANCHO_DOS_COLUMNAS`), el chat no baja de 380
+    /// (`CHAT_MINIMO`) y la lista va de 260 a 540; la ventana, hasta 380 de
+    /// ancho y 480 de alto (`ANCHO_MINIMO_VENTANA`, `ALTO_MINIMO_VENTANA`).
+    public nonisolated static let anchoDosColumnas: CGFloat = 640
+    public nonisolated static let chatMinimo: CGFloat = 380
+    public nonisolated static let anchoMinimo: CGFloat = 380
+    public nonisolated static let altoMinimo: CGFloat = 480
+    /// Estrecha, volver del chat a la lista; ancha no hace falta.
+    private var volver: (@MainActor () -> Void)? {
+        guard estrecho else { return nil }
+        return { elegido = nil }
+    }
+    /// La lista que se ve con dos columnas: la pedida, sin quitarle al chat
+    /// sus 380 (`ancho_ajustado` y `Disposicion::calcular` de Windows).
+    private var anchoListaVisible: CGFloat {
+        min(CGFloat(anchoLista), max(260, anchoVentana - Self.chatMinimo))
+    }
     /// La pestana Funciones del interruptor, en el sitio de la lista
     /// (`FuncionesDeLaLista`, Windows 768b73f).
     @State private var enFunciones = false
@@ -73,7 +93,7 @@ public struct VentanaProyectos: View {
                     Text("Se borra también en tus otros aparatos la próxima vez que sincronices. "
                         + "Queda una copia en la papelera de PixPin por si te arrepientes.")
                 }
-                .frame(width: estrecho ? nil : anchoLista)
+                .frame(width: estrecho ? nil : anchoListaVisible)
                 .frame(maxWidth: estrecho ? .infinity : nil)
                 // Funciones, encima de la lista (que sigue debajo con su
                 // buscador como estaba).
@@ -92,7 +112,11 @@ public struct VentanaProyectos: View {
                 ZStack(alignment: .topLeading) {
                     PapelChat()
                     if let chat = elegido {
+                        // Estrecha, la cabecera del chat lleva ← para volver
+                        // a la lista (⌘[, y Esc con la caja vacia), como el
+                        // `Zona::Volver` de Windows.
                         VistaChat(almacen: almacen, chat: chat).id(chat)
+                            .environment(\.volverALaLista, volver)
                     } else {
                         Text("Elige un proyecto")
                             .font(.system(size: 13, weight: .medium))
@@ -100,22 +124,11 @@ public struct VentanaProyectos: View {
                             .padding(.horizontal, 10).padding(.vertical, 4)
                             .background(.black.opacity(0.25), in: Capsule())
                     }
-                    if estrecho {
-                        Button { elegido = nil } label: {
-                            Image(systemName: "chevron.left")
-                                .font(.system(size: 13, weight: .semibold))
-                                .frame(width: 30, height: 30)
-                                .background(.regularMaterial, in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .help("Volver a los proyectos")
-                        .padding(8)
-                    }
                 }
-                .frame(minWidth: estrecho ? 0 : 380, maxWidth: .infinity)
+                .frame(minWidth: estrecho ? 0 : Self.chatMinimo, maxWidth: .infinity)
                 }
             }
-            .onGeometryChange(for: Bool.self) { $0.size.width < anchoLista + 380 } action: { estrecho = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { anchoVentana = $0 }
         }
         .ignoresSafeArea(.container, edges: .top)
         .toolbar(removing: .title)
@@ -123,6 +136,8 @@ public struct VentanaProyectos: View {
         .background(AccesoVentana { v in
             ventana.ventana = v
             VentanaLisa.vestirEntera(v)
+            // Se abre como se dejo (Windows guarda `chat_ventana`).
+            VentanaLisa.recordar(v, clave: "proyectos")
         })
         .task {
             await almacen.cargarChats()
@@ -168,9 +183,24 @@ public struct VentanaProyectos: View {
             .gesture(DragGesture(coordinateSpace: .global)
                 .onChanged { g in
                     if anchoAlEmpezar == nil { anchoAlEmpezar = anchoLista }
-                    anchoLista = min(max((anchoAlEmpezar ?? anchoLista) + g.translation.width, 260), 540)
+                    // Sin quitarle al chat sus 380 (`ancho_ajustado`).
+                    let tope = max(260, Double(anchoVentana - Self.chatMinimo))
+                    anchoLista = min(max((anchoAlEmpezar ?? anchoLista) + g.translation.width, 260), min(540, tope))
                 }
                 .onEnded { _ in anchoAlEmpezar = nil })
+    }
+}
+
+/// **Volver a la lista** con la ventana estrecha (solo se ve el chat): la
+/// pone `VentanaProyectos`; sin ella (ancha) no hay a donde volver.
+private struct ClaveVolverALaLista: EnvironmentKey {
+    static let defaultValue: (@MainActor () -> Void)? = nil
+}
+
+extension EnvironmentValues {
+    var volverALaLista: (@MainActor () -> Void)? {
+        get { self[ClaveVolverALaLista.self] }
+        set { self[ClaveVolverALaLista.self] = newValue }
     }
 }
 
@@ -207,6 +237,8 @@ public struct VistaChat: View {
     @ObservedObject private var chapas = ChapasDeCompartidos.compartidas
     /// La escala del chat, en por ciento (`Chat/EscalaChat.swift`).
     @AppStorage(EscalaChat.clave) private var escala = EscalaChat.porDefecto
+    /// Con la ventana estrecha, volver a la lista de chats.
+    @Environment(\.volverALaLista) private var volverALaLista
     /// Sube para devolver el foco a la caja de escribir.
     @State private var focoCaja = 0
     @Environment(\.openWindow) private var abrirVentana
@@ -583,6 +615,11 @@ public struct VistaChat: View {
         }
         if menu.respondiendo != nil {
             menu.respondiendo = nil
+            return true
+        }
+        // Estrecha, como atras en el movil: a la lista.
+        if let volverALaLista {
+            volverALaLista()
             return true
         }
         return false

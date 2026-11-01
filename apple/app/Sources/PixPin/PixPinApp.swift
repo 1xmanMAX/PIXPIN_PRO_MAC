@@ -20,8 +20,10 @@ struct PixPinApp: App {
         Window("Proyectos", id: "proyectos") {
             Group {
                 if let almacen = estado.almacen {
+                    // Se encoge hasta 380 como en Windows: estrecha, la
+                    // lista o el chat, como el movil.
                     VentanaProyectos(almacen: almacen)
-                        .frame(minWidth: 720, minHeight: 480)
+                        .frame(minWidth: VentanaProyectos.anchoMinimo, minHeight: VentanaProyectos.altoMinimo)
                 } else {
                     ContentUnavailableView("No se pudo abrir la carpeta de datos",
                                            systemImage: "exclamationmark.triangle",

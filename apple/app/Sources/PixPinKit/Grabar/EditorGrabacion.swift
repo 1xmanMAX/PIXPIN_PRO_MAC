@@ -61,6 +61,8 @@ final class EditorGrabacion: NSObject, NSWindowDelegate {
         ventana.minSize = NSSize(width: 640, height: 420)
         ventana.delegate = self
         ventana.contentView = NSHostingView(rootView: VistaEditorGrabacion(modelo: modelo))
+        // Lisa y sin franja: el video llega arriba y los botones flotan.
+        VentanaLisa.vestirSinFranja(ventana)
     }
 
     private func mostrar() {

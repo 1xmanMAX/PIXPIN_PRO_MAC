@@ -616,10 +616,26 @@ struct CabeceraDelChat: View {
     @ObservedObject private var chapas = ChapasDeCompartidos.compartidas
     @State private var encima = false
 
+    /// Con la ventana estrecha (solo el chat), ← vuelve a la lista.
+    @Environment(\.volverALaLista) private var volverALaLista
+
     private var datos: FichaChat? { almacen.chats.first { $0.id == chat } }
 
     var body: some View {
         HStack(spacing: 8) {
+            // Estrecha, como el `Zona::Volver` de Windows y atras del movil.
+            if let volverALaLista {
+                Button { volverALaLista() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Paleta.proyectos.texto)
+                        .frame(width: 28, height: 32)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .keyboardShortcut("[", modifiers: .command)
+                .help("Volver a los chats (⌘[)")
+            }
             Button { ficha.abrir() } label: {
                 HStack(spacing: 10) {
                     AvatarDelChat(id: chat, nombre: datos?.nombre ?? "", lado: 34, foto: datos?.foto)

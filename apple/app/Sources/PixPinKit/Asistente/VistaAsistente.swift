@@ -92,6 +92,8 @@ public struct VentanaAsistente: View {
                 .keyboardShortcut("n", modifiers: [.command, .shift])
         }
         .padding(8)
+        // La ventana va sin franja: sus −, ☐ y ✕ flotan a la derecha.
+        .padding(.trailing, BotonesDeVentana.anchoFlotante - 8)
     }
 
     private var icono: String {

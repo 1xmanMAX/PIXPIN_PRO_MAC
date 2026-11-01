@@ -567,8 +567,9 @@ final class VentanasDeCarpeta: NSObject, NSWindowDelegate {
         ventana.contentViewController = NSHostingController(rootView: VistaCarpeta(modelo: modelo))
         ventana.setContentSize(NSSize(width: 900, height: 700))
         ventana.minSize = NSSize(width: 480, height: 360)
-        // Lisa, como en Windows: sin titulo ni semaforo, −, ☐ y ✕ planos.
-        VentanaLisa.vestir(ventana)
+        // Lisa, como en Windows: sin titulo ni semaforo, −, ☐ y ✕ planos
+        // flotando y la barra del cuaderno hasta arriba.
+        VentanaLisa.vestirSinFranja(ventana)
         ventana.isReleasedWhenClosed = false
         ventana.center()
         VentanaLisa.recordar(ventana, clave: "carpeta")

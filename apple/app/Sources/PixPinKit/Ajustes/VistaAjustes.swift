@@ -166,7 +166,8 @@ public struct VistaAjustes: View {
             }
         }
         .padding(.horizontal, 28)
-        .padding(.top, 24)
+        // Bajo los botones de la ventana, que flotan arriba (sin franja).
+        .padding(.top, BotonesDeVentana.altoFlotante + 4)
         .padding(.bottom, 14)
     }
 

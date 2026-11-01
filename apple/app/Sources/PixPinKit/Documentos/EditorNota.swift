@@ -232,7 +232,8 @@ final class ControladorNota: NSObject, NSTextViewDelegate, NSWindowDelegate {
         texto.textContainer?.widthTracksTextView = true
         texto.minSize = NSSize(width: 0, height: 0)
         texto.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        texto.textContainerInset = NSSize(width: 24, height: 20)
+        // Arriba, el aire de los botones de la ventana, que flotan encima.
+        texto.textContainerInset = NSSize(width: 24, height: BotonesDeVentana.altoFlotante + 4)
         texto.isRichText = false
         texto.allowsUndo = true
         texto.isAutomaticQuoteSubstitutionEnabled = false
@@ -247,8 +248,9 @@ final class ControladorNota: NSObject, NSTextViewDelegate, NSWindowDelegate {
         ventana.isReleasedWhenClosed = false
         ventana.delegate = self
         ventana.title = ControladorNota.titulo(mensaje.texto)
-        // Lisa, como en Windows: sin titulo ni semaforo, −, ☐ y ✕ planos.
-        VentanaLisa.vestir(ventana)
+        // Lisa, como en Windows: sin titulo ni semaforo, −, ☐ y ✕ planos
+        // flotando y el texto hasta arriba.
+        VentanaLisa.vestirSinFranja(ventana)
         ventana.center()
         _ = ventana.setFrameAutosaveName("PixPinNota")
         restilar()

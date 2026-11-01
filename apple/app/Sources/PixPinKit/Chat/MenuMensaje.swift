@@ -1001,6 +1001,8 @@ final class VentanasDeLeccion {
         ventana.isReleasedWhenClosed = false
         let cerrar: (FichaLeccion?) -> Void = { [weak ventana] _ in ventana?.close() }
         ventana.contentView = NSHostingView(rootView: FichaLeccionVista(modelo: modelo, ficha: nil, inicial: b, alAcabar: cerrar))
+        // Lisa y sin franja, como las demas ventanas.
+        VentanaLisa.vestirSinFranja(ventana)
         ventana.center()
         abiertas.append(ventana)
         NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: ventana, queue: .main) { [weak self] aviso in
