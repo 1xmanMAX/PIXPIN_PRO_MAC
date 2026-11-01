@@ -66,6 +66,7 @@ pub mod camara_del_pc;
 pub mod chats;
 /// Grabar una clase o una reunion: lo que se guarda en el chat (Windows edd0ffa).
 pub mod clase;
+pub mod cola_de_texto;
 pub mod compartidos;
 pub mod compartir;
 /// Compartir igual en toda la app: el orden y el nombre de los formatos y
@@ -108,6 +109,9 @@ pub mod funciones;
 pub mod galeria;
 pub mod galeria_sincro;
 pub mod hojas;
+// Jev de TypeSafe (Windows 28-oct-2026): la clave, sus interruptores y lo
+// que pregunta cada funcion.
+pub mod jev;
 pub mod lecciones;
 pub mod lienzo;
 pub mod lienzo_suelto;
@@ -144,6 +148,7 @@ pub mod modelos3d;
 pub mod nota_rica;
 pub mod notas;
 pub mod office;
+pub mod opciones_del_mensaje;
 pub mod paginas;
 pub mod planos;
 // Renombrar y archivar proyectos (iPad, 25-oct).
@@ -174,7 +179,7 @@ pub use anki::EnvioAnki;
 pub use asistente::{CorteIa, HerramientaUsada, MensajeIa, OyenteIa, RespuestaIa};
 pub use buscar::{Busqueda, ClaseDeResultado, PaginaBusqueda, ResultadoBusqueda};
 pub use chats::{FichaChat, MensajeChat, PaginaMensajes};
-pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada};
+pub use clase::{CapturaClase, CapturaDeLaClase, ClaseGuardada, ClipClase};
 pub use compartidos::{
     AvisoInvitacion, ChatCompartidoMac, CodigoDeInvitacion, Invitacion, PersonaCompartida,
     ResumenPersona,

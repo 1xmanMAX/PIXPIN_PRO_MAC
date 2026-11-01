@@ -168,6 +168,7 @@ pub fn mini_tareas_leer(documento: String, desfase_ms: i64) -> Vec<Tarea> {
                 dias: creada.map(|f| mini::dias_desde(f, hoy)),
                 imagenes: Vec::new(),
                 crudo: t.texto,
+                prioridad: None,
             }
         })
         .collect()

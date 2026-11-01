@@ -67,8 +67,17 @@ impl Cartero for AlaApp {
     }
 
     fn arrancar(&mut self) -> Result<(), String> {
-        let app = self.exe.as_ref().filter(|e| e.exists()).ok_or("No se encuentra PixPin.app")?;
-        std::process::Command::new("open").arg("-g").arg(app).status().map(|_| ()).map_err(|e| e.to_string())
+        let app = self
+            .exe
+            .as_ref()
+            .filter(|e| e.exists())
+            .ok_or("No se encuentra PinDesk.app")?;
+        std::process::Command::new("open")
+            .arg("-g")
+            .arg(app)
+            .status()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
     }
 }
 
@@ -94,7 +103,7 @@ pub fn entregar(cartero: &mut dyn Cartero, json: &str) -> Result<(), String> {
         let inicio = Instant::now();
         while r == 0 {
             if inicio.elapsed() > ESPERA_ARRANQUE {
-                return Err("PixPin no se abrió a tiempo".into());
+                return Err("PinDesk no se abrió a tiempo".into());
             }
             cartero.esperar(Duration::from_millis(100));
             r = cartero.mandar(json);
@@ -104,10 +113,10 @@ pub fn entregar(cartero: &mut dyn Cartero, json: &str) -> Result<(), String> {
     match r {
         respuesta::ACEPTADO => Ok(()),
         respuesta::VERSION_NO => {
-            Err("Esta PixPin es más vieja que la extensión: actualízala".into())
+            Err("Esta PinDesk es más vieja que la extensión: actualízala".into())
         }
-        respuesta::NO_SE_ENTIENDE => Err("Esta PixPin no entiende el pedido: actualízala".into()),
-        otra => Err(format!("PixPin no contestó (respuesta {otra})")),
+        respuesta::NO_SE_ENTIENDE => Err("Esta PinDesk no entiende el pedido: actualízala".into()),
+        otra => Err(format!("PinDesk no contestó (respuesta {otra})")),
     }
 }
 
@@ -140,7 +149,8 @@ impl Entorno {
             // La del Mac: Application Support/PixPinMax (`carpetaDeDatos`).
             None => {
                 let _ = dir_exe;
-                PathBuf::from(std::env::var_os("HOME")?).join("Library/Application Support/PixPinMax")
+                PathBuf::from(std::env::var_os("HOME")?)
+                    .join("Library/Application Support/PixPinMax")
             }
         };
         Some(Entorno {
@@ -155,13 +165,31 @@ impl Entorno {
     }
 }
 
-/// `pixpinmax.exe`: junto al puente (asi se instala) o en el sitio fijo de
-/// `herramientas/instalar.ps1`.
+/// `pindesk.exe` (o el `pixpinmax.exe` de antes): junto al puente (asi se
+/// instala) o en el sitio fijo de `Instalar.cmd`.
 pub fn exe_de_pixpin(dir_exe: Option<&Path>) -> Option<PathBuf> {
-    // Dentro de la app (`PixPin.app/Contents/MacOS/pixpin-puente`) o en
-    // /Applications.
-    let dentro = dir_exe.and_then(|d| d.parent()).and_then(|c| c.parent()).filter(|a| a.extension().is_some_and(|e| e == "app"));
-    Some(dentro.map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from("/Applications/PixPin.app")))
+    exe_de_pixpin_con(dir_exe, |p| p.exists())
+}
+
+/// Las apps de /Applications que se prueban, en orden: `PinDesk.app` (el
+/// nombre de ahora) y la `PixPin.app` de antes, como Windows prueba
+/// `pindesk.exe` y luego `pixpinmax.exe`.
+pub const APPS_EN_APLICACIONES: [&str; 2] = ["/Applications/PinDesk.app", "/Applications/PixPin.app"];
+
+/// [`exe_de_pixpin`] con quien dice si una ruta existe (para las pruebas).
+pub fn exe_de_pixpin_con(dir_exe: Option<&Path>, existe: impl Fn(&Path) -> bool) -> Option<PathBuf> {
+    // Dentro de la app (`PinDesk.app/Contents/MacOS/pixpin-puente`, o la
+    // `PixPin.app` de antes: cualquier `.app`) o en /Applications.
+    let dentro = dir_exe
+        .and_then(|d| d.parent())
+        .and_then(|c| c.parent())
+        .filter(|a| a.extension().is_some_and(|e| e == "app"));
+    if let Some(a) = dentro {
+        return Some(a.to_path_buf());
+    }
+    let candidatas = APPS_EN_APLICACIONES.map(PathBuf::from);
+    let hallada = candidatas.iter().find(|p| existe(p)).cloned();
+    Some(hallada.unwrap_or_else(|| candidatas[0].clone()))
 }
 
 /// **Una vuelta del puente**: lee un mensaje, lo hace y contesta. Devuelve
@@ -198,7 +226,7 @@ fn atender(
         Err(ErrorLectura::Fin) => return Ok(None),
         Err(ErrorLectura::Enorme(n)) => {
             return Err(format!(
-                "Demasiado grande para PixPin ({} MB; el tope es {} MB)",
+                "Demasiado grande para PinDesk ({} MB; el tope es {} MB)",
                 n.div_ceil(1024 * 1024),
                 protocolo::TOPE_ENTRADA / (1024 * 1024)
             ));

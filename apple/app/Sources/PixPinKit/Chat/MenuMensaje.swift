@@ -376,7 +376,7 @@ final class ChatAbierto: ObservableObject {
     private func cosaCompartida(_ ids: [String]) -> CosaCompartida? {
         let mensajes = cargados.filter { ids.contains($0.id) }
         guard !mensajes.isEmpty else { return nil }
-        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PixPin"
+        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PinDesk"
         return .mensajes(chat: chat, titulo: titulo, mensajes)
     }
 
@@ -519,30 +519,15 @@ private struct MenuDeMensaje<Propias: View>: View {
                 Label(Lengua.t("chat-estudiar-clase"), systemImage: "book")
             }
         }
+        // Recordármelo y Hacer lección, solo donde tienen sentido (Windows
+        // 12e107b, `opciones_del_mensaje`): a la vista, en «Más» o nada.
         if m.recuerdaEn != nil {
             Button { c.olvidar(m) } label: { Label(Lengua.t("chat-recordatorio-quitar"), systemImage: "alarm") }
-        } else {
-            Menu {
-                // Una nota de voz con hora es una llamada secreta: primero,
-                // quien llama (`ventana_chat/quien_llama.rs`).
-                if m.clase == "VOZ" {
-                    let actual = QuienLlama.actual(m, nucleo: c.almacen.nucleo)
-                    Button { c.escritura = .quienLlama(m, actual: actual) } label: {
-                        Label("Quién llama: \(Llamada.titulo(actual))", systemImage: "person")
-                    }
-                    Divider()
-                }
-                ForEach(HorasDeRecordar.atajos(ahora: Date()), id: \.titulo) { h in
-                    Button { c.recordar(m, en: h.cuando) } label: { Label(h.titulo, systemImage: "alarm") }
-                }
-                Button { c.escritura = .hora(m) } label: { Label(Lengua.t("chat-recordar-hora"), systemImage: "pencil") }
-            } label: {
-                Label(Lengua.t("chat-recordar"), systemImage: "alarm")
-            }
+        } else if m.sitioDeRecordar == .vista {
+            recordar
         }
-        if !m.esLeccion, m.clase != "ARCHIVO" {
-            Button { c.hacerLeccion(m) } label: { Label(Lengua.t("chat-hacer-leccion"), systemImage: "lightbulb") }
-                .keyboardShortcut("l", modifiers: [])
+        if m.sitioDeLeccion == .vista {
+            leccion
         }
         // Tarjetas de estudio: de una clase grabada, una foto o una nota.
         if c.sePuedeAnki(m) {
@@ -565,6 +550,12 @@ private struct MenuDeMensaje<Propias: View>: View {
             }
             Button { c.fijar([m.id]) } label: {
                 Label(m.fijado ? Lengua.t("chat-soltar") : Lengua.t("chat-fijar"), systemImage: m.fijado ? "flag.slash" : "flag")
+            }
+            if m.recuerdaEn == nil, m.sitioDeRecordar == .mas {
+                recordar
+            }
+            if m.sitioDeLeccion == .mas {
+                leccion
             }
             if CarpetasDelChat.seOfrece(m), !CarpetasDelChat.aLaVista(m) {
                 Button { c.anadirACarpeta(m) } label: { Label(TextosCarpeta.anadirA, systemImage: "book") }
@@ -596,6 +587,48 @@ private struct MenuDeMensaje<Propias: View>: View {
         Divider()
         Button(role: .destructive, action: a.borrar) { Label(Lengua.t("chat-borrar"), systemImage: "trash") }
             .keyboardShortcut(.delete, modifiers: [])
+    }
+}
+
+extension MenuDeMensaje {
+    /// «Recordármelo» con sus horas (en una nota de voz, la llamada secreta).
+    @ViewBuilder var recordar: some View {
+        Menu {
+            // Una nota de voz con hora es una llamada secreta: primero,
+            // quien llama (`ventana_chat/quien_llama.rs`).
+            if m.clase == "VOZ" {
+                let actual = QuienLlama.actual(m, nucleo: c.almacen.nucleo)
+                Button { c.escritura = .quienLlama(m, actual: actual) } label: {
+                    Label("Quién llama: \(Llamada.titulo(actual))", systemImage: "person")
+                }
+                Divider()
+            }
+            ForEach(HorasDeRecordar.atajos(ahora: Date()), id: \.titulo) { h in
+                Button { c.recordar(m, en: h.cuando) } label: { Label(h.titulo, systemImage: "alarm") }
+            }
+            Button { c.escritura = .hora(m) } label: { Label(Lengua.t("chat-recordar-hora"), systemImage: "pencil") }
+        } label: {
+            Label(Lengua.t("chat-recordar"), systemImage: "alarm")
+        }
+    }
+
+    /// «Hacer lección» (L).
+    @ViewBuilder var leccion: some View {
+        Button { c.hacerLeccion(m) } label: { Label(Lengua.t("chat-hacer-leccion"), systemImage: "lightbulb") }
+            .keyboardShortcut("l", modifiers: [])
+    }
+}
+
+extension MensajeChat {
+    /// Donde va «Recordármelo» sin recordatorio puesto, o `nil` si en este
+    /// tipo de mensaje no tiene sentido (un PDF, una cancion, una clase...).
+    /// Sin el tipo (un mensaje hecho a mano en las pruebas), a la vista.
+    var sitioDeRecordar: SitioEnElMenu? { tipo == nil ? .vista : menuRecordar }
+
+    /// Donde va «Hacer lección», o `nil` si de este mensaje no sale una.
+    var sitioDeLeccion: SitioEnElMenu? {
+        if tipo == nil { return esLeccion || clase == "ARCHIVO" ? nil : .vista }
+        return esLeccion ? nil : menuLeccion
     }
 }
 

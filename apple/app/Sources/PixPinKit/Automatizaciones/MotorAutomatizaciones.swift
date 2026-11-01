@@ -241,7 +241,7 @@ final class ManosDeLasAutomatizaciones: ManosAutomatizacion, @unchecked Sendable
 
     func pedido(json: String) -> String? {
         let nucleo = self.nucleo
-        return esperar(Optional("PixPin no contestó"), tope: 120) { responder in
+        return esperar(Optional("PinDesk no contestó"), tope: 120) { responder in
             Task { @MainActor in
                 if ManosDelAsistente.esDeTareas(json) {
                     responder(await ManosDelAsistente.hacerAqui(json, nucleo: nucleo))

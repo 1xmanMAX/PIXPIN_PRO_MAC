@@ -1294,7 +1294,7 @@ struct LetrasDelPlanoView: View {
                 }
                 .frame(maxHeight: 140)
             }
-            Text("Las SHX suelen estar en la carpeta Fonts de AutoCAD o junto al plano que te mandaron; las TrueType, en las letras del sistema. Las que añadas aquí mandan sobre las del Mac y las de PixPin.")
+            Text("Las SHX suelen estar en la carpeta Fonts de AutoCAD o junto al plano que te mandaron; las TrueType, en las letras del sistema. Las que añadas aquí mandan sobre las del Mac y las de PinDesk.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

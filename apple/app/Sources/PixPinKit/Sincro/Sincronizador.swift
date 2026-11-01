@@ -219,7 +219,7 @@ public final class Sincronizador: ObservableObject {
         defer { ocupado = false; fase = nil; latido() }
         var destino = direccion
         if destino == nil {
-            fase = "Buscando un aparato del grupo en esta Wi-Fi…\nEn el otro aparato, ten PixPin abierto."
+            fase = "Buscando un aparato del grupo en esta Wi-Fi…\nEn el otro aparato, ten PinDesk abierto."
             let yo = aparato?.id ?? ""
             let suya = await Task.detached(priority: .utility) { etiquetaDeGrupo(codigo: codigo) }.value
             if let v = await vecinos.esperar(tope: 25, { $0.esDelGrupo(etiqueta: suya, yo: yo) }) {
@@ -228,7 +228,7 @@ public final class Sincronizador: ObservableObject {
         }
         guard let destino else {
             error = "No apareció ningún aparato con ese código. Comprueba el código, que los dos "
-                + "estáis en la misma Wi-Fi y que el otro tiene PixPin abierto. También puedes "
+                + "estáis en la misma Wi-Fi y que el otro tiene PinDesk abierto. También puedes "
                 + "escribir su dirección."
             return
         }
@@ -304,7 +304,7 @@ public final class Sincronizador: ObservableObject {
             ocupado = false
             fase = nil
             poner(fila.id, .noEncontrado, direccion: nil)
-            error = "\(fila.nombre): no se encuentra. Que tenga PixPin abierto y esté en esta Wi-Fi."
+            error = "\(fila.nombre): no se encuentra. Que tenga PinDesk abierto y esté en esta Wi-Fi."
             return
         }
         fase = "Conectando con \(fila.nombre)…"

@@ -282,7 +282,7 @@ public struct VentanaBuscar: View {
 
     public var body: some View {
         VStack(spacing: 0) {
-            Cabecera("Buscar en PixPin", subtitulo: subtitulo,
+            Cabecera("Buscar en PinDesk", subtitulo: subtitulo,
                      buscador: BuscadorCabecera($texto, pista: "Busca archivos, tareas, lecciones, capturas… o una letra",
                                                 enfocar: true))
             BarraPestanas(modelo: modelo)

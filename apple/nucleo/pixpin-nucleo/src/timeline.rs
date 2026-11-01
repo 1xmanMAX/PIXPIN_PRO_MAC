@@ -784,7 +784,7 @@ impl Nucleo {
             titulo: "Timeline".into(),
             subtitulo,
             pie: format!(
-                "Exportado con PixPin Max · {}",
+                "Exportado con PinDesk · {}",
                 dias::nombre_del_dia(hoy, false)
             ),
             nota_de_voz: SIN_TITULO_VOZ.into(),

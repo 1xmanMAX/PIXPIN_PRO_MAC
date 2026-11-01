@@ -96,7 +96,7 @@ public final class HacerPedidos {
                 avisar(Enlaces.textoDelMotivo(motivo))
                 return
             case let .confirmar(motivo):
-                let cuerpo = "Un enlace le pide a PixPin Max:\n\n"
+                let cuerpo = "Un enlace le pide a PinDesk:\n\n"
                     + pedidos.map(Enlaces.describir).joined(separator: "\n\n")
                     + "\n\n" + Enlaces.textoDelMotivo(motivo)
                 guard confirmar(cuerpo) else { return }
@@ -142,7 +142,7 @@ public final class HacerPedidos {
     /// guardados». `nil` (y se dice) si no hay datos o no existe.
     private func chat(_ v: ValorPedido?) async -> String? {
         guard let almacen else {
-            avisar("No se pudo abrir la carpeta de datos de PixPin.")
+            avisar("No se pudo abrir la carpeta de datos de PinDesk.")
             return nil
         }
         if almacen.chats.isEmpty { await almacen.cargarChats() }
@@ -228,7 +228,7 @@ public final class HacerPedidos {
         case "herramienta": await herramienta(p)
         case "carpeta_paginas": await carpetaPaginas(p)
         default:
-            avisar("«\(p.accion)» aún no lo hace PixPin en el Mac.")
+            avisar("«\(p.accion)» aún no lo hace PinDesk en el Mac.")
         }
     }
 
@@ -351,7 +351,7 @@ public final class HacerPedidos {
         }
         if let almacen, AbrirDocumento.abrir(url, nucleo: almacen.nucleo) { return true }
         if GestorPines.compartido.pinear(fichero: url) { return true }
-        avisar("PixPin no sabe abrir «\(url.lastPathComponent)».")
+        avisar("PinDesk no sabe abrir «\(url.lastPathComponent)».")
         return false
     }
 
@@ -359,7 +359,7 @@ public final class HacerPedidos {
     /// (`importar_paquete` de Windows): pone al dia el mismo proyecto si ya
     /// esta (con su copia de antes) o entra como uno nuevo, y se abre.
     private func abrirProyecto(_ url: URL) async {
-        guard let almacen else { return avisar("No se pudo abrir la carpeta de datos de PixPin.") }
+        guard let almacen else { return avisar("No se pudo abrir la carpeta de datos de PinDesk.") }
         let nucleo = almacen.nucleo
         let ruta = url.path
         do {
@@ -475,7 +475,7 @@ public final class HacerPedidos {
     /// `anadir_tarea`: sin proyecto ni lista, al Inbox; con lista, a esa;
     /// con proyecto, a su ultima lista (o a una nueva «Tareas»).
     private func anadirTarea(_ p: Pedido) async {
-        guard let almacen else { return avisar("No se pudo abrir la carpeta de datos de PixPin.") }
+        guard let almacen else { return avisar("No se pudo abrir la carpeta de datos de PinDesk.") }
         let texto = HacerPedidos.sinFichas(p.texto("texto") ?? "")
         if p["imagenes"]?.lista?.isEmpty == false {
             avisar("Las tareas con imágenes aún no se apuntan desde fuera en el Mac: va solo el texto.")
@@ -684,7 +684,7 @@ public final class HacerPedidos {
     /// ya pregunto) o correr una ya. Lo hecho, en el globo, con los textos
     /// de Windows.
     private func automatizacion(_ p: Pedido) async {
-        guard let nucleo = almacen?.nucleo else { return avisar("No se pudo abrir la carpeta de datos de PixPin.") }
+        guard let nucleo = almacen?.nucleo else { return avisar("No se pudo abrir la carpeta de datos de PinDesk.") }
         let operacion = p.texto("operacion") ?? ""
         if operacion == "crear" {
             guard let receta = p["receta"], !receta.esNulo else {
@@ -736,7 +736,7 @@ public final class HacerPedidos {
             return
         }
         var texto = p.texto("texto")
-        var titulo = p.texto("titulo") ?? "PixPin Max"
+        var titulo = p.texto("titulo") ?? "PinDesk"
         if texto == nil, let r = p.texto("ruta") {
             let url = URL(fileURLWithPath: r)
             if ["txt", "md", "markdown"].contains(url.pathExtension.lowercased()) {
@@ -783,7 +783,7 @@ public final class HacerPedidos {
             HacerPedidos.escribirRespuesta(respuesta, ok: ok, texto: texto)
         }
         guard let nombre = p.texto("nombre"), let nucleo = almacen?.nucleo else {
-            return contestar(false, "falta el nombre de la herramienta, o PixPin aun no ha abierto sus datos")
+            return contestar(false, "falta el nombre de la herramienta, o PinDesk aun no ha abierto sus datos")
         }
         if let q = p.texto("preguntar"), !HacerPedidos.preguntar(q) {
             return contestar(false, "El usuario dijo que no.")
@@ -805,7 +805,7 @@ public final class HacerPedidos {
     /// Pregunta al usuario con un aviso del Mac («Claude pide…»).
     static func preguntar(_ pregunta: String) -> Bool {
         let a = NSAlert()
-        a.messageText = "PixPin"
+        a.messageText = "PinDesk"
         a.informativeText = pregunta
         a.addButton(withTitle: "Sí")
         a.addButton(withTitle: "No")
@@ -865,7 +865,7 @@ public final class HacerPedidos {
     /// El cuadro de confirmar: por encima de todo y con «No» por defecto.
     static func cuadroConfirmar(_ cuerpo: String) -> Bool {
         let alerta = NSAlert()
-        alerta.messageText = "PixPin Max"
+        alerta.messageText = "PinDesk"
         alerta.informativeText = cuerpo + "\n\n¿Hacerlo?"
         alerta.alertStyle = .warning
         let no = alerta.addButton(withTitle: "No")
@@ -880,6 +880,6 @@ public final class HacerPedidos {
     /// El globo: el aviso de la app (sin botones).
     static func aviso(_ texto: String) {
         CentroAvisos.compartido.avisar(Aviso(id: "pixpin.pedido.\(UUID().uuidString)", categoria: .mini,
-                                             titulo: "PixPin Max", texto: texto))
+                                             titulo: "PinDesk", texto: texto))
     }
 }

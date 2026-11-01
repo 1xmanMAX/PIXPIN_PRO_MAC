@@ -136,12 +136,17 @@ fn coincide(l: &ListaTareas, t: &Tarea, palabras: &[&str], hoy: mini::Fecha) -> 
 /// por su prioridad segun su contexto, luego lo que tiene fecha (la mas
 /// vieja arriba), detras lo que no, y a igualdad el orden del documento.
 ///
-/// La prioridad la pone Jev en Windows (`jev::urgencia`, fa4ca12); el Mac
-/// aun no lo tiene, asi que todas son «normal» (2) y el orden es el de
-/// siempre. Cuando llegue, solo cambia `rango`.
+/// La prioridad la pone Jev (`crate::jev::urgencia`, Windows fa4ca12); lo
+/// que aun no se sabe cuenta como «normal», y sin Jev todas lo son: el
+/// orden es el de siempre.
 fn orden_de_pendiente(t: &Tarea) -> (u8, bool, Option<mini::Fecha>, u32) {
     let creada = t.creada.as_deref().and_then(mini::Fecha::leer);
-    let rango = 2;
+    let rango = match t.prioridad.as_deref() {
+        Some("urgente") => 0,
+        Some("alta") => 1,
+        Some("baja") => 3,
+        _ => 2,
+    };
     (rango, creada.is_none(), creada, t.indice)
 }
 
@@ -232,6 +237,7 @@ mod pruebas {
             creada: creada.map(str::to_string),
             dias: None,
             imagenes: Vec::new(),
+            prioridad: None,
         }
     }
 
@@ -288,6 +294,17 @@ mod pruebas {
         assert_eq!(g[0].arriba, [1, 0]);
         assert_eq!(g[0].hechas, [2]);
         assert_eq!(g[0].pendientes, 2);
+    }
+
+    /// Con Jev (Windows fa4ca12): primero por prioridad, luego como siempre.
+    #[test]
+    fn con_prioridad_de_jev_lo_urgente_va_arriba() {
+        let mut l = sabado();
+        l.tareas[0].prioridad = Some("urgente".into());
+        assert_eq!(grupos_el(&[l.clone()], "", HOY)[0].arriba, [0, 1]);
+        l.tareas[0].prioridad = Some("baja".into());
+        l.tareas[1].prioridad = Some("normal".into());
+        assert_eq!(grupos_el(&[l], "", HOY)[0].arriba, [1, 0]);
     }
 
     #[test]

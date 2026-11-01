@@ -72,6 +72,11 @@ pub struct Tarea {
     /// Sus imagenes, con su ruta absoluta en este aparato (las que no se
     /// pueden resolver aqui no salen).
     pub imagenes: Vec<String>,
+    /// Su prioridad segun su contexto (Jev, Windows fa4ca12): `urgente`,
+    /// `alta`, `normal` o `baja`. `None`: sin Jev, aun no se sabe o hecha;
+    /// entonces todo va como siempre. Solo en memoria: no se guarda ni viaja.
+    #[uniffi(default = None)]
+    pub prioridad: Option<String>,
 }
 
 /// Una lista de tareas de un chat.
@@ -153,6 +158,7 @@ impl Nucleo {
                         .map(|r| r.display().to_string())
                         .collect(),
                     crudo: t.texto,
+                    prioridad: None,
                 }
             })
             .collect();

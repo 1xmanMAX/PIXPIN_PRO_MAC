@@ -265,7 +265,7 @@ public final class ModeloEnvio: ObservableObject {
         }
         guard let destino else {
             fase = nil
-            error = "No apareció nadie con ese código. ¿Tiene PixPin abierto en la misma Wi-Fi?"
+            error = "No apareció nadie con ese código. ¿Tiene PinDesk abierto en la misma Wi-Fi?"
             return
         }
         let nucleo = self.nucleo
@@ -769,6 +769,6 @@ struct TusAparatos: View {
         if let e = sincro.envios[id], let linea = e.texto.split(separator: "\n").first {
             return String(linea)
         }
-        return seVe ? "En la misma Wi-Fi" : "No se ve ahora: abre PixPin en ese aparato"
+        return seVe ? "En la misma Wi-Fi" : "No se ve ahora: abre PinDesk en ese aparato"
     }
 }

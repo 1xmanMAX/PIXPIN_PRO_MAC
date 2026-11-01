@@ -1,4 +1,12 @@
-# PixPin para Mac, iPad e iPhone
+# PinDesk (antes PixPin) para Mac, iPad e iPhone
+
+La app se llama **PinDesk**, como en Windows (`docs/nombre-pindesk.md` de Windows): cambia el
+nombre visible (textos, `CFBundleName`/`CFBundleDisplayName`, el paquete `PinDesk.app`, el
+instalador `PinDesk-Mac-<version>.dmg`, el artefacto «PinDesk-mac-extensiones»). No cambia lo que
+guarda datos o ya está registrado: `~/Library/Application Support/PixPinMax`, `pixpinmax.toml`,
+el Llavero `PixPinMax.*`, el identificador `io.github.1xmanmax.pixpin` y sus UTI, el ejecutable
+`Contents/MacOS/PixPin`, `.pixpin`, `pixpin://`/`pixpinmax://`, `_pixpin._tcp` y la instancia
+«PixPin <equipo>», ni los módulos `PixPinKit`/`PixPinCore`.
 
 Zona de trabajo de la versión de Apple. Plan completo y decisiones:
 [`docs/investigacion/2026-10-15-mac-ipad-iphone.md`](../docs/investigacion/2026-10-15-mac-ipad-iphone.md).
@@ -157,8 +165,8 @@ hay que pasar a Swift). Después: resolver, `cargo test --workspace` y portar la
   - [ ] Buscar en todo usa un recorrido propio (`src/buscar.rs`): pasar al de `pixpin-lanzador`
         cuando ese crate compile fuera de Windows.
   - [x] CI: `.github/workflows/apple.yml` (macOS 15, Xcode 16.4) compila el xcframework, pasa
-        `swift test` (190 pruebas, 15-oct) y sube `PixPin.app` universal, con XcodeGen,
-        como artefacto «PixPin-mac-extensiones» (App Intents,
+        `swift test` (190 pruebas, 15-oct) y sube `PinDesk.app` universal, con XcodeGen,
+        como artefacto «PinDesk-mac-extensiones» (App Intents,
         Compartir y Quick Look, firmadas de dentro afuera). Los binarios van sin simbolos y el
         núcleo (`PixPinCore`, dinámico) va **una sola vez** en `Contents/Frameworks` para la
         app y sus extensiones: 102 MB (42 MB en zip) con todo. La CI abre la app y comprueba
@@ -308,7 +316,7 @@ hay que pasar a Swift). Después: resolver, `cargo test --workspace` y portar la
         **Compartir** (mandar a un proyecto, con su caja de arena y la excepcion para
         `~/Library/Application Support/PixPinMax/`) y **vista previa de Quick Look** de
         `.excalidraw` y `.pixpin2d` (el mismo lector y pintor del lienzo). La CI la monta con
-        `herramientas/app.sh xcode` (artefacto «PixPin-mac-extensiones»); `app.sh spm` sigue
+        `herramientas/app.sh xcode` (artefacto «PinDesk-mac-extensiones»); `app.sh spm` sigue
         siendo la app sola de SwiftPM (en un Mac sin XcodeGen; la CI ya no la sube). Fuera de `apple/app` para
         que el paquete local no contenga al proyecto.
   - [ ] Barrer las capturas caducadas a la Papelera del Mac (`FileManager.trashItem`).

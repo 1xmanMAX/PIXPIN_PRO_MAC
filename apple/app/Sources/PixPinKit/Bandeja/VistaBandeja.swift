@@ -95,7 +95,7 @@ public struct VistaBandeja: View {
                 .frame(width: 22, height: 22)
                 .background(ColoresBandeja.azul, in: RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 1) {
-                Text("PixPin").font(.system(size: 12.8, weight: .bold)).foregroundStyle(ColoresBandeja.texto)
+                Text("PinDesk").font(.system(size: 12.8, weight: .bold)).foregroundStyle(ColoresBandeja.texto)
                 HStack(spacing: 5) {
                     Circle()
                         .fill(modelo.sincronizando ? ColoresBandeja.enlace

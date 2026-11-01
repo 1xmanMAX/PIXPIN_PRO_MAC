@@ -35,7 +35,7 @@ public final class DictadoTimeline: ObservableObject {
 
     private func empezar() async {
         guard await DictadoTimeline.permiso() else {
-            rotulo = "PixPin no tiene permiso para el micrófono (Ajustes del Sistema > Privacidad y seguridad)."
+            rotulo = "PinDesk no tiene permiso para el micrófono (Ajustes del Sistema > Privacidad y seguridad)."
             return
         }
         ReproductorVoz.compartido.parar()

@@ -88,7 +88,7 @@ fn es_imagen(ext: &str) -> bool {
 /// En el Mac el OCR es Vision, que vive en la app (Swift): el MCP no lo
 /// tiene. Lo escaneado se dice y se pide al asistente.
 fn sin_ocr() -> String {
-    "en el Mac el OCR de una imagen o un PDF escaneado lo hace la app: pide al asistente de PixPin que lo lea".into()
+    "en el Mac el OCR de una imagen o un PDF escaneado lo hace la app: pide al asistente de PinDesk que lo lea".into()
 }
 
 /// Un PDF: la capa de texto de cada hoja (sin OCR en el Mac: las hojas
@@ -260,7 +260,7 @@ pub fn leer_documento(args: &Map<String, Value>) -> Resultado {
         _ if pixpin_docs::formato_de(&pixpin_docs::nombre(&ruta)).is_some() => {
             leer_word_y_demas(&ruta)?
         }
-        _ => return Err(format!("PixPin no sabe leer el texto de un «.{ext}»")),
+        _ => return Err(format!("PinDesk no sabe leer el texto de un «.{ext}»")),
     };
     if texto.trim().is_empty() {
         return Err("el documento no tiene texto".into());

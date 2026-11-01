@@ -459,7 +459,7 @@ fn casos_de_la_app_15_oct() -> Vec<Caso> {
         },
         Caso {
             nombre: "app15-actividad",
-            pedido: "Dame un resumen de mi actividad de esta semana en PixPin.",
+            pedido: "Dame un resumen de mi actividad de esta semana en PinDesk.",
             imagen: None,
             comprobar: |r| {
                 let p = r
@@ -470,7 +470,7 @@ fn casos_de_la_app_15_oct() -> Vec<Caso> {
         },
         Caso {
             nombre: "app15-ajustes",
-            pedido: "Quiero cambiar la voz del lector: llévame a la configuración de PixPin.",
+            pedido: "Quiero cambiar la voz del lector: llévame a la configuración de PinDesk.",
             imagen: None,
             comprobar: |r| {
                 let p = r.pedido("ventana").ok_or("no pidio ventana")?;
@@ -1657,7 +1657,7 @@ fn casos_de_antes() -> Vec<Caso> {
         // --- Preguntas sobre la app ----------------------------------------
         Caso {
             nombre: "ayuda-ajustes",
-            pedido: "¿Donde estan los ajustes de PixPin?",
+            pedido: "¿Donde estan los ajustes de PinDesk?",
             imagen: None,
             comprobar: |r| {
                 si(
@@ -1668,7 +1668,7 @@ fn casos_de_antes() -> Vec<Caso> {
         },
         Caso {
             nombre: "ayuda-como-capturar",
-            pedido: "¿Como hago una captura de pantalla con PixPin?",
+            pedido: "¿Como hago una captura de pantalla con PinDesk?",
             imagen: None,
             comprobar: |r| {
                 si(r.pedido("capturar").is_none(), "capturo en vez de explicar")?;

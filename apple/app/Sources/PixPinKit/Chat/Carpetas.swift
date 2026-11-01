@@ -771,7 +771,7 @@ final class ModeloCarpeta: ObservableObject {
     /// grabacion, como la grabacion que es.
     func compartir() {
         guard let carpeta else { return }
-        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PixPin"
+        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PinDesk"
         HojaCompartir.abrir(.mensajes(chat: chat, titulo: titulo, [carpeta.mensaje]), almacen: almacen)
     }
 

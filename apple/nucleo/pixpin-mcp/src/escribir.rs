@@ -116,7 +116,7 @@ fn mandar(json: &str) -> Result<(), String> {
     if ok {
         Ok(())
     } else {
-        Err("no se pudo abrir PixPin (¿esta instalada en Aplicaciones?)".into())
+        Err("no se pudo abrir PinDesk (¿esta instalada en Aplicaciones?)".into())
     }
 }
 
@@ -182,7 +182,7 @@ pub fn pedido(a: &Accion, args: &Map<String, Value>, respuesta: &Path) -> Value 
 /// Lee una respuesta ya escrita: `Ok` con su texto o `Err` con el motivo.
 pub fn leer_respuesta(texto: &str) -> Result<String, String> {
     let v: Value = serde_json::from_str(texto)
-        .map_err(|_| "PixPin contesto algo que no se entiende".to_string())?;
+        .map_err(|_| "PinDesk contesto algo que no se entiende".to_string())?;
     let t = v
         .get("texto")
         .and_then(Value::as_str)
@@ -196,7 +196,7 @@ pub fn leer_respuesta(texto: &str) -> Result<String, String> {
         })
     } else {
         Err(if t.trim().is_empty() {
-            "PixPin no pudo hacerlo".into()
+            "PinDesk no pudo hacerlo".into()
         } else {
             t
         })
@@ -229,7 +229,7 @@ pub fn esperar(fichero: &Path, plazo: Duration) -> Result<String, String> {
             return leer_respuesta(&texto);
         }
         if Instant::now() >= hasta {
-            return Err(format!("PixPin no contesto en {} s", plazo.as_secs()));
+            return Err(format!("PinDesk no contesto en {} s", plazo.as_secs()));
         }
         std::thread::sleep(paso);
         // Rapido al principio (casi todo tarda milisegundos), luego sin

@@ -91,7 +91,7 @@ public struct VentanaProyectos: View {
                     }
                 } message: { _ in
                     Text("Se borra también en tus otros aparatos la próxima vez que sincronices. "
-                        + "Queda una copia en la papelera de PixPin por si te arrepientes.")
+                        + "Queda una copia en la papelera de PinDesk por si te arrepientes.")
                 }
                 .frame(width: estrecho ? nil : anchoListaVisible)
                 .frame(maxWidth: estrecho ? .infinity : nil)
@@ -225,6 +225,9 @@ public struct VistaChat: View {
     @State private var saltos = 0
     /// Se esta viendo una pagina del medio: no se baja solo al final.
     @State private var enSalto = false
+    /// Subido mas de un tercio de lo que se ve: sale el «↓» de Telegram
+    /// (Windows 013cc70 y 2c5a3cf, `ventana_chat/al_final.rs`).
+    @State private var lejosDelFinal = false
     /// Lo que toca el menu de los mensajes: a quien se responde, lo
     /// elegido, la hoja de escribir y el aviso (`Chat/MenuMensaje.swift`).
     @StateObject private var menu: ChatAbierto
@@ -274,6 +277,23 @@ public struct VistaChat: View {
         return CarpetasDelChat.sinLoDeDentro(almacen.mensajes[chat] ?? [], salvo: destacado)
     }
 
+    /// **El «↓»** (Windows 2c5a3cf): al ultimo mensaje. Desde una pagina del
+    /// medio (un salto), primero se vuelve a abrir el final del chat.
+    private func alUltimo(_ lector: ScrollViewProxy) {
+        if enSalto || almacen.quedanPosteriores(chat: chat) {
+            Task {
+                enSalto = false
+                destacado = nil
+                await almacen.abrir(chat: chat)
+                guard let ultimo = almacen.mensajes[chat]?.last?.id else { return }
+                DispatchQueue.main.async { lector.scrollTo(ultimo, anchor: .bottom) }
+            }
+            return
+        }
+        guard let ultimo = filas.last?.id else { return }
+        withAnimation(.easeOut(duration: 0.25)) { lector.scrollTo(ultimo, anchor: .bottom) }
+    }
+
     /// El resultado elegido con ↑ ↓, buscando.
     private var elegidoEnBusqueda: String? {
         guard buscador.filtrando, let i = buscador.elegido else { return nil }
@@ -313,6 +333,31 @@ public struct VistaChat: View {
                     .padding()
                 }
                 .defaultScrollAnchor(.bottom)
+                // Cuanto queda por debajo de lo que se ve (`al_final::se_ve`).
+                .onScrollGeometryChange(for: Bool.self) { geo in
+                    geo.contentSize.height - geo.visibleRect.maxY > geo.containerSize.height / 3
+                } action: { _, lejos in
+                    lejosDelFinal = lejos
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    // El «↓»: vuelve al ultimo mensaje y lo deja pegado al
+                    // final (lo nuevo que llegue se sigue viendo).
+                    if (lejosDelFinal || enSalto), !buscador.filtrando {
+                        Button { alUltimo(lector) } label: {
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundStyle(.primary)
+                                .frame(width: 40, height: 40)
+                                .background(.regularMaterial, in: Circle())
+                                .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
+                                .shadow(color: .black.opacity(0.18), radius: 4, y: 1)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .help("Ir al último mensaje")
+                        .padding(16)
+                    }
+                }
                 .overlay {
                     if buscador.filtrando, !buscador.cargando, buscador.hallados.isEmpty {
                         Text(Lengua.t("chat-buscar-nada"))

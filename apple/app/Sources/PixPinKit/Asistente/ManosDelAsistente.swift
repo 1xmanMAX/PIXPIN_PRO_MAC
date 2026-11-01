@@ -76,7 +76,7 @@ final class ManosDelAsistente: AppIa, @unchecked Sendable {
 
     func pedido(json: String) -> String? {
         let nucleo = self.nucleo
-        return esperar(Optional("PixPin no contestó"), tope: 120) { responder in
+        return esperar(Optional("PinDesk no contestó"), tope: 120) { responder in
             Task { @MainActor in
                 if let hacer = PedidosDelAsistente.hacer {
                     responder(await hacer(json))
@@ -177,7 +177,7 @@ final class ManosDelAsistente: AppIa, @unchecked Sendable {
             HacerPedidos.compartidos.hacer(try Pedido.de(json: json))
             return nil
         } catch {
-            return "PixPin no entendió el pedido: \(error.localizedDescription)"
+            return "PinDesk no entendió el pedido: \(error.localizedDescription)"
         }
     }
 
@@ -189,7 +189,7 @@ final class ManosDelAsistente: AppIa, @unchecked Sendable {
         guard let datos = json.data(using: .utf8),
               let p = (try? JSONSerialization.jsonObject(with: datos)) as? [String: Any],
               let accion = p["accion"] as? String
-        else { return "PixPin no entendió el pedido" }
+        else { return "PinDesk no entendió el pedido" }
         guard let nucleo else { return "aquí no se puede hacer «\(accion)»" }
         let desfase = Int64(TimeZone.current.secondsFromGMT()) * 1000
         let r: String? = await Task.detached(priority: .userInitiated) { () -> String? in
@@ -210,7 +210,7 @@ final class ManosDelAsistente: AppIa, @unchecked Sendable {
                     return try nucleo.marcarTarea(chat: lista.chat, mensaje: codigo, indice: t.indice,
                                                   crudo: t.crudo, hecha: hecha) ? nil : "la lista cambió; vuelve a pedirlo"
                 default:
-                    return "PixPin para Mac aún no hace «\(accion)» desde el asistente"
+                    return "PinDesk para Mac aún no hace «\(accion)» desde el asistente"
                 }
             } catch {
                 return ModeloAjustes.texto(de: error)

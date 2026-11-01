@@ -169,7 +169,7 @@ public struct SeccionAtajos: View {
                 }
             }
             HStack {
-                Text("Con una de estas apps delante, los atajos no hacen nada (p. ej. un gestor de contraseñas). El menú de PixPin sí.")
+                Text("Con una de estas apps delante, los atajos no hacen nada (p. ej. un gestor de contraseñas). El menú de PinDesk sí.")
                     .font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Añadir app…") { elegirApp() }

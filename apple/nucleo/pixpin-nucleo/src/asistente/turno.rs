@@ -280,12 +280,29 @@ fn el_mac_lo_hace(nombre: &str, en_chat: bool) -> bool {
     if acciones::es_de_lienzos(nombre) {
         return en_chat;
     }
-    // La web de PixPin (para DeepSeek): el HTTPS de Swift aun no sabe pedir
-    // sin seguir redirecciones (`nube::http::bajar_web` no baja nada fuera
-    // de Windows). Con Claude la web la hace su API.
-    !(nombre == pixpin_ia::anotacion::NOMBRE
-        || acciones::es_en_el_chat(nombre)
-        || pixpin_ia::web::NOMBRES.contains(&nombre))
+    // La web de PixPin (para DeepSeek) ya va por el HTTPS de Swift sin
+    // seguir redirecciones (`nube::http::bajar_web`, [`web_del_mac`]).
+    !(nombre == pixpin_ia::anotacion::NOMBRE || acciones::es_en_el_chat(nombre))
+}
+
+/// **La web de PixPin** (buscar en internet y leer paginas, Windows
+/// `ejecutor::web`): el GET por el transporte de la app sin seguir
+/// redirecciones; un PDF de la web, por su capa de texto.
+fn web_del_mac(a: &AccionApp) -> Result<String, String> {
+    let pdf = |bytes: &[u8]| -> Result<String, String> {
+        pixpin_pdf::texto::de_bytes(bytes)
+            .map(|p| p.into_iter().map(|p| p.texto).collect::<Vec<_>>().join("\n\n"))
+            .map_err(|_| "ese PDF no trae texto que se pueda leer".to_string())
+    };
+    pixpin_ia::web::hacer(
+        a,
+        &pixpin_ia::web::Lector {
+            red: &pixpin_ia::web::Internet,
+            pdf: &pdf,
+            al_leer: &|_| {},
+            clave_brave: pixpin_ia::web::clave_brave(),
+        },
+    )
 }
 
 pub(crate) fn es_imagen(ruta: &str) -> bool {
@@ -355,6 +372,15 @@ pub fn ia_turno(
     // En la nube lo apaga `MotorNube::pensando`; las opciones del turno lo
     // saben tambien.
     let pensar = pixpin_ia::complejidad::decidir(ajustes.pensar, &pedido);
+    // Con Jev, el rapido o el fuerte segun el pedido (Windows e51da39).
+    let motor = match nucleo.as_deref() {
+        Some(n) => {
+            let conversacion: Vec<(bool, String)> =
+                peticion.historial.iter().map(|m| (m.del_usuario, m.texto.clone())).collect();
+            crate::jev::modelo::segun_jev(n.ruta(), "", motor, eleccion(&ajustes.motor), pensar, &pedido, &conversacion)
+        }
+        None => motor,
+    };
     let nube = true;
     let entorno = Entorno {
         nombre,
@@ -1120,7 +1146,7 @@ impl EjecutorDelMac {
                     }
                 ))
             }
-            otra => Err(format!("«{otra}» aun no se puede hacer en PixPin para Mac")),
+            otra => Err(format!("«{otra}» aun no se puede hacer en PinDesk para Mac")),
         }
     }
 
@@ -1429,6 +1455,9 @@ impl EjecutorDelMac {
     }
 
     fn accion(&self, a: &AccionApp) -> Result<String, String> {
+        if pixpin_ia::web::es_de_la_web(a.herramienta) {
+            return web_del_mac(a);
+        }
         let de_conexiones = pixpin_ia::conexiones::acciones::es_de_conexiones(a.herramienta);
         if pixpin_ia::acciones_documentos::es_de_documentos(a.herramienta) || de_conexiones {
             let n = self.nucleo.as_ref().ok_or("aqui no se pueden abrir documentos")?;
@@ -1497,7 +1526,7 @@ impl Ejecutor for EjecutorDelMac {
             Llamada::App(a) if a.herramienta == pixpin_ia::hoja::NOMBRE && self.chat.is_some() => self.hoja_a_lienzo(&a.pedido),
             Llamada::App(a) if pixpin_ia::acciones::es_de_lienzos(a.herramienta) && self.chat.is_some() => self.lienzos(a),
             Llamada::App(a) if el_mac_lo_hace(a.herramienta, self.chat.is_some()) => self.accion(a),
-            otra => Err(format!("{} aun no se puede hacer en PixPin para Mac", otra.nombre())),
+            otra => Err(format!("{} aun no se puede hacer en PinDesk para Mac", otra.nombre())),
         }
     }
 
@@ -1505,7 +1534,7 @@ impl Ejecutor for EjecutorDelMac {
     /// Swift la pinta con el pintor del lienzo.
     fn ver(&mut self, m: &pixpin_ia::ojos::Mirada) -> Result<pixpin_ia::ojos::Vista, String> {
         if m.zona == pixpin_ia::ojos::Zona::Documento {
-            return Err("ver un documento anotado aun no se puede en PixPin para Mac".into());
+            return Err("ver un documento anotado aun no se puede en PinDesk para Mac".into());
         }
         if self.chat.as_ref().is_some_and(|c| !c.con_marco) {
             // Que la rejilla mida desde donde mide el resumen.

@@ -1012,7 +1012,7 @@ final class Pin: NSObject {
             esconderBarra?.cancel()
             barra?.esconder()
             pararRelojVideo()
-            avisar("El clic pasa a través. Para volver: ⌘T o «Recoger el clic» en el menú de PixPin")
+            avisar("El clic pasa a través. Para volver: ⌘T o «Recoger el clic» en el menú de PinDesk")
         }
         alCambiar?()
         if guardar { alGuardar?(self) }

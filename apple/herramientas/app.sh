@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Monta `PixPin.app` (universal: Apple Silicon e Intel), firmada ad hoc, y la
+# Monta `PinDesk.app` (universal: Apple Silicon e Intel), firmada ad hoc, y la
 # deja comprimida. Para un Mac (o la CI de macOS), despues de
 # `herramientas/xcframework.sh`:
 #
@@ -14,13 +14,19 @@
 #   extension de Compartir y la vista previa de Quick Look. SwiftPM no sabe
 #   hacer extensiones de app. Se compila sin firmar y se firma aqui, de
 #   dentro afuera, cada extension con su caja de arena. Deja
-#   `apple/app/dist-xcode/PixPin-mac.zip`.
+#   `apple/app/dist-xcode/PinDesk-mac.zip`.
 # - **spm** (`swift build`): solo la app, como siempre. Deja
-#   `apple/app/dist/PixPin-mac.zip`. Es el respaldo si no hay XcodeGen.
+#   `apple/app/dist/PinDesk-mac.zip`. Es el respaldo si no hay XcodeGen.
+#
+# **El nombre**: la app se llama PinDesk (como en Windows,
+# docs/nombre-pindesk.md): el paquete es `PinDesk.app`, pero por dentro todo
+# sigue igual que con PixPin (el ejecutable `Contents/MacOS/PixPin`, el
+# producto de Xcode `PixPin.app`, el identificador y los UTI). Solo cambia el
+# nombre de la carpeta al copiarla a `dist`.
 #
 # Firma ad hoc: sin cuenta de Apple Developer. Al abrirla la primera vez,
 # macOS avisa; se abre con clic derecho > Abrir (o
-# `xattr -dr com.apple.quarantine PixPin.app`). Con la cuenta, aqui iran la
+# `xattr -dr com.apple.quarantine PinDesk.app`). Con la cuenta, aqui iran la
 # firma Developer ID y el notarizado (plan, §7.1).
 set -euo pipefail
 
@@ -29,6 +35,10 @@ APP_SRC="$APPLE/app"
 XC="$APPLE/xcode"
 VERSION="${PIXPIN_VERSION:-0.1.0}"
 COMPILACION="${PIXPIN_COMPILACION:-$(date +%Y%m%d%H%M)}"
+
+# El paquete que se entrega (lo que ve el usuario en Aplicaciones).
+PAQUETE="PinDesk.app"
+ZIP="PinDesk-mac.zip"
 
 MODO="${1:-auto}"
 if [ "$MODO" = auto ]; then
@@ -43,9 +53,9 @@ fi
 comprimir() {
     local dist="$1"
     echo "==> Comprimir"
-    (cd "$dist" && ditto -c -k --keepParent PixPin.app PixPin-mac.zip)
-    du -sh "$dist/PixPin.app" "$dist/PixPin-mac.zip"
-    echo "==> Listo: $dist/PixPin-mac.zip"
+    (cd "$dist" && ditto -c -k --keepParent "$PAQUETE" "$ZIP")
+    du -sh "$dist/$PAQUETE" "$dist/$ZIP"
+    echo "==> Listo: $dist/$ZIP"
 }
 
 # Sin simbolos de depuracion (el nucleo de Rust llega como biblioteca estatica
@@ -80,7 +90,7 @@ derechos_ad_hoc() {
 # quien los carga.
 # El servidor MCP (`nucleo/pixpin-mcp`) va dentro de la app, junto al
 # ejecutable: Claude Desktop o Claude Code lo arrancan con la ruta
-# `/Applications/PixPin.app/Contents/MacOS/pixpin-mcp` (docs/mcp.md).
+# `/Applications/PinDesk.app/Contents/MacOS/pixpin-mcp` (docs/mcp.md).
 # Universal y firmado ad hoc antes que la app.
 # Y el puente de la extension del navegador (`nucleo/pixpin-puente`, lo
 # registra `herramientas/registrar-navegador.sh`).
@@ -131,7 +141,7 @@ SWIFT
         local ventanas
         ventanas="$(swift "$cuenta" "$pid" 2>/dev/null || echo "?")"
         if [ "$ventanas" = "0" ]; then
-            echo "::warning::PixPin arranco sin ninguna ventana a la vista"
+            echo "::warning::PinDesk arranco sin ninguna ventana a la vista"
         fi
         echo "    ventanas a la vista: $ventanas"
         kill "$pid" 2>/dev/null || true
@@ -141,7 +151,7 @@ SWIFT
         local codigo=0
         wait "$pid" || codigo=$?
         if [ "$codigo" -ne 0 ]; then
-            echo "error: PixPin se cerro al arrancar (codigo $codigo)" >&2
+            echo "error: PinDesk se cerro al arrancar (codigo $codigo)" >&2
             cat "$log" >&2
             exit 1
         fi
@@ -166,7 +176,7 @@ universal() {
 
 construir_spm() {
     local dist="$APP_SRC/dist"
-    local app="$dist/PixPin.app"
+    local app="$dist/$PAQUETE"
     cd "$APP_SRC"
     local bin
     if [ -x "$(xcode-select -p 2>/dev/null)/../SharedFrameworks/XCBuild.framework/Versions/A/Support/xcbuild" ]; then
@@ -225,7 +235,7 @@ construir_spm() {
 
 construir_xcode() {
     local dist="$APP_SRC/dist-xcode"
-    local app="$dist/PixPin.app"
+    local app="$dist/$PAQUETE"
     local derivados="$XC/build"
 
     echo "==> xcodegen (apple/xcode/project.yml)"
@@ -242,6 +252,7 @@ construir_xcode() {
 
     rm -rf "$dist"
     mkdir -p "$dist"
+    # Xcode lo deja como `PixPin.app` (PRODUCT_NAME): se copia con el nombre nuevo.
     ditto "$derivados/Build/Products/Release/PixPin.app" "$app"
 
     echo "==> Lo que lleva dentro"

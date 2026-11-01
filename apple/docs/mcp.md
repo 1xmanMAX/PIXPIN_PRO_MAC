@@ -1,7 +1,8 @@
-# PixPin como servidor MCP en el Mac
+# PinDesk como servidor MCP en el Mac
 
 El mismo MCP de Windows (`apps/pixpin-mcp`), en `nucleo/pixpin-mcp`, y va
-dentro de la app: `/Applications/PixPin.app/Contents/MacOS/pixpin-mcp`.
+dentro de la app: `/Applications/PinDesk.app/Contents/MacOS/pixpin-mcp` (con la app de antes,
+`/Applications/PixPin.app/...`: es el mismo programa).
 
 ## Claude Desktop
 
@@ -10,7 +11,7 @@ En `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "pixpin": { "command": "/Applications/PixPin.app/Contents/MacOS/pixpin-mcp" }
+    "pixpin": { "command": "/Applications/PinDesk.app/Contents/MacOS/pixpin-mcp" }
   }
 }
 ```
@@ -18,7 +19,7 @@ En `~/Library/Application Support/Claude/claude_desktop_config.json`:
 ## Claude Code
 
 ```sh
-claude mcp add pixpin /Applications/PixPin.app/Contents/MacOS/pixpin-mcp
+claude mcp add pixpin /Applications/PinDesk.app/Contents/MacOS/pixpin-mcp
 ```
 
 ## Qué hace

@@ -52,7 +52,7 @@ public final class IconoBandeja: NSObject, NSMenuDelegate {
         item.button?.target = self
         item.button?.action = #selector(pulsado(_:))
         item.button?.sendAction(on: [.leftMouseUp, .rightMouseUp])
-        item.button?.toolTip = "PixPin"
+        item.button?.toolTip = "PinDesk"
         self.item = item
         ponerIcono(grabando: GrabadorPantalla.compartido.grabando)
         GrabadorPantalla.compartido.$grabando
@@ -65,7 +65,7 @@ public final class IconoBandeja: NSObject, NSMenuDelegate {
         if grabando {
             item?.button?.image = Self.puntoRojo
         } else {
-            let pin = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "PixPin")
+            let pin = NSImage(systemSymbolName: "pin.fill", accessibilityDescription: "PinDesk")
             pin?.isTemplate = true
             item?.button?.image = pin
         }

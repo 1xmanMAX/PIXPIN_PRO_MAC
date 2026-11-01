@@ -131,4 +131,43 @@ final class MenuMensajeTests: XCTestCase {
         }
         XCTAssertTrue(cumple())
     }
+
+    /// El menu segun el tipo (Windows 12e107b): un PDF no ofrece ni
+    /// recordatorio ni leccion; una foto, en «Más»; sin el tipo (un mensaje
+    /// hecho a mano), como antes.
+    func testElMenuVaSegunElTipoDelMensaje() {
+        var m = MensajeChat(id: "1", cuando: 0, clase: "ARCHIVO", texto: "", nombre: "Tesis.pdf", ruta: "a/Tesis.pdf",
+                            bytes: 0, resumen: "", codigoChat: nil, respondeA: nil, emoji: nil, fijado: false,
+                            referencia: nil, pagina: nil, duracionMs: 0, transcripcion: nil, picos: [],
+                            enBuzon: false, recuerdaEn: nil, miniapp: nil, esLeccion: false,
+                            sePuedeRenombrar: false, sePuedeDescribir: false, punto: nil, soloLaFoto: true,
+                            vieneDe: nil, vieneDeDibujo: nil, recibidoDe: nil, lienzoIa: nil)
+        // Sin tipo: lo de antes (un archivo no hace leccion).
+        XCTAssertEqual(m.sitioDeRecordar, .vista)
+        XCTAssertNil(m.sitioDeLeccion)
+        m.tipo = .documento
+        XCTAssertNil(m.sitioDeRecordar)
+        XCTAssertNil(m.sitioDeLeccion)
+        m.tipo = .foto
+        m.menuRecordar = .mas
+        m.menuLeccion = .mas
+        XCTAssertEqual(m.sitioDeRecordar, .mas)
+        XCTAssertEqual(m.sitioDeLeccion, .mas)
+        // Caso negativo: una leccion no hace otra.
+        m.esLeccion = true
+        XCTAssertNil(m.sitioDeLeccion)
+    }
+
+    /// La caja de una foto que aun se lee es la de la foto ya leida
+    /// (Windows bd006fc: el historial no salta).
+    func testLaCajaDeLaFotoQueSeLeeEsLaDeLaFoto() {
+        // 4000 x 3000 pedida a 520 px y pintada en 260 puntos.
+        let c = Miniaturas.caja(medida: CGSize(width: 4000, height: 3000), pixeles: 520, lado: 260)
+        XCTAssertEqual(c.width, 260, accuracy: 0.01)
+        XCTAssertEqual(c.height, 195, accuracy: 0.01)
+        // Una pequena no se agranda.
+        let p = Miniaturas.caja(medida: CGSize(width: 100, height: 50), pixeles: 520, lado: 260)
+        XCTAssertEqual(p.width, 50, accuracy: 0.01)
+        XCTAssertEqual(p.height, 25, accuracy: 0.01)
+    }
 }

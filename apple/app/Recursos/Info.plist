@@ -22,12 +22,12 @@
 		<string>tr</string>
 	</array>
 	<key>CFBundleDisplayName</key>
-	<string>PixPin</string>
+	<string>PinDesk</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Proyecto de PixPin</string>
+			<string>Proyecto de PinDesk</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -141,7 +141,7 @@
 	<key>CFBundleIdentifier</key>
 	<string>io.github.1xmanmax.pixpin</string>
 	<key>CFBundleName</key>
-	<string>PixPin</string>
+	<string>PinDesk</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -168,7 +168,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>PixPin le pregunta al Finder qué ficheros tienes elegidos para dejarlos flotando como pin (comando «Pinear lo elegido en el Finder»).</string>
+	<string>PinDesk le pregunta al Finder qué ficheros tienes elegidos para dejarlos flotando como pin (comando «Pinear lo elegido en el Finder»).</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_pixpin._tcp</string>
@@ -179,18 +179,18 @@
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>PixPin busca tus otros aparatos (PC y móvil) en tu Wi-Fi para sincronizar tus proyectos sin pasar por internet.</string>
+	<string>PinDesk busca tus otros aparatos (PC y móvil) en tu Wi-Fi para sincronizar tus proyectos sin pasar por internet.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>PixPin graba notas de voz para tus proyectos.</string>
+	<string>PinDesk graba notas de voz para tus proyectos.</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>PixPin captura la zona de la pantalla que eliges para copiarla, dejarla flotando o mandarla a un proyecto.</string>
+	<string>PinDesk captura la zona de la pantalla que eliges para copiarla, dejarla flotando o mandarla a un proyecto.</string>
 	<key>NSServices</key>
 	<array>
 		<dict>
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>PixPin/Al chat</string>
+				<string>PinDesk/Al chat</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>alChat</string>
@@ -207,7 +207,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>PixPin/Pinear</string>
+				<string>PinDesk/Pinear</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>pinear</string>
@@ -224,7 +224,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>PixPin/Copiar texto (OCR)</string>
+				<string>PinDesk/Copiar texto (OCR)</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>copiarTexto</string>
@@ -241,7 +241,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>PixPin/Enviar al móvil</string>
+				<string>PinDesk/Enviar al móvil</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>alMovil</string>
@@ -258,7 +258,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>PixPin/Preguntar al asistente</string>
+				<string>PinDesk/Preguntar al asistente</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>preguntarAlAsistente</string>
@@ -273,7 +273,7 @@
 		</dict>
 	</array>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>PixPin pasa tus notas de voz a texto en este Mac, sin enviarlas a internet.</string>
+	<string>PinDesk pasa tus notas de voz a texto en este Mac, sin enviarlas a internet.</string>
 	<key>NSSupportsAutomaticTermination</key>
 	<false/>
 	<key>UTExportedTypeDeclarations</key>
@@ -285,7 +285,7 @@
 				<string>public.content</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Proyecto de PixPin</string>
+			<string>Proyecto de PinDesk</string>
 			<key>UTTypeIdentifier</key>
 			<string>io.github.1xmanmax.pixpin.proyecto</string>
 			<key>UTTypeTagSpecification</key>
@@ -302,7 +302,7 @@
 				<string>public.json</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Dibujo de PixPin</string>
+			<string>Dibujo de PinDesk</string>
 			<key>UTTypeIdentifier</key>
 			<string>io.github.1xmanmax.pixpin.dibujo</string>
 			<key>UTTypeTagSpecification</key>

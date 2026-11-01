@@ -160,6 +160,9 @@ struct ListaProyectos<Menu: View>: View {
                 // Windows a274ac0).
                 // Gira mientras hay una vuelta y marca en rojo si fallo
                 // (`Sincro/GiroDeSincronizar.swift`, Windows 0470294).
+                // A su izquierda, los puntitos del estado de Claude, DeepSeek
+                // y Jev (Windows 851979e, `Asistente/Jev.swift`).
+                PuntitosIa()
                 BotonSincronizar { abrirVentana(id: "sincronizar") }
             }
             .padding(.horizontal, 7)

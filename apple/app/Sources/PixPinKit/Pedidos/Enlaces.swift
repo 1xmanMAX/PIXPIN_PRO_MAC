@@ -212,7 +212,7 @@ public enum Enlaces {
     public static func leer(_ url: String, firmas: FirmaEnlaces? = .delMac) throws -> LlamadaOrden {
         let partes = try partir(url)
         guard let fila = Verbos.fila(partes.verbo) else {
-            throw FalloOrden.noSeEntiende("PixPin no conoce «\(partes.verbo)» por enlace")
+            throw FalloOrden.noSeEntiende("PinDesk no conoce «\(partes.verbo)» por enlace")
         }
         guard fila.porEnlace else {
             throw FalloOrden(codigo: FalloOrden.Codigo.rechazado,
@@ -313,7 +313,7 @@ public enum Enlaces {
     public static func textoDelMotivo(_ motivo: String) -> String {
         switch motivo {
         case "ficheros": return "Abre o manda ficheros de tu disco."
-        case "asistente": return "Le pide algo al asistente, que puede hacer cosas en PixPin."
+        case "asistente": return "Le pide algo al asistente, que puede hacer cosas en PinDesk."
         case "microfono": return "Graba con el micrófono."
         case "otros-aparatos": return "Manda datos a tus otros aparatos."
         case "automatizacion": return "Toca una automatización del asistente."
@@ -321,7 +321,7 @@ public enum Enlaces {
         case "ruta-no-local":
             return "Un enlace no puede abrir ficheros de red ni rutas que no sean de este Mac. No se hizo nada."
         case "crear-automatizacion": return "Un enlace no puede crear automatizaciones. No se hizo nada."
-        default: return "Cambia datos de PixPin."
+        default: return "Cambia datos de PinDesk."
         }
     }
 }

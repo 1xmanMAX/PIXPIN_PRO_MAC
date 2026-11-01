@@ -31,6 +31,9 @@ public final class Miniaturas: @unchecked Sendable {
     }
 
     private let cache = NSCache<NSString, Caja>()
+    /// Lo que mide cada foto (su cabecera, ya girada): la caja exacta de la
+    /// burbuja antes de tener la miniatura (Windows bd006fc).
+    private var medidas: [String: CGSize] = [:]
     private let cerrojo = NSLock()
     private var enCurso: [String: Task<CGImage?, Never>] = [:]
     private var vigiaMemoria: DispatchSourceMemoryPressure?
@@ -89,9 +92,46 @@ public final class Miniaturas: @unchecked Sendable {
         conCerrojo { enCurso[clave] = nil }
     }
 
+    /// **Lo que mide la foto** en pixeles, ya girada por su EXIF, leyendo
+    /// solo su cabecera (no se decodifica nada). Se recuerda. `nil` si no
+    /// es una imagen o no esta.
+    public func medida(_ url: URL) -> CGSize? {
+        if let hecha = conCerrojo({ medidas[url.path] }) { return hecha }
+        guard let leida = Miniaturas.medidaDeCabecera(url) else { return nil }
+        conCerrojo { medidas[url.path] = leida }
+        return leida
+    }
+
+    /// La cabecera de la foto: ancho y alto, cambiados si el EXIF la gira
+    /// un cuarto de vuelta (orientaciones 5 a 8).
+    public static func medidaDeCabecera(_ url: URL) -> CGSize? {
+        let deFuente = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard let fuente = CGImageSourceCreateWithURL(url as CFURL, deFuente),
+              CGImageSourceGetCount(fuente) > 0,
+              let p = CGImageSourceCopyPropertiesAtIndex(fuente, 0, deFuente) as? [CFString: Any],
+              let ancho = (p[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+              let alto = (p[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
+              ancho > 0, alto > 0
+        else { return nil }
+        let giro = (p[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+        return giro >= 5 && giro <= 8 ? CGSize(width: alto, height: ancho) : CGSize(width: ancho, height: alto)
+    }
+
+    /// **La caja en pantalla** de una foto de `medida` pixeles pedida a
+    /// `pixeles` de lado y pintada a 2x en como mucho `lado` puntos: la
+    /// misma cuenta que hace `MiniaturaVista` con la miniatura ya leida.
+    public static func caja(medida: CGSize, pixeles: Int, lado: CGFloat) -> CGSize {
+        let mayor = max(medida.width, medida.height, 1)
+        let reducir = min(1, CGFloat(pixeles) / mayor)
+        let ancho = (medida.width * reducir).rounded() / 2, alto = (medida.height * reducir).rounded() / 2
+        let k = min(1, lado / max(ancho, alto, 1))
+        return CGSize(width: ancho * k, height: alto * k)
+    }
+
     /// Suelta todas las miniaturas (aviso de memoria).
     public func vaciar() {
         cache.removeAllObjects()
+        conCerrojo { medidas.removeAll() }
     }
 
     /// Lee la miniatura AHORA, en el hilo que llama (las pruebas y quien ya
@@ -139,9 +179,14 @@ struct MiniaturaVista: View {
                     .frame(width: ancho * k, height: alto * k)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {
+                // Mientras se lee, su caja exacta en tono apagado (de la
+                // cabecera): al llegar la foto nada se mueve (Windows
+                // bd006fc, «el historial no salta al subir»).
+                let caja = miniaturas.medida(url).map { Miniaturas.caja(medida: $0, pixeles: pixeles, lado: lado) }
+                    ?? CGSize(width: lado * 0.75, height: lado * 0.5)
                 RoundedRectangle(cornerRadius: 8)
                     .fill(.quaternary)
-                    .frame(width: lado * 0.75, height: lado * 0.5)
+                    .frame(width: caja.width, height: caja.height)
                     .overlay {
                         if falta {
                             Image(systemName: "photo.badge.exclamationmark").foregroundStyle(.secondary)

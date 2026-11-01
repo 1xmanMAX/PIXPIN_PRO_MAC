@@ -603,11 +603,44 @@ impl EditorLienzo {
 pub struct GaleriaFiguras {
     nucleo: Arc<Nucleo>,
     figuras: Mutex<Vec<FiguraGuardada>>,
+    /// **El interruptor ☀/☾** (Windows 22878f0, 4d7c01e, 9848a06): de noche
+    /// se ven las gemelas «(noche)» de las plantillas en el sitio de las de
+    /// dia, nunca las dos (`figuras_de_serie::segun_el_modo`).
+    noche: std::sync::atomic::AtomicBool,
+}
+
+/// Las posiciones de `figuras` que se ven de dia o de noche, en su orden.
+fn del_modo(figuras: &[FiguraGuardada], noche: bool) -> Vec<usize> {
+    let pares: Vec<(&str, &str)> = figuras
+        .iter()
+        .map(|f| (f.id.as_str(), f.nombre.as_str()))
+        .collect();
+    serie::segun_el_modo(&pares, noche)
+}
+
+/// **Si los paneles de figuras van de noche**: `figuras_de_noche` de
+/// `estado.toml`, el mismo de Windows; sin tocar, de dia, como el movil.
+fn figuras_de_noche(nucleo: &Nucleo) -> bool {
+    pixpin_store::estado::cargar(&nucleo.ubicacion())
+        .figuras_de_noche
+        .unwrap_or(false)
 }
 
 impl GaleriaFiguras {
     fn tomar(&self) -> MutexGuard<'_, Vec<FiguraGuardada>> {
         self.figuras.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Las del modo puesto (dia o noche), en su orden de siempre.
+    fn las_del_modo(&self) -> Vec<FiguraGuardada> {
+        let figuras = self.tomar();
+        del_modo(
+            &figuras,
+            self.noche.load(std::sync::atomic::Ordering::Relaxed),
+        )
+        .into_iter()
+        .map(|i| figuras[i].clone())
+        .collect()
     }
 
     fn figura(&self, id: &str) -> Option<FiguraGuardada> {
@@ -655,16 +688,42 @@ impl GaleriaFiguras {
         Ok(())
     }
 
-    /// Cuantas hay (el subtitulo: «N figuras y plantillas»).
+    /// Cuantas hay en el modo puesto (el subtitulo: «N figuras y
+    /// plantillas»).
     pub fn cuantas(&self) -> u32 {
-        self.tomar().len() as u32
+        let figuras = self.tomar();
+        del_modo(
+            &figuras,
+            self.noche.load(std::sync::atomic::Ordering::Relaxed),
+        )
+        .len() as u32
+    }
+
+    /// **Si va de noche** (el interruptor ☀/☾). Se relee de `estado.toml`:
+    /// el de la otra ventana de figuras pudo cambiarlo.
+    pub fn de_noche(&self) -> bool {
+        let noche = figuras_de_noche(&self.nucleo);
+        self.noche
+            .store(noche, std::sync::atomic::Ordering::Relaxed);
+        noche
+    }
+
+    /// **Pone el interruptor ☀/☾** y lo recuerda (uno para todos los paneles
+    /// de figuras). Si no se puede guardar solo se pierde que se recuerde.
+    pub fn poner_de_noche(&self, noche: bool) {
+        self.noche
+            .store(noche, std::sync::atomic::Ordering::Relaxed);
+        let u = self.nucleo.ubicacion();
+        let mut e = pixpin_store::estado::cargar(&u);
+        e.figuras_de_noche = Some(noche);
+        let _ = pixpin_store::estado::guardar(&u, &e);
     }
 
     /// **Las categorias de la izquierda** con su cuenta, en su orden: las
     /// que tienen alguna y siempre «Mis figuras» (al final). «Todas» la
     /// pone la ventana.
     pub fn categorias(&self) -> Vec<CategoriaDeFiguras> {
-        let figuras = self.tomar();
+        let figuras = self.las_del_modo();
         categorias(&figuras)
             .into_iter()
             .map(|c| {
@@ -678,7 +737,7 @@ impl GaleriaFiguras {
     /// **Las que se ven** en la categoria (`None`, todas) con lo buscado,
     /// en el orden de las categorias.
     pub fn visibles(&self, categoria: Option<String>, consulta: String) -> Vec<FichaDeFigura> {
-        let figuras = self.tomar();
+        let figuras = self.las_del_modo();
         visibles(&figuras, categoria.as_deref(), &consulta)
             .into_iter()
             .map(|i| ficha_de(&figuras[i]))
@@ -789,9 +848,11 @@ impl Nucleo {
     /// serie puestas).
     pub fn galeria_de_figuras(self: Arc<Self>) -> Result<Arc<GaleriaFiguras>, ErrorNucleo> {
         let figuras = self.biblioteca_cargar()?;
+        let noche = figuras_de_noche(&self);
         Ok(Arc::new(GaleriaFiguras {
             nucleo: self,
             figuras: Mutex::new(figuras),
+            noche: std::sync::atomic::AtomicBool::new(noche),
         }))
     }
 

@@ -41,6 +41,7 @@
 use pixpin_proyecto::almacen;
 use pixpin_proyecto::carpeta_de_paginas::{self as carpetas, Carpeta};
 use pixpin_proyecto::cuaderno::{self, Mensaje, Sello};
+use pixpin_proyecto::presencial;
 
 use crate::chats::validar_chat;
 use crate::voz::{acotar_picos, marca_de_tiempo};
@@ -229,6 +230,22 @@ pub struct CapturaClase {
     pub ruta_png: String,
 }
 
+/// Un trozo del video de la pantalla encendido a mitad de la grabacion
+/// («Pantalla» de la barra, Windows 5b06484): su minuto en la nota, lo que
+/// dura y el MP4 ya cerrado en un temporal (se mueve al chat).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ClipClase {
+    pub ms: i64,
+    pub duracion_ms: i64,
+    pub ruta_mp4: String,
+}
+
+/// El nombre del trozo `n` (desde 1) de la pantalla de la clase `nombre`
+/// («Clase … · pantalla N.mp4», como Windows).
+pub fn nombre_del_trozo_de_pantalla(nombre: &str, n: usize) -> String {
+    format!("{nombre} · pantalla {n}.mp4")
+}
+
 /// Lo que dejo la clase en el chat, en el orden del cuaderno: la voz como
 /// quedo (si entro), su video (si lo habia y entro), sus capturas y la
 /// carpeta que lo lleva todo (si entro algo y se pudo escribir).
@@ -238,6 +255,9 @@ pub struct ClaseGuardada {
     pub video: Option<MensajeChat>,
     pub capturas: Vec<MensajeChat>,
     pub carpeta: Option<MensajeChat>,
+    /// Los trozos de la pantalla que entraron como clips (Windows 5b06484).
+    #[uniffi(default = [])]
+    pub clips: Vec<MensajeChat>,
 }
 
 /// **La carpeta de una clase** (`grabar_clase::carpeta_de_la_grabacion` de
@@ -250,15 +270,35 @@ pub fn carpeta_de_la_grabacion(
     video: Option<&str>,
     capturas: &[(i64, String)],
 ) -> Carpeta {
+    carpeta_de_la_grabacion_con_clips(voz, duracion_ms, video, capturas, &[])
+}
+
+/// La de [`carpeta_de_la_grabacion`] con los clips (los trozos de la
+/// pantalla), cada uno en su minuto con «▶ 1:05» (Windows 5b06484).
+pub fn carpeta_de_la_grabacion_con_clips(
+    voz: Option<&str>,
+    duracion_ms: i64,
+    video: Option<&str>,
+    capturas: &[(i64, String)],
+    clips: &[presencial::Clip],
+) -> Carpeta {
     let mut c = Carpeta::grabacion(voz.unwrap_or_default(), duracion_ms);
     c.video = video.unwrap_or_default().to_string();
     for id in voz.into_iter().chain(video) {
         c.anadir_al_minuto(id, "", 0);
     }
-    let mut capturas = capturas.to_vec();
-    capturas.sort_by_key(|(ms, _)| *ms);
-    for (ms, id) in &capturas {
-        c.anadir_al_minuto(id, &format!("⏱ {}", minuto(*ms)), *ms);
+    let mut en_orden: Vec<(i64, &str, String)> = capturas
+        .iter()
+        .map(|(ms, id)| (*ms, id.as_str(), format!("⏱ {}", minuto(*ms))))
+        .chain(
+            clips
+                .iter()
+                .map(|k| (k.ms, k.id.as_str(), format!("▶ {}", minuto(k.ms)))),
+        )
+        .collect();
+    en_orden.sort_by_key(|(ms, _, _)| *ms);
+    for (ms, id, titulo) in &en_orden {
+        c.anadir_al_minuto(id, titulo, *ms);
     }
     c
 }
@@ -308,10 +348,61 @@ impl Nucleo {
             ruta_video.as_deref(),
             capturas,
         );
-        if let Some(v) = ruta_video.as_deref().map(std::path::Path::new).filter(|v| v.is_file()) {
+        if let Some(v) = ruta_video
+            .as_deref()
+            .map(std::path::Path::new)
+            .filter(|v| v.is_file())
+        {
             // No entro en el chat (fallo la nota, el disco) y no se borra.
             let carpeta = almacen::carpeta(self.ruta(), &chat);
             let _ = rescatar_video(&carpeta, &nombre, v);
+        }
+        hecho
+    }
+
+    /// La de [`Nucleo::guardar_clase`] con **los trozos de la pantalla**
+    /// encendida a mitad («Pantalla» de la barra, Windows 5b06484): cada uno
+    /// entra como un clip en su minuto («Clase … · pantalla N.mp4», sin
+    /// `fuente`, con `enGrabacion {de, ms, duracionMs}`) y la nota los lleva
+    /// en `clips`, como el movil. Un clip que no entra se queda en la
+    /// carpeta del proyecto.
+    #[allow(clippy::too_many_arguments)]
+    pub fn guardar_clase_con_clips(
+        &self,
+        chat: String,
+        ruta_audio: Option<String>,
+        duracion_ms: i64,
+        picos: Vec<i32>,
+        ruta_video: Option<String>,
+        capturas: Vec<CapturaClase>,
+        clips: Vec<ClipClase>,
+        desfase_ms: i64,
+    ) -> Result<ClaseGuardada, ErrorNucleo> {
+        validar_chat(&chat)?;
+        let nombre = nombre_de_la_clase(crate::ahora_ms() + desfase_ms);
+        let hecho = self.guardar_clase_entera(
+            &chat,
+            &nombre,
+            ruta_audio,
+            duracion_ms,
+            picos,
+            ruta_video.as_deref(),
+            capturas,
+            clips.clone(),
+        );
+        let carpeta = almacen::carpeta(self.ruta(), &chat);
+        if let Some(v) = ruta_video
+            .as_deref()
+            .map(std::path::Path::new)
+            .filter(|v| v.is_file())
+        {
+            let _ = rescatar_video(&carpeta, &nombre, v);
+        }
+        for (i, c) in clips.iter().enumerate() {
+            let v = std::path::Path::new(&c.ruta_mp4);
+            if v.is_file() {
+                let _ = rescatar_video(&carpeta, &format!("{nombre} · pantalla {}", i + 1), v);
+            }
         }
         hecho
     }
@@ -329,6 +420,31 @@ impl Nucleo {
         picos: Vec<i32>,
         ruta_video: Option<&str>,
         capturas: Vec<CapturaClase>,
+    ) -> Result<ClaseGuardada, ErrorNucleo> {
+        self.guardar_clase_entera(
+            chat,
+            nombre,
+            ruta_audio,
+            duracion_ms,
+            picos,
+            ruta_video,
+            capturas,
+            Vec::new(),
+        )
+    }
+
+    /// Lo de [`Nucleo::guardar_clase_con_clips`] sin el rescate.
+    #[allow(clippy::too_many_arguments)]
+    fn guardar_clase_entera(
+        &self,
+        chat: &str,
+        nombre: &str,
+        ruta_audio: Option<String>,
+        duracion_ms: i64,
+        picos: Vec<i32>,
+        ruta_video: Option<&str>,
+        capturas: Vec<CapturaClase>,
+        clips: Vec<ClipClase>,
     ) -> Result<ClaseGuardada, ErrorNucleo> {
         let ahora = crate::ahora_ms();
         let voz = match ruta_audio {
@@ -387,6 +503,41 @@ impl Nucleo {
         }
         let enlazadas: Vec<(i64, String)> =
             hechas.iter().map(|(ms, m)| (*ms, m.id.clone())).collect();
+
+        // Los trozos de la pantalla, como el video: movidos y enlazados en
+        // su minuto, con lo que duran; sin `fuente` (no son de la camara).
+        let mut clips = clips;
+        clips.sort_by_key(|c| c.ms);
+        let mut clips_dentro: Vec<(presencial::Clip, MensajeChat)> = Vec::new();
+        for (i, c) in clips.into_iter().enumerate() {
+            let (ms, dura) = (c.ms.max(0), c.duracion_ms.max(0));
+            let hecho = self.adjuntar_moviendo(
+                chat.to_string(),
+                c.ruta_mp4,
+                Some(nombre_del_trozo_de_pantalla(nombre, i + 1)),
+                |m| {
+                    if let Some(de) = &de {
+                        m.resto.insert(
+                            CAMPO_EN_GRABACION.into(),
+                            presencial::enlace_del_clip(de, ms, dura),
+                        );
+                    }
+                },
+            );
+            // Como Windows: el que no entra se queda en la carpeta.
+            if let Ok(m) = hecho {
+                clips_dentro.push((
+                    presencial::Clip {
+                        ms,
+                        duracion_ms: dura,
+                        id: m.id.clone(),
+                    },
+                    m,
+                ));
+            }
+        }
+        let solo_clips: Vec<presencial::Clip> =
+            clips_dentro.iter().map(|(c, _)| c.clone()).collect();
         let video_id = video.as_ref().map(|v| v.id.clone());
         let carpeta = almacen::carpeta(self.ruta(), chat);
         let voz = match voz {
@@ -404,6 +555,7 @@ impl Nucleo {
                         m.resto
                             .insert(CAMPO_VIDEO.into(), serde_json::json!({ "id": id }));
                     }
+                    presencial::poner_clips(&mut m.resto, &solo_clips);
                     true
                 });
                 cache.quitar(&fichero);
@@ -420,11 +572,12 @@ impl Nucleo {
         // Y todo dentro de su carpeta: en el chat se ve UNA tarjeta y no la
         // nota, el video y cada captura sueltos.
         // Sin nota, lo que duro no se sabe (Windows: sin grabacion, 0).
-        let doc = carpeta_de_la_grabacion(
+        let doc = carpeta_de_la_grabacion_con_clips(
             voz.as_ref().map(|v| v.id.as_str()),
             if voz.is_some() { duracion_ms } else { 0 },
             video_id.as_deref(),
             &enlazadas,
+            &solo_clips,
         );
         // Si no se pudo escribir, lo de dentro ya esta en el chat, suelto:
         // como antes.
@@ -437,6 +590,7 @@ impl Nucleo {
             video,
             capturas: hechas.into_iter().map(|(_, m)| m).collect(),
             carpeta: en_carpeta,
+            clips: clips_dentro.into_iter().map(|(_, m)| m).collect(),
         })
     }
 

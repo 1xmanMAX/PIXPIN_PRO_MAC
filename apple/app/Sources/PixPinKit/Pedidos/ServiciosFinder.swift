@@ -32,7 +32,7 @@ public final class ServiciosFinder: NSObject {
         let urls = pboard.readObjects(forClasses: [NSURL.self],
                                       options: [.urlReadingFileURLsOnly: true]) as? [URL] ?? []
         guard !urls.isEmpty else {
-            error.pointee = "PixPin: no hay ficheros" as NSString
+            error.pointee = "PinDesk: no hay ficheros" as NSString
             return
         }
         switch ServiciosFinder.orden(verbo: verbo, rutas: urls.map(\.path)) {

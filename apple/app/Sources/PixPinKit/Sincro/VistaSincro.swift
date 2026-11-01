@@ -142,7 +142,7 @@ public struct VistaSincro: View {
             } header: {
                 Text("Unirse a un grupo")
             } footer: {
-                Text("Sin dirección se busca en la Wi-Fi un aparato con ese código y PixPin abierto.")
+                Text("Sin dirección se busca en la Wi-Fi un aparato con ese código y PinDesk abierto.")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }

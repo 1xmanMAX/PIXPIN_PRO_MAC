@@ -41,10 +41,30 @@ extension Almacen {
         switch resultado {
         case let .success(m):
             sustituir(m, en: chat)
+            // Lo importante de lo dicho (Jev, en segundo plano; sin clave,
+            // nada), como Windows al acabar de pasar una nota a texto.
+            buscarLoImportante(m.id, en: chat, forzar: true)
             return m
         case let .failure(e):
             ponerError("\(e)")
             return nil
+        }
+    }
+
+    /// **Busca lo importante de una nota de voz** con Jev (tareas,
+    /// decisiones, preguntas, examen: `resto["importantes"]`, que viaja), en
+    /// segundo plano. `forzar`: aunque ya se mirara (el texto es nuevo).
+    /// Sin clave de TypeSafe o con la funcion apagada no hace nada.
+    public func buscarLoImportante(_ voz: String, en chat: String, forzar: Bool) {
+        LlaveroDelSistema.instalar()
+        TransporteHttps.instalar()
+        let nucleo = self.nucleo
+        Task {
+            let escrito = await Task.detached(priority: .utility) {
+                (try? nucleo.jevBuscarLoImportante(chat: chat, voz: voz, forzar: forzar)) ?? false
+            }.value
+            // A los otros aparatos, como cualquier cambio de aqui.
+            if escrito { NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil) }
         }
     }
 
@@ -73,7 +93,7 @@ extension TranscriptorVoz {
     public static func explicar(_ error: Error) -> String {
         switch error as? ErrorVoz {
         case .sinPermisoTranscribir?:
-            return "PixPin no tiene permiso para reconocer voz (Ajustes del Sistema > Privacidad y seguridad > Reconocimiento de voz)."
+            return "PinDesk no tiene permiso para reconocer voz (Ajustes del Sistema > Privacidad y seguridad > Reconocimiento de voz)."
         case .sinReconocedor?:
             return "Este Mac no tiene el reconocimiento de voz sin conexion para espanol. Activalo en Ajustes del Sistema > Teclado > Dictado."
         default:

@@ -209,7 +209,7 @@ pub(crate) fn sin_lo_vivo(texto: &str) -> String {
 pub(crate) fn texto_cortado(parcial: &str, r: &Retomar, asistente: bool) -> String {
     let sigue = if asistente { "«continúa»" } else { "«@asistente continúa»" };
     let aviso = match r {
-        Retomar::OtraVez => "↻ PixPin se cerró antes de que acabara. Lo retomo desde el principio en la respuesta de abajo.".to_string(),
+        Retomar::OtraVez => "↻ PinDesk se cerró antes de que acabara. Lo retomo desde el principio en la respuesta de abajo.".to_string(),
         Retomar::Avisar(m) => {
             let porque = match m {
                 Motivo::YaActuo => format!(
@@ -222,7 +222,7 @@ pub(crate) fn texto_cortado(parcial: &str, r: &Retomar, asistente: bool) -> Stri
                 Motivo::SinPregunta => "No encuentro tu pedido (¿se borró?), así que no puedo retomarlo.".to_string(),
                 Motivo::NoSePudo(aviso) => format!("No he podido retomarlo: {aviso}"),
             };
-            format!("⚠️ PixPin se cerró antes de que acabara esto. {porque}")
+            format!("⚠️ PinDesk se cerró antes de que acabara esto. {porque}")
         }
     };
     let parcial = sin_lo_vivo(parcial);
@@ -384,9 +384,9 @@ mod pruebas {
         // Un texto suyo que acaba en puntos suspensivos se queda.
         assert_eq!(sin_lo_vivo("Y entonces…"), "Y entonces…");
         let t = texto_cortado("💭 Pensando…", &Retomar::OtraVez, true);
-        assert!(t.starts_with("↻ PixPin se cerró"), "{t}");
+        assert!(t.starts_with("↻ PinDesk se cerró"), "{t}");
         let t = texto_cortado("Ya apunte dos tareas ▍", &Retomar::Avisar(Motivo::YaActuo), true);
-        assert!(t.starts_with("Ya apunte dos tareas\n\n⚠️ PixPin se cerró"), "{t}");
+        assert!(t.starts_with("Ya apunte dos tareas\n\n⚠️ PinDesk se cerró"), "{t}");
         assert!(t.contains("«continúa»") && !t.contains("@asistente"), "{t}");
         let t = texto_cortado("", &Retomar::Avisar(Motivo::Viejo), false);
         assert!(t.contains("«@asistente continúa»"), "{t}");
@@ -437,7 +437,7 @@ mod pruebas {
         assert!(r.iter().all(|x| x.otra_vez.is_none()), "nada se relanza");
         let de = |id: &str| r.iter().find(|x| x.cortada.id == id).unwrap().cortada.texto.clone();
         let t = de(&hecho);
-        assert!(t.starts_with("Voy apuntando\n\n⚠️ PixPin se cerró") && t.contains("no lo repito"), "{t}");
+        assert!(t.starts_with("Voy apuntando\n\n⚠️ PinDesk se cerró") && t.contains("no lo repito"), "{t}");
         assert!(de(&sin_motor).contains("No he podido retomarlo"), "{}", de(&sin_motor));
         // Lo de disco ya se cogio: la segunda vez no hay nada.
         assert!(n.ia_retomar_al_arrancar(ajustes).is_empty());
