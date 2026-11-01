@@ -105,6 +105,10 @@ final class ModeloFiguras: ObservableObject {
     @Published private(set) var categorias: [CategoriaDeFiguras] = []
     @Published private(set) var lista: [FichaDeFigura] = []
     @Published private(set) var cuantas: UInt32 = 0
+    /// El interruptor ☀/☾ (Windows 22878f0): de noche, las gemelas
+    /// «(noche)» de las plantillas en el sitio de las de dia. Uno para todas
+    /// las ventanas de figuras, recordado en `estado.toml`.
+    @Published private(set) var noche = false
     @Published private(set) var elegida: FichaDeFigura?
     @Published private(set) var campos: [CampoDeIntervalo] = []
     @Published var valores: [String: String] = [:] { didSet { rehacerPrevia() } }
@@ -122,6 +126,14 @@ final class ModeloFiguras: ObservableObject {
     init(galeria: GaleriaFiguras, destino: ModeloEditorLienzo?) {
         self.galeria = galeria
         self.destino = destino
+        noche = galeria.deNoche()
+        rehacer()
+    }
+
+    /// ☀/☾: cambia de modo, lo recuerda y rehace la rejilla.
+    func alternarNoche() {
+        noche.toggle()
+        galeria.ponerDeNoche(noche: noche)
         rehacer()
     }
 
@@ -179,6 +191,8 @@ final class ModeloFiguras: ObservableObject {
     /// Vuelve a leer la biblioteca (se guardo una desde el lienzo o el chat).
     func releer() {
         try? galeria.releer()
+        // El ☀/☾ pudo cambiarse en la otra ventana de figuras.
+        noche = galeria.deNoche()
         miniaturas = [:]
         pedidas = []
         rehacer()
@@ -370,6 +384,11 @@ struct VistaFiguras: View {
                     BotonCabecera(icono: "rectangle.stack.badge.plus", rotulo: "Guardar lo elegido") {
                         modelo.herramienta { $0.guardarComoFigura() }
                     }
+                }
+                // ☀/☾: dice el modo puesto y, de noche, va encendido.
+                BotonCabecera(icono: modelo.noche ? "moon.fill" : "sun.max", rotulo: modelo.noche ? "Noche" : "Día",
+                              activo: modelo.noche) {
+                    modelo.alternarNoche()
                 }
             }
             HStack(spacing: 0) {
