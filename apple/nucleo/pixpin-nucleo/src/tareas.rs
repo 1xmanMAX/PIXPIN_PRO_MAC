@@ -125,7 +125,7 @@ fn ordenar_listas(v: &mut [ListaTareas]) {
 }
 
 impl Nucleo {
-    fn lista_de(&self, ficha: &almacen::Ficha, m: &Mensaje, hoy: mini::Fecha) -> ListaTareas {
+    pub(crate) fn lista_de(&self, ficha: &almacen::Ficha, m: &Mensaje, hoy: mini::Fecha) -> ListaTareas {
         let tareas: Vec<Tarea> = mini::leer_tareas(&m.texto)
             .into_iter()
             .enumerate()
@@ -564,11 +564,36 @@ impl Nucleo {
         let fichero = carpeta.join("guardados.jsonl");
         let ahora = crate::ahora_ms();
         let hoy = mini::Fecha::de_ms_locales(ahora + desfase_ms);
+        let inbox = self.lista_o_nueva(ficha, nombre_lista)?;
+        let nuevo = cuaderno::cambiar(&carpeta, &inbox.id, |m| {
+            m.texto = mini::anadir_el(&m.texto, &texto, hoy);
+            true
+        })?
+        .ok_or(ErrorNucleo::NoExiste {
+            que: inbox.id.clone(),
+        })?;
+        self.cache_tomada().quitar(&fichero);
+        // El chat sube en la lista, como `subir_en_la_lista`.
+        let mut indice = Indice::leer_si_esta(raiz)?;
+        if let Some(f) = indice.proyectos.iter_mut().find(|f| f.id == ficha.id) {
+            f.tocado = ahora;
+            f.resumen = nombre_lista.to_string();
+            indice.guardar(raiz)?;
+        }
+        Ok(self.lista_de(ficha, &nuevo, hoy))
+    }
+
+    /// La lista de tareas `nombre_lista` del chat `ficha` (sin mirar
+    /// mayusculas ni tildes), creandola vacia si no esta (`pedidos::nueva_lista`
+    /// de Windows).
+    pub(crate) fn lista_o_nueva(&self, ficha: &almacen::Ficha, nombre_lista: &str) -> Result<Mensaje, ErrorNucleo> {
+        let carpeta = almacen::carpeta(self.ruta(), &ficha.id);
+        let fichero = carpeta.join("guardados.jsonl");
         let buscada = pixpin_ia::acciones::normalizar(nombre_lista.trim());
         let inbox = listas_del_cuaderno(&fichero)?
             .into_iter()
             .find(|m| !m.en_buzon && pixpin_ia::acciones::normalizar(nombre_de_lista(m).trim()) == buscada);
-        let inbox = match inbox {
+        Ok(match inbox {
             Some(m) => m,
             None => {
                 // Una lista nueva y vacia, como `pedidos::nueva_lista`.
@@ -593,23 +618,7 @@ impl Nucleo {
                 cache.quitar(&fichero);
                 m
             }
-        };
-        let nuevo = cuaderno::cambiar(&carpeta, &inbox.id, |m| {
-            m.texto = mini::anadir_el(&m.texto, &texto, hoy);
-            true
-        })?
-        .ok_or(ErrorNucleo::NoExiste {
-            que: inbox.id.clone(),
-        })?;
-        self.cache_tomada().quitar(&fichero);
-        // El chat sube en la lista, como `subir_en_la_lista`.
-        let mut indice = Indice::leer_si_esta(raiz)?;
-        if let Some(f) = indice.proyectos.iter_mut().find(|f| f.id == ficha.id) {
-            f.tocado = ahora;
-            f.resumen = nombre_lista.to_string();
-            indice.guardar(raiz)?;
-        }
-        Ok(self.lista_de(ficha, &nuevo, hoy))
+        })
     }
 }
 

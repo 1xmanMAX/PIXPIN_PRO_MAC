@@ -8843,6 +8843,14 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [String], desfaseMs: Int64) throws  -> ListaTareas
     
     /**
+     * **El grupo de tareas de una asignatura nueva**, ya (el «+» del
+     * Horario, `asignaturas::asegurar_lista` de Windows): su lista vacia en
+     * el chat «Asignaturas» (los dos se crean si no estan), para que salga
+     * en el desplegable de Tareas y en el chat. Si ya estaba, la de antes.
+     */
+    func asegurarListaDeAsignatura(asignatura: String, desfaseMs: Int64) throws  -> ListaTareas
+    
+    /**
      * **La lista de la asignatura** `asignatura` entre `listas` (las de
      * Tareas): la del chat «Asignaturas» que se llama asi, sin tildes ni
      * mayusculas (`asignaturas::de` de Windows). No crea nada: `None` si
@@ -12570,6 +12578,23 @@ open func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [Stri
         FfiConverterString.lower(asignatura),
         FfiConverterString.lower(texto),
         FfiConverterSequenceString.lower(imagenes),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El grupo de tareas de una asignatura nueva**, ya (el «+» del
+     * Horario, `asignaturas::asegurar_lista` de Windows): su lista vacia en
+     * el chat «Asignaturas» (los dos se crean si no estan), para que salga
+     * en el desplegable de Tareas y en el chat. Si ya estaba, la de antes.
+     */
+open func asegurarListaDeAsignatura(asignatura: String, desfaseMs: Int64)throws  -> ListaTareas  {
+    return try  FfiConverterTypeListaTareas_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_asegurar_lista_de_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(asignatura),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
     )
 })
@@ -16487,6 +16512,12 @@ public protocol SemanaHorarioProtocol: AnyObject, Sendable {
     func anadirAsignatura(escrito: String)  -> Bool
     
     /**
+     * **«+» de «Nueva asignatura»**: la anade (con el aula detras si se
+     * pone) o dice cual era la repetida.
+     */
+    func anadirAsignaturaEscrita(escrito: String)  -> AsignaturaAnadida
+    
+    /**
      * Los minutos de antes que avisa una clase sin aviso propio (los del
      * horario).
      */
@@ -16503,12 +16534,19 @@ public protocol SemanaHorarioProtocol: AnyObject, Sendable {
     func cambiarColor(i: UInt32) 
     
     /**
+     * **«Deshacer»**: la semana de antes del ultimo cambio, otra vez en
+     * `horario.md` (una sola vez, como en Windows). `false`: no habia nada.
+     */
+    func deshacer() throws  -> Bool
+    
+    /**
      * La ficha del bloque `i` (aula, notas y aviso), o nada si no esta.
      */
     func fichaDeClase(i: UInt32)  -> FichaDeClase?
     
     /**
      * **Guarda** en `horario.md` (solo las lineas de clases y asignaturas).
+     * Si cambio algo, lo de antes queda para «Deshacer».
      */
     func guardar() throws 
     
@@ -16526,6 +16564,11 @@ public protocol SemanaHorarioProtocol: AnyObject, Sendable {
      * como mucho de un dia.
      */
     func ponerFichaDeClase(i: UInt32, ficha: FichaDeClase) 
+    
+    /**
+     * Si hay un cambio que deshacer.
+     */
+    func puedeDeshacer()  -> Bool
     
     /**
      * Suelta la asignatura `asignatura` en el dia y minuto: un bloque nuevo.
@@ -16625,6 +16668,20 @@ open func anadirAsignatura(escrito: String) -> Bool  {
 }
     
     /**
+     * **«+» de «Nueva asignatura»**: la anade (con el aula detras si se
+     * pone) o dice cual era la repetida.
+     */
+open func anadirAsignaturaEscrita(escrito: String) -> AsignaturaAnadida  {
+    return try!  FfiConverterTypeAsignaturaAnadida_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_anadir_asignatura_escrita(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(escrito),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * Los minutos de antes que avisa una clase sin aviso propio (los del
      * horario).
      */
@@ -16683,6 +16740,19 @@ open func cambiarColor(i: UInt32)  {try! rustCall() {
 }
     
     /**
+     * **«Deshacer»**: la semana de antes del ultimo cambio, otra vez en
+     * `horario.md` (una sola vez, como en Windows). `false`: no habia nada.
+     */
+open func deshacer()throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_deshacer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * La ficha del bloque `i` (aula, notas y aviso), o nada si no esta.
      */
 open func fichaDeClase(i: UInt32) -> FichaDeClase?  {
@@ -16697,6 +16767,7 @@ open func fichaDeClase(i: UInt32) -> FichaDeClase?  {
     
     /**
      * **Guarda** en `horario.md` (solo las lineas de clases y asignaturas).
+     * Si cambio algo, lo de antes queda para «Deshacer».
      */
 open func guardar()throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
         uniffiCallStatus in
@@ -16744,6 +16815,18 @@ open func ponerFichaDeClase(i: UInt32, ficha: FichaDeClase)  {try! rustCall() {
         FfiConverterTypeFichaDeClase_lower(ficha),uniffiCallStatus
     )
 }
+}
+    
+    /**
+     * Si hay un cambio que deshacer.
+     */
+open func puedeDeshacer() -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_puede_deshacer(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
 }
     
     /**
@@ -41364,6 +41447,100 @@ public func FfiConverterTypeAlineacionReflujo_lower(_ value: AlineacionReflujo) 
 
 
 /**
+ * **Lo que paso al pulsar «+»** con lo escrito en «Nueva asignatura»
+ * (el `Accion::Anadir` de Windows).
+ */
+
+public enum AsignaturaAnadida: Equatable, Hashable {
+    
+    /**
+     * Nueva, en el puesto `indice` (Windows: «Arrastra «X» a la semana»).
+     */
+    case nueva(indice: UInt32, nombre: String
+    )
+    /**
+     * Ya estaba en el puesto `indice` (Windows: «X» ya está en la lista).
+     */
+    case repetida(indice: UInt32, nombre: String
+    )
+    /**
+     * No habia nombre: nada.
+     */
+    case nada
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AsignaturaAnadida: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAsignaturaAnadida: FfiConverterRustBuffer {
+    typealias SwiftType = AsignaturaAnadida
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AsignaturaAnadida {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .nueva(indice: try FfiConverterUInt32.read(from: &buf), nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .repetida(indice: try FfiConverterUInt32.read(from: &buf), nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .nada
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AsignaturaAnadida, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .nueva(indice,nombre):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt32.write(indice, into: &buf)
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case let .repetida(indice,nombre):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt32.write(indice, into: &buf)
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case .nada:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsignaturaAnadida_lift(_ buf: RustBuffer) throws -> AsignaturaAnadida {
+    return try FfiConverterTypeAsignaturaAnadida.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsignaturaAnadida_lower(_ value: AsignaturaAnadida) -> RustBuffer {
+    return FfiConverterTypeAsignaturaAnadida.lower(value)
+}
+
+
+
+/**
  * Lo que hizo [`Escucha::atender`].
  */
 
@@ -58672,6 +58849,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_en_asignatura() != 29781) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_asegurar_lista_de_asignatura() != 60953) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_lista_de_asignatura() != 51738) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -59407,6 +59587,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_anadir_asignatura() != 34009) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_anadir_asignatura_escrita() != 5849) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_antelacion_del_horario() != 32310) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -59425,10 +59608,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_cambiar_color() != 9888) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_deshacer() != 64037) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_ficha_de_clase() != 23144) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_guardar() != 39032) {
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_guardar() != 7463) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_mover() != 29409) {
@@ -59438,6 +59624,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_poner_ficha_de_clase() != 56435) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_puede_deshacer() != 11244) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_soltar() != 54008) {
