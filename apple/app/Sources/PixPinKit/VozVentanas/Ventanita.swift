@@ -227,7 +227,7 @@ final class MicrofonoSuelto {
     static func explicar(_ error: Error) -> String {
         switch error as? ErrorVoz {
         case .sinPermisoMicrofono?:
-            "PixPin no tiene permiso para el micrófono (Ajustes del Sistema > Privacidad y seguridad > Micrófono)"
+            "PinDesk no tiene permiso para el micrófono (Ajustes del Sistema > Privacidad y seguridad > Micrófono)"
         default:
             "No hay micrófono disponible"
         }

@@ -44,7 +44,7 @@ public enum SeccionAjustes: String, CaseIterable, Identifiable, Sendable {
         case .asistente: Lengua.t("ajustes2-sec-asistente-sub")
         case .atajos: "Pulsa «Cambiar» y luego la combinación. ⌫ la deja sin atajo; Esc cancela."
         case .sincro: "Cómo se encuentra este Mac con el móvil y los demás equipos."
-        case .apariencia: "El aspecto de PixPin."
+        case .apariencia: "El aspecto de PinDesk."
         case .avanzado: "El archivo de ajustes y la carpeta de datos."
         }
     }
@@ -414,7 +414,7 @@ public enum FilasAjustes {
         let g = Lengua.t("ajustes2-g-fichero")
         return [
             FilaAjuste(id: "fichero", seccion: .avanzado, grupo: g, titulo: Lengua.t("ajustes2-fichero"),
-                       ayuda: "pixpinmax.toml, el mismo que PixPin para Windows. Lo que no está aquí sigue ahí, con sus comentarios. Lo cambiado a mano vale al reiniciar.",
+                       ayuda: "pixpinmax.toml, el mismo que PinDesk para Windows. Lo que no está aquí sigue ahí, con sus comentarios. Lo cambiado a mano vale al reiniciar.",
                        control: .boton(Lengua.t("ajustes2-abrir-fichero")) { m in Task { await m.abrirFicheroAjustes() } }),
             FilaAjuste(id: "datos", seccion: .avanzado, grupo: g, titulo: "Carpeta de datos",
                        ayuda: "Proyectos, capturas, sincronización y el archivo de ajustes.",

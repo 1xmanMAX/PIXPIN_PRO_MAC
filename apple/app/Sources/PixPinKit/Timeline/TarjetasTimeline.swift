@@ -360,7 +360,7 @@ enum ImagenDeMomento {
                 Image(nsImage: img).resizable().scaledToFit().frame(maxHeight: 420)
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            Text("PixPin Max · Timeline").font(.system(size: 11)).foregroundStyle(Paleta.v2.gris)
+            Text("PinDesk · Timeline").font(.system(size: 11)).foregroundStyle(Paleta.v2.gris)
         }
         .padding(24)
         .frame(width: 520, alignment: .leading)

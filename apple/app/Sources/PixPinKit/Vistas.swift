@@ -91,7 +91,7 @@ public struct VentanaProyectos: View {
                     }
                 } message: { _ in
                     Text("Se borra también en tus otros aparatos la próxima vez que sincronices. "
-                        + "Queda una copia en la papelera de PixPin por si te arrepientes.")
+                        + "Queda una copia en la papelera de PinDesk por si te arrepientes.")
                 }
                 .frame(width: estrecho ? nil : anchoListaVisible)
                 .frame(maxWidth: estrecho ? .infinity : nil)

@@ -63,7 +63,7 @@ public final class GrabadoraVoz: ObservableObject {
     public func empezar(en chat: String, almacen: Almacen) async {
         guard estado == .quieta else { return }
         guard await GrabadoraVoz.permisoMicrofono() else {
-            almacen.ponerError("PixPin no tiene permiso para el microfono (Ajustes del Sistema > Privacidad y seguridad > Microfono).")
+            almacen.ponerError("PinDesk no tiene permiso para el microfono (Ajustes del Sistema > Privacidad y seguridad > Microfono).")
             return
         }
         ReproductorVoz.compartido.parar()

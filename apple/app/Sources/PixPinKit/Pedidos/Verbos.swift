@@ -167,7 +167,7 @@ public enum Verbos {
             .ocr(rutas: try soloImagenes(e, "ocr"), copiar: e.campos["copiar"] != nil)
         },
         Fila(nombres: ["copiar-texto"], uso: "copiar-texto <imagen>…",
-             ayuda: "PixPin lee el texto de las imagenes, lo copia y lo dice en su aviso (los Servicios del Finder).",
+             ayuda: "PinDesk lee el texto de las imagenes, lo copia y lo dice en su aviso (los Servicios del Finder).",
              opciones: [], porEnlace: false) { e in
             let rutas = try soloImagenes(e, "copiar-texto")
             var campos: [String: ValorPedido] = ["ruta": .texto(rutas[0])]
@@ -175,7 +175,7 @@ public enum Verbos {
             return uno("ocr", campos)
         },
         Fila(nombres: ["leer", "leer-en-voz"], uso: "leer \"<texto>\" [--titulo T]",
-             ayuda: "Lee el texto en voz alta con la voz de PixPin, sin abrir nada.",
+             ayuda: "Lee el texto en voz alta con la voz de PinDesk, sin abrir nada.",
              opciones: ["texto", "titulo"], porEnlace: true) { e in
             guard let t = e.textoO("texto") else { throw FalloOrden.noSeEntiende("leer: falta el texto") }
             return uno("leer_en_voz", ["texto": .texto(t), "titulo": .t(e.campo("titulo"))])
@@ -188,7 +188,7 @@ public enum Verbos {
             return .pedidos([pedidoAlAsistente(texto, ficheros: ficheros, proyecto: e.campo("proyecto"))])
         },
         Fila(nombres: ["abrir", "open"], uso: "abrir <fichero>… [--pagina N] [--buscar T]",
-             ayuda: "Abre cada fichero como «Abrir con PixPin» (lector, editor o pin).",
+             ayuda: "Abre cada fichero como «Abrir con PinDesk» (lector, editor o pin).",
              opciones: ["pagina", "buscar", "ruta", "tipo", "proyecto", "codigo", "referencia"], porEnlace: true,
              armar: armarAbrir),
         Fila(nombres: ["ventana"], uso: "ventana tareas|galeria|lecciones|sincronizar",
@@ -295,7 +295,7 @@ public enum Verbos {
 
     /// La ayuda, sacada de la tabla.
     public static func ayuda() -> String {
-        var s = "PixPin Max: pedirle cosas a PixPin desde fuera.\n\n"
+        var s = "PinDesk: pedirle cosas a PinDesk desde fuera.\n\n"
             + "Enlaces: pixpinmax://<verbo>?campo=valor (y pixpin://atajo/<verbo> de Android).\n\nVerbos:\n"
         for f in tabla {
             s += "  " + f.uso.padding(toLength: max(52, f.uso.count), withPad: " ", startingAt: 0) + " " + f.ayuda + "\n"

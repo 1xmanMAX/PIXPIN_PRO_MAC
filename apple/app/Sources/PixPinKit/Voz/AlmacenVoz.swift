@@ -93,7 +93,7 @@ extension TranscriptorVoz {
     public static func explicar(_ error: Error) -> String {
         switch error as? ErrorVoz {
         case .sinPermisoTranscribir?:
-            return "PixPin no tiene permiso para reconocer voz (Ajustes del Sistema > Privacidad y seguridad > Reconocimiento de voz)."
+            return "PinDesk no tiene permiso para reconocer voz (Ajustes del Sistema > Privacidad y seguridad > Reconocimiento de voz)."
         case .sinReconocedor?:
             return "Este Mac no tiene el reconocimiento de voz sin conexion para espanol. Activalo en Ajustes del Sistema > Teclado > Dictado."
         default:

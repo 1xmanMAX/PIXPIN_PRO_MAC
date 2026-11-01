@@ -23,8 +23,8 @@ public final class AccionesApp {
 
         public var errorDescription: String? {
             switch self {
-            case let .sinDatos(detalle): return "No se pudo abrir la carpeta de datos de PixPin: \(detalle)"
-            case .sinApp: return "PixPin aún se está abriendo; inténtalo otra vez en un momento."
+            case let .sinDatos(detalle): return "No se pudo abrir la carpeta de datos de PinDesk: \(detalle)"
+            case .sinApp: return "PinDesk aún se está abriendo; inténtalo otra vez en un momento."
             case .vacio: return "No hay nada que escribir."
             }
         }

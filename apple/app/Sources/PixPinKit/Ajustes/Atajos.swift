@@ -98,9 +98,9 @@ public enum ComandoAtajo: String, CaseIterable, Identifiable, Sendable {
         case .abrirChat: "Abrir Proyectos"
         case .abrirAjustes: "Abrir Ajustes"
         case .recibirDelMovil: "Recibir del móvil"
-        case .salir: "Salir de PixPin"
+        case .salir: "Salir de PinDesk"
         case .sincronizar: "Sincronizar"
-        case .buscar: "Buscar en PixPin"
+        case .buscar: "Buscar en PinDesk"
         case .grabarClase: "Grabar clase o reunión"
         case .grabarPantalla: "Grabar la pantalla"
         }

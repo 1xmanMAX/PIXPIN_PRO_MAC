@@ -32,9 +32,9 @@ public enum PermisoCaptura {
     public static func avisarDenegado(detalle: String? = nil) {
         let alerta = NSAlert()
         alerta.alertStyle = .warning
-        alerta.messageText = "PixPin no tiene permiso para capturar la pantalla"
+        alerta.messageText = "PinDesk no tiene permiso para capturar la pantalla"
         var texto = "Abre Ajustes del Sistema > Privacidad y seguridad > Grabacion de pantalla y audio del sistema, "
-            + "activa PixPin y vuelve a abrir la app (macOS solo aplica el permiso al reiniciarla)."
+            + "activa PinDesk y vuelve a abrir la app (macOS solo aplica el permiso al reiniciarla)."
         if let detalle { texto += "\n\n\(detalle)" }
         alerta.informativeText = texto
         alerta.addButton(withTitle: "Abrir Ajustes")

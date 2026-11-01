@@ -11,7 +11,7 @@ import SwiftUI
 @MainActor
 enum MenuBandeja {
     static func armar(atajos: GestorAtajos, sincro: Sincronizador?) -> NSMenu {
-        let menu = NSMenu(title: "PixPin")
+        let menu = NSMenu(title: "PinDesk")
         menu.autoenablesItems = false
         let grabador = GrabadorPantalla.compartido
         let pines = GestorPines.compartido
@@ -59,7 +59,7 @@ enum MenuBandeja {
         menu.addItem(ventana("Lecciones…", "lecciones"))
         menu.addItem(ventana("Asistente…", "asistente"))
         menu.addItem(ventana("Automatizaciones…", "automatizaciones"))
-        menu.addItem(comando("Buscar en PixPin…", .buscar, siNo: KeyboardShortcut("f", modifiers: [.command, .option])))
+        menu.addItem(comando("Buscar en PinDesk…", .buscar, siNo: KeyboardShortcut("f", modifiers: [.command, .option])))
         menu.addItem(ventana(Lengua.t("bandeja-galeria-capturas"), IdVentana.galeria))
         menu.addItem(ventana("Timeline…", IdVentana.timeline))
         menu.addItem(ventana("Tareas…", IdVentana.tareas))

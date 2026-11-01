@@ -12,6 +12,38 @@ Estados posibles:
 - **no aplica**: en Mac no tiene sentido o lo hace el sistema.
 - **interno**: fontanería; la nota dice si el Mac necesita algo equivalente.
 
+## El nombre: PinDesk (1-nov-2026, Windows `docs/nombre-pindesk.md`, 938b107e)
+
+Como Windows: **cambia el nombre visible, no lo que guarda datos, lo lee otro aparato o ya está
+registrado**. Hecho:
+
+- Los textos de la app (avisos, menús de la barra, «Buscar en PinDesk», «Salir de PinDesk»,
+  permisos, sincronizar, el asistente, el pie «PinDesk · Timeline», la ayuda de los verbos, el
+  cuadro de un enlace «Un enlace le pide a PinDesk:», los App Intents y la extensión de Compartir),
+  ~70 literales de `K/**` y `XC/App`, `XC/Compartir`; los catálogos (`pixpin-store/i18n`) y los
+  textos del núcleo (asistente, MCP `serverInfo.title`, pies y `generator` de lo exportado, puente)
+  ya venían con PinDesk (c2d0ca2a); aquí además el «asistente de PinDesk» del OCR del MCP.
+- `Info.plist` (SwiftPM y Xcode, y las dos extensiones): `CFBundleName`/`CFBundleDisplayName`
+  «PinDesk», «Proyecto de PinDesk», «Dibujo de PinDesk», los `NS*UsageDescription` y los
+  Servicios del Finder («PinDesk/Al chat»…).
+- El paquete se entrega como **`PinDesk.app`** (`app.sh`: el producto de Xcode sigue siendo
+  `PixPin.app` y se copia con el nombre nuevo), `PinDesk-mac.zip`, `PinDesk-Mac-<v>.dmg` y el
+  artefacto de la CI «PinDesk-mac-extensiones». El puente del navegador busca la app
+  (`exe_de_pixpin`) en su propio paquete y si no en `/Applications/PinDesk.app` y luego
+  `/Applications/PixPin.app` (como Windows `pindesk.exe` y luego `pixpinmax.exe`, con pruebas);
+  `registrar-navegador.sh` igual. El MCP no busca la app (abre `pixpinmax://`).
+- La extensión del navegador, igual que la de Windows (nombre, menú y avisos).
+
+Se queda igual (y por qué, lo mismo que en Windows): `~/Library/Application Support/PixPinMax`,
+`pixpinmax.toml`, el Llavero `PixPinMax.*` (y su etiqueta «PixPin: clave de …», que no se ve en la
+app), `CFBundleIdentifier` `io.github.1xmanmax.pixpin` y los UTI, `CFBundleExecutable`
+(`Contents/MacOS/PixPin`) y el `NSPortName` de los Servicios, los esquemas `pixpin`/`pixpinmax`,
+`.pixpin`, `_pixpin._tcp` y la instancia «PixPin <equipo>», «PixPin · hoja N», las fotos
+`PixPin_…`, los mazos «PixPin::», el anfitrión `com.pixpinmax.puente`, las claves de
+`UserDefaults`/ventanas/notificaciones (`PixPin…`), la cabecera `X-PixPin-Plazo`, los `NSLog`,
+y los módulos y tipos (`PixPinKit`, `PixPinCore`, `PixPinMacApp`, `AppPixPin`, `CompartirPixPin`).
+El icono no cambia: Windows solo cambió el texto del `banner.svg` de su README.
+
 ## Resumen
 
 Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias filas (`ventana_chat`, `ventana_ajustes`, `ventana_editor`, `notas_md`, `pines`, `sincronizar`, `timeline`, `plano_cad`).

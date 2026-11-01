@@ -146,7 +146,7 @@ struct SeccionTusAparatos: View {
         } header: {
             Text("Tus aparatos")
         } footer: {
-            Text("Si no aparece: que tenga PixPin abierto y esté en esta Wi-Fi.")
+            Text("Si no aparece: que tenga PinDesk abierto y esté en esta Wi-Fi.")
                 .font(.caption).foregroundStyle(.secondary)
         }
         .confirmationDialog("¿Salir del grupo?", isPresented: $saliendo) {

@@ -132,7 +132,7 @@ public enum MenuDelDock {
         // Lo demas del catalogo de comandos, como la bandeja de Windows.
         let mas: [(String, Pedido)] = [
             ("Tareas", Pedido("ventana", ["cual": .texto("tareas")])),
-            ("Buscar en PixPin…", Pedido("ventana", ["cual": .texto("buscar")])),
+            ("Buscar en PinDesk…", Pedido("ventana", ["cual": .texto("buscar")])),
             ("Galería de capturas", Pedido("ventana", ["cual": .texto("galeria")])),
             ("Pinear la última captura", Pedido("pinear_ultima")),
         ]

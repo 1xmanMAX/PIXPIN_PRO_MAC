@@ -542,16 +542,18 @@ fn la_raiz_es_la_del_mac_y_la_app_la_de_su_paquete() {
         "{:?}",
         e.raiz
     );
-    // Dentro de PixPin.app, la app es esa; suelto, la de /Applications.
-    let dentro = PathBuf::from("/x/PixPin.app/Contents/MacOS");
-    assert_eq!(
-        exe_de_pixpin(Some(&dentro)),
-        Some(PathBuf::from("/x/PixPin.app"))
-    );
-    assert_eq!(
-        exe_de_pixpin(Some(&d)),
-        Some(PathBuf::from("/Applications/PixPin.app"))
-    );
+    // Dentro de PinDesk.app (o de la PixPin.app de antes), la app es esa;
+    // suelto, la de /Applications: PinDesk.app y si no, PixPin.app.
+    for paquete in ["/x/PinDesk.app", "/x/PixPin.app"] {
+        let dentro = PathBuf::from(paquete).join("Contents/MacOS");
+        assert_eq!(exe_de_pixpin(Some(&dentro)), Some(PathBuf::from(paquete)));
+    }
+    let nueva = PathBuf::from("/Applications/PinDesk.app");
+    let vieja = PathBuf::from("/Applications/PixPin.app");
+    assert_eq!(exe_de_pixpin_con(Some(&d), |_| true), Some(nueva.clone()));
+    assert_eq!(exe_de_pixpin_con(Some(&d), |p| p == vieja), Some(vieja.clone()));
+    // Sin ninguna, la de ahora (para el aviso de que falta).
+    assert_eq!(exe_de_pixpin_con(Some(&d), |_| false), Some(nueva));
     assert_eq!(
         Entorno::del_equipo(Some(&d), Some(PathBuf::from("z")))
             .unwrap()

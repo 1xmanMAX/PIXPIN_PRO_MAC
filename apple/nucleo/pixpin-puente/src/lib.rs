@@ -71,7 +71,7 @@ impl Cartero for AlaApp {
             .exe
             .as_ref()
             .filter(|e| e.exists())
-            .ok_or("No se encuentra PixPin.app")?;
+            .ok_or("No se encuentra PinDesk.app")?;
         std::process::Command::new("open")
             .arg("-g")
             .arg(app)
@@ -168,17 +168,28 @@ impl Entorno {
 /// `pindesk.exe` (o el `pixpinmax.exe` de antes): junto al puente (asi se
 /// instala) o en el sitio fijo de `Instalar.cmd`.
 pub fn exe_de_pixpin(dir_exe: Option<&Path>) -> Option<PathBuf> {
-    // Dentro de la app (`PixPin.app/Contents/MacOS/pixpin-puente`) o en
-    // /Applications.
+    exe_de_pixpin_con(dir_exe, |p| p.exists())
+}
+
+/// Las apps de /Applications que se prueban, en orden: `PinDesk.app` (el
+/// nombre de ahora) y la `PixPin.app` de antes, como Windows prueba
+/// `pindesk.exe` y luego `pixpinmax.exe`.
+pub const APPS_EN_APLICACIONES: [&str; 2] = ["/Applications/PinDesk.app", "/Applications/PixPin.app"];
+
+/// [`exe_de_pixpin`] con quien dice si una ruta existe (para las pruebas).
+pub fn exe_de_pixpin_con(dir_exe: Option<&Path>, existe: impl Fn(&Path) -> bool) -> Option<PathBuf> {
+    // Dentro de la app (`PinDesk.app/Contents/MacOS/pixpin-puente`, o la
+    // `PixPin.app` de antes: cualquier `.app`) o en /Applications.
     let dentro = dir_exe
         .and_then(|d| d.parent())
         .and_then(|c| c.parent())
         .filter(|a| a.extension().is_some_and(|e| e == "app"));
-    Some(
-        dentro
-            .map(Path::to_path_buf)
-            .unwrap_or_else(|| PathBuf::from("/Applications/PixPin.app")),
-    )
+    if let Some(a) = dentro {
+        return Some(a.to_path_buf());
+    }
+    let candidatas = APPS_EN_APLICACIONES.map(PathBuf::from);
+    let hallada = candidatas.iter().find(|p| existe(p)).cloned();
+    Some(hallada.unwrap_or_else(|| candidatas[0].clone()))
 }
 
 /// **Una vuelta del puente**: lee un mensaje, lo hace y contesta. Devuelve

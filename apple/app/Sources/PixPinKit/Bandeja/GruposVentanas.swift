@@ -366,7 +366,7 @@ public final class GruposVentanas {
         case let .abrir(id):
             guard let g = grupos.first(where: { $0.id == id }) else { return }
             if abrir(g) < g.ventanas.count {
-                CentroAvisos.compartido.avisar(Aviso(id: "pixpin.grupos-ventanas", categoria: .mini, titulo: "PixPin",
+                CentroAvisos.compartido.avisar(Aviso(id: "pixpin.grupos-ventanas", categoria: .mini, titulo: "PinDesk",
                                                      texto: Lengua.t("grupos-alguna-falta")))
             }
         case let .borrar(id):

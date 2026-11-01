@@ -376,7 +376,7 @@ final class ChatAbierto: ObservableObject {
     private func cosaCompartida(_ ids: [String]) -> CosaCompartida? {
         let mensajes = cargados.filter { ids.contains($0.id) }
         guard !mensajes.isEmpty else { return nil }
-        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PixPin"
+        let titulo = almacen.chats.first { $0.id == chat }?.nombre ?? "PinDesk"
         return .mensajes(chat: chat, titulo: titulo, mensajes)
     }
 

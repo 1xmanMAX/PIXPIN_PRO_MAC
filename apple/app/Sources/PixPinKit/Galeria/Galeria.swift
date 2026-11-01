@@ -202,8 +202,8 @@ public final class ModeloGaleria: ObservableObject {
         case let .success(borradas):
             ultimoBorrado = borradas
             error = nil
-            avisar(borradas.count == 1 ? "Llevada a la papelera de PixPin"
-                : "\(borradas.count) llevadas a la papelera de PixPin", largo: true)
+            avisar(borradas.count == 1 ? "Llevada a la papelera de PinDesk"
+                : "\(borradas.count) llevadas a la papelera de PinDesk", largo: true)
         case let .failure(e):
             error = "\(e)"
         }

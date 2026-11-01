@@ -25,7 +25,7 @@ final class ControladorCompartir: NSViewController {
     private var ids: [String] = []
 
     override func loadView() {
-        let titulo = NSTextField(labelWithString: "Mandar a un proyecto de PixPin")
+        let titulo = NSTextField(labelWithString: "Mandar a un proyecto de PinDesk")
         titulo.font = .boldSystemFont(ofSize: 13)
         estado.font = .systemFont(ofSize: 11)
         estado.textColor = .secondaryLabelColor
@@ -71,7 +71,7 @@ final class ControladorCompartir: NSViewController {
     private func cargarProyectos() {
         let raiz = ControladorCompartir.carpetaDeDatos()
         guard FileManager.default.fileExists(atPath: raiz.path) else {
-            estado.stringValue = "Abre PixPin una vez en este Mac antes de compartir."
+            estado.stringValue = "Abre PinDesk una vez en este Mac antes de compartir."
             return
         }
         let nombre = Host.current().localizedName ?? "Mac"
@@ -97,7 +97,7 @@ final class ControladorCompartir: NSViewController {
             botonEnviar.isEnabled = !chats.isEmpty
             estado.stringValue = chats.isEmpty ? "No hay proyectos." : ""
         case let .failure(e):
-            estado.stringValue = "No se pudo abrir la carpeta de PixPin: \(e.localizedDescription)"
+            estado.stringValue = "No se pudo abrir la carpeta de PinDesk: \(e.localizedDescription)"
         }
     }
 

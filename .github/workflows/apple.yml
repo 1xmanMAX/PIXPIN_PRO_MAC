@@ -3,7 +3,7 @@ name: Apple
 # PixPin para Mac (apple/): compila el nucleo de Rust como xcframework,
 # compila y prueba la app de Swift en un Mac de verdad y deja la app lista
 # para descargar (Actions > esta ejecucion > Artifacts >
-# PixPin-mac-extensiones: la app completa). La app sin extensiones
+# PinDesk-mac-extensiones: la app completa). La app sin extensiones
 # (`herramientas/app.sh spm`) sigue sirviendo en un Mac sin XcodeGen.
 on:
   push:
@@ -94,12 +94,12 @@ jobs:
         run: |
           brew install xcodegen
           xcodegen version
-      - name: Montar PixPin.app con extensiones (Xcode)
+      - name: Montar PinDesk.app con extensiones (Xcode)
         run: herramientas/app.sh xcode
       - name: Subir la app con extensiones
         uses: actions/upload-artifact@v4
         with:
-          name: PixPin-mac-extensiones
-          path: apple/app/dist-xcode/PixPin-mac.zip
+          name: PinDesk-mac-extensiones
+          path: apple/app/dist-xcode/PinDesk-mac.zip
           if-no-files-found: error
           retention-days: 30

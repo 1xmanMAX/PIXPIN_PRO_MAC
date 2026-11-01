@@ -67,7 +67,7 @@ struct CapturarZona: AppIntent {
 
 struct NuevaNotaEnProyecto: AppIntent {
     static let title: LocalizedStringResource = "Nueva nota en proyecto"
-    static let description = IntentDescription("Escribe una nota al final de un proyecto de PixPin.")
+    static let description = IntentDescription("Escribe una nota al final de un proyecto de PinDesk.")
 
     @Parameter(title: "Proyecto")
     var proyecto: ProyectoEntidad
@@ -88,14 +88,14 @@ struct NuevaNotaEnProyecto: AppIntent {
 }
 
 struct BuscarEnPixPin: AppIntent {
-    static let title: LocalizedStringResource = "Buscar en PixPin"
+    static let title: LocalizedStringResource = "Buscar en PinDesk"
     static let description = IntentDescription("Busca en todos los proyectos, notas, tareas y momentos.")
 
     @Parameter(title: "Buscar")
     var consulta: String
 
     static var parameterSummary: some ParameterSummary {
-        Summary("Buscar \(\.$consulta) en PixPin")
+        Summary("Buscar \(\.$consulta) en PinDesk")
     }
 
     @MainActor
@@ -195,7 +195,7 @@ struct GrabarNotaDeVoz: AppIntent {
 
 struct AbrirProyecto: AppIntent {
     static let title: LocalizedStringResource = "Abrir proyecto"
-    static let description = IntentDescription("Abre el chat de un proyecto en PixPin.")
+    static let description = IntentDescription("Abre el chat de un proyecto en PinDesk.")
     static let openAppWhenRun: Bool = true
 
     @Parameter(title: "Proyecto")

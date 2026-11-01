@@ -1,8 +1,8 @@
-# PixPin Max Pro para Mac
+# PinDesk para Mac
 
-## ¿Qué es PixPin?
+## ¿Qué es PinDesk?
 
-**PixPin Max** es una app para **capturar, anotar y organizar** todo lo que haces en la
+**PinDesk** (antes PixPin Max) es una app para **capturar, anotar y organizar** todo lo que haces en la
 pantalla. Las capturas se convierten en **pines flotantes** encima de las demás ventanas.
 Cada proyecto es un **chat** donde se guardan fotos, notas, documentos, planos, lienzos y
 notas de voz. Todo funciona **sin cuentas ni servidores**: los aparatos se sincronizan
@@ -59,23 +59,25 @@ desarrollo** sobre el mismo núcleo.
 
 **Lo más fácil: Releases.** En [Releases](https://github.com/1xmanMAX/PIXPIN_PRO_MAC/releases)
 está la última versión como **instalador `.dmg`** (Apple Silicon e Intel): se abre, se arrastra
-**PixPin** a **Aplicaciones** y se sigue desde el paso 3 de abajo. Lo nuevo de cada versión
+**PinDesk** a **Aplicaciones** y se sigue desde el paso 3 de abajo. Si tenías la `PixPin.app`
+de antes, bórrala: es la misma app (mismos datos, mismo identificador) con el nombre viejo. Lo nuevo de cada versión
 está en [`docs/releases/`](docs/releases) (la última: [v0.4.0](docs/releases/v0.4.0.md)).
 
 También, cada cambio compila la app en un Mac de GitHub (`.github/workflows/apple.yml`), pasa las
 pruebas, comprueba que arranca y deja la app para descargar:
 
 1. **Actions** > la última ejecución verde de **Apple** > **Artifacts** >
-   **PixPin-mac-extensiones** (la app completa). Hay que tener la sesión de GitHub iniciada.
-2. Descomprimir dos veces hasta tener **PixPin.app** y moverla a **Aplicaciones**.
+   **PinDesk-mac-extensiones** (la app completa). Hay que tener la sesión de GitHub iniciada.
+2. Descomprimir dos veces hasta tener **PinDesk.app** y moverla a **Aplicaciones** (y borrar la
+   `PixPin.app` de antes, si estaba).
 3. Abrirla con doble clic. macOS la bloquea la primera vez (aún no está firmada con cuenta
    de Apple Developer): **Ajustes del Sistema > Privacidad y seguridad**, bajar hasta
    **Seguridad** y pulsar **Abrir igualmente**. O, en el Terminal:
-   `xattr -dr com.apple.quarantine /Applications/PixPin.app`
+   `xattr -dr com.apple.quarantine /Applications/PinDesk.app`
 4. Al capturar por primera vez, dar el permiso de **Grabación de pantalla** y volver a
-   abrir PixPin.
+   abrir PinDesk.
 
-PixPin vive también en la **barra de menús** (arriba a la derecha), como la bandeja de
+PinDesk vive también en la **barra de menús** (arriba a la derecha), como la bandeja de
 Windows; al abrirla sale la ventana de Proyectos.
 
 ## Qué hay aquí
@@ -87,7 +89,7 @@ Windows; al abrirla sale la ventana de Proyectos.
 | [`apple/app/`](apple/app) | La app de Mac (SwiftPM) y sus 555 pruebas. |
 | [`apple/xcode/`](apple/xcode) | El proyecto de Xcode (XcodeGen) con las extensiones. |
 | [`apple/herramientas/`](apple/herramientas) | `xcframework.sh` (núcleo → xcframework), `app.sh` (monta y firma la app), `registrar-navegador.sh` (extensión del navegador) y `subir-release.sh` (sube la rama y la release). |
-| [`apple/extension-navegador/`](apple/extension-navegador) | La extensión de Chrome que habla con PixPin por `pixpin-puente`. |
+| [`apple/extension-navegador/`](apple/extension-navegador) | La extensión de Chrome que habla con PinDesk por `pixpin-puente`. |
 | [`docs/releases/`](docs/releases) | Las notas de cada versión. |
 | [`apple/por-adaptar/`, `apple/por-traducir/`](apple) | Referencia de Windows aún sin pasar (no se compila aquí). |
 | [`docs/investigacion/`](docs/investigacion) | El plan: evaluación, herramientas de Apple, sincronización y fases. |
@@ -98,7 +100,7 @@ Windows; al abrirla sale la ventana de Proyectos.
 cd apple
 herramientas/xcframework.sh        # núcleo de Rust -> PixPinCore (necesita Xcode y rustup)
 cd app && swift test && cd ..      # pruebas de la app
-herramientas/app.sh                # PixPin.app (con extensiones si hay xcodegen)
+herramientas/app.sh                # PinDesk.app (con extensiones si hay xcodegen)
 ```
 
 ## Qué trae (resumen)

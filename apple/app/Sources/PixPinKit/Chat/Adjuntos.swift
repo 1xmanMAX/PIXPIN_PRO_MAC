@@ -112,7 +112,7 @@ struct BurbujaArchivo: View {
                 } label: {
                     Label("Editar las hojas", systemImage: "tablecells")
                 }
-                .help("Editar en PixPin, con sus hojas en pestañas; lo editado queda en el chat como tablas. El archivo no cambia.")
+                .help("Editar en PinDesk, con sus hojas en pestañas; lo editado queda en el chat como tablas. El archivo no cambia.")
             }
             // Un PDF que se esta aligerando (o como acabo).
             if let url, TiposDeDocumento.clase(de: url) == .pdf {

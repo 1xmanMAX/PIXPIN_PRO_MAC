@@ -398,7 +398,7 @@ public final class GrabarClase: ObservableObject {
         panel?.tomaTeclado = false
         Task {
             if fuentes.microfono, !(await GrabadoraVoz.permisoMicrofono()) {
-                return fallo("No hay micrófono, o PixPin no tiene permiso para usarlo. Mira en Ajustes del Sistema › Privacidad › Micrófono.")
+                return fallo("No hay micrófono, o PinDesk no tiene permiso para usarlo. Mira en Ajustes del Sistema › Privacidad › Micrófono.")
             }
             ReproductorVoz.compartido.parar()
             let url = FileManager.default.temporaryDirectory
@@ -529,7 +529,7 @@ public final class GrabarClase: ObservableObject {
     nonisolated static func explicar(_ error: Error) -> String {
         switch error as? ErrorAudioClase {
         case .sinSonidoDelEquipo?: "No se oye nada del equipo: no hay altavoces ni cascos activos"
-        case .sinMicrofono?: "No hay micrófono, o PixPin no tiene permiso para usarlo. Mira en Ajustes del Sistema › Privacidad › Micrófono."
+        case .sinMicrofono?: "No hay micrófono, o PinDesk no tiene permiso para usarlo. Mira en Ajustes del Sistema › Privacidad › Micrófono."
         default: "No se pudo grabar la nota de voz."
         }
     }

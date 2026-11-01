@@ -158,7 +158,7 @@ final class Recolector: @unchecked Sendable {
         }
         elementos.append(contentsOf: nuevos as [Any])
         let resumen = nuevos.isEmpty
-            ? "\(nombre): esta herramienta aún no se puede hacer en PixPin para Mac"
+            ? "\(nombre): esta herramienta aún no se puede hacer en PinDesk para Mac"
             : "dibujadas \(nuevos.count) figuras"
         hechas.append(HerramientaUsada(nombre: nombre, ok: !nuevos.isEmpty, resumen: resumen))
         return resumen
