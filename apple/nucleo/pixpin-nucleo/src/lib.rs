@@ -153,6 +153,7 @@ pub mod modelos3d;
 /// dentro de la burbuja (Windows 974d5ba).
 pub mod nota_rica;
 pub mod notas;
+pub mod nube;
 pub mod office;
 pub mod opciones_del_mensaje;
 pub mod paginas;

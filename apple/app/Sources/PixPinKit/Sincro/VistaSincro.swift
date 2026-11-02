@@ -52,6 +52,10 @@ public struct VistaSincro: View {
                 }
             }
 
+            // La nube de los chats compartidos (Windows c5c94e4): la
+            // direccion y la llave.
+            SeccionNube(nucleo: sincro.nucleo)
+
             Section {
                 Button("Ver las copias…") { verCopias = true }
             } header: {

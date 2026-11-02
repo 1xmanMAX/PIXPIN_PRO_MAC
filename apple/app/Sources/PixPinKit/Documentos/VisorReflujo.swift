@@ -444,6 +444,9 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     let reflujo = ModeloReflujo()
     private let capaMarcos = CapaMarcosVista()
     private lazy var marcos = MarcosDoc(documento: url, nucleo: nucleo)
+    /// «En línea / Sin conexión» si es un adjunto de un chat de la nube
+    /// (Windows c5c94e4 y 701f862, `Sincro/Nube.swift`).
+    private lazy var enLinea = EnLineaDelVisor(documento: url, nucleo: nucleo)
     let buscador = BuscadorLector()
     let avance = AvanceLector()
     private(set) lazy var voz = VozDelReflujo(visor: self)
@@ -578,6 +581,15 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             isla.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
         ])
         contenedor.taparDerecho(bajo: isla)
+        // «En línea / Sin conexión»: arriba a la izquierda, a la altura
+        // de la isla (solo en un chat de la nube).
+        let botonNube = NSHostingView(rootView: BotonEnLinea(modelo: enLinea).fixedSize())
+        botonNube.translatesAutoresizingMaskIntoConstraints = false
+        contenedor.addSubview(botonNube)
+        NSLayoutConstraint.activate([
+            botonNube.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor, constant: 16),
+            botonNube.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
+        ])
         // La barrita de marcar, encima de todo (la coloca `ponerBarrita`).
         contenedor.addSubview(anfitrionBarrita)
         marcar.pulsar = { [weak self] b in self?.pulsarBarrita(b) }
@@ -2122,9 +2134,11 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         voz.alCerrar()
         guardadoPendiente?.cancel()
         guardarLectura()
-        if let ed = editor {
-            let ruta = url.path, alDia = self.alDia
-            colaGuardar.async { _ = ControladorReflujo.guardarTinta(ed, ruta: ruta, alDia: alDia) }
+        let ruta = url.path, alDia = self.alDia, enLinea = self.enLinea, ed = editor
+        colaGuardar.async {
+            if let ed { _ = ControladorReflujo.guardarTinta(ed, ruta: ruta, alDia: alDia) }
+            // Ya guardado lo suyo: si estaba sin conexion, se pregunta.
+            DispatchQueue.main.async { MainActor.assumeIsolated { enLinea.alCerrar() } }
         }
         for v in vigias { NotificationCenter.default.removeObserver(v) }
         vigias = []

@@ -176,6 +176,11 @@ final class EstadoApp: ObservableObject {
                 MotorAutomatizaciones.compartido.alSincronizar(sincro?.ultimoResultado ?? "")
             }
             sincro.arrancar()
+            // Y la nube de los chats compartidos que van por ella
+            // (`Sincro/Nube.swift`): sin direccion ni llave no hace nada.
+            NubeDelMac.compartida.arrancar(nucleo: almacen.nucleo) { [weak sincro] in
+                sincro?.alTraerCambios?()
+            }
         }
         // Lo que se hace con la zona elegida: pinearla o sacar su texto.
         capturador.alPinear = { GestorPines.compartido.pinear(imagen: $0) }

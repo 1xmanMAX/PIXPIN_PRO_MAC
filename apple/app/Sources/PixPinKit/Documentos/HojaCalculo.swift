@@ -256,6 +256,9 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     /// El riel (lapiz, marcador, marco), como en Windows.
     let riel: RielHoja
+    /// «En línea / Sin conexión» si el libro es un adjunto de un chat de la
+    /// nube (Windows 5999e73, `Sincro/Nube.swift`).
+    let enLinea: EnLineaDelVisor
 
     /// El libro (para exportarlo entero); `nil` si no viene de un fichero.
     private(set) var urlDelLibro: URL?
@@ -289,6 +292,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         urlDelLibro = url
         self.hoja = hoja
         riel = RielHoja(url: url, nucleo: nucleo)
+        enLinea = EnLineaDelVisor(documento: url, nucleo: nucleo)
         ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 980, height: 660),
                            styleMask: [.titled, .closable, .miniaturizable, .resizable],
                            backing: .buffered, defer: false)
@@ -427,6 +431,15 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         ])
         ventana.contentView = raiz
         riel.montar(en: raiz, rejilla: rejilla, arriba: BarraFlotante.alto + 2 * BarraFlotante.separacion + 30)
+        // «En línea / Sin conexión»: arriba a la izquierda de la hoja, bajo
+        // la barra de formulas (solo en un chat de la nube).
+        let botonNube = NSHostingView(rootView: BotonEnLinea(modelo: enLinea).fixedSize())
+        botonNube.translatesAutoresizingMaskIntoConstraints = false
+        raiz.addSubview(botonNube)
+        NSLayoutConstraint.activate([
+            botonNube.topAnchor.constraint(equalTo: scroll.topAnchor, constant: 8),
+            botonNube.leadingAnchor.constraint(equalTo: raiz.leadingAnchor, constant: 8),
+        ])
         riel.irA = { [weak self] h, f, c in
             guard let self else { return }
             if Int(self.hoja.activa()) != h { self.irAHoja(h) }
@@ -903,8 +916,14 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     func windowWillClose(_ notification: Notification) {
         if ventana.firstResponder === barra.currentEditor() { confirmar() }
         guardado?.cancel()
-        let hoja = self.hoja
-        colaGuardar.async { ControladorHoja.guardarYa(hoja) }
+        let hoja = self.hoja, enLinea = self.enLinea
+        // La tinta pendiente, ya (antes de preguntar por «Sin conexión»).
+        riel.capaTinta.guardarYa()
+        colaGuardar.async {
+            ControladorHoja.guardarYa(hoja)
+            // Ya guardado lo suyo: si estaba sin conexion, se pregunta.
+            DispatchQueue.main.async { MainActor.assumeIsolated { enLinea.alCerrar() } }
+        }
         NotificationCenter.default.removeObserver(self)
         alCerrar?(self)
     }

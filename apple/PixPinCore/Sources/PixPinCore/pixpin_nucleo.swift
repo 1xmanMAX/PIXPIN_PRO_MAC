@@ -9690,6 +9690,94 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func abrirNota(destino: DestinoNota, ingles: Bool) throws  -> SesionNota
     
     /**
+     * **Arranca la nube** (una vez, al arrancar la app): los dos hilos de
+     * Rust. Sin direccion ni llave no hacen nada (miran cada pocos
+     * segundos). `aviso` lo llaman desde esos hilos.
+     */
+    func arrancarNube(aviso: AvisoNube) 
+    
+    /**
+     * **«Chat compartido en la nube»** (el «+» de la lista): nace
+     * compartido, como [`Nucleo::crear_chat_compartido`], y va por la nube.
+     */
+    func crearChatCompartidoEnLaNube(nombre: String) throws  -> ChatNuevo
+    
+    /**
+     * **La nubecita de la lista**: el estado de cada chat de la nube que
+     * ya tiene ficha aqui.
+     */
+    func estadosDeLaNube()  -> [EstadoNubeDeFicha]
+    
+    /**
+     * Por donde va el chat compartido `chat` (el id que viaja,
+     * `ChatCompartidoMac.chat`).
+     */
+    func modoDeChatCompartido(chat: String)  -> ModoNube
+    
+    /**
+     * Lo que ensena «Sincronizar → Nube».
+     */
+    func nubeAjustes()  -> AjustesNube
+    
+    /**
+     * **Al salir de un documento sin conexion** (despues de que el visor
+     * guarde lo suyo), lo elegido: descartar, subir o dejarlo.
+     */
+    func nubeAlCerrar(sitio: SitioNube, eleccion: AlCerrarNube) throws 
+    
+    /**
+     * **«Guardar»**: la direccion (a `sincro/nube/ajustes.json`) y, si no
+     * viene vacia, la llave (al Llavero).
+     */
+    func nubeGuardar(direccion: String, llave: String?) throws  -> GuardadoNube
+    
+    /**
+     * «Olvidar» la llave de este aparato.
+     */
+    func nubeOlvidarLlave() throws 
+    
+    /**
+     * **Pasa lo anotado a sin conexion** (`sin`) **o lo vuelve a en linea**
+     * (lo de aqui sube en la vuelta siguiente, solo los trazos nuevos).
+     */
+    func nubePonerSinConexion(sitio: SitioNube, sin: Bool) throws 
+    
+    /**
+     * **«Probar»**: `GET hola`, y presentarse si hace falta. Bloquea (red):
+     * llamarlo fuera del hilo principal.
+     */
+    func nubeProbar() throws  -> SaludoNube
+    
+    /**
+     * Si lo anotado de `sitio` esta «Sin conexión».
+     */
+    func nubeSinConexion(sitio: SitioNube)  -> Bool
+    
+    /**
+     * El sitio de lo anotado del documento `ruta` (PDF, Word, hoja,
+     * plano...), si es un adjunto de un chat de la nube. `None`: no sale
+     * el boton.
+     */
+    func nubeSitioDeDocumento(ruta: String)  -> SitioNube?
+    
+    /**
+     * El sitio del lienzo `referencia` de la ficha `ficha`, si su chat va
+     * por la nube.
+     */
+    func nubeSitioDeLienzo(ficha: String, referencia: String)  -> SitioNube?
+    
+    /**
+     * Lo que dijo la nube la ultima vez que se probo.
+     */
+    func nubeUltimoSaludo()  -> UltimoSaludoNube?
+    
+    /**
+     * **«Por dónde va»**: pasa el chat compartido `chat` a la red local o a
+     * la nube (`sincro/nube/chats.json`; `compartidos.json` no se toca).
+     */
+    func ponerModoDeChatCompartido(chat: String, modo: ModoNube) throws 
+    
+    /**
      * **Adjunta la hoja `hoja` del proyecto `desde` al chat `hacia`**
      * (Clip → «Página de un proyecto»). `png`: la pagina ya pintada, si
      * [`Nucleo::pagina_por_pintar`] lo pidio.
@@ -14000,6 +14088,209 @@ open func abrirNota(destino: DestinoNota, ingles: Bool)throws  -> SesionNota  {
         FfiConverterBool.lower(ingles),uniffiCallStatus
     )
 })
+}
+    
+    /**
+     * **Arranca la nube** (una vez, al arrancar la app): los dos hilos de
+     * Rust. Sin direccion ni llave no hacen nada (miran cada pocos
+     * segundos). `aviso` lo llaman desde esos hilos.
+     */
+open func arrancarNube(aviso: AvisoNube)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_arrancar_nube(
+            self.uniffiCloneHandle(),
+        FfiConverterCallbackInterfaceAvisoNube_lower(aviso),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **«Chat compartido en la nube»** (el «+» de la lista): nace
+     * compartido, como [`Nucleo::crear_chat_compartido`], y va por la nube.
+     */
+open func crearChatCompartidoEnLaNube(nombre: String)throws  -> ChatNuevo  {
+    return try  FfiConverterTypeChatNuevo_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_crear_chat_compartido_en_la_nube(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La nubecita de la lista**: el estado de cada chat de la nube que
+     * ya tiene ficha aqui.
+     */
+open func estadosDeLaNube() -> [EstadoNubeDeFicha]  {
+    return try!  FfiConverterSequenceTypeEstadoNubeDeFicha.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_estados_de_la_nube(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Por donde va el chat compartido `chat` (el id que viaja,
+     * `ChatCompartidoMac.chat`).
+     */
+open func modoDeChatCompartido(chat: String) -> ModoNube  {
+    return try!  FfiConverterTypeModoNube_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_modo_de_chat_compartido(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo que ensena «Sincronizar → Nube».
+     */
+open func nubeAjustes() -> AjustesNube  {
+    return try!  FfiConverterTypeAjustesNube_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_ajustes(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Al salir de un documento sin conexion** (despues de que el visor
+     * guarde lo suyo), lo elegido: descartar, subir o dejarlo.
+     */
+open func nubeAlCerrar(sitio: SitioNube, eleccion: AlCerrarNube)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_al_cerrar(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSitioNube_lower(sitio),
+        FfiConverterTypeAlCerrarNube_lower(eleccion),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **«Guardar»**: la direccion (a `sincro/nube/ajustes.json`) y, si no
+     * viene vacia, la llave (al Llavero).
+     */
+open func nubeGuardar(direccion: String, llave: String?)throws  -> GuardadoNube  {
+    return try  FfiConverterTypeGuardadoNube_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_guardar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(direccion),
+        FfiConverterOptionString.lower(llave),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * «Olvidar» la llave de este aparato.
+     */
+open func nubeOlvidarLlave()throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_olvidar_llave(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **Pasa lo anotado a sin conexion** (`sin`) **o lo vuelve a en linea**
+     * (lo de aqui sube en la vuelta siguiente, solo los trazos nuevos).
+     */
+open func nubePonerSinConexion(sitio: SitioNube, sin: Bool)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_poner_sin_conexion(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSitioNube_lower(sitio),
+        FfiConverterBool.lower(sin),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * **«Probar»**: `GET hola`, y presentarse si hace falta. Bloquea (red):
+     * llamarlo fuera del hilo principal.
+     */
+open func nubeProbar()throws  -> SaludoNube  {
+    return try  FfiConverterTypeSaludoNube_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_probar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Si lo anotado de `sitio` esta «Sin conexión».
+     */
+open func nubeSinConexion(sitio: SitioNube) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_sin_conexion(
+            self.uniffiCloneHandle(),
+        FfiConverterTypeSitioNube_lower(sitio),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El sitio de lo anotado del documento `ruta` (PDF, Word, hoja,
+     * plano...), si es un adjunto de un chat de la nube. `None`: no sale
+     * el boton.
+     */
+open func nubeSitioDeDocumento(ruta: String) -> SitioNube?  {
+    return try!  FfiConverterOptionTypeSitioNube.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_sitio_de_documento(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ruta),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El sitio del lienzo `referencia` de la ficha `ficha`, si su chat va
+     * por la nube.
+     */
+open func nubeSitioDeLienzo(ficha: String, referencia: String) -> SitioNube?  {
+    return try!  FfiConverterOptionTypeSitioNube.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_sitio_de_lienzo(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(ficha),
+        FfiConverterString.lower(referencia),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Lo que dijo la nube la ultima vez que se probo.
+     */
+open func nubeUltimoSaludo() -> UltimoSaludoNube?  {
+    return try!  FfiConverterOptionTypeUltimoSaludoNube.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_nube_ultimo_saludo(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Por dónde va»**: pasa el chat compartido `chat` a la red local o a
+     * la nube (`sincro/nube/chats.json`; `compartidos.json` no se toca).
+     */
+open func ponerModoDeChatCompartido(chat: String, modo: ModoNube)throws   {try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_modo_de_chat_compartido(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterTypeModoNube_lower(modo),uniffiCallStatus
+    )
+}
 }
     
     /**
@@ -19508,6 +19799,85 @@ public func FfiConverterTypeAjustesMac_lift(_ buf: RustBuffer) throws -> Ajustes
 #endif
 public func FfiConverterTypeAjustesMac_lower(_ value: AjustesMac) -> RustBuffer {
     return FfiConverterTypeAjustesMac.lower(value)
+}
+
+
+/**
+ * Lo que ensena «Sincronizar → Nube».
+ */
+public struct AjustesNube: Equatable, Hashable {
+    /**
+     * La direccion de la web, sin barra final (o vacia).
+     */
+    public var direccion: String
+    /**
+     * La llave guardada, enmascarada (`pxn_…a1b2`), si la hay.
+     */
+    public var llaveGuardada: String?
+    /**
+     * Hay direccion y llave.
+     */
+    public var configurada: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * La direccion de la web, sin barra final (o vacia).
+         */direccion: String, 
+        /**
+         * La llave guardada, enmascarada (`pxn_…a1b2`), si la hay.
+         */llaveGuardada: String?, 
+        /**
+         * Hay direccion y llave.
+         */configurada: Bool) {
+        self.direccion = direccion
+        self.llaveGuardada = llaveGuardada
+        self.configurada = configurada
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension AjustesNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAjustesNube: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AjustesNube {
+        return
+            try AjustesNube(
+                direccion: FfiConverterString.read(from: &buf), 
+                llaveGuardada: FfiConverterOptionString.read(from: &buf), 
+                configurada: FfiConverterBool.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AjustesNube, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.direccion, into: &buf)
+        FfiConverterOptionString.write(value.llaveGuardada, into: &buf)
+        FfiConverterBool.write(value.configurada, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAjustesNube_lift(_ buf: RustBuffer) throws -> AjustesNube {
+    return try FfiConverterTypeAjustesNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAjustesNube_lower(_ value: AjustesNube) -> RustBuffer {
+    return FfiConverterTypeAjustesNube.lower(value)
 }
 
 
@@ -27671,6 +28041,63 @@ public func FfiConverterTypeEstadoIa_lift(_ buf: RustBuffer) throws -> EstadoIa 
 #endif
 public func FfiConverterTypeEstadoIa_lower(_ value: EstadoIa) -> RustBuffer {
     return FfiConverterTypeEstadoIa.lower(value)
+}
+
+
+/**
+ * El estado de un chat de la nube, por su ficha (`FichaChat.id`).
+ */
+public struct EstadoNubeDeFicha: Equatable, Hashable {
+    public var ficha: String
+    public var estado: EstadoNube
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ficha: String, estado: EstadoNube) {
+        self.ficha = ficha
+        self.estado = estado
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EstadoNubeDeFicha: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEstadoNubeDeFicha: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EstadoNubeDeFicha {
+        return
+            try EstadoNubeDeFicha(
+                ficha: FfiConverterString.read(from: &buf), 
+                estado: FfiConverterTypeEstadoNube.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EstadoNubeDeFicha, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ficha, into: &buf)
+        FfiConverterTypeEstadoNube.write(value.estado, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstadoNubeDeFicha_lift(_ buf: RustBuffer) throws -> EstadoNubeDeFicha {
+    return try FfiConverterTypeEstadoNubeDeFicha.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstadoNubeDeFicha_lower(_ value: EstadoNubeDeFicha) -> RustBuffer {
+    return FfiConverterTypeEstadoNubeDeFicha.lower(value)
 }
 
 
@@ -41816,6 +42243,63 @@ public func FfiConverterTypeRotulosDeBuscarEnChats_lower(_ value: RotulosDeBusca
 
 
 /**
+ * Lo que dijo la nube al probarla.
+ */
+public struct SaludoNube: Equatable, Hashable {
+    public var espacio: String
+    public var persona: String?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(espacio: String, persona: String?) {
+        self.espacio = espacio
+        self.persona = persona
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SaludoNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSaludoNube: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SaludoNube {
+        return
+            try SaludoNube(
+                espacio: FfiConverterString.read(from: &buf), 
+                persona: FfiConverterOptionString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SaludoNube, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.espacio, into: &buf)
+        FfiConverterOptionString.write(value.persona, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSaludoNube_lift(_ buf: RustBuffer) throws -> SaludoNube {
+    return try FfiConverterTypeSaludoNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSaludoNube_lower(_ value: SaludoNube) -> RustBuffer {
+    return FfiConverterTypeSaludoNube.lower(value)
+}
+
+
+/**
  * Un trozo de lo reconocido y en que milisegundo del audio empieza (el
  * `Segmento` de `pindesk-voz`; Swift lo saca de `SFTranscriptionSegment`).
  */
@@ -42153,6 +42637,70 @@ public func FfiConverterTypeServicioIa_lift(_ buf: RustBuffer) throws -> Servici
 #endif
 public func FfiConverterTypeServicioIa_lower(_ value: ServicioIa) -> RustBuffer {
     return FfiConverterTypeServicioIa.lower(value)
+}
+
+
+/**
+ * **Lo anotado de un visor en un chat de la nube**: la carpeta de datos,
+ * el chat (el id que viaja) y la clave de lo anotado (el codigo del
+ * adjunto, `anot-<uid>…`, o la referencia de un lienzo,
+ * `pins/draw/<referencia>.excalidraw.gz`).
+ */
+public struct SitioNube: Equatable, Hashable {
+    public var raiz: String
+    public var chat: String
+    public var clave: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(raiz: String, chat: String, clave: String) {
+        self.raiz = raiz
+        self.chat = chat
+        self.clave = clave
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension SitioNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSitioNube: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SitioNube {
+        return
+            try SitioNube(
+                raiz: FfiConverterString.read(from: &buf), 
+                chat: FfiConverterString.read(from: &buf), 
+                clave: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SitioNube, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.raiz, into: &buf)
+        FfiConverterString.write(value.chat, into: &buf)
+        FfiConverterString.write(value.clave, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSitioNube_lift(_ buf: RustBuffer) throws -> SitioNube {
+    return try FfiConverterTypeSitioNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSitioNube_lower(_ value: SitioNube) -> RustBuffer {
+    return FfiConverterTypeSitioNube.lower(value)
 }
 
 
@@ -44148,6 +44696,69 @@ public func FfiConverterTypeTurnoVoz_lower(_ value: TurnoVoz) -> RustBuffer {
 
 
 /**
+ * La ultima prueba de la conexion: el espacio, o el error en palabras.
+ */
+public struct UltimoSaludoNube: Equatable, Hashable {
+    public var bien: Bool
+    /**
+     * El espacio si `bien`; si no, lo que fallo.
+     */
+    public var texto: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(bien: Bool, 
+        /**
+         * El espacio si `bien`; si no, lo que fallo.
+         */texto: String) {
+        self.bien = bien
+        self.texto = texto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension UltimoSaludoNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeUltimoSaludoNube: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UltimoSaludoNube {
+        return
+            try UltimoSaludoNube(
+                bien: FfiConverterBool.read(from: &buf), 
+                texto: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UltimoSaludoNube, into buf: inout [UInt8]) {
+        FfiConverterBool.write(value.bien, into: &buf)
+        FfiConverterString.write(value.texto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUltimoSaludoNube_lift(_ buf: RustBuffer) throws -> UltimoSaludoNube {
+    return try FfiConverterTypeUltimoSaludoNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeUltimoSaludoNube_lower(_ value: UltimoSaludoNube) -> RustBuffer {
+    return FfiConverterTypeUltimoSaludoNube.lower(value)
+}
+
+
+/**
  * Lo tecleado en un campo del intervalo.
  */
 public struct ValorDeCampo: Equatable, Hashable {
@@ -45292,6 +45903,91 @@ public func FfiConverterTypeAccionTemporizador_lift(_ buf: RustBuffer) throws ->
 #endif
 public func FfiConverterTypeAccionTemporizador_lower(_ value: AccionTemporizador) -> RustBuffer {
     return FfiConverterTypeAccionTemporizador.lower(value)
+}
+
+
+
+/**
+ * Lo elegido al salir de un documento sin conexion.
+ */
+
+public enum AlCerrarNube: Equatable, Hashable {
+    
+    /**
+     * «Sí» (lo de por omision): descartar lo anotado sin conexion.
+     */
+    case descartar
+    /**
+     * «No»: volver a en linea y subirlo.
+     */
+    case subir
+    /**
+     * «Cancelar»: dejarlo sin conexion para la proxima vez.
+     */
+    case dejar
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AlCerrarNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAlCerrarNube: FfiConverterRustBuffer {
+    typealias SwiftType = AlCerrarNube
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AlCerrarNube {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .descartar
+        
+        case 2: return .subir
+        
+        case 3: return .dejar
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AlCerrarNube, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .descartar:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .subir:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .dejar:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAlCerrarNube_lift(_ buf: RustBuffer) throws -> AlCerrarNube {
+    return try FfiConverterTypeAlCerrarNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAlCerrarNube_lower(_ value: AlCerrarNube) -> RustBuffer {
+    return FfiConverterTypeAlCerrarNube.lower(value)
 }
 
 
@@ -48297,6 +48993,101 @@ public func FfiConverterTypeErrorNucleo_lower(_ value: ErrorNucleo) -> RustBuffe
 
 
 /**
+ * Como va un chat de la nube, para la nubecita de la lista.
+ */
+
+public enum EstadoNube: Equatable, Hashable {
+    
+    /**
+     * Azul: subiendo (o aun sin la primera vuelta).
+     */
+    case subiendo
+    /**
+     * Verde: al dia.
+     */
+    case alDia
+    /**
+     * Gris: sin red, o sin direccion ni llave.
+     */
+    case sinRed
+    /**
+     * Roja: la llave no vale o no deja (hay que mirar los ajustes).
+     */
+    case llave
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension EstadoNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEstadoNube: FfiConverterRustBuffer {
+    typealias SwiftType = EstadoNube
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EstadoNube {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .subiendo
+        
+        case 2: return .alDia
+        
+        case 3: return .sinRed
+        
+        case 4: return .llave
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: EstadoNube, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .subiendo:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .alDia:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .sinRed:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .llave:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstadoNube_lift(_ buf: RustBuffer) throws -> EstadoNube {
+    return try FfiConverterTypeEstadoNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEstadoNube_lower(_ value: EstadoNube) -> RustBuffer {
+    return FfiConverterTypeEstadoNube.lower(value)
+}
+
+
+
+/**
  * Que formato lleva un tramo (`md_vivo::Estilo`).
  */
 
@@ -49455,6 +50246,88 @@ public func FfiConverterTypeGrosorEstilo_lower(_ value: GrosorEstilo) -> RustBuf
 
 
 /**
+ * Como acabo «Guardar».
+ */
+
+public enum GuardadoNube: Equatable, Hashable {
+    
+    case guardado
+    /**
+     * `nube-direccion-mala`: ni `https://` ni `http://` a este equipo.
+     */
+    case direccionMala
+    /**
+     * `nube-llave-mala`: no empieza por `pxn_`.
+     */
+    case llaveMala
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension GuardadoNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeGuardadoNube: FfiConverterRustBuffer {
+    typealias SwiftType = GuardadoNube
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GuardadoNube {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .guardado
+        
+        case 2: return .direccionMala
+        
+        case 3: return .llaveMala
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: GuardadoNube, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .guardado:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .direccionMala:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .llaveMala:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGuardadoNube_lift(_ buf: RustBuffer) throws -> GuardadoNube {
+    return try FfiConverterTypeGuardadoNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeGuardadoNube_lower(_ value: GuardadoNube) -> RustBuffer {
+    return FfiConverterTypeGuardadoNube.lower(value)
+}
+
+
+
+/**
  * Continua, a trazos o de puntos (`strokeStyle`).
  */
 
@@ -49706,6 +50579,81 @@ public func FfiConverterTypeModoDeGrabar_lift(_ buf: RustBuffer) throws -> ModoD
 #endif
 public func FfiConverterTypeModoDeGrabar_lower(_ value: ModoDeGrabar) -> RustBuffer {
     return FfiConverterTypeModoDeGrabar.lower(value)
+}
+
+
+
+/**
+ * Por donde va un chat compartido.
+ */
+
+public enum ModoNube: Equatable, Hashable {
+    
+    /**
+     * La red local (mDNS), lo de siempre.
+     */
+    case local
+    /**
+     * La nube: sube y baja desde donde estes (y tambien la red local).
+     */
+    case nube
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension ModoNube: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeModoNube: FfiConverterRustBuffer {
+    typealias SwiftType = ModoNube
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModoNube {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .local
+        
+        case 2: return .nube
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ModoNube, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .local:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .nube:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModoNube_lift(_ buf: RustBuffer) throws -> ModoNube {
+    return try FfiConverterTypeModoNube.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeModoNube_lower(_ value: ModoNube) -> RustBuffer {
+    return FfiConverterTypeModoNube.lower(value)
 }
 
 
@@ -52125,6 +53073,148 @@ public func FfiConverterCallbackInterfaceAvisoDeVuelta_lower(_ v: AvisoDeVuelta)
 
 
 /**
+ * **Avisos de los hilos de la nube a Swift** (desde un hilo de Rust).
+ */
+public protocol AvisoNube: AnyObject, Sendable {
+    
+    /**
+     * Cambio el estado de algun chat (la nubecita) o, con `trajo`, llego
+     * algo de la nube a disco (hay que releer los chats).
+     */
+    func cambio(trajo: Bool) 
+    
+}
+
+
+// Put the implementation in a struct so we don't pollute the top-level namespace
+fileprivate struct UniffiCallbackInterfaceAvisoNube {
+
+    // Create the VTable using a series of closures.
+    // Swift automatically converts these into C callback functions.
+    //
+    // Store the vtable directly.
+    static let vtable: UniffiVTableCallbackInterfaceAvisoNube = UniffiVTableCallbackInterfaceAvisoNube(
+        uniffiFree: { (uniffiHandle: UInt64) -> () in
+            do {
+                try FfiConverterCallbackInterfaceAvisoNube.handleMap.remove(handle: uniffiHandle)
+            } catch {
+                print("Uniffi callback interface AvisoNube: handle missing in uniffiFree")
+            }
+        },
+        uniffiClone: { (uniffiHandle: UInt64) -> UInt64 in
+            do {
+                return try FfiConverterCallbackInterfaceAvisoNube.handleMap.clone(handle: uniffiHandle)
+            } catch {
+                fatalError("Uniffi callback interface AvisoNube: handle missing in uniffiClone")
+            }
+        },
+        cambio: { (
+            uniffiHandle: UInt64,
+            trajo: Int8,
+            uniffiOutReturn: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws -> () in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceAvisoNube.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return uniffiObj.cambio(
+                     trajo: try FfiConverterBool.lift(trajo)
+                )
+            }
+
+            
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        }
+    )
+
+    // Rust stores this pointer for future callback invocations, so it must live
+    // for the process lifetime (not just for the init function call).
+    //
+    // `nonisolated(unsafe)` is needed under Swift 6 strict concurrency.
+    // This is safe because the pointee is initialized once during static init
+    // and never mutated by either side of the FFI.  Its fields are C function pointers.
+    nonisolated(unsafe) static let vtablePtr: UnsafePointer<UniffiVTableCallbackInterfaceAvisoNube> = {
+        let ptr = UnsafeMutablePointer<UniffiVTableCallbackInterfaceAvisoNube>.allocate(capacity: 1)
+        ptr.initialize(to: vtable)
+        return UnsafePointer(ptr)
+    }()
+}
+
+private func uniffiCallbackInitAvisoNube() {
+    uniffi_pixpin_nucleo_fn_init_callback_vtable_avisonube(UniffiCallbackInterfaceAvisoNube.vtablePtr)
+}
+
+// FfiConverter protocol for callback interfaces
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterCallbackInterfaceAvisoNube {
+    fileprivate static let handleMap = UniffiHandleMap<AvisoNube>()
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+extension FfiConverterCallbackInterfaceAvisoNube : FfiConverter {
+    typealias SwiftType = AvisoNube
+    typealias FfiType = UInt64
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lift(_ handle: UInt64) throws -> SwiftType {
+        try handleMap.get(handle: handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func lower(_ v: SwiftType) -> UInt64 {
+        return handleMap.insert(obj: v)
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public static func write(_ v: SwiftType, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(v))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceAvisoNube_lift(_ handle: UInt64) throws -> AvisoNube {
+    return try FfiConverterCallbackInterfaceAvisoNube.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterCallbackInterfaceAvisoNube_lower(_ v: AvisoNube) -> UInt64 {
+    return FfiConverterCallbackInterfaceAvisoNube.lower(v)
+}
+
+
+
+
+/**
  * **Decidir lo que se ofrece** antes de aceptar: devuelve las identidades
  * que se crean como nuevas (lo demas que ya se tenga se pone al dia), o
  * `None` para decir «No, gracias». Se llama desde el hilo que recibe, que
@@ -54522,6 +55612,30 @@ fileprivate struct FfiConverterOptionTypeResumenMini: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeSitioNube: FfiConverterRustBuffer {
+    typealias SwiftType = SitioNube?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeSitioNube.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeSitioNube.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeTablaDelLienzo: FfiConverterRustBuffer {
     typealias SwiftType = TablaDelLienzo?
 
@@ -54682,6 +55796,30 @@ fileprivate struct FfiConverterOptionTypeTransicionDiapositiva: FfiConverterRust
         switch try readInt(&buf) as Int8 {
         case 0: return nil
         case 1: return try FfiConverterTypeTransicionDiapositiva.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeUltimoSaludoNube: FfiConverterRustBuffer {
+    typealias SwiftType = UltimoSaludoNube?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeUltimoSaludoNube.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeUltimoSaludoNube.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
     }
@@ -56644,6 +57782,31 @@ fileprivate struct FfiConverterSequenceTypeEnvioSuelto: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeEnvioSuelto.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeEstadoNubeDeFicha: FfiConverterRustBuffer {
+    typealias SwiftType = [EstadoNubeDeFicha]
+
+    public static func write(_ value: [EstadoNubeDeFicha], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeEstadoNubeDeFicha.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [EstadoNubeDeFicha] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [EstadoNubeDeFicha]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeEstadoNubeDeFicha.read(from: &buf))
         }
         return seq
     }
@@ -62688,6 +63851,28 @@ public func notaPagina() -> String  {
 })
 }
 /**
+ * Si una direccion se puede guardar en «Nube» (para avisar antes).
+ */
+public func nubeDireccionValida(direccion: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nube_direccion_valida(
+        FfiConverterString.lower(direccion),uniffiCallStatus
+    )
+})
+}
+/**
+ * Si una llave tiene pinta de llave de la nube (`pxn_…`).
+ */
+public func nubeLlaveValida(llave: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_nube_llave_valida(
+        FfiConverterString.lower(llave),uniffiCallStatus
+    )
+})
+}
+/**
  * Si el nombre es de los que se paginan aqui (`.docx`, `.pptx`...).
  */
 public func esDocumentoOffice(nombre: String) -> Bool  {
@@ -63887,6 +65072,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_nota_pagina() != 6212) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_nube_direccion_valida() != 36305) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_nube_llave_valida() != 50376) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_es_documento_office() != 43696) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -64704,6 +65895,51 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_abrir_nota() != 49902) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_arrancar_nube() != 5062) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_crear_chat_compartido_en_la_nube() != 12991) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_estados_de_la_nube() != 43898) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_modo_de_chat_compartido() != 62788) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_ajustes() != 44585) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_al_cerrar() != 45952) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_guardar() != 61359) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_olvidar_llave() != 60939) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_poner_sin_conexion() != 44848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_probar() != 48443) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_sin_conexion() != 53095) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_sitio_de_documento() != 41724) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_sitio_de_lienzo() != 34434) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_nube_ultimo_saludo() != 21233) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_modo_de_chat_compartido() != 65369) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_adjuntar_pagina() != 10980) {
@@ -65921,6 +67157,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_decidiroferta_decidir() != 32171) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_avisonube_cambio() != 42367) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_medidorletras_avances() != 39083) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -65949,6 +67188,7 @@ private let initializationResult: InitializationResult = {
     uniffiCallbackInitAbrirNavegador()
     uniffiCallbackInitAvanceAligerar()
     uniffiCallbackInitAvisoDeVuelta()
+    uniffiCallbackInitAvisoNube()
     uniffiCallbackInitDecidirOferta()
     uniffiCallbackInitElegirSincro()
     uniffiCallbackInitMedidorLetras()

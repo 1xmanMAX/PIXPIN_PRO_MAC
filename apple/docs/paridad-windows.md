@@ -66,6 +66,45 @@ el nombre nuevo, se lee también el viejo y se migra una vez**. En el Mac (fase 
 enseña el Mac, `pixpin:files/`, los ficheros `.pixpin-lectura`/`-anotado`/`-marcos`/`-vistas`/
 `-marcas`, `.pixpin2d`, `.pixpin-lista`. No cambia: las magias y la sal de Sincronizar.
 
+## La nube de los chats compartidos (2-nov-2026, Windows `4e3efd5..b29750d`)
+
+Windows d60e55d/f08b469 (el núcleo, ya portado: `pindesk-sincro/src/nube/`), c5c94e4 (el PC),
+842dddd, e7e712a, 7a069bc, 701f862, 5999e73 («En línea / Sin conexión» en los visores) y su
+`docs/nube.md`. Hecho:
+
+- **El puente** (`N/nube.rs`, con pruebas): `sincronizar/nube.rs` de Windows sin ventana. La
+  dirección en `sincro/nube/ajustes.json` (`{"direccion": …}`, el mismo fichero; `sincro/` no
+  viaja), el modo de cada chat en `sincro/nube/chats.json` (`ChatsEnLaNube`), lo sabido por chat en
+  `sincro/nube/chats/<chat>.json` y «Sin conexión» en `sincro/nube/sin-conexion*`: todo lo escribe
+  `pindesk_sincro::nube`, el de Windows; `compartidos.json` no se toca (prueba). **La llave `pxn_…`
+  en el Llavero** (servicio `PixPinMax.nube`, por el `LlaveroApp` de Swift, leída una vez por
+  proceso), nunca en el TOML ni en un registro; sin Llavero no se guarda. **La red**: el
+  `TransporteApp` de Swift (URLSession, el del asistente y Jev) por `pindesk_ia::nube::http::pedir`
+  con el plazo en `X-PixPin-Plazo`; `http://` solo a `127.0.0.1`/`localhost` (por el HTTP local de
+  `pindesk-ia`). **Los hilos** (`Nucleo.arrancarNube`): los dos de Windows en Rust (mirar cada 3 s
+  la firma de la carpeta de cada chat de la nube y subir tras 4 s quieta; novedades con
+  `espera=25`; bajar cada 10 min; espera creciente de `reintentos` sin red; `PUT /yo` firmado con
+  la P‑256 de `compartidos`; los compartidos que otro puso en la nube entran solos salvo «Red local»
+  a mano). Avisan a Swift por `AvisoNube` (la nubecita, y releer los chats si bajó algo).
+- **Sincronizar → Nube** (`K/Sincro/Nube.swift`, `SeccionNube` en `VistaSincro`): «Ajustes de la
+  nube» abre la dirección, la llave (oculta, con «Llave guardada: pxn_…a1b2» y «Olvidar»), Guardar y
+  Probar (el espacio y la persona, o «La nube no contesta: …»).
+- **El «+» de la lista** (`K/ListaProyectos.swift`): Chat / Chat compartido / **Chat compartido en
+  la nube** (`crearChatCompartidoEnLaNube`). **Chats compartidos**: en cada chat donde estoy, «Por
+  dónde va: Red local / Nube» con su explicación; a Nube sin configurar, «Falta la nube…».
+- **La nubecita** arriba a la derecha del avatar de un compartido de la nube (`ChapaNube`): azul
+  subiendo, verde al día, gris sin red, roja si la llave no vale (los colores de Windows).
+- **«En línea / Sin conexión»** (`EnLineaDelVisor`, `BotonEnLinea`; la cápsula arriba a la
+  izquierda, nube verde o tachada dorada): lector de PDF y Office paginado, visor de Word, libros y
+  páginas, visor de hojas (bajo la barra de fórmulas), plano DWG/DXF y modelo 3D (encima, arriba a
+  la izquierda, no en su barra como en Windows) y el lienzo de una hoja del chat (su referencia). Al
+  cerrar sin conexión, ya guardado lo suyo, se pregunta Sí (descartar) / No (subir) / Cancelar
+  (dejarlo).
+
+Falta: la tabla de un chat sin fichero (una hoja sin `ruta`) no lleva el botón; el lienzo no lo
+esconde al presentar; el croquis 3D, el pin de Office y los visores web no lo llevan (como
+Windows). No probado aún contra la nube de referencia desde el Mac.
+
 ## Marcar el texto leyendo (1-nov-2026, Windows `ab2ef84..4e3efd5`)
 
 Windows 9d2e2b1 (el modelo común, ya en el núcleo: `pindesk-motor2d/src/marcas_texto.rs`,

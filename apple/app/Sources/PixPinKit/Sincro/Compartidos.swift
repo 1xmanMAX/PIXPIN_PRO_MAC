@@ -24,6 +24,10 @@ public final class ModeloCompartidos: ObservableObject {
     @Published public private(set) var trabajando = false
     @Published public private(set) var aviso: String?
     @Published public private(set) var error: String?
+    /// Por donde va cada chat (por su id que viaja): la red local o la nube
+    /// (Windows c5c94e4), y si hay nube configurada.
+    @Published public private(set) var modos: [String: ModoNube] = [:]
+    @Published public private(set) var hayNube = false
 
     public let nucleo: Nucleo
     /// La sincronizacion del grupo: sus vecinos de Bonjour dan la direccion
@@ -41,11 +45,18 @@ public final class ModeloCompartidos: ObservableObject {
     public func releer() async {
         let nucleo = self.nucleo
         do {
-            let (lista, nombre) = try await Task.detached(priority: .utility) {
-                try (nucleo.chatsCompartidos(), nucleo.nombreEnCompartidos())
+            let (lista, nombre, modos, hay) = try await Task.detached(priority: .utility) {
+                () throws -> ([ChatCompartidoMac], String, [String: ModoNube], Bool) in
+                let lista = try nucleo.chatsCompartidos()
+                var modos: [String: ModoNube] = [:]
+                for c in lista { modos[c.chat] = nucleo.modoDeChatCompartido(chat: c.chat) }
+                let nombre = try nucleo.nombreEnCompartidos()
+                return (lista, nombre, modos, nucleo.nubeAjustes().configurada)
             }.value
             chats = lista
             miNombre = nombre
+            self.modos = modos
+            hayNube = hay
             // La chapa de la lista y los lados del chat (alguien entro o salio).
             ChapasDeCompartidos.compartidas.releer(nucleo)
         } catch {
@@ -62,6 +73,24 @@ public final class ModeloCompartidos: ObservableObject {
         await trabajar("Compartido: ahora puedes invitar a alguien.") { _ = try $0.compartirChat(ficha: ficha) }
         // Ya hay por que escuchar aunque no haya grupo.
         await sincro?.refrescar()
+    }
+
+    /// **«Por dónde va»**: el chat `chat` (el id que viaja) por la red local
+    /// o por la nube (`sincro/nube/chats.json`; `compartidos.json` no
+    /// cambia). Sin nube configurada se dice donde ponerla.
+    public func ponerModo(chat: String, modo: ModoNube) async {
+        error = nil
+        let nucleo = self.nucleo
+        do {
+            try await Task.detached(priority: .utility) {
+                try nucleo.ponerModoDeChatCompartido(chat: chat, modo: modo)
+            }.value
+            aviso = modo == .nube && !hayNube ? TextosNube.faltaConfigurar : nil
+        } catch {
+            self.error = textoDeError(error)
+        }
+        NubeDelMac.compartida.releer()
+        await releer()
     }
 
     /// Quita a `id` de `chat` (o sale, si es uno mismo).
@@ -287,6 +316,22 @@ public struct VistaCompartidos: View {
                             } else {
                                 Text("Ya no estás").font(.caption).foregroundStyle(.secondary)
                             }
+                        }
+                        // Por donde va: la red local (lo de siempre) o la
+                        // nube (Windows c5c94e4, `pintar_personas`).
+                        if c.estoyDentro {
+                            let modo = modelo.modos[c.chat] ?? .local
+                            Picker(TextosNube.modoTitulo, selection: Binding(
+                                get: { modo },
+                                set: { m in Task { await modelo.ponerModo(chat: c.chat, modo: m) } })) {
+                                Label(TextosNube.modoLocal, systemImage: "wifi").tag(ModoNube.local)
+                                Label(TextosNube.modoNube, systemImage: "icloud").tag(ModoNube.nube)
+                            }
+                            .pickerStyle(.segmented)
+                            Text(modo == .nube ? TextosNube.modoNubeDetalle : TextosNube.modoLocalDetalle)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                         ForEach(c.personas.filter(\.dentro), id: \.id) { p in
                             HStack {

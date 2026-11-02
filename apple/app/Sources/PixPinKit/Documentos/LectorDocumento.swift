@@ -270,6 +270,9 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     private let capa = CapaTintaNS()
     private let capaMarcos = CapaMarcosPDF()
     private lazy var marcos = MarcosDoc(documento: url, nucleo: nucleo)
+    /// «En línea / Sin conexión» si es un adjunto de un chat de la nube
+    /// (Windows c5c94e4 y 701f862, `Sincro/Nube.swift`).
+    private lazy var enLinea = EnLineaDelVisor(documento: url, nucleo: nucleo)
     private let contenedor = NSView()
     private let riel = RielMarcasNS()
     /// La barra, fuera de la ventana (sale con el raton).
@@ -421,6 +424,15 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             isla.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
         ])
         contenedor.taparDerecho(bajo: isla)
+        // «En línea / Sin conexión»: arriba a la izquierda, a la altura
+        // de la isla (solo en un chat de la nube).
+        let botonNube = NSHostingView(rootView: BotonEnLinea(modelo: enLinea).fixedSize())
+        botonNube.translatesAutoresizingMaskIntoConstraints = false
+        contenedor.addSubview(botonNube)
+        NSLayoutConstraint.activate([
+            botonNube.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor, constant: 16),
+            botonNube.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
+        ])
         riel.ir = { [weak self] m in self?.ir(a: m) }
         // La barrita de marcar, encima de todo (la coloca `ponerBarrita`).
         contenedor.addSubview(anfitrionBarrita)
@@ -1911,8 +1923,12 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         guardadoPendiente?.cancel()
         guardarLectura()
         let pares = editores.map { ($0.key, $0.value) }
-        let ruta = url.path, alDia = self.alDia
-        colaGuardar.async { _ = ControladorLector.guardarTinta(pares, ruta: ruta, alDia: alDia) }
+        let ruta = url.path, alDia = self.alDia, enLinea = self.enLinea
+        colaGuardar.async {
+            _ = ControladorLector.guardarTinta(pares, ruta: ruta, alDia: alDia)
+            // Ya guardado lo suyo: si estaba sin conexion, se pregunta.
+            DispatchQueue.main.async { MainActor.assumeIsolated { enLinea.alCerrar() } }
+        }
         for v in vigias { NotificationCenter.default.removeObserver(v) }
         vigias = []
         if let v = vigiaClic { NSEvent.removeMonitor(v) }

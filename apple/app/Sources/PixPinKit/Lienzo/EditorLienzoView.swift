@@ -293,13 +293,20 @@ public final class ModeloEditorLienzo: ObservableObject {
     /// Guarda ahora (al cerrar la ventana): termina el texto que se estaba
     /// escribiendo y escribe en la cola de fondo. El editor vive lo que dure
     /// la tarea aunque la ventana ya no este.
-    public func guardarAlCerrar() {
+    /// `despues`, en el principal cuando ya esta escrito (lo de «Sin
+    /// conexión» de un chat de la nube, `Sincro/Nube.swift`).
+    public func guardarAlCerrar(despues: (@MainActor () -> Void)? = nil) {
         guardadoPendiente?.cancel()
         guardadoPendiente = nil
         _ = editor.terminarTexto()
         let editor = self.editor
         let referencia = self.referencia
-        colaGuardar.async { ModeloEditorLienzo.guardarYa(editor, referencia: referencia) }
+        colaGuardar.async {
+            ModeloEditorLienzo.guardarYa(editor, referencia: referencia)
+            if let despues {
+                DispatchQueue.main.async { MainActor.assumeIsolated { despues() } }
+            }
+        }
     }
 
     /// En la cola de fondo: escribe y, si escribio, avisa en el principal.
@@ -1289,6 +1296,8 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         let ventana: NSWindow
         let modelo: ModeloEditorLienzo
         let barra: BarraFlotante
+        /// «En línea / Sin conexión» de un lienzo de un chat de la nube.
+        let enLinea: EnLineaDelVisor
     }
 
     private var abiertas: [String: Abierta] = [:]
@@ -1322,14 +1331,14 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
                 self.mostrar(ModeloEditorLienzo(editor: editor, referencia: referencia, fotos: fotos,
                                                 nucleo: nucleo, titulo: titulo,
                                                 fondo: fondo.flatMap { FondoLienzo($0) }),
-                             clave: clave, titulo: titulo)
+                             clave: clave, titulo: titulo, chat: chat)
             case .failure:
                 NSSound.beep()
             }
         }
     }
 
-    private func mostrar(_ modelo: ModeloEditorLienzo, clave: String, titulo: String) {
+    private func mostrar(_ modelo: ModeloEditorLienzo, clave: String, titulo: String, chat: String) {
         if let abierta = abiertas[clave] {
             abierta.ventana.makeKeyAndOrderFront(nil)
             return
@@ -1345,7 +1354,11 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         ventana.isReleasedWhenClosed = false
         // Abre mirando, con el riel (Windows, 24-oct, `mirar_editar`).
         modelo.abrirMirando()
-        ventana.contentViewController = NSHostingController(rootView: EditorLienzoView(modelo: modelo))
+        // «En línea / Sin conexión» (Windows 7a069bc): arriba a la izquierda,
+        // solo si el chat va por la nube; retiene la referencia del lienzo.
+        let enLinea = EnLineaDelVisor(ficha: chat, referencia: modelo.referencia, nucleo: modelo.nucleo)
+        ventana.contentViewController = NSHostingController(rootView: EditorLienzoView(modelo: modelo)
+            .overlay(alignment: .topLeading) { BotonDeLaNube(modelo: enLinea) })
         ventana.setContentSize(NSSize(width: 1000, height: 720))
         ventana.center()
         VentanaLisa.recordar(ventana, clave: "lienzo")
@@ -1358,7 +1371,7 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
             BarraVisor(nombre: titulo, ext: "excalidraw") { EmptyView() }
         }
         barra.empezar()
-        abiertas[clave] = Abierta(ventana: ventana, modelo: modelo, barra: barra)
+        abiertas[clave] = Abierta(ventana: ventana, modelo: modelo, barra: barra, enLinea: enLinea)
         ventana.makeKeyAndOrderFront(nil)
         NSApp.activate()
         // Como se dejo el ultimo lienzo (F11 de Windows, `modo_ventana`).
@@ -1389,7 +1402,9 @@ public final class VentanasDeLienzo: NSObject, NSWindowDelegate {
         abierta.modelo.editor.cerrado()
         // El editor lo retiene la tarea de guardar hasta que termine; la
         // vista y el modelo se sueltan con la ventana.
-        abierta.modelo.guardarAlCerrar()
+        // Ya guardado, si estaba sin conexion se pregunta.
+        let enLinea = abierta.enLinea
+        abierta.modelo.guardarAlCerrar { enLinea.alCerrar() }
         abiertas[clave] = nil
     }
 

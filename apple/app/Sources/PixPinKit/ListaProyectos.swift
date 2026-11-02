@@ -134,10 +134,14 @@ struct ListaProyectos<Menu: View>: View {
     @State private var creando = false
     /// Lo elegido en el «+»: `nil` mientras se pregunta normal o compartido.
     @State private var nuevoCompartido: Bool?
+    /// Lo elegido fue «Chat compartido en la nube» (Windows c5c94e4).
+    @State private var nuevoEnLaNube = false
     @State private var nuevo = ""
     /// «No se pudo compartir el chat nuevo…», un rato.
     @State private var aviso: String?
     @ObservedObject private var chapas = ChapasDeCompartidos.compartidas
+    /// La nubecita de los chats que van por la nube (`Sincro/Nube.swift`).
+    @ObservedObject private var nube = NubeDelMac.compartida
     @FocusState private var enLista: Bool
     /// La seccion «Mensajes» de debajo: lo escrito, buscado en todos los
     /// chats (`Chat/BuscarEnTodosLosChats.swift`, Windows d106969).
@@ -176,7 +180,8 @@ struct ListaProyectos<Menu: View>: View {
                     LazyVStack(spacing: 0) {
                         ForEach(visibles, id: \.id) { chat in
                             FilaProyecto(chat: chat, elegida: chat.id == elegido,
-                                         compartido: chapas.personas[chat.id] != nil)
+                                         compartido: chapas.personas[chat.id] != nil,
+                                         nube: nube.estados[chat.id])
                                 .id(chat.id)
                                 .onTapGesture {
                                     elegido = chat.id
@@ -206,23 +211,30 @@ struct ListaProyectos<Menu: View>: View {
         }
         .background(Paleta.proyectos.lista, ignoresSafeAreaEdges: [])
         .overlay(alignment: .bottomTrailing) {
-            BotonNuevo { nuevoCompartido = nil; creando = true }
+            BotonNuevo { nuevoCompartido = nil; nuevoEnLaNube = false; creando = true }
                 .padding(16)
                 .popover(isPresented: $creando, arrowEdge: .top) {
                     // Primero dos opciones (Windows e3f1d60, el usuario: «que
                     // primero salgan dos opciones»): normal o compartido con
-                    // otras personas; despues, su nombre.
+                    // otras personas; despues, su nombre. Y desde Windows
+                    // c5c94e4 una tercera: compartido por la nube.
                     if nuevoCompartido == nil {
                         VStack(alignment: .leading, spacing: 2) {
                             OpcionChatNuevo(simbolo: "folder", titulo: TextosCompartido.normal,
                                             detalle: TextosCompartido.normalDetalle) { nuevoCompartido = false }
                             OpcionChatNuevo(simbolo: "person.2", titulo: TextosCompartido.compartido,
                                             detalle: TextosCompartido.compartidoDetalle) { nuevoCompartido = true }
+                            OpcionChatNuevo(simbolo: "icloud", titulo: TextosNube.chatNuevo,
+                                            detalle: TextosNube.chatNuevoDetalle) {
+                                nuevoEnLaNube = true
+                                nuevoCompartido = true
+                            }
                         }
                         .padding(6)
                     } else {
                         HStack {
-                            TextField(nuevoCompartido == true ? TextosCompartido.compartido : Lengua.t("ubicacion-nuevo"),
+                            TextField(nuevoEnLaNube ? TextosNube.chatNuevo
+                                          : nuevoCompartido == true ? TextosCompartido.compartido : Lengua.t("ubicacion-nuevo"),
                                       text: $nuevo)
                                 .textFieldStyle(.roundedBorder)
                                 .frame(width: 220)
@@ -243,6 +255,7 @@ struct ListaProyectos<Menu: View>: View {
         // que llego al entrar en un compartido) se vuelve a mirar.
         .onReceive(almacen.$chats) { _ in
             chapas.releer(almacen.nucleo)
+            nube.releer()
             // Llego algo (o cambio un chat): la busqueda puesta se repite.
             enChats.releer()
         }
@@ -275,19 +288,24 @@ struct ListaProyectos<Menu: View>: View {
             Task { await almacen.crearChat(nombre: nombre) }
             return
         }
-        Task { await crearCompartido(nombre) }
+        let enLaNube = nuevoEnLaNube
+        Task { await crearCompartido(nombre, enLaNube: enLaNube) }
     }
 
     /// **Chat compartido**: nace en `compartidos.json` conmigo dentro, se
     /// abre y «Chats compartidos» ya invita a el (el codigo y el QR), como
     /// Windows al ponerle nombre. Si no se pudo compartir queda normal y se
     /// dice.
-    private func crearCompartido(_ nombre: String) async {
+    /// `enLaNube`: «Chat compartido en la nube», que ademas va por la nube
+    /// (`sincro/nube/chats.json`).
+    private func crearCompartido(_ nombre: String, enLaNube: Bool = false) async {
         let nucleo = almacen.nucleo
         do {
             let r = try await Task.detached(priority: .userInitiated) {
-                try nucleo.crearChatCompartido(nombre: nombre)
+                try enLaNube ? nucleo.crearChatCompartidoEnLaNube(nombre: nombre)
+                    : nucleo.crearChatCompartido(nombre: nombre)
             }.value
+            if enLaNube { nube.releer() }
             NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
             await almacen.cargarChats()
             elegido = r.ficha.id
@@ -423,6 +441,8 @@ struct FilaProyecto: View {
     let elegida: Bool
     /// Un chat compartido con otras personas lleva su chapa verde.
     var compartido = false
+    /// Y si va por la nube, la nubecita arriba con su estado.
+    var nube: EstadoNube?
     @State private var encima = false
 
     private var debajo: String {
@@ -432,14 +452,23 @@ struct FilaProyecto: View {
         return chat.hojas == 1 ? "1 hoja" : "\(chat.hojas) hojas"
     }
 
+    /// El color de lo de detras del avatar (el aro de las chapas).
+    private var aro: Color {
+        elegida ? Paleta.proyectos.filaElegida : encima ? Paleta.proyectos.filaEncima : Paleta.proyectos.lista
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             // Su foto (imagen, emoji o color), o sus iniciales como siempre.
             CirculoDelChat(id: chat.id, nombre: chat.nombre, lado: 46, foto: chat.foto, letra: 17)
             .overlay(alignment: .bottomTrailing) {
                 if compartido {
-                    ChapaCompartido(avatar: 46, aro: elegida ? Paleta.proyectos.filaElegida
-                        : encima ? Paleta.proyectos.filaEncima : Paleta.proyectos.lista)
+                    ChapaCompartido(avatar: 46, aro: aro)
+                }
+            }
+            .overlay(alignment: .topTrailing) {
+                if compartido, let nube {
+                    ChapaNube(avatar: 46, aro: aro, estado: nube)
                 }
             }
             VStack(alignment: .leading, spacing: 6) {

@@ -23,6 +23,9 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         let visor: AnyObject
         /// La barra del pin, fuera de la ventana.
         let barra: BarraFlotante
+        /// «En línea / Sin conexión» si es un adjunto de un chat de la nube
+        /// (Windows e7e712a, `Sincro/Nube.swift`).
+        let enLinea: EnLineaDelVisor?
     }
 
     private var abiertas: [String: Abierta] = [:]
@@ -63,7 +66,9 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         let vista = VentanaPlanoView(visor: visor, alVerEn3D: { [weak self] in
             self?.abrirModelo(url, titulo: titulo + " · 3D")
         })
-        mostrar(NSHostingController(rootView: vista), visor: visor, clave: clave, titulo: titulo) {
+        let enLinea = EnLineaDelVisor(documento: url, nucleo: nucleo)
+        mostrar(NSHostingController(rootView: vista.overlay(alignment: .topLeading) { BotonDeLaNube(modelo: enLinea) }),
+                visor: visor, clave: clave, titulo: titulo, enLinea: enLinea) {
             BarraPlanoPin(visor: visor)
         }
         if let nucleo {
@@ -79,7 +84,10 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         if traerAlFrente(clave) { return }
         let visor = VisorModelo3D(ruta: url.path, titulo: titulo, nucleo: nucleo)
         visor.original = url
-        mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)), visor: visor, clave: clave, titulo: titulo) {
+        let enLinea = EnLineaDelVisor(documento: url, nucleo: nucleo)
+        mostrar(NSHostingController(rootView: VentanaModeloView(visor: visor)
+                    .overlay(alignment: .topLeading) { BotonDeLaNube(modelo: enLinea) }),
+                visor: visor, clave: clave, titulo: titulo, enLinea: enLinea) {
             BarraModeloPin(visor: visor)
         }
         visor.cargar()
@@ -109,7 +117,7 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
     }
 
     private func mostrar<B: View>(_ controlador: NSViewController, visor: AnyObject, clave: String, titulo: String,
-                                  @ViewBuilder barra: () -> B) {
+                                  enLinea: EnLineaDelVisor? = nil, @ViewBuilder barra: () -> B) {
         let ventana = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 760),
                                styleMask: [.titled, .closable, .miniaturizable, .resizable],
                                backing: .buffered, defer: false)
@@ -127,7 +135,7 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
         ventana.identifier = NSUserInterfaceItemIdentifier(clave)
         let flotante = BarraFlotante(ventana: ventana, contenido: barra)
         flotante.empezar()
-        abiertas[clave] = Abierta(ventana: ventana, visor: visor, barra: flotante)
+        abiertas[clave] = Abierta(ventana: ventana, visor: visor, barra: flotante, enLinea: enLinea)
         vigilarMemoria()
         ventana.makeKeyAndOrderFront(nil)
         NSApp.activate()
@@ -136,6 +144,13 @@ public final class VentanasDePlano: NSObject, NSWindowDelegate {
     public func windowWillClose(_ notification: Notification) {
         guard let ventana = notification.object as? NSWindow,
               let clave = ventana.identifier?.rawValue else { return }
+        // Lo anotado se escribe al momento (en una tarea de fondo): un poco
+        // despues, si estaba sin conexion, se pregunta.
+        if let enLinea = abiertas[clave]?.enLinea {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                MainActor.assumeIsolated { enLinea.alCerrar() }
+            }
+        }
         // Con la ventana se van el visor y sus buferes de la tarjeta.
         abiertas[clave] = nil
         if abiertas.isEmpty {
