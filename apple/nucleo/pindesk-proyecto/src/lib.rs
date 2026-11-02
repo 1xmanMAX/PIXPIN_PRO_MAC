@@ -55,6 +55,7 @@ pub mod presencial;
 pub mod tabla;
 pub mod tabla_web;
 pub mod tabla_xlsx;
+pub mod tareas_exportar;
 pub mod temas;
 pub mod ubicacion;
 pub mod versiones;
@@ -518,7 +519,10 @@ mod pruebas {
         assert_eq!(leido.manifiesto.formato, FORMATO);
         // Caso negativo: la marca no se cuela en los campos que se leen.
         assert_eq!(leido.manifiesto.aplicacion, APLICACION);
-        assert_eq!(leido.manifiesto.resto.get(MARCA_VIEJA), Some(&serde_json::Value::from(1)));
+        assert_eq!(
+            leido.manifiesto.resto.get(MARCA_VIEJA),
+            Some(&serde_json::Value::from(1))
+        );
     }
 
     #[test]

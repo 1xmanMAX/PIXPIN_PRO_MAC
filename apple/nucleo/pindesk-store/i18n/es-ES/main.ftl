@@ -3098,6 +3098,7 @@ horario-tareas-de = Tareas de { $asignatura }
 horario-sin-tareas = Sin tareas pendientes. En Tareas, elige la asignatura al apuntar.
 horario-abrir-tareas = Abrir en Tareas
 horario-aula = Aula
+horario-nombre = Nombre
 horario-nota = Nota para la voz (lo que lee la llamada)
 horario-avisar = Avisar (minutos antes)
 horario-avisar-pista = { $min } (el de todo el horario)
@@ -3111,6 +3112,7 @@ horario-repetida = «{ $asignatura }» ya está en la lista
 horario-arrastra = Arrastra «{ $asignatura }» a la semana
 horario-no-guardado = No se pudo guardar el horario
 tareas-asignatura-pista = Asignatura de la tarea
+tareas-destino-pista = Lista o asignatura de la tarea
 tareas-sin-asignatura = Sin asignatura (al Inbox)
 tareas-sin-asignaturas = Aún no hay asignaturas: créalas en «Horario de clases…»
 tareas-apuntar-en-asignatura = Nueva tarea de { $asignatura }…
@@ -3503,7 +3505,7 @@ cad-web-anotaciones = Anotaciones
 cad-web-todas = Todas
 cad-web-ninguna = Ninguna
 cad-web-sin-soporte = Este navegador no sabe descomprimir el plano: ábrelo con Edge, Chrome, Firefox o Safari recientes.
-cad-web-pista = Rueda: acercar · Arrastrar: mover · Doble clic: ver todo · F, B, L
+cad-web-pista = Rueda o dos dedos: mover · Ctrl+rueda o pellizcar: acercar · Doble clic: ver todo · F, B, L
 # El membrete de un plano impreso (plano_cad/imprimir.rs)
 lamina-proyecto = PROYECTO
 lamina-lamina = LÁMINA
@@ -3655,3 +3657,20 @@ reportar-ia-comentario = (Si quieres, cuenta aquí qué está mal.)
 
 ## Repasar en voz alta: si Jev falla, por que (1-nov-2026, como el movil)
 repaso-jev-fallo-red = Sin conexión.
+
+## Exportar tareas: la página, el PDF y el Markdown de una lista (1-nov-2026)
+tareas-exportar-titulo = Tareas
+tareas-exportar-exportado = Exportado el { $fecha }
+tareas-exportar-pendientes = Pendientes
+tareas-exportar-hechas = Hechas
+tareas-exportar-completado = Completado
+tareas-exportar-pendiente = Pendiente
+tareas-exportar-hecha = Hecha
+tareas-exportar-todo-hecho = Todo hecho
+tareas-exportar-vacia = Sin tareas
+tareas-exportar-recordatorio = Recordatorio
+tareas-exportar-pasada = Pasada
+tareas-exportar-creada = Creada el { $fecha }
+tareas-exportar-de = { $hechas } de { $total }
+tareas-exportar-foto = Foto
+compartir-tipo-tareas = Lista de tareas
