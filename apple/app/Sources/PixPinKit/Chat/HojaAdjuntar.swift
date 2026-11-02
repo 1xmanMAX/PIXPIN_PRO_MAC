@@ -119,6 +119,9 @@ enum HojaAdjuntar {
         return v
     }()
 
+    /// Las flechas de un campo de una linea (`TeclaDeCampo`).
+    enum Flecha { case arriba, abajo, izquierda, derecha }
+
     /// Minusculas y sin tildes.
     static func normalizar(_ s: String) -> String {
         s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
