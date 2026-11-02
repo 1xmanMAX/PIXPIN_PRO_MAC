@@ -457,10 +457,28 @@ impl Nucleo {
     }
 }
 
+impl Nucleo {
+    /// **Las frases clave del dictado** en el idioma de la app (Windows
+    /// 86f8750c, `Frases::del_catalogo`; las de espanol valen siempre). Con
+    /// «el del sistema», las de espanol.
+    fn frases_del_dictado(&self) -> frases::Frases {
+        use pindesk_store::idioma::{Catalogo, Idioma};
+        let ubicacion = pindesk_store::rutas::Ubicacion::Instalado {
+            raiz: self.ruta().to_path_buf(),
+        };
+        let idioma = pindesk_store::ajustes::cargar(&ubicacion)
+            .ok()
+            .and_then(|a| a.idioma.idioma())
+            .unwrap_or(Idioma::Espanol);
+        let t = Catalogo::nuevo(idioma);
+        frases::Frases::del_catalogo(|k| t.t(k))
+    }
+}
+
 #[uniffi::export]
 impl Nucleo {
     /// **Apunta un momento** (Intro en la caja de «Hoy»): `texto` se parte
-    /// en titulo y descripcion (`frases::partir`), las fotos se copian a
+    /// en titulo y descripcion (`frases::partir_con`, las del idioma), las fotos se copian a
     /// `medios/` (las temporales se mueven) y el audio se mueve. Sin titulo,
     /// «Nota de voz» o «Foto»; sin nada, error de argumento. `cuando` es el
     /// principio de lo dicho, o ahora.
@@ -476,7 +494,7 @@ impl Nucleo {
         desfase_ms: i64,
     ) -> Result<MomentoTimeline, ErrorNucleo> {
         let cuando = cuando.unwrap_or_else(crate::ahora_ms);
-        let (mut titulo, descripcion) = frases::partir(texto.trim());
+        let (mut titulo, descripcion) = frases::partir_con(texto.trim(), &self.frases_del_dictado());
         if titulo.is_empty() {
             titulo = if audio.is_some() {
                 SIN_TITULO_VOZ.into()
@@ -529,7 +547,7 @@ impl Nucleo {
         texto: String,
         desfase_ms: i64,
     ) -> Result<MomentoTimeline, ErrorNucleo> {
-        let (titulo, descripcion) = frases::partir(texto.trim());
+        let (titulo, descripcion) = frases::partir_con(texto.trim(), &self.frases_del_dictado());
         self.cambiar_momentos(|a, todos| {
             let i = Nucleo::indice_de_momento(todos, &id)?;
             let m = &mut todos[i];
@@ -839,6 +857,37 @@ fn pagina(n: &Nucleo, v: &[&Momento], desfase_ms: i64, desde: u64, cuantos: u32)
 #[cfg(test)]
 mod pruebas {
     use super::*;
+
+    #[test]
+    fn las_frases_del_dictado_son_las_del_idioma_de_la_app() {
+        use pindesk_store::ajustes::{self, PreferenciaIdioma};
+        let d = std::env::temp_dir().join(format!("pixpin-timeline-frases-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let n = Nucleo::abrir(d.display().to_string(), "Mac".into()).unwrap();
+        let u = pindesk_store::rutas::Ubicacion::Instalado { raiz: d.clone() };
+        let mut a = ajustes::cargar(&u).unwrap_or_default();
+        a.idioma = PreferenciaIdioma::Ingles;
+        ajustes::guardar(&u, &a).unwrap();
+        let m = n
+            .timeline_apuntar(
+                "here's what happened the truck came and here's the story it was late".into(),
+                Vec::new(),
+                None,
+                0,
+                None,
+                None,
+                0,
+            )
+            .unwrap();
+        assert_eq!(m.titulo, "The truck came", "{m:?}");
+        assert!(m.descripcion.to_lowercase().contains("it was late"), "{m:?}");
+        // Las de espanol valen siempre.
+        let m = n
+            .timeline_apuntar("con esto pasó llego el camion".into(), Vec::new(), None, 0, None, None, 0)
+            .unwrap();
+        assert!(m.titulo.to_lowercase().starts_with("llego el camion"), "{m:?}");
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     #[test]
     fn un_medio_con_rutas_no_vale() {

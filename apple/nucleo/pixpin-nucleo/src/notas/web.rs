@@ -54,7 +54,8 @@ pub const FICHERO_VISTA: &str = "vista-de-notas.txt";
 const EN_EL_MENU: usize = 40;
 
 /// Lo que se pone delante del programa de la pagina: `chrome.webview` sobre
-/// WebKit, ⌥⌘M para comentar y ⌘-clic en un enlace.
+/// WebKit, ⌥⌘M para comentar, ⌘-clic en un enlace y, leyendo, ⌘Z / ⇧⌘Z /
+/// ⌘Y como los Ctrl de Windows (deshacer las marcas de texto, 34adbfad).
 pub const PUENTE: &str = r#"(()=>{const oyentes=[];window.chrome=window.chrome||{};
 window.chrome.webview={postMessage:s=>{try{window.webkit.messageHandlers.pixpin.postMessage(s)}catch(e){}},
 addEventListener:(t,f)=>{if(t==='message')oyentes.push(f)}};
@@ -63,6 +64,8 @@ document.addEventListener('keydown',e=>{if(e.metaKey&&e.altKey&&!e.ctrlKey&&e.co
 document.dispatchEvent(new KeyboardEvent('keydown',{key:'m',code:'KeyM',ctrlKey:true,altKey:true,bubbles:true,cancelable:true}))}},true);
 document.addEventListener('mousedown',e=>{if(e.isTrusted&&e.metaKey&&!e.ctrlKey&&e.target.closest&&e.target.closest('.pp-enlace')){e.preventDefault();e.stopImmediatePropagation();
 e.target.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,cancelable:true,ctrlKey:true,clientX:e.clientX,clientY:e.clientY,button:0,detail:e.detail,view:window}))}},true);
+document.addEventListener('keydown',e=>{if(!e.isTrusted||!e.metaKey||e.ctrlKey||e.altKey||!document.body||!document.body.classList.contains('leyendo'))return;const k=(e.key||'').toLowerCase();if(k!=='z'&&k!=='y')return;
+const c=new KeyboardEvent('keydown',{key:e.key,code:e.code,ctrlKey:true,shiftKey:e.shiftKey,bubbles:true,cancelable:true});if(!(e.target&&e.target.dispatchEvent?e.target:document).dispatchEvent(c)){e.preventDefault();e.stopImmediatePropagation()}},true);
 const marca=e=>{if(document.body)document.body.classList.toggle('ctrl',e.metaKey||e.ctrlKey)};
 document.addEventListener('keydown',marca);document.addEventListener('keyup',marca)})();"#;
 
@@ -183,6 +186,11 @@ pub enum DeLaPagina {
         texto: String,
         hilo: String,
         si: bool,
+    },
+    /// Las marcas de texto (resaltar, subrayar...) tras cada cambio, la
+    /// lista entera (Windows f8090d03, [`crate::marcas_web`]).
+    MarcasTexto {
+        marcas: serde_json::Value,
     },
     Compartir,
     Cerrar,
@@ -466,6 +474,9 @@ struct Estado {
     firma: Option<(SystemTime, u64)>,
     comentarios: Comentarista,
     quien: Quien,
+    /// Las marcas de texto de la nota (`anot-<codigo>.marcas-texto.json`
+    /// de su mensaje, o junto al `.md`).
+    marcas: crate::marcas_web::MarcasDeLaPagina,
 }
 
 /// **Una nota abierta en el editor web.**
@@ -520,6 +531,18 @@ impl Nucleo {
         let comentarios =
             Comentarista::abrir(comentarios::ruta(&raiz, &destino, &codigo), quien.clone());
         let firma = huella(&raiz, &destino);
+        // Las marcas de texto (Windows f8090d03): junto a lo demas de la
+        // nota (sus comentarios), por la misma base.
+        let fichero_marcas = match &destino {
+            DestinoNota::Mensaje { chat, .. } => {
+                crate::marcas_web::ruta_de_nota(&raiz, chat, &codigo)
+            }
+            DestinoNota::Fichero { ruta } => Some(crate::marcas_web::ruta(&raiz, Path::new(ruta))),
+        };
+        let marcas = crate::marcas_web::MarcasDeLaPagina::abrir(
+            fichero_marcas,
+            pindesk_docs::ancla_texto::SOBRE_MARKDOWN,
+        );
         Ok(Arc::new(SesionNota {
             nucleo: self,
             ingles,
@@ -531,6 +554,7 @@ impl Nucleo {
                 firma,
                 comentarios,
                 quien,
+                marcas,
             }),
         }))
     }
@@ -594,8 +618,21 @@ impl SesionNota {
             // La cabecera propia no: la barra es la comun de los visores
             // (Windows, 17-oct: el lector de notas como pin).
             "enPin": true,
+            "marcasTexto": {"marcas": e.marcas.lista(), "rotulos": crate::marcas_web::rotulos(&self.textos())},
         })
         .to_string()
+    }
+
+    /// El catalogo de los rotulos de la pagina: el idioma de la app
+    /// (`pixpinmax.toml`); si sigue al del Mac, el de la nota.
+    fn textos(&self) -> pindesk_store::idioma::Catalogo {
+        use pindesk_store::idioma::{Catalogo, Idioma};
+        let ubicacion = pindesk_store::rutas::Ubicacion::Instalado { raiz: self.raiz() };
+        let idioma = pindesk_store::ajustes::cargar(&ubicacion)
+            .ok()
+            .and_then(|a| a.idioma.idioma())
+            .unwrap_or(if self.ingles { Idioma::Ingles } else { Idioma::Espanol });
+        Catalogo::nuevo(idioma)
     }
 
     fn guardar(&self, e: &mut Estado, texto: &str) -> Result<Option<MensajeChat>, ErrorNucleo> {
@@ -944,6 +981,10 @@ impl SesionNota {
                 };
                 vec![OrdenNota::Compartir { titulo, texto }]
             }
+            DeLaPagina::MarcasTexto { marcas } => match e.marcas.de_la_pagina(&marcas) {
+                Some(l) => vec![mandar(json!({"tipo": "marcas_texto", "marcas": l}))],
+                None => Vec::new(),
+            },
             DeLaPagina::Cerrar => vec![mandar(json!({"tipo": "cerrando"}))],
             DeLaPagina::CerrarListo => vec![OrdenNota::Cerrar],
             DeLaPagina::EditorAnterior => vec![OrdenNota::EditorAnterior],
@@ -999,16 +1040,31 @@ impl SesionNota {
         let mut e = self.estado();
         let raiz = self.raiz();
         let ahora = huella(&raiz, &e.destino);
-        if ahora == e.firma {
-            return None;
+        if ahora != e.firma {
+            e.firma = ahora;
+            if let Some(t) = leer_texto(&raiz, &e.destino)
+                && t != e.ultimo_conocido
+            {
+                e.ultimo_conocido = t.clone();
+                return Some(json!({"tipo": "texto_externo", "texto": t}).to_string());
+            }
         }
-        e.firma = ahora;
-        let t = leer_texto(&raiz, &e.destino)?;
-        if t == e.ultimo_conocido {
-            return None;
+        // Las marcas de texto que llegaron con la sincronizacion (si a la
+        // vez llego el texto, en la vuelta siguiente).
+        let l = e.marcas.mirar()?;
+        Some(json!({"tipo": "marcas_texto", "marcas": l}).to_string())
+    }
+
+    /// **«En línea / Sin conexión»** de la nota (Windows 4fdfb7e1): el sitio
+    /// de lo suyo si es de un chat de la nube (una nota de un proyecto, por
+    /// su codigo; un `.md` adjunto, por el de su mensaje). `None`: no sale
+    /// el boton.
+    pub fn sitio_nube(&self) -> Option<crate::nube::SitioNube> {
+        let e = self.estado();
+        match &e.destino {
+            DestinoNota::Mensaje { chat, .. } => crate::nube::nota(&self.raiz(), chat, &e.codigo),
+            DestinoNota::Fichero { ruta } => crate::nube::documento(Path::new(ruta)),
         }
-        e.ultimo_conocido = t.clone();
-        Some(json!({"tipo": "texto_externo", "texto": t}).to_string())
     }
 }
 

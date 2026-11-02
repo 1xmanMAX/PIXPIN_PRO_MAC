@@ -346,9 +346,101 @@ impl EditorLienzo {
     }
 }
 
+// ------------------------------------------------ las celdas de una hoja
+
+/// Mas filas que esto no se rayan una a una (una columna entera elegida):
+/// se marca hasta ahi (`visor_hoja::marcar::MAX_FILAS` de Windows).
+pub const MAX_FILAS_DE_MARCA: u32 = 2000;
+
+/// El borde `i` de una rejilla (`xs` o `ys`): mas alla de lo medido, a
+/// `defecto` cada una.
+fn borde(bordes: &[f64], defecto: f64, i: u32) -> f64 {
+    match bordes.get(i as usize) {
+        Some(v) => *v,
+        None => {
+            let n = bordes.len().saturating_sub(1);
+            let ultimo = bordes.last().copied().unwrap_or(0.0);
+            ultimo + (i as usize - n) as f64 * defecto
+        }
+    }
+}
+
+/// **Las cajas de unas celdas marcadas** (Windows 100857f2,
+/// `visor_hoja::marcar::cajas`): en las unidades de la tinta de la hoja
+/// (`rejilla`, la de `rejilla_del_libro`, la misma en todos los aparatos).
+/// Resaltar, tapar y quitar (`marca` `None`) cubren el rango entero de una
+/// pieza; las rayas van fila a fila, de lado a lado del rango, sin las filas
+/// ocultas (alto 0). Se marca la celda entera: el texto de una celda se
+/// recorta o se desborda segun el ancho de la columna de cada aparato.
+#[uniffi::export]
+pub fn cajas_de_celdas_marcadas(
+    rejilla: crate::hojas::RejillaTinta,
+    fila0: u32,
+    columna0: u32,
+    fila1: u32,
+    columna1: u32,
+    marca: Option<String>,
+) -> Vec<CajaDeMarca> {
+    let (f0, f1) = (fila0.min(fila1), fila0.max(fila1));
+    let (c0, c1) = (columna0.min(columna1), columna0.max(columna1));
+    let fila_a_fila = !matches!(
+        marca.as_deref().and_then(Marca::de_nombre),
+        None | Some(Marca::Resaltar | Marca::Tapar)
+    );
+    let f1 = f1.min(f0.saturating_add(MAX_FILAS_DE_MARCA));
+    let x = |c: u32| borde(&rejilla.xs, rejilla.ancho_defecto, c);
+    let y = |f: u32| borde(&rejilla.ys, rejilla.alto_defecto, f);
+    let (x0, x1) = (x(c0) as f32, x(c1 + 1) as f32);
+    let caja = |a: u32, b: u32| CajaDeMarca {
+        x0,
+        y0: y(a) as f32,
+        x1,
+        y1: y(b + 1) as f32,
+    };
+    if fila_a_fila {
+        (f0..=f1)
+            .filter(|&f| y(f + 1) - y(f) > 0.0)
+            .map(|f| caja(f, f))
+            .collect()
+    } else {
+        vec![caja(f0, f1)]
+    }
+}
+
 #[cfg(test)]
 mod pruebas {
     use super::*;
+
+    #[test]
+    fn las_celdas_se_marcan_enteras_las_rayas_fila_a_fila() {
+        let r = crate::hojas::RejillaTinta {
+            xs: vec![0.0, 64.0, 128.0, 200.0],
+            // La fila 2 esta oculta (alto 0).
+            ys: vec![0.0, 20.0, 40.0, 40.0, 60.0],
+            ancho_defecto: 64.0,
+            alto_defecto: 20.0,
+        };
+        // Resaltar: el rango entero de una pieza, de C1 hasta mas alla de lo medido.
+        let v = cajas_de_celdas_marcadas(r.clone(), 3, 1, 0, 4, Some("resaltar".into()));
+        assert_eq!(v, vec![caja(64.0, 0.0, 200.0 + 2.0 * 64.0, 60.0)]);
+        // Quitar, igual.
+        assert_eq!(cajas_de_celdas_marcadas(r.clone(), 0, 1, 3, 4, None).len(), 1);
+        // Subrayar: una por fila, sin la oculta.
+        let v = cajas_de_celdas_marcadas(r.clone(), 0, 0, 3, 1, Some("subrayar".into()));
+        assert_eq!(
+            v,
+            vec![
+                caja(0.0, 0.0, 128.0, 20.0),
+                caja(0.0, 20.0, 128.0, 40.0),
+                caja(0.0, 40.0, 128.0, 60.0),
+            ]
+        );
+        // Una columna entera no raya mas de 2000 filas (2001 sin la oculta).
+        let v = cajas_de_celdas_marcadas(r.clone(), 0, 0, 1_000_000, 0, Some("tachar".into()));
+        assert_eq!(v.len(), MAX_FILAS_DE_MARCA as usize);
+        // Caso negativo: una marca que no existe es como quitar (de una pieza).
+        assert_eq!(cajas_de_celdas_marcadas(r, 0, 0, 3, 1, Some("otra".into())).len(), 1);
+    }
 
     fn caja(x0: f32, y0: f32, x1: f32, y1: f32) -> CajaDeMarca {
         CajaDeMarca { x0, y0, x1, y1 }

@@ -748,14 +748,66 @@ fn novedades(raiz: PathBuf) {
 
 // ------------------------------------------------- «En línea / Sin conexión»
 
-/// El documento de un visor, si es un adjunto de un chat de la nube.
-fn documento(doc: &Path) -> Option<SitioNube> {
+/// El documento de un visor, si es de un chat de la nube (Windows
+/// 6f8ceca8, `sincronizar::nube::documento`):
+///
+/// - **El PDF de un proyecto** (`capas_del_pdf`): sus marcadores van en
+///   `anot-<unico del proyecto>…` y su tinta en el lienzo de cada hoja, asi
+///   que la clave lleva el codigo y esos lienzos
+///   ([`clave_del_pdf_del_proyecto`]).
+/// - Un adjunto del chat: el codigo de su mensaje.
+pub(crate) fn documento(doc: &Path) -> Option<SitioNube> {
+    if let Some(s) = clave_del_pdf_del_proyecto(doc) {
+        return Some(s);
+    }
     let raiz = pindesk_proyecto::anotado::raiz_de(doc)?;
     let x = pindesk_proyecto::anotado::adjunto_de(&raiz, doc)?;
     (modo(&raiz, &x.chat) == Modo::Nube).then(|| SitioNube {
         raiz: raiz.to_string_lossy().into_owned(),
         chat: x.chat,
         clave: x.uid,
+    })
+}
+
+/// **La clave del PDF de un proyecto** de un chat de la nube: el codigo de
+/// sus marcadores y el dibujo de cada hoja con pagina (los que el lector
+/// escribe, con la misma huella; `sin_conexion::clave_con_lienzos`).
+fn clave_del_pdf_del_proyecto(pdf: &Path) -> Option<SitioNube> {
+    use pindesk_proyecto::capas_del_pdf;
+    if !pdf
+        .extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("pdf"))
+    {
+        return None;
+    }
+    let raiz = pindesk_proyecto::anotado::raiz_de(pdf)?;
+    let p = capas_del_pdf::de_este_pdf(&raiz, pdf)?;
+    let b = pindesk_proyecto::anotado::base_del_pdf(&raiz, pdf, Some(&p.ficha))?;
+    if modo(&raiz, &b.chat) != Modo::Nube {
+        return None;
+    }
+    let codigo = b.base.strip_prefix(pindesk_sincro::anotado::PREFIJO)?;
+    let huella = capas_del_pdf::huella(&pdf.to_string_lossy());
+    let lienzos = capas_del_pdf::dibujos_de_las_paginas(&raiz, &p.ficha, &huella);
+    Some(SitioNube {
+        raiz: raiz.to_string_lossy().into_owned(),
+        chat: b.chat,
+        clave: pindesk_sincro::nube::sin_conexion::clave_con_lienzos(codigo, &lienzos),
+    })
+}
+
+/// **Una nota de un proyecto** (el lector de notas, Windows 4fdfb7e1): lo
+/// suyo cuelga de la base `anot-<codigo>` de la nota (sus comentarios, sus
+/// marcas de texto), en el chat de la ficha `ficha`, si va por la nube.
+pub(crate) fn nota(raiz: &Path, ficha: &str, codigo: &str) -> Option<SitioNube> {
+    if codigo.is_empty() {
+        return None;
+    }
+    let chat = pindesk_proyecto::vista::chat_de_ficha(raiz, ficha)?;
+    (modo(raiz, &chat) == Modo::Nube).then(|| SitioNube {
+        raiz: raiz.to_string_lossy().into_owned(),
+        chat,
+        clave: codigo.to_string(),
     })
 }
 
@@ -1190,6 +1242,56 @@ mod pruebas {
             n.nube_sitio_de_documento("/no/esta/plano.dwg".into())
                 .is_none()
         );
+        let _ = std::fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn el_pdf_de_un_proyecto_de_la_nube_retiene_los_lienzos_de_sus_hojas() {
+        use pindesk_proyecto::{Hoja, Proyecto, almacen};
+        let raiz = carpeta("pdf-proyecto");
+        let n = Nucleo::abrir(raiz.to_string_lossy().into_owned(), "Mac de prueba".into()).unwrap();
+        let r = n.crear_chat_compartido_en_la_nube("Obra".into()).unwrap();
+        let ficha = r.ficha.id.clone();
+        let carpeta_chat = almacen::carpeta(&raiz, &ficha);
+        std::fs::create_dir_all(carpeta_chat.join("archivos")).unwrap();
+        let pdf = carpeta_chat.join("archivos/doc-7.pdf");
+        std::fs::write(&pdf, b"%PDF-1.4 doc").unwrap();
+        let hoja = |id: &str, pagina: u32, dibujo: Option<&str>| Hoja {
+            id: id.into(),
+            pagina: Some(pagina),
+            dibujo: dibujo.map(str::to_string),
+            ..Default::default()
+        };
+        let p = Proyecto {
+            id: ficha.clone(),
+            nombre: "Obra".into(),
+            hojas: vec![hoja("h0", 0, Some("dib-1")), hoja("h1", 1, None)],
+            tocado: 10,
+            pdf_origen: Some("archivos/doc-7.pdf".into()),
+            ..Default::default()
+        };
+        std::fs::write(carpeta_chat.join("proyecto.json"), serde_json::to_string(&p).unwrap()).unwrap();
+        let s = n
+            .nube_sitio_de_documento(pdf.to_string_lossy().into_owned())
+            .expect("el PDF del proyecto tiene boton");
+        let huella = pindesk_proyecto::capas_del_pdf::huella(&pdf.to_string_lossy());
+        let partes: Vec<&str> = s.clave.split('|').collect();
+        assert_eq!(partes.len(), 3, "{}", s.clave);
+        assert_eq!(&partes[1..], ["dib-1".to_string(), format!("pdf-{huella}-p1")]);
+        assert!(!partes[0].is_empty() && !partes[0].starts_with("anot-"));
+        // Sin conexion y vuelta, con la clave compuesta.
+        n.nube_poner_sin_conexion(s.clone(), true).unwrap();
+        assert!(n.nube_sin_conexion(s.clone()));
+        n.nube_al_cerrar(s.clone(), AlCerrarNube::Subir).unwrap();
+        assert!(!n.nube_sin_conexion(s));
+        // Caso negativo: un PDF que no es de ningun proyecto ni adjunto.
+        let suelto = raiz.join("suelto.pdf");
+        std::fs::write(&suelto, b"%PDF-1.4").unwrap();
+        assert!(n.nube_sitio_de_documento(suelto.to_string_lossy().into_owned()).is_none());
+        // Una nota de ese proyecto, por su codigo; sin codigo, no.
+        let nota = nota(&raiz, &ficha, "ABCDE23456").unwrap();
+        assert_eq!(nota.clave, "ABCDE23456");
+        assert!(super::nota(&raiz, &ficha, "").is_none());
         let _ = std::fs::remove_dir_all(&raiz);
     }
 

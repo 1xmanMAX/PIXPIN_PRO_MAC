@@ -102,8 +102,58 @@ Windows d60e55d/f08b469 (el núcleo, ya portado: `pindesk-sincro/src/nube/`), c5
   (dejarlo).
 
 Falta: la tabla de un chat sin fichero (una hoja sin `ruta`) no lleva el botón; el lienzo no lo
-esconde al presentar; el croquis 3D, el pin de Office y los visores web no lo llevan (como
-Windows). No probado aún contra la nube de referencia desde el Mac.
+esconde al presentar; el croquis 3D y el pin de Office no lo llevan (como Windows); los visores
+web y el PDF de un proyecto, sí desde Windows 4fdfb7e1/6f8ceca8 (abajo). No probado aún contra la nube de referencia desde el Mac.
+
+## Marcar el texto en notas, páginas web y hojas, y la nube en los visores web (2-nov-2026, Windows `b29750d..6ab0559`)
+
+Windows bca03bb4 (el núcleo, ya portado: `pindesk-docs/src/ancla_texto.rs`,
+`pindesk_sincro::anotado::MARCAS_TEXTO`), 34adbfad y f8090d03 (notas y páginas web), 100857f2
+(hojas de cálculo), e9da2cce (docs), 4fdfb7e1 (visores web «En línea / Sin conexión»), 5ade5ede,
+2cb27770, 6f8ceca8 y 00adab50 (el PDF de un proyecto en la nube), 86f8750c (frases del dictado del
+timeline en cada idioma) y 668fa506 (el mes de las tareas exportadas). Hecho:
+
+- **Las marcas de las páginas que se reajustan** (`N/marcas_web.rs`, con pruebas; el
+  `marcas_web.rs` de Windows): la marca guarda su cita y la página la vuelve a buscar. **El mismo
+  fichero que Windows**: de un adjunto del chat o de una nota de un proyecto,
+  `anot-<uid>.marcas-texto.json` de su mensaje (viaja; sin marcas se escribe la lista vacía, no se
+  borra); si no, `<doc>.pixpin-marcas-texto.json` al lado (sin marcas, se quita). Al guardar se
+  junta con lo que llegó al disco (`ancla_texto::fusionar`); un fichero que no se entiende no se
+  pisa; lo que llega con la página abierta se le manda (cada 2 s).
+- **Lector de notas** (`N/notas/web.rs`, `recursos/lector-md.html` = el de Windows `6ab0559`):
+  leyendo, los botones de marcar van en la burbuja de «Comentar» (copiar, cinco colores, cinco
+  marcas, quitar), un clic en una marca la elige, ⌘Z / ⇧⌘Z deshacen la marca (el puente lleva ⌘ a
+  los Ctrl de la página solo leyendo). `abrir` lleva las marcas y los rótulos (`pin-v2-marca-*`,
+  `marcas-texto-color`, en el idioma de `pixpinmax.toml`); `marcas_texto` las guarda; lo que llega
+  de otro aparato va por `mirarFuera` (después del texto).
+- **Visor de HTML** (`K/Documentos/VisorHtml.swift`): el guion de Windows
+  (`recursos/marcas-pagina.js`, `CSS.highlights`, la burbuja en una sombra) en cada página al
+  empezar el documento (`guionDeMarcarPaginas`: el puente `chrome.webview` → `pixpinMarcas`, ⌘Z /
+  ⇧⌘Z / ⌘Y fuera de un campo y la capa `#pixpin-tinta` fuera del texto); `MarcasDePagina` contesta
+  y guarda en su cola. En modo noche la burbuja se vuelve a su color (no se invierte con la
+  página).
+- **Hojas de cálculo** (`K/Documentos/HojaCalculo.swift`, `MarcarCeldas.swift`, `RielHoja.swift`):
+  viendo, con dos celdas o más elegidas con el ratón (clic y ⇧clic), sale la barrita del PDF y se
+  marca **la celda entera**: resaltar y tapar cubren el rango, las rayas van fila a fila
+  (`cajasDeCeldasMarcadas`, hasta 2000 filas, sin las ocultas), como dibujo de la capa de la hoja
+  (`anot-<uid>-h<i>`, grupo `marca-texto-<ms>`); ⌘Z / ⇧⌘Z viendo la quitan y la devuelven. **La
+  tinta de la hoja va ahora en las unidades del libro** (`rejillaDelLibro`, la rejilla de la capa de
+  Windows) y se pinta en su celda de la rejilla del Mac (`MapaCeldasHoja`: cada punto a la misma
+  fracción de la misma celda; el lápiz, al revés). Antes iba en puntos de la tabla del Mac y no caía
+  en su celda en Windows ni en el móvil: lo anotado antes en el Mac sobre un libro se verá movido.
+- **«En línea / Sin conexión»** en el visor de HTML y en el lector de notas (arriba a la izquierda,
+  la cápsula de los demás visores; al cerrar, ya guardado lo suyo, se pregunta). Una nota de un
+  proyecto retiene `anot-<código>…` (`SesionNota.sitioNube`); **el PDF de un proyecto** de un chat
+  de la nube retiene su código y el lienzo de cada hoja (`clave_con_lienzos`,
+  `capas_del_pdf::dibujos_de_las_paginas`) en `N/nube.rs` (con prueba): el lector ya lo enseña.
+- **Timeline**: «con esto pasó…» / «y así te lo cuento…» en el idioma de `pixpinmax.toml`
+  (`Frases::del_catalogo`; las de español valen siempre; con «el del sistema», las de español).
+  **Tareas exportadas**: el mes como va dentro de una fecha (`chat-mes-dia-*`, «5 октября»).
+
+Queda: la vista previa de Office no marca ni guarda (como Windows); el timeline con «el del sistema» no sabe el idioma del Mac en Rust (usa las
+de español). «Guardar de paso» en un chat (pasar lo de junto al fichero al mensaje) no existe aún
+en el Mac; `marcas_web::ruta` ya copia lo de al lado la primera vez que se abre como adjunto. Las
+muestras de la Store no aplican.
 
 ## Marcar el texto leyendo (1-nov-2026, Windows `ab2ef84..4e3efd5`)
 
@@ -144,7 +194,8 @@ Queda:
 - **Hojas escaneadas**: Windows reconoce el texto con el OCR al pasar el ratón (o con T) y deja
   elegir por palabras enteras; aquí PDFKit solo elige el texto que trae el PDF. El puente ya da
   `palabrasEnterasDe`; falta la capa de texto de Vision sobre la hoja.
-- Elegir texto en el lector de notas ya era del navegador; los **visores web** (`visor_html`) y el
+- Las notas, las páginas web y las hojas ya marcan (Windows `b29750d..6ab0559`, arriba). Los
+  **visores web** (`visor_html`) y el
   riel/barra que «no atraviesan otra app» (02e38b7, `lector_pin.rs` y `visor_html/riel.rs`) son
   cuentas de ventanas de Win32 (`ventana_bajo`, «siempre encima»): en el Mac la barra flotante ya
   va con su ventana. **Compartir una nota Markdown como página web con su formato** (02e38b7,
@@ -266,7 +317,7 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 | notas_md/comentarios | Comentarios (`anot-<uid>.comentarios.json`, viajan) | completo | N/notas/comentarios.rs | — (los de Windows: hilos, responder, editar, borrar, resolver; se juntan con lo que llega al disco) |
 | notas_md/incrustados | Documentos o mensajes dentro de la nota | parcial | N/notas/web.rs | Hechos documentos y audios (los pinta la página) y «Del chat» (enlace `pixpin:mensaje=` o el audio de una voz). Faltan saltar al mensaje en su chat al tocarlo y la transcripción bajo el audio |
 | notas_md/paginas_vivas | Páginas vivas y enlaces a hojas | falta | — | La página ya las pinta; falta pintar la hoja a PNG y la lista de hojas (`paginas_vivas.rs`); de momento salen apagadas |
-| notas_md/lector_web | Modo lector de la nota | completo | K/Documentos/EditorNotaWeb.swift, N/notas/web.rs | — (es el editor que se abre, D4) |
+| notas_md/lector_web | Modo lector de la nota | completo | K/Documentos/EditorNotaWeb.swift, N/notas/web.rs | — (es el editor que se abre, D4; marcar el texto leyendo y «En línea / Sin conexión», Windows 34adbfad/4fdfb7e1: N/marcas_web.rs) |
 | notificaciones | Notificaciones con botones: «Hecha», «+10 min», «Abrir», «Conservar» | completo | K/Avisos/CentroAvisos.swift, K/Pines/AvisosMini.swift | Sin permiso del sistema, lo urgente sale en una ventanita de la app con los mismos botones |
 | orden | Línea de órdenes y `pixpinmax://` | parcial | K/Pedidos/{Pedido,Verbos,Enlaces}.swift | C2: `CFBundleURLTypes` (`pixpinmax`) y la tabla de verbos de `orden.rs` entera (mismos nombres, alias y campos; `pixpin://atajo/…` de Android también, y `pixpinmax:pedido?json=`); la lista blanca (`seguridad`), el cuadro de confirmar con «No» por defecto, lo prohibido (rutas de red: `//…`, `/net`, `/Network`, `smb:`, `file:`, relativas) y la firma HMAC-SHA256 (`enlaces.clave` en la carpeta de datos). El Mac no reclama `pixpin://` (es también del PixPin de DepthPixel). Falta la línea de órdenes (`pixpinmax <verbo>` en Terminal): `Verbos.deArgumentos` ya la entiende, falta el ejecutable |
 | oscuro | Modo oscuro de los visores (luna/sol) | parcial | K/Documentos/TonoLector.swift, N/documentos/lector.rs | Hecho en el lector (luna/sol en su barra, `lectores_oscuros` del estado, la tinta se adapta) y en el visor de planos (E2: luna/sol y B, el mismo `lectores_oscuros`; el 3D cambia el suyo con B, como Windows). Faltan el pin de Office y la hoja de cálculo |
@@ -327,8 +378,8 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 | ventanita | Base de las ventanitas de voz | completo | K/VozVentanas/Ventanita.swift | Hecho (E5): colores de papel oscuro, botón plano, ventana lisa con su teclado y el micrófono a un `.m4a` suelto |
 | visor | Word, EPUB y páginas reflujados | parcial | K/Documentos/LectorDocumento.swift (paginado), K/Documentos/VisorReflujo.swift | Reflujo, letra (+/−, T, B), índice, «PDF como texto», tinta del EPUB. Elegir y marcar el texto leyendo (Windows a4fd8c8): arrastrar, doble y triple clic, ⌘C y la barrita; la primera marca fija la columna |
 | visor/como_texto, imagenes, tablas, maqueta_movil | — | falta | — | La maqueta del móvil (para que la tinta caiga igual) |
-| visor_hoja | `.xlsx` entero como pin | parcial | K/Documentos/PinOffice.swift, K/Documentos/HojaCalculo.swift | Las pestañas y ⌘flechas están en el editor (D5); el pin de ver (Vista Rápida) no tiene enlaces ni capa de tinta |
-| visor_html | `.html` a pantalla completa | completo | K/Documentos/VisorHtml.swift | — (D9: `WKWebView` liso del tamaño del área de trabajo con la barra de los lectores; `PixPinVisor.guardar` y la descarga del `.html` se guardan encima del mismo fichero con el filtro de Android, lo demás a Descargas; ⎋ cierra, ⌘E exporta, sigue luna/sol) |
+| visor_hoja | `.xlsx` entero como pin | parcial | K/Documentos/PinOffice.swift, K/Documentos/HojaCalculo.swift | Las pestañas y ⌘flechas están en el editor (D5); el pin de ver (Vista Rápida) no tiene enlaces ni capa de tinta. Marcar celdas enteras con la barrita y la tinta en su celda (Windows 100857f2: K/Documentos/MarcarCeldas.swift) |
+| visor_html | `.html` a pantalla completa | completo | K/Documentos/VisorHtml.swift, N/marcas_web.rs | — (marcar el texto leyendo y «En línea / Sin conexión», Windows f8090d03/4fdfb7e1; D9: `WKWebView` liso del tamaño del área de trabajo con la barra de los lectores; `PixPinVisor.guardar` y la descarga del `.html` se guardan encima del mismo fichero con el filtro de Android, lo demás a Descargas; ⎋ cierra, ⌘E exporta, sigue luna/sol) |
 | vista_rapida | Espacio en el Explorador | no aplica | XC/VistaPrevia | Quick Look del Finder |
 | voz | Nota de voz → texto | completo | K/Voz/*, N/mezcla_audio.rs | Las notas de voz y el micrófono de las ventanitas graban por la mezcla del motor de audio de Windows (06f842c: paso alto y realce de la voz, 48 kHz mono), `MicrofonoConMezcla` |
 | voz_en_chat | Corregir la letra, Pronunciar, turnos | parcial | K/VozVentanas/VozEnElChat.swift | Hecho (E5): Pronunciar y la conversación desde el chat, lo grabado entra y se pasa a texto. Falta corregir la letra (no hay Letra en el Mac) |

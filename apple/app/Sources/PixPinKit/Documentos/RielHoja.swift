@@ -22,11 +22,25 @@ final class RielHoja {
     private var hoja = 0
     var irA: ((Int, Int, Int) -> Void)?
     var celdaActiva: (() -> (hoja: Int, fila: Int, columna: Int))?
+    /// **La rejilla de la capa de la hoja abierta** (la del libro: donde va
+    /// su tinta y sus celdas marcadas), cuando ya se leyo; y cuantas columnas
+    /// y filas medir (las de la vista).
+    private(set) var rejillaCapa: RejillaTinta?
+    var tamano: (() -> (columnas: Int, filas: Int))?
+    /// Llego la rejilla de la hoja (hay que poner el mapa de la tinta).
+    var alCambiarRejilla: (() -> Void)?
+    /// Las celdas marcadas aqui, por hoja: ⌘Z / ⇧⌘Z viendo (Windows
+    /// `marcar::deshacer`), la ultima primero.
+    private var marcasHechas: [Int] = []
+    private var marcasDeshechas: [Int] = []
 
     init(url: URL?, nucleo: Nucleo?) {
         self.url = url
         self.nucleo = nucleo
         marcos = MarcosDoc(documento: url, nucleo: nucleo)
+        // La tinta de un libro va en las unidades de su capa: se espera a su
+        // rejilla para pintarla en su celda.
+        capaTinta.esperaMapa = url != nil && nucleo != nil
     }
 
     private(set) lazy var tinta: HerramientasDeTinta = {
@@ -83,6 +97,62 @@ final class RielHoja {
         capaMarcos.parte = i
         capaTinta.editor = nil
         abrirTinta(crear: modelo.anotando)
+        rejillaCapa = nil
+        capaTinta.mapa = nil
+        leerRejilla()
+    }
+
+    /// Lo medido de la rejilla de la capa (columnas y filas).
+    private var medida = (columnas: 0, filas: 0)
+
+    /// La vista crecio (mas columnas o filas que las medidas): otra vez.
+    func crecio() {
+        guard let t = tamano?(), t.columnas > medida.columnas || t.filas > medida.filas else { return }
+        leerRejilla()
+    }
+
+    /// Lee la rejilla de la capa de la hoja abierta, fuera del hilo
+    /// principal. Si el libro no se lee, la tinta va tal cual.
+    func leerRejilla() {
+        guard let url, nucleo != nil else { return }
+        let i = hoja, ruta = url.path
+        let (c, f) = tamano?() ?? (columnas: 26, filas: 200)
+        medida = (columnas: c, filas: f)
+        Task { [weak self] in
+            let r = await Task.detached(priority: .userInitiated) {
+                rejillaDelLibro(ruta: ruta, hoja: UInt32(i), columnas: UInt32(max(c, 1)), filas: UInt32(max(f, 1)))
+            }.value
+            guard let self, self.hoja == i else { return }
+            self.rejillaCapa = r
+            if r == nil { self.capaTinta.esperaMapa = false }
+            self.alCambiarRejilla?()
+        }
+    }
+
+    /// La capa de la hoja abierta para marcar celdas (nace si no estaba).
+    func editorParaMarcar() -> EditorLienzo? {
+        if capaTinta.editor == nil { abrirTinta(crear: true) }
+        return capaTinta.editor
+    }
+
+    /// Se marcaron celdas de la hoja abierta (un paso de su capa).
+    func apuntarMarca() {
+        marcasHechas.append(hoja)
+        marcasDeshechas.removeAll()
+    }
+
+    /// **⌘Z / ⇧⌘Z viendo**: la ultima marca de celdas de esta hoja.
+    func deshacerMarca(rehacer: Bool) -> Bool {
+        guard let ed = capaTinta.editor else { return false }
+        if rehacer {
+            guard marcasDeshechas.last == hoja, ed.rehacer() else { return false }
+            marcasHechas.append(marcasDeshechas.removeLast())
+        } else {
+            guard marcasHechas.last == hoja, ed.deshacer() else { return false }
+            marcasDeshechas.append(marcasHechas.removeLast())
+        }
+        capaTinta.guardarLuego()
+        return true
     }
 
     private func abrirTinta(crear: Bool) {
@@ -220,6 +290,13 @@ class CapaTintaDoc: NSView {
     var editor: EditorLienzo? { didSet { leido = nil; needsDisplay = true } }
     var anotando = false { didSet { window?.invalidateCursorRects(for: self) } }
     private var leido: (version: UInt64, lienzo: LienzoLeido)?
+    /// **La tinta de una hoja de calculo en su celda** (`MarcarCeldas.swift`):
+    /// lo de la capa va en las unidades del libro y se lleva a la rejilla de
+    /// la vista (y lo que se pinta aqui, al reves). `nil`: tal cual.
+    var mapa: MapaCeldasHoja? { didSet { leido = nil; needsDisplay = true } }
+    /// Mientras llega el mapa de un libro no se pinta (la tinta saldria
+    /// fuera de su celda un momento).
+    var esperaMapa = false { didSet { needsDisplay = true } }
     private let alDia = AlDiaLector()
     private var pendiente: DispatchWorkItem?
 
@@ -230,15 +307,18 @@ class CapaTintaDoc: NSView {
 
     override func draw(_ sucio: NSRect) {
         guard let ed = editor, let ctx = NSGraphicsContext.current?.cgContext else { return }
+        if esperaMapa, mapa == nil { return }
         let v = ed.version()
-        if leido?.version != v, let l = try? leerLienzo(ed.plano()) { leido = (v, l) }
+        if leido?.version != v, let l = try? leerLienzo(ed.plano()) { leido = (v, mapa.map { $0.enVista(l) } ?? l) }
         guard let l = leido?.lienzo, !l.figuras.isEmpty else { return }
         PintorLienzo(lienzo: l).pintar(en: ctx, limites: sucio)
     }
 
     private func puntero(_ fase: FasePuntero, _ e: NSEvent) {
         guard let ed = editor else { return }
-        let p = convert(e.locationInWindow, from: nil)
+        if esperaMapa, mapa == nil { return }
+        let enVista = convert(e.locationInWindow, from: nil)
+        let p = mapa?.aCapa(enVista) ?? enVista
         let presion: Float? = e.subtype == .tabletPoint ? Float(e.pressure) : nil
         var mods: UInt32 = 0
         if e.modifierFlags.contains(.shift) { mods |= 1 }

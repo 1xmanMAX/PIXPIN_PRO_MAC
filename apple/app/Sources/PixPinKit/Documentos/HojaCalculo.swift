@@ -21,6 +21,7 @@
 // despues del ultimo cambio, fuera del hilo principal.
 
 import AppKit
+import Combine
 import PixPinCore
 import SwiftUI
 
@@ -263,6 +264,14 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     /// El libro (para exportarlo entero); `nil` si no viene de un fichero.
     private(set) var urlDelLibro: URL?
 
+    /// **Marcar celdas enteras** (Windows 100857f2): la barrita del PDF
+    /// encima de lo elegido con el raton (dos celdas o mas, viendo).
+    private let marcar = ModeloMarcar()
+    private lazy var anfitrionBarrita = AnfitrionBarritaNS.nuevo(marcar)
+    /// Lo elegido se eligio con el raton (la barrita puede salir).
+    private var conRaton = false
+    private var vigiaRiel: AnyCancellable?
+
     /// **Exportar** con la hoja comun: la rejilla en paginas (HTML, PDF,
     /// PNG…) y el libro original, como Windows.
     func exportar() {
@@ -430,6 +439,9 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             pestanas.bottomAnchor.constraint(equalTo: raiz.bottomAnchor),
         ])
         ventana.contentView = raiz
+        // La tinta de un libro, en su celda: el mapa de la capa a la rejilla.
+        riel.tamano = { [weak self] in (columnas: self?.columnas ?? 26, filas: self?.filas ?? 200) }
+        riel.alCambiarRejilla = { [weak self] in self?.ponerMapa() }
         riel.montar(en: raiz, rejilla: rejilla, arriba: BarraFlotante.alto + 2 * BarraFlotante.separacion + 30)
         // «En línea / Sin conexión»: arriba a la izquierda de la hoja, bajo
         // la barra de formulas (solo en un chat de la nube).
@@ -450,6 +462,16 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         riel.celdaActiva = { [weak self] in
             guard let self else { return (0, 0, 0) }
             return (Int(self.hoja.activa()), self.fila, self.columna)
+        }
+        // La barrita de marcar celdas, encima de todo.
+        raiz.addSubview(anfitrionBarrita)
+        marcar.pulsar = { [weak self] b in self?.pulsarBarrita(b) }
+        scroll.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(self, selector: #selector(desplazada(_:)),
+                                               name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        // El lapiz, el marcador o los marcos del riel la esconden.
+        vigiaRiel = riel.modelo.objectWillChange.sink { [weak self] _ in
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.ponerBarrita() } }
         }
         ventana.setContentSize(NSSize(width: 980, height: 660))
         ventana.center()
@@ -491,6 +513,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         arriba?.isHidden = !si
         arribaCerrada?.isActive = !si
         if !si, ventana.firstResponder === barra.currentEditor() { ventana.makeFirstResponder(rejilla) }
+        ponerBarrita()
     }
 
     /// Las pestanas de un libro (con una sola hoja no hacen falta).
@@ -546,6 +569,8 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             ponerColumnas()
         }
         rejilla.reloadData()
+        // La rejilla de la capa, medida hasta donde se ve.
+        riel.crecio()
     }
 
     private func ponerColumnas() {
@@ -564,6 +589,76 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
             col.headerCell.alignment = .center
             rejilla.addTableColumn(col)
         }
+        ponerMapa()
+    }
+
+    // MARK: Marcar celdas (Windows 100857f2)
+
+    /// **El mapa de la tinta**: de la capa del libro a las columnas y filas
+    /// de la rejilla (`MapaCeldasHoja`). Sin la rejilla del libro, nada.
+    private func ponerMapa() {
+        guard let r = riel.rejillaCapa, rejilla.numberOfColumns > 1 else {
+            riel.capaTinta.mapa = nil
+            return
+        }
+        var xs: [CGFloat] = []
+        xs.reserveCapacity(rejilla.numberOfColumns)
+        for c in 1..<rejilla.numberOfColumns { xs.append(rejilla.rect(ofColumn: c).minX) }
+        xs.append(rejilla.rect(ofColumn: rejilla.numberOfColumns - 1).maxX)
+        riel.capaTinta.mapa = MapaCeldasHoja(capa: r, xsVista: xs, altoFila: rejilla.rowHeight + rejilla.intercellSpacing.height)
+        ponerBarrita()
+    }
+
+    /// **La barrita**, encima de lo elegido: solo viendo (ni editando ni con
+    /// el lapiz, el marcador o los marcos), con dos celdas o mas elegidas
+    /// con el raton, en un libro.
+    private func ponerBarrita() {
+        let r = rango
+        guard conRaton, !modelo.editando, urlDelLibro != nil, riel.rejillaCapa != nil,
+              !riel.modelo.anotando, !riel.modelo.poniendoMarca, !riel.marcos.activo,
+              r.f0 != r.f1 || r.c0 != r.c1, let raiz = ventana.contentView,
+              r.c1 + 1 < rejilla.numberOfColumns, r.f1 < rejilla.numberOfRows else {
+            return marcar.quitar(anfitrionBarrita)
+        }
+        let a = rejilla.frameOfCell(atColumn: r.c0 + 1, row: r.f0)
+        let b = rejilla.frameOfCell(atColumn: r.c1 + 1, row: r.f1)
+        let visto = a.union(b).intersection(rejilla.visibleRect)
+        guard !visto.isNull, visto.width > 0, visto.height > 0 else { return marcar.quitar(anfitrionBarrita) }
+        let enRaiz = raiz.convert(visto, from: rejilla)
+        marcar.poner(zona: ModeloMarcar.desdeArriba(enRaiz, en: raiz), en: raiz, anfitrion: anfitrionBarrita)
+    }
+
+    @objc private func desplazada(_ n: Notification) {
+        if !anfitrionBarrita.isHidden || conRaton { ponerBarrita() }
+    }
+
+    private func pulsarBarrita(_ b: BotonDeMarcar) {
+        switch b.que {
+        case "copiar":
+            hacer(.copiar)
+        case "color":
+            marcar.color = b.color
+        case "quitar":
+            marcarCeldas(nil)
+            conRaton = false
+            ponerBarrita()
+        default:
+            marcarCeldas(b.que)
+        }
+    }
+
+    /// Marca lo elegido con `marca` (o quita lo que hay, con `nil`): la
+    /// celda entera, en la capa de la hoja (un paso de deshacer).
+    private func marcarCeldas(_ marca: String?) {
+        guard let rc = riel.rejillaCapa, let ed = riel.editorParaMarcar() else { return NSSound.beep() }
+        let r = rango
+        let cajas = cajasDeCeldasMarcadas(rejilla: rc, fila0: UInt32(r.f0), columna0: UInt32(r.c0),
+                                          fila1: UInt32(r.f1), columna1: UInt32(r.c1), marca: marca)
+        guard !cajas.isEmpty,
+              ed.marcarTexto(marca: marca, color: marcar.color, cajas: cajas, deMarca: nil, grupo: grupoDeMarcaNuevo())
+        else { return }
+        riel.apuntarMarca()
+        riel.capaTinta.guardarLuego()
     }
 
     // MARK: Datos
@@ -673,12 +768,14 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
         rejilla.reloadData(forRowIndexes: filasRepintar, columnIndexes: IndexSet(integersIn: 0..<rejilla.numberOfColumns))
         rejilla.scrollRowToVisible(fila)
         rejilla.scrollColumnToVisible(columna + 1)
+        ponerBarrita()
     }
 
     @objc private func clic() {
         let f = rejilla.clickedRow, c = rejilla.clickedColumn - 1
         guard f >= 0, c >= 0 else { return }
         let extender = NSEvent.modifierFlags.contains(.shift)
+        conRaton = true
         elegir(f, c, extender: extender)
     }
 
@@ -780,6 +877,11 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
 
     /// **Hace lo que pide una tecla o un boton.**
     func hacer(_ a: AccionHoja) {
+        // ⌘Z / ⇧⌘Z viendo: las celdas marcadas (Windows `marcar::deshacer`).
+        if !modelo.editando, a == .deshacer || a == .rehacer {
+            if !riel.deshacerMarca(rehacer: a == .rehacer) { NSSound.beep() }
+            return
+        }
         // Viendo, lo que cambia la hoja no se hace (como Windows sin editar).
         if !modelo.editando {
             switch a {
@@ -888,6 +990,7 @@ final class ControladorHoja: NSObject, NSTableViewDataSource, NSTableViewDelegat
     @objc private func columnaCambiada(_ n: Notification) {
         guard let col = n.userInfo?["NSTableColumn"] as? NSTableColumn, let i = Int(col.identifier.rawValue) else { return }
         if hoja.ponerAncho(columna: UInt32(i), ancho: UInt32(max(col.width, 16).rounded())) { programarGuardado() }
+        ponerMapa()
     }
 
     // MARK: Guardar

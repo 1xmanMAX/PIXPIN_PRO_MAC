@@ -107,12 +107,18 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
     var alCerrar: (@MainActor (ControladorNotaWeb) -> Void)?
     /// Pidio el editor de antes: quien lo abrio lo abre con la misma nota.
     var alPedirAnterior: (@MainActor (ControladorNotaWeb) -> Void)?
+    /// «En línea / Sin conexión» (Windows 4fdfb7e1) si la nota es de un
+    /// chat de la nube: lo suyo (`anot-<codigo>…`: comentarios, marcas de
+    /// texto) se retiene.
+    let enLinea: EnLineaDelVisor
 
-    init(sesion: SesionNota, chat: String?, mensaje: MensajeChat?, almacen: Almacen?) {
+    init(sesion: SesionNota, chat: String?, mensaje: MensajeChat?, almacen: Almacen?, nucleo: Nucleo? = nil) {
         self.sesion = sesion
         self.chat = chat
         self.mensaje = mensaje
         self.almacen = almacen
+        let s = sesion
+        enLinea = EnLineaDelVisor(nucleo: nucleo ?? almacen?.nucleo, sitio: { s.sitioNube() })
         esquema = EsquemaNota(sesion: sesion)
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(esquema, forURLScheme: "pixpin-nota")
@@ -129,6 +135,15 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         web.navigationDelegate = self
         web.uiDelegate = self
         ventana.contentView = web
+        // «En línea / Sin conexión»: arriba a la izquierda, como en los
+        // demas visores (solo en un chat de la nube).
+        let botonNube = NSHostingView(rootView: BotonEnLinea(modelo: enLinea).fixedSize())
+        botonNube.translatesAutoresizingMaskIntoConstraints = false
+        web.addSubview(botonNube)
+        NSLayoutConstraint.activate([
+            botonNube.leadingAnchor.constraint(equalTo: web.leadingAnchor, constant: 16),
+            botonNube.topAnchor.constraint(equalTo: web.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
+        ])
         ventana.isReleasedWhenClosed = false
         ventana.delegate = self
         ventana.title = sesion.titulo()
@@ -380,6 +395,12 @@ final class ControladorNotaWeb: NSObject, NSWindowDelegate, WKNavigationDelegate
         mirar = nil
         barra?.terminar()
         web.configuration.userContentController.removeScriptMessageHandler(forName: "pixpin")
+        // Ya guardado lo de la pagina (la cola va en orden): si se dejo sin
+        // conexion, se pregunta (Windows 4fdfb7e1).
+        let enLinea = self.enLinea
+        cola.async {
+            DispatchQueue.main.async { MainActor.assumeIsolated { enLinea.alCerrar() } }
+        }
         alCerrar?(self)
     }
 }

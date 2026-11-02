@@ -113,6 +113,13 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
                                                               injectionTime: .atDocumentStart, forMainFrameOnly: false))
         conf.userContentController.addUserScript(WKUserScript(source: CapaTintaWeb.guion,
                                                               injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        // **Marcar el texto leyendo** (Windows 34adbfad y f8090d03): el guion
+        // de Windows en cada pagina, antes que los suyos; habla por
+        // `pixpinMarcas` y guarda en `anot-<uid>.marcas-texto.json`.
+        conf.userContentController.addUserScript(WKUserScript(source: guionDeMarcarPaginas(),
+                                                              injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        marcasTexto = nucleo?.marcasDePagina(documento: url.path, idioma: Lengua.catalogo.etiqueta())
+        enLinea = EnLineaDelVisor(documento: url, nucleo: nucleo)
         web = WKWebView(frame: .zero, configuration: conf)
         // El area de trabajo, como Windows: sin marco propio, la barra de
         // menus y el Dock siguen ahi para cambiar de ventana.
@@ -122,6 +129,7 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         super.init()
         conf.userContentController.add(Debil(self), name: "pixpinVisor")
         conf.userContentController.add(Debil(self), name: "pixpinScroll")
+        conf.userContentController.add(Debil(self), name: "pixpinMarcas")
         web.navigationDelegate = self
         web.uiDelegate = self
         web.allowsBackForwardNavigationGestures = false
@@ -159,6 +167,21 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         modelo.nombre = url.lastPathComponent
         modelo.controlador = self
         montarRiel(en: contenedor, nucleo: nucleo)
+        // «En línea / Sin conexión» (Windows 4fdfb7e1): arriba a la
+        // izquierda, encima de la pagina (solo en un chat de la nube).
+        let botonNube = NSHostingView(rootView: BotonEnLinea(modelo: enLinea).fixedSize())
+        botonNube.translatesAutoresizingMaskIntoConstraints = false
+        contenedor.addSubview(botonNube)
+        NSLayoutConstraint.activate([
+            botonNube.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor, constant: 16),
+            botonNube.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
+        ])
+        // Las marcas que lleguen con la sincronizacion, cada 2 s.
+        if marcasTexto != nil {
+            mirarMarcas = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.mirarMarcasTexto() }
+            }
+        }
         let modelo = self.modelo
         barra = BarraFlotante(ventana: ventana) { BarraVisorHtml(modelo: modelo) }
         // El modo oscuro de los visores: nunca tocado, el del Mac.
@@ -172,6 +195,35 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
             let oscuro = n.object as? Bool
             MainActor.assumeIsolated { if let oscuro { self?.ponerOscuro(oscuro) } }
         })
+    }
+
+    /// Las marcas de texto de la pagina (`nil` sin nucleo).
+    private let marcasTexto: MarcasDePagina?
+    private let colaMarcas = DispatchQueue(label: "pixpin.html.marcas", qos: .userInitiated)
+    private var mirarMarcas: Timer?
+    /// «En línea / Sin conexión».
+    private let enLinea: EnLineaDelVisor
+
+    /// Un mensaje del guion de marcar: Rust lo guarda (en su cola, en orden)
+    /// y lo que conteste va a la pagina.
+    private func atenderMarcas(_ texto: String) {
+        guard let marcas = marcasTexto else { return }
+        colaMarcas.async { [weak self] in
+            guard let js = marcas.atender(mensaje: texto) else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.web.evaluateJavaScript(js, completionHandler: nil) }
+            }
+        }
+    }
+
+    private func mirarMarcasTexto() {
+        guard let marcas = marcasTexto else { return }
+        colaMarcas.async { [weak self] in
+            guard let js = marcas.mirar() else { return }
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.web.evaluateJavaScript(js, completionHandler: nil) }
+            }
+        }
     }
 
     private let riel = RielSobreVista()
@@ -415,7 +467,9 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         web.appearance = NSAppearance(named: oscuro ? .darkAqua : .aqua)
         // Como el Word oscuro de Windows: la pagina invertida y las fotos
         // vueltas a su color.
-        let css = "html{filter:invert(1) hue-rotate(180deg);background:#fff}img,video,picture,canvas,svg image{filter:invert(1) hue-rotate(180deg)}"
+        // La burbuja de marcar (`#pixpin-marcas`) ya sigue al modo oscuro
+        // por su cuenta: vuelta a su color, como las fotos.
+        let css = "html{filter:invert(1) hue-rotate(180deg);background:#fff}img,video,picture,canvas,svg image,#pixpin-marcas{filter:invert(1) hue-rotate(180deg)}"
         web.evaluateJavaScript("""
         (function(){var e=document.getElementById('pixpin-oscuro');
         if(\(oscuro)){if(!e){e=document.createElement('style');e.id='pixpin-oscuro';document.documentElement.appendChild(e);}e.textContent='\(css)';}
@@ -459,6 +513,10 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
     }
 
     func userContentController(_ uc: WKUserContentController, didReceive message: WKScriptMessage) {
+        if message.name == "pixpinMarcas" {
+            if let texto = message.body as? String { atenderMarcas(texto) }
+            return
+        }
         if message.name == "pixpinScroll", let a = message.body as? [Double], a.count == 2 {
             capa.desplazado = CGPoint(x: a[0], y: a[1])
             return
@@ -552,8 +610,25 @@ final class ControladorVisorHtml: NSObject, NSWindowDelegate, WKScriptMessageHan
         vigias.forEach(NotificationCenter.default.removeObserver)
         vigias = []
         barra?.terminar()
+        mirarMarcas?.invalidate()
+        mirarMarcas = nil
         web.configuration.userContentController.removeScriptMessageHandler(forName: "pixpinVisor")
+        web.configuration.userContentController.removeScriptMessageHandler(forName: "pixpinMarcas")
         web.stopLoading()
+        // Lo del riel, ya guardado (y lo de las marcas, en su cola): si se
+        // dejo sin conexion, se pregunta (Windows 4fdfb7e1).
+        guardado?.cancel()
+        guardado = nil
+        let ed = capa.editor, alDia = self.alDia, enLinea = self.enLinea, ruta = url.path
+        colaMarcas.async {
+            if let ed, ed.sinGuardar(), let r = try? alDia.guardar(0, ed), r.escrito {
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: .pixpinDocumentoAnotado, object: ruta)
+                    NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+                }
+            }
+            DispatchQueue.main.async { MainActor.assumeIsolated { enLinea.alCerrar() } }
+        }
         alCerrar?()
     }
 }

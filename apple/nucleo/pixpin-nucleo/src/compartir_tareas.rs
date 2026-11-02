@@ -114,7 +114,17 @@ pub fn rotulos(idioma: &str) -> Rotulos {
         de: con("tareas-exportar-de", &[("hechas", "{hechas}"), ("total", "{total}")]),
         foto: t.t("tareas-exportar-foto"),
         dias: std::array::from_fn(|i| t.t(&format!("tareas-dia-{i}"))),
-        meses: std::array::from_fn(|i| t.t(&format!("chat-mes-{}", i + 1))),
+        // Van dentro de «{dia} de {mes}»: el mes de dentro de una fecha
+        // (genitivo en ruso, `chat-mes-dia-*`), no el suelto (Windows
+        // 668fa506, `ventana_chat::mes_en_fecha`).
+        meses: std::array::from_fn(|i| {
+            let clave = format!("chat-mes-dia-{}", i + 1);
+            if t.traducida(&clave) {
+                t.t(&clave)
+            } else {
+                t.t(&format!("chat-mes-{}", i + 1))
+            }
+        }),
         fecha: con("chat-fecha", &fecha),
         fecha_con_ano: con("chat-fecha-con-ano", &fecha),
     }
@@ -344,6 +354,10 @@ mod pruebas {
         let en = rotulos("en-US");
         assert_ne!(en.tareas, "");
         assert_eq!(en.idioma, "en");
+        // El mes va como dentro de una fecha (Windows 668fa506): «5 октября».
+        let ru = rotulos("ru-RU");
+        assert_eq!(ru.meses[9], "октября");
+        assert_ne!(ru.meses[9], "октябрь", "caso negativo: no el mes suelto");
     }
 
     #[test]

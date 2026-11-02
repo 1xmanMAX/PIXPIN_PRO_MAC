@@ -426,7 +426,7 @@ public final class EditoresDeNotas {
             NSWorkspace.shared.open(url)
             return
         }
-        let c = ControladorNotaWeb(sesion: sesion, chat: nil, mensaje: nil, almacen: nil)
+        let c = ControladorNotaWeb(sesion: sesion, chat: nil, mensaje: nil, almacen: nil, nucleo: nucleo)
         c.alCerrar = { [weak self] _ in self?.web[clave] = nil }
         web[clave] = c
         c.mostrar()

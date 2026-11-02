@@ -6822,6 +6822,159 @@ public func FfiConverterTypeManosAutomatizacion_lower(_ value: ManosAutomatizaci
 
 
 /**
+ * **Las marcas de texto de una pagina del visor de HTML**, abiertas.
+ */
+public protocol MarcasDePaginaProtocol: AnyObject, Sendable {
+    
+    /**
+     * **Un mensaje del guion** (lo que llego por `pixpinMarcas`, tal cual):
+     * el JavaScript con que se le contesta, si hay que contestar. Escribe
+     * en el disco: fuera del hilo principal.
+     */
+    func atender(mensaje: String)  -> String?
+    
+    /**
+     * **Lo que llego al disco** con la pagina abierta (la sincronizacion):
+     * el JavaScript que se lo deja a la pagina. Para llamarlo cada 2 s.
+     */
+    func mirar()  -> String?
+    
+}
+/**
+ * **Las marcas de texto de una pagina del visor de HTML**, abiertas.
+ */
+open class MarcasDePagina: MarcasDePaginaProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_marcasdepagina(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_marcasdepagina(handle, $0) }
+    }
+
+    
+
+    
+    /**
+     * **Un mensaje del guion** (lo que llego por `pixpinMarcas`, tal cual):
+     * el JavaScript con que se le contesta, si hay que contestar. Escribe
+     * en el disco: fuera del hilo principal.
+     */
+open func atender(mensaje: String) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdepagina_atender(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Lo que llego al disco** con la pagina abierta (la sincronizacion):
+     * el JavaScript que se lo deja a la pagina. Para llamarlo cada 2 s.
+     */
+open func mirar() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_marcasdepagina_mirar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeMarcasDePagina: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = MarcasDePagina
+
+    public static func lift(_ handle: UInt64) throws -> MarcasDePagina {
+        return MarcasDePagina(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: MarcasDePagina) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MarcasDePagina {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: MarcasDePagina, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcasDePagina_lift(_ handle: UInt64) throws -> MarcasDePagina {
+    return try FfiConverterTypeMarcasDePagina.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeMarcasDePagina_lower(_ value: MarcasDePagina) -> UInt64 {
+    return FfiConverterTypeMarcasDePagina.lower(value)
+}
+
+
+
+
+
+
+/**
  * **Las marcas de un lienzo abierto**, con sus vistas y el viaje de la
  * camara (el `Marcador` de Windows). Una por ventana.
  */
@@ -9585,6 +9738,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func quienLlama(mensaje: String)  -> String?
     
     /**
+     * **Abre las marcas de texto de la pagina `documento`** (un `.html`)
+     * para el visor de HTML. `idioma`: la etiqueta del idioma de la app
+     * (`CatalogoDeTextos::etiqueta`), la de los rotulos de la burbuja.
+     */
+    func marcasDePagina(documento: String, idioma: String)  -> MarcasDePagina
+    
+    /**
      * **Los avisos pendientes** de los temporizadores y alarmas de todos los
      * chats, ordenados por hora: lo que hay que volver a poner al arrancar y
      * tras sincronizar (un temporizador puesto en el movil llega como texto
@@ -10083,7 +10243,7 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     
     /**
      * **Apunta un momento** (Intro en la caja de «Hoy»): `texto` se parte
-     * en titulo y descripcion (`frases::partir`), las fotos se copian a
+     * en titulo y descripcion (`frases::partir_con`, las del idioma), las fotos se copian a
      * `medios/` (las temporales se mueven) y el audio se mueve. Sin titulo,
      * «Nota de voz» o «Foto»; sin nada, error de argumento. `cuando` es el
      * principio de lo dicho, o ahora.
@@ -13854,6 +14014,22 @@ open func quienLlama(mensaje: String) -> String?  {
 }
     
     /**
+     * **Abre las marcas de texto de la pagina `documento`** (un `.html`)
+     * para el visor de HTML. `idioma`: la etiqueta del idioma de la app
+     * (`CatalogoDeTextos::etiqueta`), la de los rotulos de la burbuja.
+     */
+open func marcasDePagina(documento: String, idioma: String) -> MarcasDePagina  {
+    return try!  FfiConverterTypeMarcasDePagina_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_marcas_de_pagina(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(documento),
+        FfiConverterString.lower(idioma),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Los avisos pendientes** de los temporizadores y alarmas de todos los
      * chats, ordenados por hora: lo que hay que volver a poner al arrancar y
      * tras sincronizar (un temporizador puesto en el movil llega como texto
@@ -14962,7 +15138,7 @@ open func timelineAMomentos(id: String)throws  -> Bool  {
     
     /**
      * **Apunta un momento** (Intro en la caja de «Hoy»): `texto` se parte
-     * en titulo y descripcion (`frases::partir`), las fotos se copian a
+     * en titulo y descripcion (`frases::partir_con`, las del idioma), las fotos se copian a
      * `medios/` (las temporales se mueven) y el audio se mueve. Sin titulo,
      * «Nota de voz» o «Foto»; sin nada, error de argumento. `cuando` es el
      * principio de lo dicho, o ahora.
@@ -18441,6 +18617,14 @@ public protocol SesionNotaProtocol: AnyObject, Sendable {
     func servir(peticion: String)  -> RecursoNota?
     
     /**
+     * **«En línea / Sin conexión»** de la nota (Windows 4fdfb7e1): el sitio
+     * de lo suyo si es de un chat de la nube (una nota de un proyecto, por
+     * su codigo; un `.md` adjunto, por el de su mensaje). `None`: no sale
+     * el boton.
+     */
+    func sitioNube()  -> SitioNube?
+    
+    /**
      * El titulo con que nace la ventana.
      */
     func titulo()  -> String
@@ -18568,6 +18752,21 @@ open func servir(peticion: String) -> RecursoNota?  {
     uniffi_pixpin_nucleo_fn_method_sesionnota_servir(
             self.uniffiCloneHandle(),
         FfiConverterString.lower(peticion),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«En línea / Sin conexión»** de la nota (Windows 4fdfb7e1): el sitio
+     * de lo suyo si es de un chat de la nube (una nota de un proyecto, por
+     * su codigo; un `.md` adjunto, por el de su mensaje). `None`: no sale
+     * el boton.
+     */
+open func sitioNube() -> SitioNube?  {
+    return try!  FfiConverterOptionTypeSitioNube.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_sesionnota_sitio_nube(
+            self.uniffiCloneHandle(),uniffiCallStatus
     )
 })
 }
@@ -62869,6 +63068,28 @@ public func palabrasMagicasDe(guardadas: String?, app: String) -> [String]  {
 })
 }
 /**
+ * **Las cajas de unas celdas marcadas** (Windows 100857f2,
+ * `visor_hoja::marcar::cajas`): en las unidades de la tinta de la hoja
+ * (`rejilla`, la de `rejilla_del_libro`, la misma en todos los aparatos).
+ * Resaltar, tapar y quitar (`marca` `None`) cubren el rango entero de una
+ * pieza; las rayas van fila a fila, de lado a lado del rango, sin las filas
+ * ocultas (alto 0). Se marca la celda entera: el texto de una celda se
+ * recorta o se desborda segun el ancho de la columna de cada aparato.
+ */
+public func cajasDeCeldasMarcadas(rejilla: RejillaTinta, fila0: UInt32, columna0: UInt32, fila1: UInt32, columna1: UInt32, marca: String?) -> [CajaDeMarca]  {
+    return try!  FfiConverterSequenceTypeCajaDeMarca.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_cajas_de_celdas_marcadas(
+        FfiConverterTypeRejillaTinta_lower(rejilla),
+        FfiConverterUInt32.lower(fila0),
+        FfiConverterUInt32.lower(columna0),
+        FfiConverterUInt32.lower(fila1),
+        FfiConverterUInt32.lower(columna1),
+        FfiConverterOptionString.lower(marca),uniffiCallStatus
+    )
+})
+}
+/**
  * El color con que se empieza: el amarillo.
  */
 public func colorInicialDeMarcar() -> UInt8  {
@@ -62929,6 +63150,18 @@ public func palabrasEnterasDe(texto: String, a: UInt32, b: UInt32) -> [UInt32]  
         FfiConverterString.lower(texto),
         FfiConverterUInt32.lower(a),
         FfiConverterUInt32.lower(b),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El guion de marcar** que el visor de HTML pone en cada pagina al
+ * empezar el documento (`WKUserScript`, `.atDocumentStart`, solo el marco
+ * principal). Habla por `webkit.messageHandlers.pixpinMarcas`.
+ */
+public func guionDeMarcarPaginas() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_guion_de_marcar_paginas(uniffiCallStatus
     )
 })
 }
@@ -64841,6 +65074,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_palabras_magicas_de() != 23745) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_cajas_de_celdas_marcadas() != 59700) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_color_inicial_de_marcar() != 57755) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -64854,6 +65090,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_palabras_enteras_de() != 28848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_guion_de_marcar_paginas() != 43781) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_periodo_de_la_mezcla_ms() != 50738) {
@@ -65855,6 +66094,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_quien_llama() != 33186) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_marcas_de_pagina() != 375) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_avisos_miniapps() != 21666) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -66059,7 +66301,7 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_a_momentos() != 50149) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_apuntar() != 36025) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_apuntar() != 34042) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_timeline_archivo() != 5821) {
@@ -66755,6 +66997,12 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_marcasdellienzo_volando() != 10593) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdepagina_atender() != 27120) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_marcasdepagina_mirar() != 52485) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_mezcladeaudio_empujar() != 59724) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -66906,6 +67154,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_sesionnota_servir() != 24129) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_sesionnota_sitio_nube() != 8922) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_sesionnota_titulo() != 36375) {

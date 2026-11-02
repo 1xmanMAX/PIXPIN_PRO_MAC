@@ -351,6 +351,14 @@ final class EnLineaDelVisor: ObservableObject {
         buscar { nucleo.nubeSitioDeLienzo(ficha: ficha, referencia: referencia) }
     }
 
+    /// El de lo que dice `sitio` (Windows 4fdfb7e1: el lector de notas, con
+    /// `SesionNota.sitioNube`). Se mira fuera del hilo principal.
+    init(nucleo: Nucleo?, sitio: @escaping @Sendable () -> SitioNube?) {
+        self.nucleo = nucleo
+        guard nucleo != nil else { return }
+        buscar(sitio)
+    }
+
     private func buscar(_ f: @escaping @Sendable () -> SitioNube?) {
         guard let nucleo else { return }
         Task { [weak self] in

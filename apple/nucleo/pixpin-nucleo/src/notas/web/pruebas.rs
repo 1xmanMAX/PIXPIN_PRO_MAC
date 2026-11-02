@@ -454,3 +454,62 @@ fn siempre_se_abre_leyendo_y_un_md_con_la_marca_del_bloc_de_notas_empieza_por_su
     assert_eq!(r.len(), 1);
     let _ = std::fs::remove_dir_all(&d);
 }
+
+#[test]
+fn las_marcas_de_texto_van_en_abrir_y_viajan_junto_a_los_comentarios() {
+    let (d, n) = nucleo("marcas");
+    let chat = n.crear_chat("Obra".into()).unwrap();
+    let m = n
+        .escribir_nota(chat.id.clone(), "Hola mundo bonito".into(), None)
+        .unwrap();
+    let s = n
+        .clone()
+        .abrir_nota(
+            DestinoNota::Mensaje {
+                chat: chat.id.clone(),
+                mensaje: m.id.clone(),
+            },
+            false,
+        )
+        .unwrap();
+    // «abrir» lleva las marcas (ninguna) y los rotulos de la burbuja.
+    let abrir = ordenes_mandar(&s.recibir(r#"{"tipo":"listo"}"#.into()));
+    assert_eq!(abrir[0]["tipo"], "abrir");
+    assert_eq!(abrir[0]["marcasTexto"]["marcas"], serde_json::json!([]));
+    assert_eq!(abrir[0]["marcasTexto"]["rotulos"]["resaltar"], "Resaltar");
+    // La pagina manda la lista: se guarda en `anot-<codigo>.marcas-texto.json`.
+    let lista = r##"{"tipo":"marcas_texto","marcas":[{"id":"marca-texto-1","marca":"subrayar","color":"#5BA4F5","cuando":1,
+        "cita":{"type":"TextQuoteSelector","exact":"mundo","prefix":"Hola ","suffix":" bonito"},
+        "posicion":{"type":"TextPositionSelector","start":5,"end":10}}]}"##;
+    assert!(s.recibir(lista.into()).is_empty(), "sin nada que devolver");
+    let codigo = mensaje_de(&d, &chat.id, &m.id).unwrap().codigo_unico();
+    let (f, viaja) = crate::marcas_web::ruta_de_nota(&d, &chat.id, &codigo).unwrap();
+    assert!(viaja && f.is_file(), "{}", f.display());
+    assert!(f.display().to_string().ends_with(&format!("anot-{codigo}.marcas-texto.json")));
+    let leidas = pindesk_docs::ancla_texto::leer(&std::fs::read_to_string(&f).unwrap()).unwrap();
+    assert_eq!(leidas.sobre, "markdown");
+    assert_eq!(leidas.marcas[0].cita.exact, "mundo");
+    // Lo que llega de otro aparato se le manda a la pagina.
+    let _ = s.mirar_fuera();
+    let mut otra = leidas.clone();
+    otra.marcas[0].marca = "tachar".into();
+    std::fs::write(&f, pindesk_docs::ancla_texto::escribir(&otra) + "\n\n").unwrap();
+    let llega: serde_json::Value = serde_json::from_str(&s.mirar_fuera().expect("llego otra")).unwrap();
+    assert_eq!(llega["tipo"], "marcas_texto");
+    assert_eq!(llega["marcas"][0]["marca"], "tachar");
+    // Caso negativo: sin cambios, nada.
+    assert!(s.mirar_fuera().is_none());
+    // Un chat normal no va por la nube: sin boton.
+    assert!(s.sitio_nube().is_none());
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+#[test]
+fn la_pagina_lleva_la_barrita_de_marcar_de_windows() {
+    let t = nota_pagina();
+    assert!(t.contains("marcas_texto") && t.contains("pp-marcas"));
+    assert!(t.contains("marcasTexto"));
+    // Leyendo, ⌘Z llega a la pagina como el Ctrl+Z de Windows.
+    let puente = t.find("classList.contains('leyendo')").expect("el ⌘Z de leer");
+    assert!(puente < t.find("chrome.webview.postMessage(JSON.stringify").unwrap());
+}
