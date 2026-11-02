@@ -376,9 +376,14 @@ struct VistaFiguras: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Eligiendo para un chat, el subtitulo dice para cual.
-            Cabecera("Figuras", subtitulo: modelo.paraElChat.map { "Elige una figura para «\($0.nombre)»" }
-                         ?? "\(modelo.cuantas) figuras y plantillas",
+            if modelo.paraElChat != nil {
+                // Eligiendo para un chat, como el iPhone (Windows 2b1fa44f):
+                // «Cerrar», el titulo con su cuenta y el ☀/☾; las categorias
+                // en pastillas y el buscador flotando abajo.
+                CabeceraFigurasDelChat(modelo: modelo) { VentanaLisa.cerrar(ventana?.ventana) }
+                PastillasDeCategorias(modelo: modelo)
+            } else {
+            Cabecera("Figuras", subtitulo: "\(modelo.cuantas) figuras y plantillas",
                      buscador: BuscadorCabecera($modelo.consulta, pista: "Buscar figuras", enfocar: true)) {
                 if modelo.puedeGuardarSeleccion {
                     BotonCabecera(icono: "rectangle.stack.badge.plus", rotulo: "Guardar lo elegido") {
@@ -390,10 +395,13 @@ struct VistaFiguras: View {
                     modelo.alternarNoche()
                 }
             }
+            }
             HStack(spacing: 0) {
-                LateralFiguras(modelo: modelo)
-                    .frame(width: MedidasFiguras.lateral)
-                RejillaFiguras(modelo: modelo)
+                if modelo.paraElChat == nil {
+                    LateralFiguras(modelo: modelo)
+                        .frame(width: MedidasFiguras.lateral)
+                }
+                RejillaFiguras(modelo: modelo, conCuenta: modelo.paraElChat != nil)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .overlay(alignment: .bottom) {
                         // «Adjuntada a … ✓», una pastilla abajo en el centro.
@@ -409,6 +417,12 @@ struct VistaFiguras: View {
                         }
                     }
                     .animation(.easeOut(duration: 0.15), value: modelo.aviso)
+                    .overlay(alignment: .bottom) {
+                        if modelo.paraElChat != nil {
+                            BuscadorFlotanteFiguras(consulta: $modelo.consulta)
+                                .padding(.bottom, 14)
+                        }
+                    }
                 PanelFiguras(modelo: modelo)
                     .frame(width: MedidasFiguras.panel)
             }
@@ -438,6 +452,109 @@ struct VistaFiguras: View {
             .keyboardShortcut(.cancelAction)
             .hidden()
         }
+    }
+}
+
+/// **La cabecera de las figuras del chat** (Windows 2b1fa44f): «Cerrar» en
+/// una pastilla a la izquierda, el titulo con su cuenta en medio y el ☀/☾
+/// redondo a la derecha.
+private struct CabeceraFigurasDelChat: View {
+    @ObservedObject var modelo: ModeloFiguras
+    let cerrar: () -> Void
+
+    var body: some View {
+        ZStack {
+            VStack(spacing: 1) {
+                Text("Figuras")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Paleta.v2.texto)
+                Text(modelo.paraElChat.map { "\(modelo.cuantas) · para «\($0.nombre)»" } ?? "\(modelo.cuantas)")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Paleta.v2.gris)
+                    .lineLimit(1)
+            }
+            HStack {
+                Button(action: cerrar) {
+                    Text(Lengua.t("pin-cerrar"))
+                        .font(.system(size: 13))
+                        .foregroundStyle(Paleta.v2.texto)
+                        .padding(.horizontal, 14)
+                        .frame(height: 30)
+                        .background(Paleta.v2.tarjeta, in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                BotonDiaNoche(noche: modelo.noche, ayuda: modelo.noche ? "Noche" : "Día") {
+                    modelo.alternarNoche()
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .frame(height: 56)
+    }
+}
+
+/// Las categorias en una fila de pastillas que se corre de lado.
+private struct PastillasDeCategorias: View {
+    @ObservedObject var modelo: ModeloFiguras
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                pastilla("Todas", cuenta: modelo.cuantas, elegida: modelo.categoria == nil) { modelo.categoria = nil }
+                ForEach(modelo.categorias, id: \.nombre) { c in
+                    pastilla(c.nombre, cuenta: c.cuenta, elegida: modelo.categoria == c.nombre) {
+                        modelo.categoria = c.nombre
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private func pastilla(_ rotulo: String, cuenta: UInt32, elegida: Bool,
+                          accion: @escaping () -> Void) -> some View {
+        Button(action: accion) {
+            HStack(spacing: 6) {
+                Text(rotulo).font(.system(size: 13))
+                Text("\(cuenta)").font(.system(size: 12)).opacity(0.7)
+            }
+            .foregroundStyle(elegida ? Color.white : Paleta.v2.cuerpo)
+            .padding(.horizontal, 12)
+            .frame(height: 30)
+            .background(elegida ? Paleta.v2.acento : Paleta.v2.tarjeta, in: Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// El buscador flotando abajo, como el del iPhone.
+private struct BuscadorFlotanteFiguras: View {
+    @Binding var consulta: String
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(Paleta.v2.gris)
+            TextField("Buscar figuras", text: $consulta)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14))
+                .foregroundStyle(Paleta.v2.texto)
+            if !consulta.isEmpty {
+                Button { consulta = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(Paleta.v2.gris)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(width: 360, height: 40)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Paleta.v2.linea))
+        .shadow(color: .black.opacity(0.3), radius: 10, y: 4)
     }
 }
 
@@ -521,6 +638,8 @@ private struct LateralFiguras: View {
 
 private struct RejillaFiguras: View {
     @ObservedObject var modelo: ModeloFiguras
+    /// Cada grupo con su cuenta (la del chat, como el iPhone).
+    var conCuenta = false
 
     private let columnas = [GridItem(.adaptive(minimum: MedidasFiguras.celda, maximum: 260), spacing: 22)]
 
@@ -535,10 +654,17 @@ private struct RejillaFiguras: View {
                 LazyVStack(alignment: .leading, spacing: 14) {
                     if modelo.conTitulos {
                         ForEach(modelo.grupos) { g in
-                            Text(g.nombre)
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundStyle(Paleta.v2.texto)
-                                .padding(.top, 10)
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(g.nombre)
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(Paleta.v2.texto)
+                                if conCuenta {
+                                    Text("\(g.fichas.count)")
+                                        .font(.system(size: 13))
+                                        .foregroundStyle(Paleta.v2.gris)
+                                }
+                            }
+                            .padding(.top, 10)
                             celdas(g.fichas)
                         }
                     } else {
@@ -546,6 +672,8 @@ private struct RejillaFiguras: View {
                     }
                 }
                 .padding(22)
+                // Que el buscador flotante no tape la ultima fila.
+                .padding(.bottom, conCuenta ? 56 : 0)
             }
         }
     }

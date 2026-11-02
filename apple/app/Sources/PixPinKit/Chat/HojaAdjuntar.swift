@@ -1,15 +1,14 @@
-// **La hoja del clip de la caja** (`ventana_chat/hoja_adjuntar.rs` de
-// Windows, `Menus2.dc.html` b): una cuadricula con lo de todos los dias
-// —foto, archivo, lienzo, nota, lista de tareas, tabla, conversacion y
-// captura, con las teclas 1–8— y debajo, en chips, lo que se usa menos.
-// Arriba un buscador: se escribe y se filtra («pdf» encuentra Archivo).
+// **La hoja del clip de la caja**, como la «Adjuntar» del iPhone (Windows
+// f87468aa, `ventana_chat/hoja_adjuntar.rs`): arriba «Cerrar» en una
+// pastilla y el titulo; lo de todos los dias en una cuadricula de cuatro
+// (el cuadrado de color con su icono blanco y el nombre debajo: foto,
+// archivo, lienzo, nota, lista de tareas, tabla y captura); una raya, «Más»
+// y lo demas en dos columnas de pastillas grises con su icono; otra raya y
+// «Pegar» (apagado si no hay nada copiado). Sin buscador: son pocas.
 //
-// Teclado, como alli: 1–8 eligen su baldosa (los numeros no se escriben),
-// las flechas mueven lo elegido, Intro lo hace y Esc limpia el buscador o,
-// vacio, cierra.
-//
-// Todas las entradas de Windows estan ya en el Mac. Conversacion, Teleprónter y Pronunciar
-// abren sus ventanitas de la voz (`VozVentanas/`, E5).
+// Teclado, como alli: las flechas recorren (`moverEnLaHojaAdjuntar` del
+// nucleo), Intro hace lo elegido, 1–7 las baldosas y Esc cierra. Cada
+// entrada hace lo mismo que su `Accion` de Windows.
 
 import AppKit
 import PixPinCore
@@ -28,6 +27,8 @@ enum AccionAdjuntar: Hashable, Sendable {
     case carpeta
     /// Una mini-app (`tareas`, `cronometro`...), por su nombre en el nucleo.
     case mini(String)
+    /// «Pegar lo copiado»: ficheros o una imagen al chat; un texto, a la caja.
+    case pegar
 
     /// Si el Mac ya la hace. Las que no, salen apagadas.
     var enElMac: Bool {
@@ -64,102 +65,70 @@ struct OpcionAdjuntar: Identifiable, Hashable, Sendable {
 }
 
 enum HojaAdjuntar {
-    /// Las columnas de baldosas.
-    static let columnas = 4
+    /// Las columnas de baldosas y de «Más» (las de Windows, del nucleo).
+    static let columnas = Int(columnasDeLaHoja().baldosas)
+    static let columnasChips = Int(columnasDeLaHoja().chips)
 
-    /// Las de Windows, en su orden, con sus colores y sus sinonimos.
+    /// Las de Windows, en su orden, con los colores del iPhone (azul, gris,
+    /// naranja, verde, verde, indigo y rojo) y sus simbolos.
     static let opciones: [OpcionAdjuntar] = [
-        .init(Lengua.t("adjuntar-imagen"), "imagen foto video photo image", .foto,
-              color: 0x0A6CD6, simbolo: "photo", numero: 1),
-        .init(Lengua.t("chat-clase-archivo"), "pdf documento word excel fichero file", .archivo,
-              color: 0x636366, simbolo: "doc.text.fill", numero: 2),
-        .init(Lengua.t("chat-lienzo"), "dibujo pizarra canvas draw", .lienzo,
-              color: 0xC77700, simbolo: "pencil.and.scribble", numero: 3),
-        .init(Lengua.t("chat-adj-nota-md"), "nota markdown texto note", .nota,
-              color: 0x248A3D, simbolo: "list.bullet", numero: 4),
-        .init(Lengua.t("v2menus-adj-tareas"), "tareas lista todo checklist", .mini("tareas"),
-              color: 0x1E7A4A, simbolo: "checklist", numero: 5),
-        .init(Lengua.t("chat-tabla"), "tabla hoja calculo excel table", .tabla,
-              color: 0x4B49C8, simbolo: "tablecells.fill", numero: 6),
-        .init(Lengua.t("v2menus-adj-conversacion"), "conversacion voz traducir conversation", .conversacion,
-              color: 0x9A3FC4, simbolo: "person.wave.2.fill", numero: 7),
-        .init(Lengua.t("v2menus-adj-captura"), "captura pantalla recorte screenshot", .captura,
-              color: 0xC93C35, simbolo: "crop", numero: 8),
-        // Una figura de la biblioteca (Windows 1d50a7c): abre la ventana de
-        // las figuras para elegirla viendola, con su boton «Adjuntar».
-        .init(Lengua.t("asistente-adj-figura"), "figura plantilla biblioteca dibujo shape", .figura),
-        .init(Lengua.t("v2menus-adj-pagina"), "pagina proyecto page", .pagina),
-        .init(Lengua.t("v2menus-adj-proyecto"), "proyecto entero project", .proyecto),
-        .init(Lengua.t("carpeta-nueva"), "carpeta cuaderno diario libreta folder notebook", .carpeta),
-        .init(Lengua.t("chat-adj-telepronter"), "teleprompter leer", .telepronter),
-        .init(Lengua.t("chat-adj-pronunciar"), "pronunciar ingles pronounce", .pronunciar),
-        .init(Lengua.t("mini-cronometro"), "cronometro stopwatch mini-app", .mini("cronometro")),
-        .init(Lengua.t("mini-temporizador"), "temporizador timer mini-app", .mini("temporizador")),
-        .init(Lengua.t("mini-contador"), "contador counter mini-app", .mini("contador")),
-        .init(Lengua.t("mini-ruleta"), "ruleta sorteo mini-app", .mini("ruleta")),
-        .init(Lengua.t("mini-gastos"), "gastos dinero mini-app", .mini("gastos")),
-        .init(Lengua.t("mini-alarma"), "alarma despertador mini-app", .mini("alarma")),
-        .init(Lengua.t("v2menus-adj-movil"), "movil telefono wifi phone", .delMovil),
+        .init(Lengua.t("adjuntar-imagen"), "", .foto, color: 0x0A84FF, simbolo: "photo", numero: 1),
+        .init(Lengua.t("adjuntar-archivo"), "", .archivo, color: 0x8E8E93, simbolo: "doc.text.fill", numero: 2),
+        .init(Lengua.t("v2menus-adj-lienzo"), "", .lienzo, color: 0xFF9500, simbolo: "pencil.and.scribble", numero: 3),
+        .init(Lengua.t("chat-adj-nota-md"), "", .nota, color: 0x34C759, simbolo: "list.bullet", numero: 4),
+        .init(Lengua.t("v2menus-adj-tareas"), "", .mini("tareas"), color: 0x30B350, simbolo: "checklist", numero: 5),
+        .init(Lengua.t("v2menus-adj-tabla"), "", .tabla, color: 0x5856D6, simbolo: "tablecells.fill", numero: 6),
+        // La «Cámara» del movil: en el Mac, la captura de una zona.
+        .init(Lengua.t("v2menus-adj-captura"), "", .captura, color: 0xFF3B30, simbolo: "crop", numero: 7),
+        // «Más», de dos en dos en el orden del iPhone.
+        .init(Lengua.t("v2menus-adj-proyecto"), "", .proyecto, simbolo: "folder"),
+        .init(Lengua.t("v2menus-adj-pagina"), "", .pagina, simbolo: "doc.text"),
+        .init(Lengua.t("asistente-adj-figura"), "", .figura, simbolo: "paintpalette"),
+        .init(Lengua.t("carpeta-nueva"), "", .carpeta, simbolo: "book"),
+        .init(Lengua.t("mini-contador"), "", .mini("contador"), simbolo: "number"),
+        .init(Lengua.t("mini-ruleta"), "", .mini("ruleta"), simbolo: "arrow.counterclockwise"),
+        .init(Lengua.t("mini-gastos"), "", .mini("gastos"), simbolo: "square.and.pencil"),
+        .init(Lengua.t("mini-cronometro"), "", .mini("cronometro"), simbolo: "timer"),
+        .init(Lengua.t("mini-temporizador"), "", .mini("temporizador"), simbolo: "gauge.with.dots.needle.67percent"),
+        .init(Lengua.t("mini-alarma"), "", .mini("alarma"), simbolo: "alarm"),
+        .init(Lengua.t("v2menus-adj-conversacion"), "", .conversacion, simbolo: "bubble.left.and.bubble.right"),
+        .init(Lengua.t("chat-adj-telepronter"), "", .telepronter, simbolo: "captions.bubble"),
+        .init(Lengua.t("chat-adj-pronunciar"), "", .pronunciar, simbolo: "person.wave.2"),
+        .init(Lengua.t("v2menus-adj-movil"), "", .delMovil, simbolo: "wifi"),
     ]
 
     /// **La hoja del chat del asistente** (`para_el_asistente` de Windows,
     /// 25-oct-2026: «que pueda adjuntar figuras para que las mejore, o
     /// decirle hazme una figura»): primero **Figura** y lo que se le suele
-    /// dar a mirar; en chips, pedir una figura nueva y lo demas que sirve.
+    /// dar a mirar; en «Más», pedir una figura nueva y lo demas que sirve.
     static let delAsistente: [OpcionAdjuntar] = {
         func de(_ a: AccionAdjuntar, _ numero: Int?) -> OpcionAdjuntar? {
             guard var o = HojaAdjuntar.opciones.first(where: { $0.accion == a }) else { return nil }
             o.numero = numero
             return o
         }
-        var v = [OpcionAdjuntar(Lengua.t("asistente-adj-figura"), "figura plantilla biblioteca mejorar shape", .figura,
-                                color: 0x8E44B8, simbolo: "paintpalette.fill", numero: 1)]
+        var v = [OpcionAdjuntar(Lengua.t("asistente-adj-figura"), "", .figura,
+                                color: 0xAF52DE, simbolo: "paintpalette.fill", numero: 1)]
         for a in [AccionAdjuntar.foto, .archivo, .captura, .lienzo, .nota] {
             if let o = de(a, v.count + 1) { v.append(o) }
         }
-        v.append(OpcionAdjuntar(Lengua.t("asistente-adj-pedir-figura"), "nueva crear hazme dibuja", .pedirFigura))
+        v.append(OpcionAdjuntar(Lengua.t("asistente-adj-pedir-figura"), "", .pedirFigura, simbolo: "sparkles"))
         for a in [AccionAdjuntar.pagina, .proyecto, .tabla, .delMovil] {
             if let o = de(a, nil) { v.append(o) }
         }
         return v
     }()
 
-    /// Minusculas y sin tildes, para buscar sin pensar en acentos.
+    /// Minusculas y sin tildes.
     static func normalizar(_ s: String) -> String {
         s.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
     }
 
-    /// Las que se ven con lo escrito: cada palabra en algun sitio de su
-    /// rotulo o sus sinonimos. Primero las baldosas, luego los chips.
-    static func visibles(_ busqueda: String, en opciones: [OpcionAdjuntar] = opciones) -> [OpcionAdjuntar] {
-        let palabras = normalizar(busqueda).split(whereSeparator: \.isWhitespace)
-        guard !palabras.isEmpty else { return opciones }
-        return opciones.filter { o in palabras.allSatisfy { o.buscable.contains($0) } }
+    /// Si hay algo que pegar (ficheros, una imagen o texto).
+    @MainActor static var hayCopiado: Bool {
+        let pb = NSPasteboard.general
+        return !(pb.types ?? []).isEmpty && (pb.pasteboardItems?.isEmpty == false)
     }
-
-    /// Mover lo elegido con las flechas (`mover_eleccion` de Windows):
-    /// izquierda y derecha de uno en uno; arriba y abajo saltan una fila
-    /// entre las baldosas, y de la ultima fila se baja a los chips.
-    static func mover(_ actual: Int?, _ flecha: Flecha, cuantas: Int, baldosas: Int) -> Int? {
-        guard cuantas > 0 else { return nil }
-        guard let n = actual else { return 0 }
-        let col = columnas
-        let nuevo: Int
-        switch flecha {
-        case .derecha: nuevo = n + 1
-        case .izquierda: nuevo = max(n - 1, 0)
-        case .abajo:
-            if n + col < baldosas { nuevo = n + col }
-            else if n < baldosas { nuevo = baldosas }
-            else { nuevo = n + 1 }
-        case .arriba:
-            if n >= baldosas, n > 0, baldosas > 0 { nuevo = min(n - 1, baldosas - 1) }
-            else { nuevo = max(n - col, 0) }
-        }
-        return min(nuevo, cuantas - 1)
-    }
-
-    enum Flecha { case arriba, abajo, izquierda, derecha }
 }
 
 // MARK: - La vista
@@ -170,98 +139,129 @@ struct VistaHojaAdjuntar: View {
     let cerrar: () -> Void
     /// Las de siempre, o las del asistente (`HojaAdjuntar.delAsistente`).
     var opciones: [OpcionAdjuntar] = HojaAdjuntar.opciones
-    @State private var busqueda = ""
-    /// Lo elegido con las flechas (indice en `visibles`).
+    /// Lo elegido con las flechas (indice: baldosas, chips y «Pegar»).
     @State private var elegido: Int?
     @State private var encima: String?
+    @State private var hayCopiado = false
+    @FocusState private var enfocada: Bool
 
-    private var visibles: [OpcionAdjuntar] { HojaAdjuntar.visibles(busqueda, en: opciones) }
+    private var baldosas: [OpcionAdjuntar] { opciones.filter(\.esBaldosa) }
+    private var chips: [OpcionAdjuntar] { opciones.filter { !$0.esBaldosa } }
 
     var body: some View {
-        let visibles = self.visibles
-        let baldosas = visibles.filter(\.esBaldosa)
-        let chips = visibles.filter { !$0.esBaldosa }
-        VStack(alignment: .leading, spacing: 10) {
-            buscador
-            if visibles.isEmpty {
-                Text(Lengua.t("v2menus-adj-nada"))
-                    .font(.system(size: 13))
-                    .foregroundStyle(Paleta.proyectos.apagado)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-            }
-            if !baldosas.isEmpty {
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4),
-                                         count: HojaAdjuntar.columnas), spacing: 4) {
-                    ForEach(baldosas) { o in
-                        baldosa(o, elegida: visibles.firstIndex(of: o) == elegido)
-                    }
+        let baldosas = self.baldosas, chips = self.chips
+        VStack(alignment: .leading, spacing: 12) {
+            cabecera
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: HojaAdjuntar.columnas),
+                      spacing: 4) {
+                ForEach(Array(baldosas.enumerated()), id: \.element.id) { i, o in
+                    baldosa(o, elegida: elegido == i)
                 }
             }
             if !chips.isEmpty {
-                HStack(spacing: 8) {
-                    Text(Lengua.t("v2menus-adj-mas")).font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Paleta.proyectos.apagado)
-                    Paleta.proyectos.separador.frame(height: 1)
-                }
-                .padding(.top, 2)
-                FilasDeChips(espacio: 6) {
-                    ForEach(chips) { o in
-                        chip(o, elegido: visibles.firstIndex(of: o) == elegido)
+                raya
+                Text(Lengua.t("v2menus-adj-mas"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Paleta.proyectos.apagado)
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8),
+                                         count: HojaAdjuntar.columnasChips), spacing: 8) {
+                    ForEach(Array(chips.enumerated()), id: \.element.id) { i, o in
+                        chip(o, elegido: elegido == baldosas.count + i)
                     }
                 }
             }
-        }
-        .padding(14)
-        .frame(width: 460)
-        .background(Paleta.chat.cabecera)
-    }
-
-    private var buscador: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Paleta.proyectos.apagado)
-            CampoDeUnaLinea(texto: $busqueda, invitacion: Lengua.t("v2menus-adj-buscar"),
-                            tamano: 14, foco: true) { t in
-                self.tecla(t)
-            } alCambiar: { escrito in
-                // Los numeros son teclas, no texto: ninguna opcion se busca
-                // por uno. El primero que llegue elige su baldosa.
-                guard let d = escrito.first(where: \.isNumber) else { return escrito }
-                if let n = d.wholeNumberValue, let o = visibles.first(where: { $0.numero == n }) {
-                    DispatchQueue.main.async { elegir(o.accion) }
+            raya
+            HStack {
+                Spacer()
+                Button { elegir(.pegar) } label: {
+                    Label(Lengua.t("lienzo-pegar-menu"), systemImage: "doc.on.clipboard")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(hayCopiado ? Color(hex: 0x0A84FF) : Paleta.proyectos.apagado)
+                        .padding(.horizontal, 14)
+                        .frame(height: 32)
+                        .background(Color(hex: 0x0A84FF).opacity(hayCopiado ? (elegido == indicePegar ? 0.30 : 0.15) : 0.06),
+                                    in: Capsule())
+                        .contentShape(Capsule())
                 }
-                return escrito.filter { !$0.isNumber }
+                .buttonStyle(.plain)
+                .disabled(!hayCopiado)
             }
-            Text("Esc")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(Paleta.proyectos.apagado)
-                .padding(.horizontal, 5).padding(.vertical, 2)
-                .background(Paleta.proyectos.apagado.opacity(0.18), in: RoundedRectangle(cornerRadius: 4))
         }
-        .padding(.horizontal, 12)
-        .frame(height: 40)
-        .background(Paleta.chat.campo, in: RoundedRectangle(cornerRadius: 10))
-        .onChange(of: busqueda) { _, _ in elegido = nil }
+        .padding(16)
+        .frame(width: 480)
+        .background(Paleta.chat.cabecera)
+        .focusable()
+        .focusEffectDisabled()
+        .focused($enfocada)
+        .onAppear {
+            hayCopiado = HojaAdjuntar.hayCopiado
+            enfocada = true
+        }
+        .onKeyPress(phases: .down) { tecla($0) }
     }
 
-    /// Las teclas del buscador que son de la hoja.
-    private func tecla(_ t: TeclaDeCampo) -> Bool {
-        let visibles = self.visibles
-        let baldosas = visibles.filter(\.esBaldosa).count
-        switch t {
-        case let .flecha(f):
-            elegido = HojaAdjuntar.mover(elegido, f, cuantas: visibles.count, baldosas: baldosas)
-            return true
-        case .intro:
-            if let o = visibles[safe: elegido ?? 0] { elegir(o.accion) }
-            return true
-        case .escape:
-            if busqueda.isEmpty { cerrar() } else { busqueda = "" }
-            return true
-        case .introConMayusculas:
-            return false
+    private var indicePegar: Int { baldosas.count + chips.count }
+
+    private var cabecera: some View {
+        ZStack {
+            Text(Lengua.t("chat-adjuntar"))
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Paleta.proyectos.texto)
+            HStack {
+                Button(action: cerrar) {
+                    Text(Lengua.t("pin-cerrar"))
+                        .font(.system(size: 13))
+                        .foregroundStyle(Paleta.proyectos.texto)
+                        .padding(.horizontal, 12)
+                        .frame(height: 28)
+                        .background(Paleta.proyectos.texto.opacity(0.08), in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                Spacer()
+            }
         }
+        .frame(height: 34)
+    }
+
+    private var raya: some View {
+        Paleta.proyectos.separador.frame(height: 1)
+    }
+
+    /// Las teclas de la hoja: flechas, Intro, 1–7 y Esc.
+    private func tecla(_ k: KeyPress) -> KeyPress.Result {
+        let flecha: FlechaDeLaHoja?
+        switch k.key {
+        case .upArrow: flecha = .arriba
+        case .downArrow: flecha = .abajo
+        case .leftArrow: flecha = .izquierda
+        case .rightArrow: flecha = .derecha
+        case .return:
+            if let n = elegido { hacer(n) }
+            return .handled
+        case .escape:
+            cerrar()
+            return .handled
+        default:
+            flecha = nil
+        }
+        if let flecha {
+            elegido = moverEnLaHojaAdjuntar(actual: elegido.map { UInt32($0) }, flecha: flecha,
+                                            baldosas: UInt32(baldosas.count), chips: UInt32(chips.count),
+                                            pegar: hayCopiado).map { Int($0) }
+            return .handled
+        }
+        if let d = k.characters.first?.wholeNumberValue, let o = baldosas.first(where: { $0.numero == d }) {
+            elegir(o.accion)
+            return .handled
+        }
+        return .ignored
+    }
+
+    private func hacer(_ n: Int) {
+        if n < baldosas.count { elegir(baldosas[n].accion) }
+        else if n < indicePegar { elegir(chips[n - baldosas.count].accion) }
+        else if hayCopiado { elegir(.pegar) }
     }
 
     private func baldosa(_ o: OpcionAdjuntar, elegida: Bool) -> some View {
@@ -269,10 +269,10 @@ struct VistaHojaAdjuntar: View {
             VStack(spacing: 8) {
                 RoundedRectangle(cornerRadius: 14)
                     .fill(Color(hex: o.color))
-                    .frame(width: 48, height: 48)
+                    .frame(width: 56, height: 56)
                     .overlay {
                         Image(systemName: o.simbolo)
-                            .font(.system(size: 21, weight: .semibold))
+                            .font(.system(size: 24, weight: .semibold))
                             .foregroundStyle(.white)
                     }
                 Text(o.rotulo)
@@ -281,42 +281,38 @@ struct VistaHojaAdjuntar: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .frame(maxWidth: .infinity, minHeight: 96)
-            .overlay(alignment: .topTrailing) {
-                if let n = o.numero {
-                    Text("\(n)")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(Paleta.proyectos.apagado)
-                        .frame(width: 16, height: 16)
-                        .background(Paleta.proyectos.apagado.opacity(0.18), in: RoundedRectangle(cornerRadius: 4))
-                        .padding(8)
-                }
-            }
+            .frame(maxWidth: .infinity, minHeight: 90)
             .background(fondo(o, elegida: elegida), in: RoundedRectangle(cornerRadius: 14))
-            .opacity(o.accion.enElMac ? 1 : 0.45)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .onHover { encima = $0 ? o.id : (encima == o.id ? nil : encima) }
-        .help(o.accion.enElMac ? "\(o.rotulo) (\(o.numero ?? 0))" : "Aún no está en el Mac")
+        .help("\(o.rotulo) (\(o.numero ?? 0))")
     }
 
     private func chip(_ o: OpcionAdjuntar, elegido: Bool) -> some View {
         Button { elegir(o.accion) } label: {
-            Text(o.rotulo)
-                .font(.system(size: 13))
-                .foregroundStyle(elegido ? .white : Paleta.proyectos.texto)
-                .padding(.horizontal, 12)
-                .frame(height: 32)
-                .background(elegido ? Paleta.chat.azulElegido
-                                    : Paleta.proyectos.texto.opacity(encima == o.id ? 0.16 : 0.08),
-                            in: Capsule())
-                .opacity(o.accion.enElMac ? 1 : 0.45)
-                .contentShape(Capsule())
+            HStack(spacing: 8) {
+                Image(systemName: o.simbolo)
+                    .font(.system(size: 14, weight: .medium))
+                    .frame(width: 20)
+                Text(o.rotulo)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(elegido ? .white : Paleta.proyectos.texto)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, minHeight: 36)
+            .background(elegido ? Paleta.chat.azulElegido
+                                : Paleta.proyectos.texto.opacity(encima == o.id ? 0.16 : 0.08),
+                        in: Capsule())
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .onHover { encima = $0 ? o.id : (encima == o.id ? nil : encima) }
-        .help(o.accion.enElMac ? o.rotulo : "Aún no está en el Mac")
+        .help(o.rotulo)
     }
 
     private func fondo(_ o: OpcionAdjuntar, elegida: Bool) -> Color {
@@ -413,8 +409,9 @@ enum AdjuntarEnChat {
             elegirProyecto(chat: chat, almacen: almacen, avisar: avisar)
         case .pagina:
             elegirPagina(chat: chat, almacen: almacen, avisar: avisar)
-        case .figura, .pedirFigura:
-            // Las hace el chat: tocan la caja de escribir (`FigurasDelChat.swift`).
+        case .figura, .pedirFigura, .pegar:
+            // Las hace el chat: tocan la caja de escribir (`FigurasDelChat.swift`,
+            // `ChatView.adjuntar`).
             break
         case .carpeta:
             // El chat la crea con el nombre listo para escribirlo

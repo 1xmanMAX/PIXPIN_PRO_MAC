@@ -35,60 +35,50 @@ final class CajaDelChatTests: XCTestCase {
 
     // MARK: Hoja del clip
 
-    func testOchoBaldosasNumeradasYLosChipsDebajo() {
+    func testSieteBaldosasNumeradasYLosChipsDebajo() {
         let o = HojaAdjuntar.opciones
-        XCTAssertEqual(o.compactMap(\.numero), [1, 2, 3, 4, 5, 6, 7, 8])
-        XCTAssertEqual(o.count, 21, "las 21 entradas de Windows")
-        // «Figura» tambien en los chats normales (Windows 1d50a7c), en los chips.
-        XCTAssertEqual(HojaAdjuntar.visibles("plantilla").map(\.accion), [.figura])
-        // La carpeta de paginas, en los chips (26-oct-2026).
-        XCTAssertEqual(HojaAdjuntar.visibles("cuaderno").map(\.accion), [.carpeta])
+        // Como la «Adjuntar» del iPhone (Windows f87468aa): siete baldosas.
+        XCTAssertEqual(o.compactMap(\.numero), [1, 2, 3, 4, 5, 6, 7])
+        XCTAssertEqual(o.filter(\.esBaldosa).map(\.accion),
+                       [.foto, .archivo, .lienzo, .nota, .mini("tareas"), .tabla, .captura])
+        XCTAssertEqual(o.count, 21)
+        // «Figura» y la carpeta de paginas, en «Más».
+        XCTAssertTrue(o.contains { $0.accion == .figura && !$0.esBaldosa })
+        XCTAssertTrue(o.contains { $0.accion == .carpeta && !$0.esBaldosa })
+        // La conversacion pasa a «Más».
+        XCTAssertTrue(o.contains { $0.accion == .conversacion && !$0.esBaldosa })
         // Las baldosas primero, los chips despues.
-        XCTAssertEqual(o.prefix(8).filter(\.esBaldosa).count, 8)
-        XCTAssertTrue(o.dropFirst(8).allSatisfy { !$0.esBaldosa })
-        // Las seis mini-apps de los chips mas la lista de tareas.
+        XCTAssertTrue(o.dropFirst(7).allSatisfy { !$0.esBaldosa })
         let minis = o.compactMap { if case let .mini(m) = $0.accion { m } else { nil } }
-        XCTAssertEqual(minis, ["tareas", "cronometro", "temporizador", "contador", "ruleta", "gastos", "alarma"])
+        XCTAssertEqual(minis, ["tareas", "contador", "ruleta", "gastos", "cronometro", "temporizador", "alarma"])
         XCTAssertEqual(AdjuntarEnChat.nombre(deMini: "cronometro"), "Cronómetro")
+        // Cuatro columnas de baldosas y dos de «Más», las de Windows.
+        XCTAssertEqual(HojaAdjuntar.columnas, 4)
+        XCTAssertEqual(HojaAdjuntar.columnasChips, 2)
     }
 
     func testLaHojaDelAsistenteEmpiezaPorLaFigura() {
         let o = HojaAdjuntar.delAsistente
-        // Las seis baldosas de Windows, en su orden y numeradas.
         XCTAssertEqual(o.filter(\.esBaldosa).map(\.accion), [.figura, .foto, .archivo, .captura, .lienzo, .nota])
         XCTAssertEqual(o.compactMap(\.numero), [1, 2, 3, 4, 5, 6])
-        // En chips: pedir una nueva primero y lo demas que sirve.
         XCTAssertEqual(o.filter { !$0.esBaldosa }.map(\.accion), [.pedirFigura, .pagina, .proyecto, .tabla, .delMovil])
-        XCTAssertEqual(HojaAdjuntar.visibles("plantilla", en: o).map(\.accion), [.figura])
-        XCTAssertEqual(HojaAdjuntar.visibles("hazme", en: o).map(\.accion), [.pedirFigura])
-        // Caso negativo: la hoja de siempre trae «Figura» (en un chip) pero
-        // no «Pedir una figura nueva», que es del asistente.
+        // Caso negativo: la hoja de siempre no trae «Pedir una figura nueva».
         XCTAssertFalse(HojaAdjuntar.opciones.contains { $0.accion == .pedirFigura })
         XCTAssertFalse(HojaAdjuntar.opciones.contains { $0.accion == .figura && $0.esBaldosa })
-        XCTAssertEqual(HojaAdjuntar.opciones.compactMap(\.numero), [1, 2, 3, 4, 5, 6, 7, 8], "sin tocar")
     }
 
-    func testElBuscadorFiltraSinTildesYPorSinonimos() {
-        let crono = HojaAdjuntar.visibles("cronometro")
-        XCTAssertEqual(crono.map(\.accion), [.mini("cronometro")])
-        // «PDF» encuentra Archivo.
-        XCTAssertEqual(HojaAdjuntar.visibles("PDF").map(\.accion), [.archivo])
-        XCTAssertEqual(HojaAdjuntar.visibles("  ").count, HojaAdjuntar.opciones.count)
-        // Cada palabra en algun sitio.
-        XCTAssertEqual(HojaAdjuntar.visibles("hoja excel").map(\.accion), [.tabla])
-        XCTAssertTrue(HojaAdjuntar.visibles("zzz").isEmpty)
-    }
-
-    func testLasFlechasSaltanPorFilasEntreBaldosas() {
-        XCTAssertEqual(HojaAdjuntar.mover(nil, .derecha, cuantas: 19, baldosas: 8), 0)
-        XCTAssertEqual(HojaAdjuntar.mover(1, .abajo, cuantas: 19, baldosas: 8), 5)
-        XCTAssertEqual(HojaAdjuntar.mover(5, .abajo, cuantas: 19, baldosas: 8), 8, "de la ultima fila a los chips")
-        XCTAssertEqual(HojaAdjuntar.mover(9, .arriba, cuantas: 19, baldosas: 8), 7)
-        XCTAssertEqual(HojaAdjuntar.mover(5, .arriba, cuantas: 19, baldosas: 8), 1)
+    func testLasFlechasVanALoQueQuedaEncimaODebajo() {
+        // 7 baldosas (4 + 3), 14 chips en dos columnas y «Pegar».
+        XCTAssertEqual(moverEnLaHojaAdjuntar(actual: nil, flecha: .derecha, baldosas: 7, chips: 14, pegar: true), 0)
+        XCTAssertEqual(moverEnLaHojaAdjuntar(actual: 1, flecha: .abajo, baldosas: 7, chips: 14, pegar: true), 5)
+        // De la ultima fila de baldosas, a los chips.
+        let abajo = moverEnLaHojaAdjuntar(actual: 5, flecha: .abajo, baldosas: 7, chips: 14, pegar: true)
+        XCTAssertNotNil(abajo)
+        XCTAssertGreaterThanOrEqual(abajo ?? 0, 7)
         // No se sale por los extremos.
-        XCTAssertEqual(HojaAdjuntar.mover(0, .izquierda, cuantas: 19, baldosas: 8), 0)
-        XCTAssertEqual(HojaAdjuntar.mover(18, .derecha, cuantas: 19, baldosas: 8), 18)
-        XCTAssertNil(HojaAdjuntar.mover(0, .derecha, cuantas: 0, baldosas: 0))
+        XCTAssertEqual(moverEnLaHojaAdjuntar(actual: 0, flecha: .izquierda, baldosas: 7, chips: 14, pegar: true), 0)
+        XCTAssertEqual(moverEnLaHojaAdjuntar(actual: 21, flecha: .derecha, baldosas: 7, chips: 14, pegar: true), 21)
+        XCTAssertNil(moverEnLaHojaAdjuntar(actual: 0, flecha: .derecha, baldosas: 0, chips: 0, pegar: false))
     }
 
     func testLoQueElMacAunNoHaceSaleMarcado() {

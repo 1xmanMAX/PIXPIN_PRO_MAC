@@ -732,6 +732,16 @@ public struct VistaChat: View {
         // Una carpeta nace con el nombre listo para escribirlo (la hoja de
         // cambiar el nombre es del chat).
         if accion == .carpeta { return menu.crearCarpeta(primera: nil) }
+        // «Pegar lo copiado» (Windows f87468aa): ficheros o una imagen al
+        // chat; un texto, a la caja de escribir.
+        if accion == .pegar {
+            if !EntradaDeFicheros.pegar(en: chat, almacen: almacen),
+               let t = NSPasteboard.general.string(forType: .string) {
+                borrador += t
+                focoCaja += 1
+            }
+            return
+        }
         let abrir = abrirVentana
         AdjuntarEnChat.hacer(accion, chat: chat, almacen: almacen,
                              avisar: { [menu] in menu.avisar($0) },
