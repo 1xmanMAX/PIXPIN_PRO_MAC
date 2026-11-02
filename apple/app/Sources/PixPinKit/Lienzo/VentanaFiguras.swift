@@ -386,8 +386,7 @@ struct VistaFiguras: View {
                     }
                 }
                 // ☀/☾: dice el modo puesto y, de noche, va encendido.
-                BotonCabecera(icono: modelo.noche ? "moon.fill" : "sun.max", rotulo: modelo.noche ? "Noche" : "Día",
-                              activo: modelo.noche) {
+                BotonDiaNoche(noche: modelo.noche, ayuda: modelo.noche ? "Noche" : "Día") {
                     modelo.alternarNoche()
                 }
             }

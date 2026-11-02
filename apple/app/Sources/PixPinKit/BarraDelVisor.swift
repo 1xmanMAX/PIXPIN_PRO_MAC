@@ -168,9 +168,13 @@ public struct BarraVisor<Propios: View>: View {
                 .help("Más opciones")
             }
             if let oscuro {
-                BotonFlotante(simbolo: oscuro ? "sun.max" : "moon", ayuda: oscuro ? "Modo claro" : "Modo oscuro") {
+                // El boton redondo que dice el modo puesto (Windows bbc1a9bd).
+                BotonDiaNoche(noche: oscuro, ayuda: oscuro ? "Modo claro" : "Modo oscuro") {
                     alternarOscuro?()
                 }
+                // El circulo es de 36 (el del movil); en la barra, a 28.
+                .scaleEffect(28.0 / 36.0)
+                .frame(width: 28, height: 28)
             }
             BotonFlotante(simbolo: completa ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right",
                           ayuda: completa ? "Volver a pin (⎋)" : "Pantalla completa (⌃⌘F)") {
