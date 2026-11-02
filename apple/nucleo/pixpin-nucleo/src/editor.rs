@@ -247,6 +247,10 @@ pub(crate) struct Estado {
     /// ultimo visto de cada elemento (grosor y letra). `None` fuera de un
     /// plano: el lienzo de siempre.
     pub(crate) a_escala: Option<(f32, std::collections::HashMap<u64, (f32, Option<f32>)>)>,
+    /// **Arrastrando un mando del estilo** (la opacidad, el cuadro del
+    /// color): el paso de deshacer esta abierto hasta soltar (ver
+    /// `editor_estilo`, `empezar_arrastre_de_estilo`).
+    pub(crate) arrastre_estilo: bool,
 }
 
 /// Lo que se toca al guardar (un cerrojo aparte: guardar no frena el
@@ -471,6 +475,7 @@ impl EditorLienzo {
                 papel: None,
                 vista: None,
                 a_escala: None,
+                arrastre_estilo: false,
             }),
             disco: Mutex::new(Disco {
                 ultimo: excalidraw::escribir(&abierto),

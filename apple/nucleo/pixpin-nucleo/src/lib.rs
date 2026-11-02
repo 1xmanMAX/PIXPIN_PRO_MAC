@@ -81,6 +81,8 @@ pub mod compartir_formatos;
 pub mod conversacion;
 pub mod copias;
 pub mod diapositivas;
+/// El boton ☀/☾ redondo (Windows 5d46665c, bbc1a9bd).
+pub mod dia_noche;
 pub mod documentos;
 pub mod editor;
 pub mod editor_construir;
@@ -96,6 +98,8 @@ pub mod editor_tapado;
 pub mod estudiar_clase;
 pub mod galeria_figuras;
 pub mod grafito_plano;
+/// La hoja del «+» del chat como la «Adjuntar» del iPhone (Windows f87468aa).
+pub mod hoja_adjuntar;
 // Editar una tabla dibujada con su cajetin (iPad, 25-oct).
 pub mod editor_tabla;
 pub mod editor_ventana;
@@ -167,6 +171,8 @@ pub mod recordatorios;
 pub mod red;
 pub mod sincro;
 pub mod sincro_auto;
+/// El selector de color avanzado del lienzo (Windows 6fd2732a, 19f0c8c9).
+pub mod selector_color;
 pub mod tareas;
 /// Los textos de la interfaz Swift en los catorce idiomas de Windows.
 pub mod textos;
@@ -195,6 +201,7 @@ pub use compartidos::{
 };
 pub use documentos::{DondeAnota, LecturaDocumento, MarcaDocumento};
 pub use editor::{EditorLienzo, FasePuntero, PeticionLienzo};
+pub use selector_color::{CodigoDeColor, ColorHsv, FlechaDeColor};
 pub use editor_estilo::{
     CambioDeEstilo, ColorEstilo, EstiloLienzo, GrosorEstilo, LineaEstilo, RellenoEstilo,
 };

@@ -332,6 +332,38 @@ fn el_estilo_de_la_barra_va_a_lo_proximo_y_a_lo_elegido() {
     assert!(!ed.cambiar_estilo(CambioDeEstilo::Trazo { color: rojo }));
 }
 
+#[test]
+fn arrastrar_la_opacidad_es_un_solo_deshacer_y_el_trazo_a_mano_nace_recordado() {
+    let t = Temporal::nueva("arrastre-estilo");
+    let ruta = t.fichero("a.excalidraw");
+    let ed = EditorLienzo::de_fichero(ruta.clone(), true).unwrap();
+    rectangulo(&ed, (0.0, 0.0), (100.0, 100.0));
+    assert!(ed.guardar().unwrap());
+    ed.seleccionar_todo();
+    // Pulsar, tres movimientos y soltar (Windows 8b11e547: un arrastre, un
+    // Ctrl+Z).
+    ed.empezar_arrastre_de_estilo();
+    for v in [0.8, 0.55, 0.35] {
+        assert!(ed.arrastrar_estilo(CambioDeEstilo::Opacidad { valor: v }));
+    }
+    assert!(ed.terminar_arrastre_de_estilo());
+    assert!((ed.estilo().opacidad - 0.35).abs() < 1e-6);
+    assert!(ed.guardar().unwrap());
+    assert_eq!(elementos(&ruta)[0]["opacity"].as_f64(), Some(35.0));
+    assert!(ed.deshacer());
+    ed.seleccionar_todo();
+    assert_eq!(ed.estilo().opacidad, 1.0, "un solo paso lo deshace entero");
+    // Caso negativo: soltar sin haber empezado no hace nada, y arrastrar
+    // sin empezar es un cambio normal.
+    assert!(!ed.terminar_arrastre_de_estilo());
+    assert!(ed.arrastrar_estilo(CambioDeEstilo::Opacidad { valor: 0.5 }));
+    // El trazo a mano recordado es para lo nuevo, no para lo elegido.
+    ed.poner_rugosidad_de_lo_nuevo(2.4);
+    assert_eq!(ed.estilo().rugosidad, 1.0, "lo elegido sigue como estaba");
+    assert!(ed.deshacer());
+    assert_eq!(ed.estilo().rugosidad, 2.0);
+}
+
 /// Un PNG de `ancho` x `alto` (solo la cabecera y un final: Rust no lo
 /// decodifica, lo copia).
 fn png(ancho: u32, alto: u32) -> Vec<u8> {

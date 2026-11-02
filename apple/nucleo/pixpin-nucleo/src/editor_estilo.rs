@@ -244,12 +244,7 @@ impl EditorLienzo {
         if let CambioEstilo::Grosor(n) = c {
             st.gesto.grosor_tinta = n.de_tinta();
         }
-        let mut destino = Seleccion::nueva();
-        destino.poner_todos(st.gesto.seleccion.ids().iter().copied().filter(|id| {
-            st.escena
-                .buscar(*id)
-                .is_some_and(|e| estilo::propiedades_de(&e.figura).contains(&propiedad))
-        }));
+        let destino = destino_de(st, propiedad);
         let pasos = st.escena.pasos_cerrados();
         if !destino.esta_vacia() && st.gesto.en_reposo() {
             estilo::aplicar_a(&mut st.escena, &destino, c);
@@ -261,6 +256,91 @@ impl EditorLienzo {
         }
         self.subir_version();
         cambio_dibujo
+    }
+}
+
+/// Lo elegido (y vivo) que admite el mando `propiedad`.
+fn destino_de(st: &crate::editor::Estado, propiedad: Propiedad) -> Seleccion {
+    let mut destino = Seleccion::nueva();
+    destino.poner_todos(st.gesto.seleccion.ids().iter().copied().filter(|id| {
+        st.escena
+            .buscar(*id)
+            .is_some_and(|e| estilo::propiedades_de(&e.figura).contains(&propiedad))
+    }));
+    destino
+}
+
+/// **Lo que se arrastra en el panel** (Windows 8b11e547, 19f0c8c9): la
+/// opacidad, el cuadro del color y sus tiras cambian el estilo con cada
+/// movimiento del raton, y todo el arrastre es UN solo paso de deshacer
+/// (`estilo::aplicar_en_el_paso`). Se empieza al pulsar, se arrastra y se
+/// termina al soltar.
+#[uniffi::export]
+impl EditorLienzo {
+    /// Abre el paso del arrastre (si no hay un gesto a medias).
+    pub fn empezar_arrastre_de_estilo(&self) {
+        let mut guarda = self.tomar();
+        let st = &mut *guarda;
+        if st.arrastre_estilo || !st.gesto.en_reposo() {
+            return;
+        }
+        st.escena.abrir_paso();
+        st.arrastre_estilo = true;
+    }
+
+    /// **Un movimiento del arrastre**: queda como el estilo de lo proximo y
+    /// se aplica a lo elegido dentro del paso abierto. Sin arrastre empezado
+    /// es un cambio normal (su propio paso). Devuelve si cambio el dibujo.
+    pub fn arrastrar_estilo(&self, cambio: CambioDeEstilo) -> bool {
+        let (c, propiedad) = al_motor(cambio);
+        let mut guarda = self.tomar();
+        let st = &mut *guarda;
+        if !st.arrastre_estilo {
+            drop(guarda);
+            return self.cambiar_estilo(cambio);
+        }
+        st.gesto.estilo.aplicar(c);
+        if let CambioEstilo::Grosor(n) = c {
+            st.gesto.grosor_tinta = n.de_tinta();
+        }
+        let destino = destino_de(st, propiedad);
+        let toca = !destino.esta_vacia();
+        if toca {
+            estilo::aplicar_en_el_paso(&mut st.escena, &destino, c);
+        }
+        drop(guarda);
+        self.subir_version();
+        toca
+    }
+
+    /// Cierra el paso del arrastre: un solo `⌘Z` para todo. Devuelve si
+    /// cambio el dibujo (entonces hay que guardar).
+    pub fn terminar_arrastre_de_estilo(&self) -> bool {
+        let mut guarda = self.tomar();
+        let st = &mut *guarda;
+        if !st.arrastre_estilo {
+            return false;
+        }
+        st.arrastre_estilo = false;
+        let pasos = st.escena.pasos_cerrados();
+        st.escena.cerrar_paso();
+        let cambio_dibujo = st.escena.pasos_cerrados() != pasos;
+        drop(guarda);
+        if cambio_dibujo {
+            self.subir_cambios();
+        }
+        self.subir_version();
+        self.poner_a_escala() || cambio_dibujo
+    }
+
+    /// **El trazo a mano con que nace lo proximo** (Windows 19f0c8c9: «las
+    /// figuras nacen a mano, o con el ultimo trazo a mano elegido»), sin
+    /// tocar lo elegido: lo pone el Mac al abrir con lo que recuerda
+    /// `Nucleo::lienzo_rugosidad`.
+    pub fn poner_rugosidad_de_lo_nuevo(&self, valor: f32) {
+        let v = if valor.is_finite() { valor.round().clamp(0.0, 2.0) } else { 1.0 };
+        self.tomar().gesto.estilo.rugosidad = v;
+        self.subir_version();
     }
 }
 
