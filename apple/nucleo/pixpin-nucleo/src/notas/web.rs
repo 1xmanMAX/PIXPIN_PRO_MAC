@@ -438,9 +438,13 @@ fn mensaje_de(raiz: &Path, chat: &str, id: &str) -> Option<cuaderno::Mensaje> {
 /// El texto de la nota como esta ahora en el disco.
 pub fn leer_texto(raiz: &Path, destino: &DestinoNota) -> Option<String> {
     match destino {
-        DestinoNota::Fichero { ruta } => std::fs::read(ruta)
-            .ok()
-            .map(|b| String::from_utf8_lossy(&b).into_owned()),
+        // Sin la marca de orden del principio (la del Bloc de notas): con
+        // ella el primer `#` no estaba al principio del renglon y el titulo
+        // salia con su almohadilla. Y en UTF-16 o Latin-1, tambien (Windows
+        // 02e38b7, `pindesk_docs::texto_de`).
+        DestinoNota::Fichero { ruta } => {
+            std::fs::read(ruta).ok().map(|b| pindesk_docs::texto_de(&b))
+        }
         DestinoNota::Mensaje { chat, mensaje } => mensaje_de(raiz, chat, mensaje).map(|m| m.texto),
     }
 }
@@ -793,10 +797,28 @@ impl SesionNota {
         let ahora = crate::ahora_ms();
         let mut e = self.estado();
         match pedido {
-            DeLaPagina::Listo => vec![OrdenNota::Mandar {
-                json: self.abrir_json(&e),
+            DeLaPagina::Listo => {
+                let mut v = vec![OrdenNota::Mandar {
+                    json: self.abrir_json(&e),
+                }];
+                // **Siempre se abre leyendo** (Windows 02e38b7, el usuario:
+                // «siempre se debe abrir en modo visualizacion»): se escribe
+                // con el lapiz de la barra. Una nota vacia se abre para
+                // escribirla.
+                if !e.ultimo_conocido.trim().is_empty() {
+                    v.push(OrdenNota::Mandar {
+                        json: r#"{"tipo":"orden","que":"leer"}"#.into(),
+                    });
+                }
+                v
+            }
+            DeLaPagina::Estado {
+                leyendo,
+                comentarios,
+            } => vec![OrdenNota::EstadoBarra {
+                leyendo,
+                comentarios,
             }],
-            DeLaPagina::Estado { leyendo, comentarios } => vec![OrdenNota::EstadoBarra { leyendo, comentarios }],
             DeLaPagina::Guardar { texto, version } => {
                 let r = self.guardar(&mut e, &texto);
                 let ok = r.is_ok();

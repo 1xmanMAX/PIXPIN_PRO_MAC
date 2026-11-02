@@ -20,6 +20,10 @@
 //   de cada una se pide a Rust una vez por cambio (`plano`), no por fotograma;
 // - guardar va solo, 1 s despues del ultimo trazo, en una cola `.utility`;
 // - leyendo (sin herramienta) la capa no recibe el raton: PDFKit elige texto.
+// - **Marcar lo elegido** (Windows `lector_pdf/marcar.rs`): leyendo, encima
+//   de lo elegido sale la barrita de los pines (`BarritaMarcar.swift`) y la
+//   marca va a la tinta de cada hoja como dibujo normal, con el grupo
+//   `marca-texto-<ms>`; un clic en una marca la elige entera.
 //
 // Las teclas son las de Windows con ⌘ en vez de Ctrl (tanda B7): ⌘F buscar
 // (`BuscadorLector`), ⌘G / ⇧⌘G (y F3) la siguiente y la anterior, ⌘1…9 ir
@@ -223,9 +227,20 @@ final class CapaTintaNS: NSView {
         controlador?.pintarCapa(en: ctx, sucio: dirtyRect, capa: self)
     }
 
-    override func mouseDown(with event: NSEvent) { controlador?.puntero(.pulsar, event, capa: self) }
-    override func mouseDragged(with event: NSEvent) { controlador?.puntero(.mover, event, capa: self) }
-    override func mouseUp(with event: NSEvent) { controlador?.puntero(.soltar, event, capa: self) }
+    override func mouseDown(with event: NSEvent) {
+        guard controlador?.modelo.anotando == true else { return }
+        controlador?.puntero(.pulsar, event, capa: self)
+    }
+
+    override func mouseDragged(with event: NSEvent) {
+        guard controlador?.modelo.anotando == true else { return }
+        controlador?.puntero(.mover, event, capa: self)
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        guard controlador?.modelo.anotando == true else { return }
+        controlador?.puntero(.soltar, event, capa: self)
+    }
 
     override func rightMouseDown(with event: NSEvent) {
         if controlador?.quitarMarca(en: convert(event.locationInWindow, from: nil), capa: self) != true {
@@ -305,6 +320,14 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     /// La hoja del trazo en curso y la ultima anotada (deshacer).
     private var hojaDelTrazo: Int?
     private var ultimaAnotada: Int?
+    /// Las hojas de la ultima marca de texto: ⌘Z la deshace entera aunque
+    /// pase por varias (Windows `lector_tinta::turnos`).
+    private var ultimasMarcadas: [Int]?
+
+    /// **Marcar el texto leyendo**: la barrita y su color.
+    let marcar = ModeloMarcar()
+    private lazy var anfitrionBarrita = AnfitrionBarritaNS.nuevo(marcar)
+    private var vigiaClic: Any?
     private var presionTrackpad: Float?
 
     private let colaGuardar = DispatchQueue(label: "pixpin.lector.guardar", qos: .utility)
@@ -399,6 +422,9 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         ])
         contenedor.taparDerecho(bajo: isla)
         riel.ir = { [weak self] m in self?.ir(a: m) }
+        // La barrita de marcar, encima de todo (la coloca `ponerBarrita`).
+        contenedor.addSubview(anfitrionBarrita)
+        marcar.pulsar = { [weak self] b in self?.pulsarBarrita(b) }
         // El riel sigue a los marcadores, los ponga quien los ponga.
         modelo.$marcas.sink { [weak riel] m in riel?.marcas = m }.store(in: &suscripciones)
         ventana.contentView = contenedor
@@ -416,6 +442,19 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             vigias.append(centro.addObserver(forName: nombre, object: vistaPDF, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.alMoverse() }
             })
+        }
+        // Lo elegido cambia: la barrita de marcar sale, se mueve o se va.
+        vigias.append(centro.addObserver(forName: .PDFViewSelectionChanged, object: vistaPDF, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.ponerBarrita() }
+        })
+        // Leyendo, un clic sobre una marca la elige entera (PDFKit se lo
+        // llevaria para elegir texto); uno fuera suelta la marca elegida.
+        vigiaClic = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] e in
+            let suyo = MainActor.assumeIsolated { () -> Bool in
+                guard let self else { return false }
+                return self.clicLeyendo(e)
+            }
+            return suyo ? nil : e
         }
         // Lo anotado por otro en este documento (el asistente, la
         // sincronizacion): se mira el disco ya, sin esperar a la vuelta.
@@ -621,6 +660,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         if let p = vistaPDF.currentPage { modelo.pagina = indice(p) }
         cargarVisibles()
         capa.needsDisplay = true
+        ponerBarrita()
     }
 
     /// Abre (fuera del hilo principal) la tinta de las hojas que se ven y
@@ -753,6 +793,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         for ed in editores.values { aplicarHerramienta(ed) }
         ventana.invalidateCursorRects(for: capa)
         capa.needsDisplay = true
+        if modelo.anotando { marcar.deMarca = nil }
+        ponerBarrita()
     }
 
     func ponerColor(_ c: ColorTinta) {
@@ -784,6 +826,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         if fase == .soltar || fase == .cancelar {
             conTinta.insert(i)
             ultimaAnotada = i
+            ultimasMarcadas = nil
             hojaDelTrazo = nil
             usar(i)
             programarGuardado()
@@ -791,19 +834,202 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
     }
 
     func deshacer() {
-        guard let i = ultimaAnotada, let ed = editores[i] else { return }
-        if ed.deshacer() {
-            capa.needsDisplay = true
-            programarGuardado()
-        }
+        deshacerOHacer(true)
     }
 
     func rehacer() {
-        guard let i = ultimaAnotada, let ed = editores[i] else { return }
-        if ed.rehacer() {
+        deshacerOHacer(false)
+    }
+
+    /// La ultima marca de texto, en todas sus hojas; si no, la ultima hoja
+    /// anotada.
+    private func deshacerOHacer(_ atras: Bool) {
+        let hojas = ultimasMarcadas ?? ultimaAnotada.map { [$0] } ?? []
+        var algo = false
+        for i in hojas {
+            guard let ed = editores[i] else { continue }
+            if atras ? ed.deshacer() : ed.rehacer() { algo = true }
+        }
+        if algo {
+            marcar.deMarca = nil
             capa.needsDisplay = true
             programarGuardado()
+            ponerBarrita()
         }
+    }
+
+    // MARK: Marcar el texto (Windows `lector_pdf/marcar.rs`)
+
+    /// **Pone, mueve o quita la barrita**: leyendo (sin el lapiz, los marcos
+    /// ni la caja del nombre), con texto elegido o una marca elegida, junto a
+    /// lo que se ve de ello.
+    func ponerBarrita() {
+        let leyendo = !modelo.anotando && !marcos.activo && modelo.renombrando == nil && !modelo.presentando
+        guard leyendo else { return marcar.quitar(anfitrionBarrita) }
+        marcar.poner(zona: zonaElegida(), en: contenedor, anfitrion: anfitrionBarrita)
+    }
+
+    /// Lo elegido y la marca elegida, en puntos del contenedor desde arriba.
+    private func zonaElegida() -> CGRect? {
+        var zona = CGRect.null
+        if let sel = vistaPDF.currentSelection, let t = sel.string, !t.isEmpty {
+            for p in sel.pages {
+                let r = vistaPDF.convert(sel.bounds(for: p), from: p)
+                zona = zona.union(contenedor.convert(r, from: vistaPDF))
+            }
+        }
+        if let g = marcar.deMarca, let doc = vistaPDF.document {
+            for (i, ed) in editores {
+                guard let p = doc.page(at: i) else { continue }
+                let geo = geometria(p)
+                for c in ed.cajasDeMarca(grupo: g) {
+                    let a = geo.aVista(CGPoint(x: CGFloat(c.x0), y: CGFloat(c.y0)))
+                    let b = geo.aVista(CGPoint(x: CGFloat(c.x1), y: CGFloat(c.y1)))
+                    let r = CGRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(b.x - a.x), height: abs(b.y - a.y))
+                    zona = zona.union(contenedor.convert(r, from: capa))
+                }
+            }
+        }
+        guard !zona.isNull else { return nil }
+        return ModeloMarcar.desdeArriba(zona, en: contenedor)
+    }
+
+    /// **Las cajas de lo elegido, hoja a hoja**, una por renglon, en
+    /// unidades de la tinta de cada hoja (la misma cuenta que el lapiz).
+    private func elegidoPorHoja() -> [Int: [CajaDeMarca]] {
+        guard let sel = vistaPDF.currentSelection, let doc = vistaPDF.document else { return [:] }
+        var v: [Int: [CajaDeMarca]] = [:]
+        for linea in sel.selectionsByLine() {
+            guard let t = linea.string, !t.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+            for p in linea.pages {
+                let r = linea.bounds(for: p)
+                guard r.width > 0, r.height > 0 else { continue }
+                let g = geometria(p)
+                let enCapa = capa.convert(vistaPDF.convert(r, from: p), from: vistaPDF)
+                let a = g.aHoja(CGPoint(x: enCapa.minX, y: enCapa.minY))
+                let b = g.aHoja(CGPoint(x: enCapa.maxX, y: enCapa.maxY))
+                v[doc.index(for: p), default: []].append(
+                    CajaDeMarca(x0: Float(min(a.x, b.x)), y0: Float(min(a.y, b.y)),
+                                x1: Float(max(a.x, b.x)), y1: Float(max(a.y, b.y))))
+            }
+        }
+        return v
+    }
+
+    /// Un boton de la barrita.
+    private func pulsarBarrita(_ b: BotonDeMarcar) {
+        switch b.que {
+        case "copiar":
+            if let t = vistaPDF.currentSelection?.string, !t.isEmpty {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(t, forType: .string)
+            }
+        case "color":
+            marcar.color = b.color
+        case "quitar":
+            marcarElegido(nil)
+        default:
+            marcarElegido(b.que)
+        }
+    }
+
+    /// **Marca lo elegido** con `que` (o, sin nada, quita las marcas que
+    /// caen en ello o la marca elegida). Cada hoja tocada es un paso; ⌘Z las
+    /// deshace todas a la vez.
+    private func marcarElegido(_ que: String?) {
+        let porHoja = elegidoPorHoja()
+        let deMarca = marcar.deMarca
+        marcar.deMarca = nil
+        var hojas = Set(porHoja.keys)
+        if let g = deMarca {
+            for (i, ed) in editores where !ed.cajasDeMarca(grupo: g).isEmpty { hojas.insert(i) }
+        }
+        guard !hojas.isEmpty, let doc = vistaPDF.document else { return ponerBarrita() }
+        let grupo = grupoDeMarcaNuevo()
+        var cambiadas: [Int] = []
+        for i in hojas.sorted() {
+            guard let p = doc.page(at: i), let ed = editor(i, pagina: p) else { continue }
+            if ed.marcarTexto(marca: que, color: marcar.color, cajas: porHoja[i] ?? [], deMarca: deMarca, grupo: grupo) {
+                cambiadas.append(i)
+            }
+        }
+        for i in cambiadas {
+            conTinta.insert(i)
+            usar(i)
+        }
+        if !cambiadas.isEmpty {
+            ultimasMarcadas = cambiadas
+            ultimaAnotada = cambiadas.last
+            programarGuardado()
+        }
+        vistaPDF.clearSelection()
+        capa.needsDisplay = true
+        ponerBarrita()
+    }
+
+    /// **Un clic leyendo**: sobre una marca la elige entera (con su texto,
+    /// para cambiarla) y no deja a PDFKit empezar a elegir; fuera, suelta la
+    /// marca elegida. `true` si el clic era suyo.
+    private func clicLeyendo(_ e: NSEvent) -> Bool {
+        guard e.window === ventana, !modelo.anotando, !marcos.activo, !modelo.presentando else { return false }
+        // Solo lo que cae en el documento (no en la barrita, el riel, las
+        // cajas de encima ni las barras de desplazar).
+        guard let raiz = ventana.contentView else { return false }
+        let punto = raiz.superview.map { $0.convert(e.locationInWindow, from: nil) } ?? e.locationInWindow
+        guard let tocada = raiz.hitTest(punto), tocada.isDescendant(of: vistaPDF), !(tocada is NSScroller) else {
+            return false
+        }
+        guard e.clickCount == 1, let grupo = marcaBajo(capa.convert(e.locationInWindow, from: nil))?.1 else {
+            if marcar.deMarca != nil {
+                marcar.deMarca = nil
+                ponerBarrita()
+            }
+            return false
+        }
+        marcar.deMarca = grupo
+        if let sel = textoDeMarca(grupo) {
+            vistaPDF.setCurrentSelection(sel, animate: false)
+        } else {
+            vistaPDF.clearSelection()
+        }
+        ponerBarrita()
+        return true
+    }
+
+    /// La marca de texto bajo un punto de la capa: su hoja y su grupo.
+    private func marcaBajo(_ p: CGPoint) -> (Int, String)? {
+        for pag in vistaPDF.visiblePages {
+            let i = indice(pag)
+            guard let ed = editores[i] else { continue }
+            let g = geometria(pag)
+            guard g.rect.insetBy(dx: -8, dy: -8).contains(p) else { continue }
+            let q = g.aHoja(p)
+            let holgura = Float(3 / max(g.escala, 0.0001))
+            if let grupo = ed.marcaDeTextoEn(x: Float(q.x), y: Float(q.y), holgura: holgura) { return (i, grupo) }
+        }
+        return nil
+    }
+
+    /// **El texto de una marca**, elegido de nuevo: se arrastra por la franja
+    /// de cada renglon que da el nucleo (`sondasDeMarca`), de punta a punta.
+    private func textoDeMarca(_ grupo: String) -> PDFSelection? {
+        guard let doc = vistaPDF.document else { return nil }
+        var todo: PDFSelection?
+        for i in editores.keys.sorted() {
+            guard let ed = editores[i], let p = doc.page(at: i) else { continue }
+            let g = geometria(p)
+            for s in ed.sondasDeMarca(grupo: grupo) {
+                let medio = CGFloat(s.y0 + s.y1) / 2
+                let dentro = CGFloat(s.y1 - s.y0) / 2
+                let a = g.aVista(CGPoint(x: CGFloat(s.x0) + dentro, y: medio))
+                let b = g.aVista(CGPoint(x: CGFloat(s.x1) - dentro, y: medio))
+                let pa = vistaPDF.convert(vistaPDF.convert(a, from: capa), to: p)
+                let pb = vistaPDF.convert(vistaPDF.convert(b, from: capa), to: p)
+                guard let sel = p.selection(from: pa, to: pb), let t = sel.string, !t.isEmpty else { continue }
+                if let ya = todo { ya.add(sel) } else { todo = sel }
+            }
+        }
+        return todo
     }
 
     // MARK: Guardar
@@ -1125,8 +1351,10 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
             buscador.cerrar()
         } else if modelo.presentando {
             presentar()
-        } else if vistaPDF.currentSelection != nil {
+        } else if marcar.deMarca != nil || vistaPDF.currentSelection != nil {
+            marcar.deMarca = nil
             vistaPDF.clearSelection()
+            ponerBarrita()
         } else if modelo.poniendoMarca {
             modelo.poniendoMarca = false
         } else if voz.activa {
@@ -1392,6 +1620,7 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         modelo.enmarcando = marcos.activo
         capaMarcos.needsDisplay = true
         ventana.invalidateCursorRects(for: capaMarcos)
+        ponerBarrita()
     }
 
     func imprimir() {
@@ -1686,6 +1915,8 @@ public final class ControladorLector: NSObject, NSWindowDelegate {
         colaGuardar.async { _ = ControladorLector.guardarTinta(pares, ruta: ruta, alDia: alDia) }
         for v in vigias { NotificationCenter.default.removeObserver(v) }
         vigias = []
+        if let v = vigiaClic { NSEvent.removeMonitor(v) }
+        vigiaClic = nil
         mirarDisco?.invalidate()
         mirarDisco = nil
         relojAvance?.invalidate()

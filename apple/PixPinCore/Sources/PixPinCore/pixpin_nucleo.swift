@@ -3180,6 +3180,34 @@ public protocol EditorLienzoProtocol: AnyObject, Sendable {
     func nombrePropuestoDeFigura()  -> String
     
     /**
+     * Las cajas de la marca `grupo` en esta capa (vacio si no pasa por ella).
+     */
+    func cajasDeMarca(grupo: String)  -> [CajaDeMarca]
+    
+    /**
+     * El grupo de la marca de texto bajo `(x, y)` (unidades de la tinta,
+     * con `holgura` alrededor), si hay: lo que elige un clic encima.
+     */
+    func marcaDeTextoEn(x: Float, y: Float, holgura: Float)  -> String?
+    
+    /**
+     * **Marca lo elegido** en esta capa (ver [`cambiar`]): `marca` es el
+     * nombre de la marca (`resaltar`, `ondulada`, `subrayar`, `tachar`,
+     * `tapar`) o `None` para quitar; `color`, el de `colores_de_marcar`;
+     * `cajas`, lo elegido en esta hoja en unidades de la tinta; `de_marca`,
+     * el grupo de la marca elegida con un clic; `grupo`, el de la marca
+     * nueva (`grupo_de_marca_nuevo`, el mismo en todas las hojas). Un paso
+     * de deshacer; cuenta como cambio para guardar. `true` si cambio algo.
+     */
+    func marcarTexto(marca: String?, color: UInt8, cajas: [CajaDeMarca], deMarca: String?, grupo: String)  -> Bool
+    
+    /**
+     * **Por donde volver a elegir el texto de la marca `grupo`** en esta
+     * capa (ver [`sonda`]): una franja por renglon, de arriba abajo.
+     */
+    func sondasDeMarca(grupo: String)  -> [CajaDeMarca]
+    
+    /**
      * **El enlace cuyo icono esta bajo el punto** `(x, y)` del mundo, con
      * `zoom` pixeles por unidad (el icono mide lo mismo en pantalla a
      * cualquier aumento). `None` si no hay ninguno.
@@ -4140,6 +4168,72 @@ open func nombrePropuestoDeFigura() -> String  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_editorlienzo_nombre_propuesto_de_figura(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Las cajas de la marca `grupo` en esta capa (vacio si no pasa por ella).
+     */
+open func cajasDeMarca(grupo: String) -> [CajaDeMarca]  {
+    return try!  FfiConverterSequenceTypeCajaDeMarca.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_cajas_de_marca(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(grupo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * El grupo de la marca de texto bajo `(x, y)` (unidades de la tinta,
+     * con `holgura` alrededor), si hay: lo que elige un clic encima.
+     */
+open func marcaDeTextoEn(x: Float, y: Float, holgura: Float) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_marca_de_texto_en(
+            self.uniffiCloneHandle(),
+        FfiConverterFloat.lower(x),
+        FfiConverterFloat.lower(y),
+        FfiConverterFloat.lower(holgura),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Marca lo elegido** en esta capa (ver [`cambiar`]): `marca` es el
+     * nombre de la marca (`resaltar`, `ondulada`, `subrayar`, `tachar`,
+     * `tapar`) o `None` para quitar; `color`, el de `colores_de_marcar`;
+     * `cajas`, lo elegido en esta hoja en unidades de la tinta; `de_marca`,
+     * el grupo de la marca elegida con un clic; `grupo`, el de la marca
+     * nueva (`grupo_de_marca_nuevo`, el mismo en todas las hojas). Un paso
+     * de deshacer; cuenta como cambio para guardar. `true` si cambio algo.
+     */
+open func marcarTexto(marca: String?, color: UInt8, cajas: [CajaDeMarca], deMarca: String?, grupo: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_marcar_texto(
+            self.uniffiCloneHandle(),
+        FfiConverterOptionString.lower(marca),
+        FfiConverterUInt8.lower(color),
+        FfiConverterSequenceTypeCajaDeMarca.lower(cajas),
+        FfiConverterOptionString.lower(deMarca),
+        FfiConverterString.lower(grupo),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Por donde volver a elegir el texto de la marca `grupo`** en esta
+     * capa (ver [`sonda`]): una franja por renglon, de arriba abajo.
+     */
+open func sondasDeMarca(grupo: String) -> [CajaDeMarca]  {
+    return try!  FfiConverterSequenceTypeCajaDeMarca.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_editorlienzo_sondas_de_marca(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(grupo),uniffiCallStatus
     )
 })
 }
@@ -20797,6 +20891,85 @@ public func FfiConverterTypeAvisoMini_lower(_ value: AvisoMini) -> RustBuffer {
 }
 
 
+/**
+ * **La barrita de marcar** dispuesta junto a lo elegido.
+ */
+public struct BarritaDeMarcar: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var ancho: Float
+    public var alto: Float
+    /**
+     * La x de la raya que separa copiar de lo demas.
+     */
+    public var raya: Float
+    public var botones: [BotonDeMarcar]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, ancho: Float, alto: Float, 
+        /**
+         * La x de la raya que separa copiar de lo demas.
+         */raya: Float, botones: [BotonDeMarcar]) {
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+        self.raya = raya
+        self.botones = botones
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BarritaDeMarcar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBarritaDeMarcar: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BarritaDeMarcar {
+        return
+            try BarritaDeMarcar(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf), 
+                raya: FfiConverterFloat.read(from: &buf), 
+                botones: FfiConverterSequenceTypeBotonDeMarcar.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BarritaDeMarcar, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+        FfiConverterFloat.write(value.raya, into: &buf)
+        FfiConverterSequenceTypeBotonDeMarcar.write(value.botones, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBarritaDeMarcar_lift(_ buf: RustBuffer) throws -> BarritaDeMarcar {
+    return try FfiConverterTypeBarritaDeMarcar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBarritaDeMarcar_lower(_ value: BarritaDeMarcar) -> RustBuffer {
+    return FfiConverterTypeBarritaDeMarcar.lower(value)
+}
+
+
 public struct BloqueHorario: Equatable, Hashable {
     /**
      * 0 lunes … 6 domingo.
@@ -20949,6 +21122,103 @@ public func FfiConverterTypeBloqueMezclado_lift(_ buf: RustBuffer) throws -> Blo
 #endif
 public func FfiConverterTypeBloqueMezclado_lower(_ value: BloqueMezclado) -> RustBuffer {
     return FfiConverterTypeBloqueMezclado.lower(value)
+}
+
+
+/**
+ * Un boton de la barrita ya colocado.
+ */
+public struct BotonDeMarcar: Equatable, Hashable {
+    public var x: Float
+    public var y: Float
+    public var ancho: Float
+    public var alto: Float
+    /**
+     * `copiar`, `color`, `quitar` o el nombre de la marca (`resaltar`,
+     * `ondulada`, `subrayar`, `tachar`, `tapar`: `Marca::nombre`).
+     */
+    public var que: String
+    /**
+     * El color de `colores_de_marcar` (solo con `que == "color"`).
+     */
+    public var color: UInt8
+    /**
+     * La clave de su nombre en `main.ftl` (vacia en los colores).
+     */
+    public var clave: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x: Float, y: Float, ancho: Float, alto: Float, 
+        /**
+         * `copiar`, `color`, `quitar` o el nombre de la marca (`resaltar`,
+         * `ondulada`, `subrayar`, `tachar`, `tapar`: `Marca::nombre`).
+         */que: String, 
+        /**
+         * El color de `colores_de_marcar` (solo con `que == "color"`).
+         */color: UInt8, 
+        /**
+         * La clave de su nombre en `main.ftl` (vacia en los colores).
+         */clave: String) {
+        self.x = x
+        self.y = y
+        self.ancho = ancho
+        self.alto = alto
+        self.que = que
+        self.color = color
+        self.clave = clave
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension BotonDeMarcar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeBotonDeMarcar: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BotonDeMarcar {
+        return
+            try BotonDeMarcar(
+                x: FfiConverterFloat.read(from: &buf), 
+                y: FfiConverterFloat.read(from: &buf), 
+                ancho: FfiConverterFloat.read(from: &buf), 
+                alto: FfiConverterFloat.read(from: &buf), 
+                que: FfiConverterString.read(from: &buf), 
+                color: FfiConverterUInt8.read(from: &buf), 
+                clave: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BotonDeMarcar, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x, into: &buf)
+        FfiConverterFloat.write(value.y, into: &buf)
+        FfiConverterFloat.write(value.ancho, into: &buf)
+        FfiConverterFloat.write(value.alto, into: &buf)
+        FfiConverterString.write(value.que, into: &buf)
+        FfiConverterUInt8.write(value.color, into: &buf)
+        FfiConverterString.write(value.clave, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBotonDeMarcar_lift(_ buf: RustBuffer) throws -> BotonDeMarcar {
+    return try FfiConverterTypeBotonDeMarcar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeBotonDeMarcar_lower(_ value: BotonDeMarcar) -> RustBuffer {
+    return FfiConverterTypeBotonDeMarcar.lower(value)
 }
 
 
@@ -21323,6 +21593,72 @@ public func FfiConverterTypeCajaDeClase_lift(_ buf: RustBuffer) throws -> CajaDe
 #endif
 public func FfiConverterTypeCajaDeClase_lower(_ value: CajaDeClase) -> RustBuffer {
     return FfiConverterTypeCajaDeClase.lower(value)
+}
+
+
+/**
+ * Una caja `[x0, y0, x1, y1]` en las unidades de la tinta (Y hacia abajo)
+ * o, para la barrita, en puntos de la ventana desde arriba a la izquierda.
+ */
+public struct CajaDeMarca: Equatable, Hashable {
+    public var x0: Float
+    public var y0: Float
+    public var x1: Float
+    public var y1: Float
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(x0: Float, y0: Float, x1: Float, y1: Float) {
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension CajaDeMarca: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCajaDeMarca: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CajaDeMarca {
+        return
+            try CajaDeMarca(
+                x0: FfiConverterFloat.read(from: &buf), 
+                y0: FfiConverterFloat.read(from: &buf), 
+                x1: FfiConverterFloat.read(from: &buf), 
+                y1: FfiConverterFloat.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CajaDeMarca, into buf: inout [UInt8]) {
+        FfiConverterFloat.write(value.x0, into: &buf)
+        FfiConverterFloat.write(value.y0, into: &buf)
+        FfiConverterFloat.write(value.x1, into: &buf)
+        FfiConverterFloat.write(value.y1, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaDeMarca_lift(_ buf: RustBuffer) throws -> CajaDeMarca {
+    return try FfiConverterTypeCajaDeMarca.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCajaDeMarca_lower(_ value: CajaDeMarca) -> RustBuffer {
+    return FfiConverterTypeCajaDeMarca.lower(value)
 }
 
 
@@ -55091,6 +55427,31 @@ fileprivate struct FfiConverterSequenceTypeBloqueHorario: FfiConverterRustBuffer
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeBotonDeMarcar: FfiConverterRustBuffer {
+    typealias SwiftType = [BotonDeMarcar]
+
+    public static func write(_ value: [BotonDeMarcar], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBotonDeMarcar.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [BotonDeMarcar] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [BotonDeMarcar]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBotonDeMarcar.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCabeceraHttp: FfiConverterRustBuffer {
     typealias SwiftType = [CabeceraHttp]
 
@@ -55133,6 +55494,31 @@ fileprivate struct FfiConverterSequenceTypeCajaDeAlbum: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeCajaDeAlbum.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeCajaDeMarca: FfiConverterRustBuffer {
+    typealias SwiftType = [CajaDeMarca]
+
+    public static func write(_ value: [CajaDeMarca], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCajaDeMarca.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CajaDeMarca] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CajaDeMarca]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeCajaDeMarca.read(from: &buf))
         }
         return seq
     }
@@ -61320,6 +61706,70 @@ public func palabrasMagicasDe(guardadas: String?, app: String) -> [String]  {
 })
 }
 /**
+ * El color con que se empieza: el amarillo.
+ */
+public func colorInicialDeMarcar() -> UInt8  {
+    return try!  FfiConverterUInt8.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_color_inicial_de_marcar(uniffiCallStatus
+    )
+})
+}
+/**
+ * Los cinco colores de las marcas (`#RRGGBB`), los de la barra del pin.
+ */
+public func coloresDeMarcar() -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_colores_de_marcar(uniffiCallStatus
+    )
+})
+}
+/**
+ * **Dispone la barrita** junto a lo elegido (`eleccion`, en puntos de la
+ * vista desde arriba a la izquierda) en una vista de `ancho` x `alto`:
+ * centrada encima, debajo si arriba no cabe, sin salirse por los lados.
+ * Los botones, en el orden del pin: copiar, los cinco colores, las cinco
+ * marcas y quitar.
+ */
+public func disponerBarritaDeMarcar(eleccion: CajaDeMarca, ancho: Float, alto: Float, escala: Float) -> BarritaDeMarcar  {
+    return try!  FfiConverterTypeBarritaDeMarcar_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_disponer_barrita_de_marcar(
+        FfiConverterTypeCajaDeMarca_lower(eleccion),
+        FfiConverterFloat.lower(ancho),
+        FfiConverterFloat.lower(alto),
+        FfiConverterFloat.lower(escala),uniffiCallStatus
+    )
+})
+}
+/**
+ * El grupo de una marca nueva (`marca-texto-<ms>`): todas sus rayas o
+ * fondos, en todas las hojas por las que pasa, lo llevan.
+ */
+public func grupoDeMarcaNuevo() -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_grupo_de_marca_nuevo(uniffiCallStatus
+    )
+})
+}
+/**
+ * **Lo elegido llevado a palabras enteras** (`capa_de_texto::a_palabras_enteras`):
+ * `a` y `b` en letras (no en UTF-16) de `texto`. Lo que usa un texto
+ * reconocido, que se elige por palabras como en el pin.
+ */
+public func palabrasEnterasDe(texto: String, a: UInt32, b: UInt32) -> [UInt32]  {
+    return try!  FfiConverterSequenceUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_palabras_enteras_de(
+        FfiConverterString.lower(texto),
+        FfiConverterUInt32.lower(a),
+        FfiConverterUInt32.lower(b),uniffiCallStatus
+    )
+})
+}
+/**
  * Cada cuanto se pide [`MezclaDeAudio::mezclar`], en milisegundos.
  */
 public func periodoDeLaMezclaMs() -> UInt32  {
@@ -63206,6 +63656,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_palabras_magicas_de() != 23745) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_color_inicial_de_marcar() != 57755) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_colores_de_marcar() != 38848) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_disponer_barrita_de_marcar() != 19617) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_grupo_de_marca_nuevo() != 40374) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_palabras_enteras_de() != 28848) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_periodo_de_la_mezcla_ms() != 50738) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -64731,6 +65196,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_nombre_propuesto_de_figura() != 52483) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_cajas_de_marca() != 59826) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_marca_de_texto_en() != 32843) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_marcar_texto() != 16436) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_sondas_de_marca() != 2877) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_editorlienzo_enlace_en() != 35484) {

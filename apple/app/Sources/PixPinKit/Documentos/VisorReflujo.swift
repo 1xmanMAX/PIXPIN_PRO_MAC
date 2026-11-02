@@ -22,6 +22,12 @@
 //   (`VozDelReflujo` sobre `LeerEnVoz`, con el verde en `.voz`), la pagina
 //   que sube sola (`AvanceLector`), marcadores con su riel, el indice (I),
 //   cambiar el nombre (F2) y lo anotado al dia con el disco (`AlDiaLector`).
+// - **Elegir y marcar el texto leyendo** (Windows `visor/marcar.rs`):
+//   arrastrar sobre el texto lo elige (fuera se arrastra el documento), doble
+//   clic la palabra, triple el renglon, ⌘C copia, ⎋ lo suelta, y encima sale
+//   la barrita de marcar (`BarritaMarcar.swift`). Las marcas van a la tinta
+//   del documento con el grupo `marca-texto-<ms>`; la primera fija la
+//   columna y la letra, como anotar, y se pone al volver a colocar.
 //
 // Rendimiento: abrir y colocar van fuera del hilo principal; colocar se
 // repite solo si cambian la columna o la letra. Se pinta solo lo que se ve:
@@ -367,6 +373,8 @@ final class PaginaReflujoNS: NSView {
         guard let v = visor else { return }
         if v.modelo.anotando {
             v.puntero(.pulsar, event, en: self)
+        } else if v.pulsarLeyendo(event, en: self) {
+            // Sobre el texto (o una marca): se elige, no se arrastra.
         } else if let clip = enclosingScrollView?.contentView {
             arrastre = (event.locationInWindow, clip.bounds.origin)
             NSCursor.closedHand.push()
@@ -377,6 +385,8 @@ final class PaginaReflujoNS: NSView {
         guard let v = visor else { return }
         if v.modelo.anotando {
             v.puntero(.mover, event, en: self)
+        } else if v.eligiendo {
+            v.arrastrarLeyendo(event, en: self)
         } else if let a = arrastre, let scroll = enclosingScrollView {
             // Mover con la mano: lo de debajo del raton sigue al raton.
             let k = max(scroll.magnification, 0.0001)
@@ -393,6 +403,8 @@ final class PaginaReflujoNS: NSView {
         guard let v = visor else { return }
         if v.modelo.anotando {
             v.puntero(.soltar, event, en: self)
+        } else if v.eligiendo {
+            v.soltarLeyendo()
         } else if arrastre != nil {
             arrastre = nil
             NSCursor.pop()
@@ -409,6 +421,19 @@ final class PaginaReflujoNS: NSView {
 }
 
 // MARK: - El visor
+
+/// Un sitio del texto del visor: el colocado y la letra (en UTF-16).
+struct LetraReflujo: Comparable {
+    var colocado: Int
+    var letra: Int
+
+    static func < (a: LetraReflujo, b: LetraReflujo) -> Bool {
+        (a.colocado, a.letra) < (b.colocado, b.letra)
+    }
+}
+
+/// Lo elegido leyendo: de donde se empezo (la ancla) a donde va el raton.
+typealias EleccionReflujo = (ancla: LetraReflujo, punta: LetraReflujo)
 
 /// **Un Word o un libro abierto en el visor reflujado.**
 @MainActor
@@ -451,6 +476,15 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     private var trazando = false
     private let alDia = AlDiaLector()
     private var mirarDisco: Timer?
+
+    /// **Elegir y marcar el texto leyendo**: la barrita y su color, lo
+    /// elegido, si se esta arrastrando y la marca que espera a la columna
+    /// fijada (la primera marca la fija y el texto se vuelve a colocar).
+    let marcar = ModeloMarcar()
+    private lazy var anfitrionBarrita = AnfitrionBarritaNS.nuevo(marcar)
+    private var eleccion: EleccionReflujo?
+    private(set) var eligiendo = false
+    private var pendiente: (eleccion: EleccionReflujo?, deMarca: String?, que: String?)?
 
     /// Buscar: lo encontrado y la actual.
     private var encontradas: [CoincidenciaReflujo] = []
@@ -544,6 +578,9 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             isla.topAnchor.constraint(equalTo: contenedor.topAnchor, constant: BarraFlotante.alto + 2 * BarraFlotante.separacion + 8),
         ])
         contenedor.taparDerecho(bajo: isla)
+        // La barrita de marcar, encima de todo (la coloca `ponerBarrita`).
+        contenedor.addSubview(anfitrionBarrita)
+        marcar.pulsar = { [weak self] b in self?.pulsarBarrita(b) }
         NSLayoutConstraint.activate([
             desplazar.leadingAnchor.constraint(equalTo: contenedor.leadingAnchor),
             desplazar.trailingAnchor.constraint(equalTo: contenedor.trailingAnchor),
@@ -690,6 +727,15 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             self.irA(fraccion: donde)
             if self.buscador.abierto, !self.buscador.consultaLimpia.isEmpty { self.buscador.buscar(ir: false) }
             self.voz.alColocar()
+            // Lo elegido era de la maqueta de antes: se suelta, salvo la
+            // marca que esperaba a esta (por letras, cae en su palabra).
+            if self.pendiente != nil {
+                self.aplicarPendiente()
+            } else if self.eleccion != nil || self.marcar.deMarca != nil {
+                self.eleccion = nil
+                self.marcar.deMarca = nil
+                self.ponerBarrita()
+            }
         }
     }
 
@@ -783,6 +829,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
 
     private func alMoverse() {
         pagina.needsDisplay = true
+        ponerBarrita()
     }
 
     // MARK: Pintar
@@ -826,6 +873,13 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
                     ctx.addPath(CGPath(roundedRect: q, cornerWidth: 2, cornerHeight: 2, transform: nil))
                     ctx.fillPath()
                 }
+            }
+        }
+        // Lo elegido leyendo, en el azul de elegir de Windows, debajo del texto.
+        if let e = eleccion {
+            ctx.setFillColor(CGColor(srgbRed: 0, green: 0.47, blue: 0.84, alpha: 0.30))
+            for (c, r) in rangos(e) where CGFloat(cs[c].y) < sucio.maxY + 40 && CGFloat(cs[c].y + cs[c].alto) > sucio.minY - 40 {
+                for q in cajas(de: c, r) { ctx.fill(q) }
             }
         }
         var k = i
@@ -931,10 +985,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         guard let m = maqueta, k < m.colocados.count else { return [] }
         let c = m.colocados[k]
         let renglon = CGFloat(c.tam * c.interlineado)
-        var pares: [(Int, Int)] = stride(from: 0, to: c.renglones.count - 1, by: 2).map {
-            (Int(c.renglones[$0]), Int(c.renglones[$0 + 1]))
-        }
-        if pares.isEmpty { pares = [(0, (c.texto as NSString).length)] }
+        let pares = paresDe(c)
         var v: [CGRect] = []
         for (n, ((a, b), (l, x))) in zip(pares, lineas(de: k, c)).enumerated() {
             let i = max(r.location, a), f = min(NSMaxRange(r), b)
@@ -1107,6 +1158,12 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         }
         ponerLimites()
         ventana.invalidateCursorRects(for: pagina)
+        if h != "leer" {
+            eleccion = nil
+            marcar.deMarca = nil
+            pagina.needsDisplay = true
+        }
+        ponerBarrita()
     }
 
     func ponerColor(_ c: ColorTinta) {
@@ -1141,6 +1198,277 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
     func rehacer() {
         if editor?.rehacer() == true {
             pagina.needsDisplay = true
+            programarGuardado()
+        }
+    }
+
+    // MARK: Elegir y marcar el texto (Windows `visor/marcar.rs`)
+
+    /// Si un colocado tiene texto que elegir (no una raya, una imagen o un
+    /// recuadro).
+    private func deTexto(_ c: ColocadoReflujo) -> Bool {
+        guard !c.texto.isEmpty, !c.recuadro else { return false }
+        switch c.clase {
+        case .regla, .capitulo: return false
+        default: return true
+        }
+    }
+
+    /// Los renglones de un colocado: de que letra a que letra (UTF-16).
+    private func paresDe(_ c: ColocadoReflujo) -> [(Int, Int)] {
+        let pares: [(Int, Int)] = stride(from: 0, to: c.renglones.count - 1, by: 2).map {
+            (Int(c.renglones[$0]), Int(c.renglones[$0 + 1]))
+        }
+        return pares.isEmpty ? [(0, (c.texto as NSString).length)] : pares
+    }
+
+    /// **La letra bajo un punto** del documento, preguntada a los mismos
+    /// renglones que se pintan. `cerca`: arrastrando, la del texto mas
+    /// cercano aunque el raton se salga de el.
+    func letra(en p: CGPoint, cerca: Bool) -> LetraReflujo? {
+        guard let m = maqueta else { return nil }
+        let cs = m.colocados
+        var i = 0, hasta = cs.count
+        while i < hasta {
+            let mitad = (i + hasta) / 2
+            if CGFloat(cs[mitad].y + cs[mitad].alto) < p.y - 400 { i = mitad + 1 } else { hasta = mitad }
+        }
+        var mejor: (d: CGFloat, k: Int)?
+        var k = i
+        while k < cs.count {
+            let c = cs[k]
+            if CGFloat(c.y) > p.y + 400 { break }
+            if deTexto(c) {
+                let caja = CGRect(x: CGFloat(c.sangria) - 4, y: CGFloat(c.y), width: CGFloat(c.ancho) + 8,
+                                  height: CGFloat(c.alto))
+                let dy = p.y < caja.minY ? caja.minY - p.y : (p.y > caja.maxY ? p.y - caja.maxY : 0)
+                let dx = p.x < caja.minX ? caja.minX - p.x : (p.x > caja.maxX ? p.x - caja.maxX : 0)
+                if dx == 0, dy == 0 {
+                    mejor = (0, k)
+                    break
+                }
+                if cerca, mejor.map({ dy * 4 + dx < $0.d }) ?? true { mejor = (dy * 4 + dx, k) }
+            }
+            k += 1
+        }
+        guard let j = mejor?.k else { return nil }
+        let c = cs[j]
+        let ls = lineas(de: j, c), ps = paresDe(c)
+        let n = min(ls.count, ps.count)
+        guard n > 0 else { return nil }
+        let renglon = max(CGFloat(c.tam * c.interlineado), 1)
+        let r = min(max(Int(((p.y - CGFloat(c.y)) / renglon).rounded(.down)), 0), n - 1)
+        let (linea, x) = ls[r]
+        let (a, b) = ps[r]
+        let largo = (c.texto as NSString).length
+        let idx = CTLineGetStringIndexForPosition(linea, CGPoint(x: p.x - x, y: 0))
+        let l = idx == kCFNotFound ? (p.x < x ? a : b) : a + idx
+        return LetraReflujo(colocado: j, letra: min(max(l, min(a, largo)), min(b, largo)))
+    }
+
+    /// La palabra de una letra (doble clic).
+    private func palabra(en l: LetraReflujo) -> EleccionReflujo {
+        guard let m = maqueta, l.colocado < m.colocados.count else { return (l, l) }
+        let t = m.colocados[l.colocado].texto as NSString
+        func deLetra(_ i: Int) -> Bool {
+            guard i >= 0, i < t.length, let u = Unicode.Scalar(t.character(at: i)) else { return false }
+            return CharacterSet.alphanumerics.contains(u)
+        }
+        var a = l.letra, b = l.letra
+        while deLetra(a - 1) { a -= 1 }
+        while deLetra(b) { b += 1 }
+        return (LetraReflujo(colocado: l.colocado, letra: a), LetraReflujo(colocado: l.colocado, letra: b))
+    }
+
+    /// El renglon de una letra (triple clic).
+    private func renglon(en l: LetraReflujo) -> EleccionReflujo {
+        guard let m = maqueta, l.colocado < m.colocados.count else { return (l, l) }
+        let ps = paresDe(m.colocados[l.colocado])
+        let (a, b) = ps.first(where: { l.letra >= $0.0 && l.letra < $0.1 }) ?? ps.last ?? (l.letra, l.letra)
+        return (LetraReflujo(colocado: l.colocado, letra: a), LetraReflujo(colocado: l.colocado, letra: b))
+    }
+
+    /// Lo elegido, colocado a colocado.
+    private func rangos(_ e: EleccionReflujo) -> [(Int, NSRange)] {
+        guard let m = maqueta else { return [] }
+        let a = min(e.ancla, e.punta), b = max(e.ancla, e.punta)
+        guard a < b, a.colocado < m.colocados.count else { return [] }
+        var v: [(Int, NSRange)] = []
+        for k in a.colocado...min(b.colocado, m.colocados.count - 1) {
+            let c = m.colocados[k]
+            guard deTexto(c) else { continue }
+            let largo = (c.texto as NSString).length
+            let i = k == a.colocado ? min(a.letra, largo) : 0
+            let f = k == b.colocado ? min(b.letra, largo) : largo
+            if f > i { v.append((k, NSRange(location: i, length: f - i))) }
+        }
+        return v
+    }
+
+    /// El texto elegido, un parrafo por renglon.
+    private func textoElegido() -> String {
+        guard let m = maqueta, let e = eleccion else { return "" }
+        return rangos(e).map { (m.colocados[$0.0].texto as NSString).substring(with: $0.1) }.joined(separator: "\n")
+    }
+
+    private func copiarElegido() {
+        let t = textoElegido()
+        guard !t.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(t, forType: .string)
+    }
+
+    /// **Pulsar leyendo**: sobre una marca la elige entera (con su texto);
+    /// sobre el texto empieza a elegir (doble clic la palabra, triple el
+    /// renglon). `false` fuera del texto: se arrastra el documento.
+    func pulsarLeyendo(_ e: NSEvent, en vista: NSView) -> Bool {
+        let p = vista.convert(e.locationInWindow, from: nil)
+        let holgura = Float(3 / max(desplazar.magnification, 0.0001))
+        if e.clickCount == 1, let ed = editor,
+           let g = ed.marcaDeTextoEn(x: Float(p.x), y: Float(p.y), holgura: holgura) {
+            marcar.deMarca = g
+            eleccion = eleccionDeMarca(g, en: ed)
+            eligiendo = false
+            pagina.needsDisplay = true
+            ponerBarrita()
+            return true
+        }
+        let habia = eleccion != nil || marcar.deMarca != nil
+        marcar.deMarca = nil
+        guard let l = letra(en: p, cerca: false) else {
+            if habia {
+                eleccion = nil
+                pagina.needsDisplay = true
+                ponerBarrita()
+            }
+            return false
+        }
+        switch e.clickCount {
+        case 2: eleccion = palabra(en: l)
+        case 3...: eleccion = renglon(en: l)
+        default: eleccion = (l, l)
+        }
+        eligiendo = e.clickCount <= 1
+        pagina.needsDisplay = true
+        ponerBarrita()
+        return true
+    }
+
+    func arrastrarLeyendo(_ e: NSEvent, en vista: NSView) {
+        guard eligiendo, let ya = eleccion else { return }
+        let p = vista.convert(e.locationInWindow, from: nil)
+        if let l = letra(en: p, cerca: true) { eleccion = (ya.ancla, l) }
+        _ = vista.autoscroll(with: e)
+        pagina.needsDisplay = true
+        ponerBarrita()
+    }
+
+    func soltarLeyendo() {
+        eligiendo = false
+        if let e = eleccion, e.ancla == e.punta { eleccion = nil }
+        pagina.needsDisplay = true
+        ponerBarrita()
+    }
+
+    /// El texto de una marca, elegido de nuevo por las franjas de sus
+    /// renglones (`sondasDeMarca`), de la primera a la ultima.
+    private func eleccionDeMarca(_ g: String, en ed: EditorLienzo) -> EleccionReflujo? {
+        let s = ed.sondasDeMarca(grupo: g)
+        guard let primera = s.first, let ultima = s.last,
+              let a = letra(en: CGPoint(x: CGFloat(primera.x0), y: CGFloat(primera.y0 + primera.y1) / 2), cerca: false),
+              let b = letra(en: CGPoint(x: CGFloat(ultima.x1), y: CGFloat(ultima.y0 + ultima.y1) / 2), cerca: false),
+              a != b else { return nil }
+        return (a, b)
+    }
+
+    /// **Pone, mueve o quita la barrita**: leyendo, con texto elegido o una
+    /// marca elegida, junto a lo que se ve de ello.
+    func ponerBarrita() {
+        let leyendo = !modelo.anotando && !marcos.activo && modelo.renombrando == nil
+        guard leyendo else { return marcar.quitar(anfitrionBarrita) }
+        var zona = CGRect.null
+        if let e = eleccion {
+            for (k, r) in rangos(e) {
+                for q in cajas(de: k, r) { zona = zona.union(q) }
+            }
+        }
+        if let g = marcar.deMarca, let ed = editor {
+            for c in ed.cajasDeMarca(grupo: g) {
+                zona = zona.union(CGRect(x: CGFloat(c.x0), y: CGFloat(c.y0), width: CGFloat(c.x1 - c.x0),
+                                         height: CGFloat(c.y1 - c.y0)))
+            }
+        }
+        guard !zona.isNull else { return marcar.quitar(anfitrionBarrita) }
+        let enContenedor = contenedor.convert(zona, from: pagina)
+        marcar.poner(zona: ModeloMarcar.desdeArriba(enContenedor, en: contenedor), en: contenedor,
+                     anfitrion: anfitrionBarrita)
+    }
+
+    /// Un boton de la barrita.
+    private func pulsarBarrita(_ b: BotonDeMarcar) {
+        switch b.que {
+        case "copiar": copiarElegido()
+        case "color": marcar.color = b.color
+        case "quitar": marcarElegido(nil)
+        default: marcarElegido(b.que)
+        }
+    }
+
+    /// **Marca lo elegido** con `que` (o, sin nada, quita las marcas que
+    /// caen en ello o la marca elegida). La primera marca fija la columna y
+    /// la letra, como la primera vez que se anota: el texto se vuelve a
+    /// colocar con ella y la marca se pone despues, por letras, para que
+    /// caiga en su palabra (y en la misma en el movil).
+    private func marcarElegido(_ que: String?) {
+        guard eleccion != nil || marcar.deMarca != nil else { return }
+        if var l = lectura, l.columna == 0, maqueta != nil {
+            l.columna = UInt32(columna.rounded())
+            ponerLectura(l)
+            guardarLecturaYa()
+            pendiente = (eleccion, marcar.deMarca, que)
+            ponerLimites()
+            colocarSiHaceFalta()
+            // Con la misma columna no hace falta volver a colocar.
+            if colocandoAhora == nil { aplicarPendiente() }
+            return
+        }
+        aplicarMarca(que, eleccion: eleccion, deMarca: marcar.deMarca)
+    }
+
+    private func aplicarPendiente() {
+        guard let p = pendiente else { return }
+        pendiente = nil
+        aplicarMarca(p.que, eleccion: p.eleccion, deMarca: p.deMarca)
+    }
+
+    private func aplicarMarca(_ que: String?, eleccion elegida: EleccionReflujo?, deMarca: String?) {
+        defer {
+            eleccion = nil
+            marcar.deMarca = nil
+            pagina.needsDisplay = true
+            ponerBarrita()
+        }
+        let ed: EditorLienzo
+        if let ya = editor {
+            ed = ya
+        } else {
+            do {
+                ed = try nucleo.anotarReflujo(documento: url.path)
+                ponerEditor(ed)
+            } catch {
+                modelo.aviso = "No se puede anotar aquí: \(error)"
+                return
+            }
+        }
+        var lista: [CajaDeMarca] = []
+        if let elegida {
+            for (k, r) in rangos(elegida) {
+                for q in cajas(de: k, r) {
+                    lista.append(CajaDeMarca(x0: Float(q.minX), y0: Float(q.minY), x1: Float(q.maxX), y1: Float(q.maxY)))
+                }
+            }
+        }
+        if ed.marcarTexto(marca: que, color: marcar.color, cajas: lista, deMarca: deMarca, grupo: grupoDeMarcaNuevo()) {
             programarGuardado()
         }
     }
@@ -1450,6 +1778,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
                 buscador.abrir()
                 return true
             case "g": buscador.siguiente(); return true
+            case "c" where !escribiendo && eleccion != nil: copiarElegido(); return true
             case "p": imprimir(); return true
             case "s": programarGuardado(espera: 0); guardarLectura(); return true
             case "0": aumento(nil); return true
@@ -1525,6 +1854,11 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
             cancelarNombre()
         } else if buscador.abierto {
             buscador.cerrar()
+        } else if eleccion != nil || marcar.deMarca != nil {
+            eleccion = nil
+            marcar.deMarca = nil
+            pagina.needsDisplay = true
+            ponerBarrita()
         } else if modelo.poniendoMarca {
             modelo.poniendoMarca = false
         } else if voz.activa {
@@ -1659,6 +1993,7 @@ public final class ControladorReflujo: NSObject, NSWindowDelegate {
         modelo.enmarcando = marcos.activo
         capaMarcos.needsDisplay = true
         ventana.invalidateCursorRects(for: capaMarcos)
+        ponerBarrita()
     }
 
     func imprimir() {

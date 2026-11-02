@@ -126,6 +126,8 @@ pub mod magia;
 pub mod fusionar_paginas;
 // La zona al chat como sublienzo y el salto por su enlace (iPad, 25-oct).
 pub mod marcas_lienzo;
+// Marcar el texto leyendo en los lectores (Windows a5b3c24 y a4fd8c8).
+pub mod marcas_texto;
 /// La mezcla y el tratamiento del sonido del motor de audio de Windows
 /// (38204cb): microfono y sonido del Mac por bloques.
 pub mod mezcla_audio;

@@ -66,6 +66,52 @@ el nombre nuevo, se lee también el viejo y se migra una vez**. En el Mac (fase 
 enseña el Mac, `pixpin:files/`, los ficheros `.pixpin-lectura`/`-anotado`/`-marcos`/`-vistas`/
 `-marcas`, `.pixpin2d`, `.pixpin-lista`. No cambia: las magias y la sal de Sincronizar.
 
+## Marcar el texto leyendo (1-nov-2026, Windows `ab2ef84..4e3efd5`)
+
+Windows 9d2e2b1 (el modelo común, ya en el núcleo: `pindesk-motor2d/src/marcas_texto.rs`,
+`pindesk-ui/src/barra_marcar.rs`, `pindesk-docs/src/capa_de_texto.rs`), a5b3c24 (lector de PDF y
+Office), a4fd8c8 y 1d9924e (visor de Word, libros y páginas) y 02e38b7 (lector de notas). Hecho:
+
+- **El puente** (`N/marcas_texto.rs`, con pruebas): `disponerBarritaDeMarcar` (la barrita de
+  `barra_marcar`: copiar, los cinco colores, resaltar, ondulada, subrayar, tachar, tapar y quitar,
+  con las claves `pin-v2-marca-*` de `main.ftl`), `coloresDeMarcar` (`#F47286`, `#B99CF5`,
+  `#5BA4F5`, `#3FC88C`, `#F5C218`), `grupoDeMarcaNuevo` (`marca-texto-<ms>`) y en
+  `EditorLienzo`: `marcarTexto` (poner, cambiar o quitar en un paso de deshacer), `marcaDeTextoEn`
+  (el clic sobre una marca), `cajasDeMarca` y `sondasDeMarca` (por dónde volver a elegir el texto
+  de una marca). **Mismo formato y sitio que Windows** (§3.9 de su
+  `docs/sincronizar-marcos-vistas-y-tinta.md`): cada marca es dibujo normal de la tinta de la hoja
+  (`hoja-<n>.excalidraw` o `anot-<uid>-p<n>`) o del documento reflujado, en sus unidades, con el
+  grupo `marca-texto-<ms>`, `roughness` 0 y `opacity` 40 (resaltar) o 100 (tapar); una prueba
+  guarda una y mira el `.excalidraw`.
+- **Lector de PDF y Office** (`K/Documentos/LectorDocumento.swift`, PDFKit; el Word y el
+  PowerPoint paginados van por el mismo): leyendo, al elegir texto sale encima la barrita
+  (`K/Documentos/BarritaMarcar.swift`, el cristal oscuro de las barras del lector y los dibujitos
+  de `barra_marcas.rs`, el nombre como globo del Mac); las cajas son las de cada renglón de
+  `PDFSelection.selectionsByLine()` pasadas a las unidades de la tinta con la misma cuenta que el
+  lápiz; una marca que pasa por varias hojas se deshace entera con ⌘Z; un clic sobre una marca la
+  elige entera (con su texto, para cambiarla) y ⎋ la suelta.
+- **Visor de Word, libros y páginas** (`K/Documentos/VisorReflujo.swift`): leyendo, arrastrar sobre
+  el texto lo elige (fuera se arrastra el documento), doble clic la palabra, triple el renglón, ⌘C
+  copia, ⎋ suelta; la caja de cada letra se pregunta a las mismas `CTLine` que se pintan. La primera
+  marca fija la columna y la letra, como anotar, y se pone por letras después de volver a colocar.
+- **Lector de notas** (02e38b7): `lector-md.html` es el de Windows `4e3efd5` (leyendo, la selección
+  se ve dentro de las cajas, no salen las vallas, nada salta; burbuja «Comentar» al elegir; menú
+  del clic derecho propio: comentar, copiar, buscar, editar). **Siempre se abre leyendo** salvo una
+  nota vacía, y un `.md` con la marca del Bloc de notas (o en UTF-16) empieza por su título
+  (`N/notas/web.rs`, con prueba).
+
+Queda:
+
+- **Hojas escaneadas**: Windows reconoce el texto con el OCR al pasar el ratón (o con T) y deja
+  elegir por palabras enteras; aquí PDFKit solo elige el texto que trae el PDF. El puente ya da
+  `palabrasEnterasDe`; falta la capa de texto de Vision sobre la hoja.
+- Elegir texto en el lector de notas ya era del navegador; los **visores web** (`visor_html`) y el
+  riel/barra que «no atraviesan otra app» (02e38b7, `lector_pin.rs` y `visor_html/riel.rs`) son
+  cuentas de ventanas de Win32 (`ventana_bajo`, «siempre encima»): en el Mac la barra flotante ya
+  va con su ventana. **Compartir una nota Markdown como página web con su formato** (02e38b7,
+  `compartir.rs`/`documento_web.rs`): falta, porque el Mac aún no hace «la web de un documento que
+  se lee» (ver el hueco 7).
+
 ## Resumen
 
 Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias filas (`ventana_chat`, `ventana_ajustes`, `ventana_editor`, `notas_md`, `pines`, `sincronizar`, `timeline`, `plano_cad`).
@@ -153,7 +199,7 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 | jev (reunion, urgencia, modelo, estado_ia; typesafe) | Jev de TypeSafe: lo importante de una clase, Anki que vale la pena, prioridad de las tareas, Haiku/Sonnet según el pedido y los puntitos del estado de las IA | parcial | N/jev.rs, N/jev/{reunion,urgencia,modelo,estado_ia}.rs, N/anki.rs, K/Asistente/Jev.swift, K/Grabar/EstudiarClase.swift, K/Tareas/Tareas.swift | Hecho (1-nov, Windows ae96b89..2847782): el mismo `pixpin-typesafe` (preguntas y tablas de decisión) por el puente; la red es URLSession (`TransporteApp.pedir`, con el plazo en la cabecera `X-PixPin-Plazo`, 3 s en vez de 2 porque cada petición abre su TLS) y la clave va al **Llavero** (servicio `PixPinMax.asistente`, cuenta `typesafe`; en Windows DPAPI). Ajustes → Asistente → «TypeSafe (Jev)»: la clave con «Guardar y probar» (`GET /v1/models`, no gasta) y «Borrar», y los interruptores `[jev] reunion`, `anki`, `urgencia` y `modelo` en el mismo `pixpinmax.toml` (no viajan; los demás de `[jev]` se conservan). **Lo importante** de cada nota de voz al pasarla a texto (y al abrir «Estudiar la clase» si aún no se miró): `resto["importantes"] = [{ms, tipo, p, quien?, cuando?, enTareas?}]` y `resto["importantesDe"]`, el mismo formato que Windows y el móvil (`pixpin_proyecto::clase`); en «Estudiar la clase» un punto de color por tipo bajo el minuto, la franja «Todo · Tarea 3 · …» con su filtro, «Buscando lo importante…» y «+N tareas a Tareas» (al Inbox con `💬 🎙 <clase> ⏱ m:ss`, marca `enTareas`). **Anki**: de una clase solo las capturas que valen la pena (`anki::elegir`) y «Jev dejó fuera N…» en el aviso. **Prioridad**: en la ventana de Tareas (`tareas_con_jev`, en memoria, nada al disco), chapita «✦ Urgente/Alta/Baja» y lo pendiente ordenado por prioridad; lo marcado a mano manda. **Modelo**: cada pedido que no es orden rápida elige Haiku o Sonnet (Flash o V4 Pro) en el hilo del turno, en la ventana del asistente y en el chat; la pastilla dice «Claude Sonnet · Jev» 15 min. **Puntitos** de Claude, DeepSeek y Jev a la izquierda del botón de sincronizar (verde, rojo, aro rojo sin clave, gris sin comprobar), con su frase, «Comprobar ahora» y «Claves en Ajustes → Asistente»; comprobación que no gasta a los 10 s, al cambiar una clave y cada 30 min. Textos de `pixpin-store/i18n` por el núcleo (`textos_de_jev`, `ia_estado`: los catorce idiomas). Falta: los temas de la reunión y lo que se oye en ella mientras se graba (`temas`, `en_vivo`: tareas dichas, urgencia en vivo, tema olvidado, minutos por tema, decisiones, preguntas sin respuesta, fechas al horario, el acta en la nota), dictar al chat, repasar en voz alta, las chapitas de lo importante en la página compartida y sus siete interruptores (no salen en Ajustes del Mac) |
 | lecciones | Ficha, etiquetas, repaso, dictado, fotos y audios, exportar | parcial | K/Lecciones/*, N/lecciones.rs | Dictado, poner fotos y audios desde el Mac, exportar. Las del móvil ya se ven en la ficha (B9: «Fotos y audios», doble clic con Vista Rápida) |
 | lector | Lo común a los lectores: papel, riel de marcadores | completo | K/Documentos/LectorDocumento.swift, AvanceLector.swift, TonoLector.swift, RielVisor.swift | — (riel a la derecha con ⌘1…9, tira de M con su cifra, negativo). **El clic derecho en el botón del marco** (Windows bffd9bc, 936dc60 y `marcos_doc::menu_de_imprimir`, 1-nov): en todos los visores con el riel (PDF/Word/PowerPoint, texto reflujado, hoja de cálculo, web, plano y modelo 3D) sale «Imprimir los marcos (N)» (en gris con «aún no hay: pulsa el marco y arrastra» sin marcos) e «Imprimir el … entero» con el nombre de lo que es (`ImprimirDelMarco.entero(de:)`, como `Entero::de_fichero`; el plano entero en una lámina, la vista del modelo, la hoja abierta en trozos tumbados, la página con su imprimir, el PDF con la tinta). Antes salía el menú de PDFKit (el derecho pasaba la isla de SwiftUI y llegaba al PDFView); ahora una `TapaDerecho` bajo la isla se queda el derecho de los demás botones (en Windows no hacen nada) y el PDFView ya no saca su menú en el resto del documento (solo «Copiar» con texto elegido). ⌘P sin marcos en el plano imprime el plano entero y con marcos una lámina por marco, como Windows. Diferencia: la lista de mapeo de extensiones está en Swift (son textos) |
-| lector_pdf | Lector PDF, Word y PPTX | parcial | K/Documentos/LectorDocumento.swift, BuscadorLector.swift, AvanceLector.swift, AlDiaLector.swift, N/documentos/lector.rs | Hechos (B7) buscar, D, N, G, imprimir, compartir, F5, ⌘1…9, F2 y `al_dia` (releer y juntar al guardar); escuchar (D2, K/Documentos/VozDelLector.swift). Faltan «Ver como texto», exportar el PDF anotado (D1) y quitar lo anotado |
+| lector_pdf | Lector PDF, Word y PPTX | parcial | K/Documentos/LectorDocumento.swift, BuscadorLector.swift, AvanceLector.swift, AlDiaLector.swift, N/documentos/lector.rs | Hechos (B7) buscar, D, N, G, imprimir, compartir, F5, ⌘1…9, F2 y `al_dia` (releer y juntar al guardar); escuchar (D2, K/Documentos/VozDelLector.swift). Marcar el texto leyendo (Windows a5b3c24): la barrita, las cinco marcas en la tinta de la hoja, el clic sobre una marca y ⌘Z en varias hojas (K/Documentos/BarritaMarcar.swift, N/marcas_texto.rs). Faltan «Ver como texto», exportar el PDF anotado (D1), quitar lo anotado y el OCR de una hoja escaneada para marcarla |
 | lector_pdf_proyecto | Dónde va la tinta de un PDF | completo | N/documentos.rs | — |
 | lector_pin | Los lectores como pin | completo | K/Documentos/LectorDocumento.swift | La barra flotante de los pines |
 | lector_tinta | Capa de tinta sin desfase | parcial | N/documentos.rs | Word y EPUB reflujados |
@@ -240,7 +286,7 @@ Lo cuenta la matriz §1: hay 170 filas. Algunos módulos grandes salen en varias
 | turno_pesado | Un trabajo pesado cada vez | interno | — | Solo si llega Whisper |
 | v2/ | Aviso con Deshacer, pista, pegar | interno | SwiftUI | Un aviso «Deshacer» común |
 | ventanita | Base de las ventanitas de voz | completo | K/VozVentanas/Ventanita.swift | Hecho (E5): colores de papel oscuro, botón plano, ventana lisa con su teclado y el micrófono a un `.m4a` suelto |
-| visor | Word, EPUB y páginas reflujados | parcial | K/Documentos/LectorDocumento.swift (paginado) | Reflujo, letra (+/−, T, B), índice, «PDF como texto», tinta del EPUB |
+| visor | Word, EPUB y páginas reflujados | parcial | K/Documentos/LectorDocumento.swift (paginado), K/Documentos/VisorReflujo.swift | Reflujo, letra (+/−, T, B), índice, «PDF como texto», tinta del EPUB. Elegir y marcar el texto leyendo (Windows a4fd8c8): arrastrar, doble y triple clic, ⌘C y la barrita; la primera marca fija la columna |
 | visor/como_texto, imagenes, tablas, maqueta_movil | — | falta | — | La maqueta del móvil (para que la tinta caiga igual) |
 | visor_hoja | `.xlsx` entero como pin | parcial | K/Documentos/PinOffice.swift, K/Documentos/HojaCalculo.swift | Las pestañas y ⌘flechas están en el editor (D5); el pin de ver (Vista Rápida) no tiene enlaces ni capa de tinta |
 | visor_html | `.html` a pantalla completa | completo | K/Documentos/VisorHtml.swift | — (D9: `WKWebView` liso del tamaño del área de trabajo con la barra de los lectores; `PixPinVisor.guardar` y la descarga del `.html` se guardan encima del mismo fichero con el filtro de Android, lo demás a Descargas; ⎋ cierra, ⌘E exporta, sigue luna/sol) |

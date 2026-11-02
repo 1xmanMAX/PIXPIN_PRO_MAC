@@ -418,3 +418,39 @@ fn del_chat_se_ofrecen_los_mensajes_y_entra_su_enlace() {
     );
     let _ = std::fs::remove_dir_all(&d);
 }
+
+#[test]
+fn siempre_se_abre_leyendo_y_un_md_con_la_marca_del_bloc_de_notas_empieza_por_su_titulo() {
+    let (d, n) = nucleo("leyendo");
+    let abrir = |ruta: &std::path::Path| {
+        n.clone()
+            .abrir_nota(
+                DestinoNota::Fichero {
+                    ruta: ruta.display().to_string(),
+                },
+                false,
+            )
+            .unwrap()
+    };
+    // Windows 02e38b7: con la marca de orden (y en UTF-16) el titulo sale
+    // sin almohadilla.
+    let md = d.join("bom.md");
+    std::fs::write(&md, b"\xEF\xBB\xBF# Titulo\n\nTexto").unwrap();
+    let s = abrir(&md);
+    assert_eq!(s.titulo(), "Titulo");
+    let r = ordenes_mandar(&s.recibir(r#"{"tipo":"listo"}"#.into()));
+    assert_eq!(r[0]["texto"], "# Titulo\n\nTexto");
+    // Y se abre leyendo: detras del texto, la orden de leer.
+    assert_eq!(r[1]["tipo"], "orden");
+    assert_eq!(r[1]["que"], "leer");
+    let mut u16 = vec![0xFF, 0xFE];
+    u16.extend("# Hola".encode_utf16().flat_map(u16::to_le_bytes));
+    std::fs::write(&md, u16).unwrap();
+    assert_eq!(abrir(&md).titulo(), "Hola");
+    // Caso negativo: una nota vacia se abre para escribirla.
+    let vacia = d.join("vacia.md");
+    std::fs::write(&vacia, "  \n").unwrap();
+    let r = ordenes_mandar(&abrir(&vacia).recibir(r#"{"tipo":"listo"}"#.into()));
+    assert_eq!(r.len(), 1);
+    let _ = std::fs::remove_dir_all(&d);
+}
