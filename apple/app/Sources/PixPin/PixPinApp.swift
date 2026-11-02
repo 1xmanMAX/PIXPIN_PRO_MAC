@@ -306,7 +306,11 @@ struct AlReabrirSaleProyectos: ViewModifier {
         content.onAppear {
             let abrir = abrirVentana
             // Los atajos que abren ventanas (Proyectos, Buscar, Ajustes...).
-            ComandosApp.abrirVentana = { abrir(id: $0) }
+            ComandosApp.abrirVentana = { id in
+                // Volver a pedir una ventana abierta (Tareas suelta lo quieto).
+                NotificationCenter.default.post(name: .pixpinVentanaPedida, object: id)
+                abrir(id: id)
+            }
             let ajustes = abrirAjustes
             ComandosApp.abrirAjustes = { ajustes() }
             DelegadoAbrirFicheros.alReabrir = {

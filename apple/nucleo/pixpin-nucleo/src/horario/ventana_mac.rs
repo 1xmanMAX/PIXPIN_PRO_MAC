@@ -55,6 +55,19 @@ pub enum AsignaturaAnadida {
     Nada,
 }
 
+/// **Lo que paso al renombrar una asignatura** en su ficha (Windows 71bf70f,
+/// el campo «Nombre»).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Enum)]
+pub enum AsignaturaRenombrada {
+    /// Renombrada (y sus clases, y su lista de tareas si la tiene).
+    Hecho { antes: String, nombre: String },
+    /// Ya hay otra que se llama asi (Windows: «X» ya está en la lista): no
+    /// se cambio nada.
+    Repetida { nombre: String },
+    /// Vacio o el mismo nombre: nada.
+    Igual,
+}
+
 /// La semana abierta en la ventana.
 #[derive(uniffi::Object)]
 pub struct SemanaHorario {
@@ -74,9 +87,33 @@ impl SemanaHorario {
         self.guardada.lock().unwrap_or_else(|e| e.into_inner())
     }
 
+    /// **Los enlaces que ya estan en `horario.md`** (`lista:<id>`, los que
+    /// apunta el vigia mientras la ventana esta abierta) para las
+    /// asignaturas de `s` que aun no lo tienen, por su nombre: asi guardar
+    /// desde la ventana no los borra.
+    fn completar_enlaces(&self, s: &mut Semana) {
+        let Some(texto) = self.nucleo.fichero_del_horario().ok().and_then(|r| std::fs::read_to_string(r).ok()) else {
+            return;
+        };
+        let h = super::leer(&texto, Momento::de_ms_locales(0));
+        for a in s.asignaturas.iter_mut().filter(|a| a.lista.is_none()) {
+            let n = pindesk_ia::acciones::normalizar(a.nombre.trim());
+            if let Some(b) = h
+                .asignaturas
+                .iter()
+                .find(|b| b.lista.is_some() && pindesk_ia::acciones::normalizar(b.nombre.trim()) == n)
+            {
+                a.lista = b.lista.clone();
+            }
+        }
+    }
+
     /// Escribe `s` en `horario.md` (solo las lineas de clases y
     /// asignaturas), como `Panel::guardar` de Windows.
     fn escribir(&self, s: &Semana) -> Result<(), ErrorNucleo> {
+        let mut s = s.clone();
+        self.completar_enlaces(&mut s);
+        let s = &s;
         let ruta = self.nucleo.fichero_del_horario()?;
         let original =
             std::fs::read_to_string(&ruta).unwrap_or_else(|_| super::PLANTILLA.to_string());
@@ -153,6 +190,48 @@ impl SemanaHorario {
             },
             Ok(None) => AsignaturaAnadida::Nada,
         }
+    }
+
+    /// **El enlace de la asignatura `i` con su lista** (`lista:<id>`, el
+    /// `mensaje` de [`Nucleo::asegurar_lista_de_asignatura`]): la linea
+    /// nace con el al guardar, como en Windows.
+    pub fn poner_lista_de_asignatura(&self, i: u32, lista: String) {
+        let lista = lista.trim().to_string();
+        if let Some(a) = self.tomar().asignaturas.get_mut(i as usize) {
+            a.lista = (!lista.is_empty()).then_some(lista);
+        }
+    }
+
+    /// **Renombra la asignatura `i`** desde su ficha (Windows 71bf70f): sus
+    /// clases y su lista de tareas (la de su enlace o, sin el, la de su
+    /// nombre de antes), que sigue con sus tareas. Si cambio, se guarda ya.
+    pub fn renombrar_asignatura(&self, i: u32, nuevo: String) -> Result<AsignaturaRenombrada, ErrorNucleo> {
+        let i = i as usize;
+        let mut s = self.tomar().clone();
+        self.completar_enlaces(&mut s);
+        let Some(a) = s.asignaturas.get(i).cloned() else {
+            return Ok(AsignaturaRenombrada::Igual);
+        };
+        let lista = self.nucleo.lista_leida_de_asignatura(&a);
+        let antes = match s.renombrar_asignatura(i, &nuevo) {
+            Err(j) => {
+                return Ok(AsignaturaRenombrada::Repetida {
+                    nombre: s.asignaturas[j].nombre.clone(),
+                });
+            }
+            Ok(None) => return Ok(AsignaturaRenombrada::Igual),
+            Ok(Some(antes)) => antes,
+        };
+        if let Some(l) = &lista {
+            s.asignaturas[i].lista = Some(l.mensaje.clone());
+        }
+        let nombre = s.asignaturas[i].nombre.clone();
+        *self.tomar() = s;
+        self.guardar()?;
+        if let Some(l) = lista {
+            self.nucleo.renombrar_lista_de_tareas(&l.chat, &l.mensaje, &nombre)?;
+        }
+        Ok(AsignaturaRenombrada::Hecho { antes, nombre })
     }
 
     pub fn borrar_asignatura(&self, i: u32) {
@@ -340,6 +419,52 @@ avisar 10 min antes
 ## Asignaturas
 Asignatura Geometría @A-12
 ";
+
+    #[test]
+    fn renombrar_una_asignatura_renombra_su_lista_y_sus_clases() {
+        let d = std::env::temp_dir().join(format!("pixpin-semana-renombrar-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let n = Nucleo::abrir(d.display().to_string(), "Mac".into()).unwrap();
+        let ruta = n.fichero_del_horario().unwrap();
+        let s = SemanaHorario::abrir(n.clone()).unwrap();
+        // Al anadirla, su lista ya, y la linea nace con el enlace.
+        let AsignaturaAnadida::Nueva { indice, nombre } = s.anadir_asignatura_escrita("Geometría".into()) else {
+            panic!("nueva");
+        };
+        let l = n.asegurar_lista_de_asignatura(nombre, 0).unwrap();
+        s.poner_lista_de_asignatura(indice, l.mensaje.clone());
+        s.soltar(0, 0, 8 * 60);
+        s.guardar().unwrap();
+        let texto = std::fs::read_to_string(&ruta).unwrap();
+        assert!(texto.contains(&format!("Asignatura Geometría lista:{}\n", l.mensaje)), "{texto}");
+        n.apuntar_en_asignatura("Geometría".into(), "compás".into(), Vec::new(), 0).unwrap();
+        // Renombrarla: la linea, la clase y la lista, que sigue con su tarea.
+        assert_eq!(
+            s.renombrar_asignatura(0, " Dibujo  técnico ".into()).unwrap(),
+            AsignaturaRenombrada::Hecho { antes: "Geometría".into(), nombre: "Dibujo técnico".into() }
+        );
+        let texto = std::fs::read_to_string(&ruta).unwrap();
+        assert!(texto.contains(&format!("Asignatura Dibujo técnico lista:{}\n", l.mensaje)), "{texto}");
+        assert!(texto.contains("Lun 8:00-9:00 Dibujo técnico"), "{texto}");
+        let listas = n.tareas(0).unwrap();
+        let la = listas.iter().find(|x| x.mensaje == l.mensaje).unwrap();
+        assert_eq!((la.titulo.as_str(), la.tareas.len()), ("Dibujo técnico", 1));
+        // Casos negativos: a una que ya esta, o en blanco, nada.
+        s.anadir_asignatura_escrita("Física".into());
+        assert_eq!(
+            s.renombrar_asignatura(1, "dibujo TECNICO".into()).unwrap(),
+            AsignaturaRenombrada::Repetida { nombre: "Dibujo técnico".into() }
+        );
+        assert_eq!(s.renombrar_asignatura(0, "  ".into()).unwrap(), AsignaturaRenombrada::Igual);
+        // Un enlace que apunta el vigia con la ventana abierta no se pierde al guardar.
+        std::fs::write(&ruta, "Asignatura Física\n").unwrap();
+        let abierta = SemanaHorario::abrir(n.clone()).unwrap();
+        std::fs::write(&ruta, "Asignatura Física lista:m-fis\n").unwrap();
+        abierta.cambiar_color(0);
+        abierta.guardar().unwrap();
+        assert!(std::fs::read_to_string(&ruta).unwrap().contains("lista:m-fis"));
+        let _ = std::fs::remove_dir_all(&d);
+    }
 
     #[test]
     fn anadir_una_asignatura_deja_el_horario_como_windows_y_se_deshace() {

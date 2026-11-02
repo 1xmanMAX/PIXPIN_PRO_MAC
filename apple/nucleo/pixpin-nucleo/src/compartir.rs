@@ -329,6 +329,22 @@ mod pruebas {
         assert!(pagina_web_compartida("Viaje".into(), vec![], None).is_none());
     }
 
+    /// Windows 0abb3fb y 1e4bd2e (`docs/html-exportado.md`): la pagina que
+    /// exporta el Mac lleva `GestosVista` (trackpad, pellizco de Safari y
+    /// dedos), y una sola vez. Viene con el nucleo: aqui solo se comprueba.
+    #[test]
+    fn la_pagina_web_del_mac_lleva_los_gestos_del_trackpad() {
+        let hoja = HojaParaWeb {
+            nombre: "Hoja".into(),
+            svg: "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 10 10\"/>".into(),
+            fondo: "#ffffff".into(),
+        };
+        let web = pagina_web_compartida("Viaje".into(), vec![hoja], None).unwrap();
+        assert_eq!(web.matches("var GestosVista=(function(){").count(), 1);
+        assert!(web.contains("GestosVista.conectar("));
+        assert!(web.contains("{passive:false}"), "la rueda no puede ser pasiva");
+    }
+
     #[test]
     fn el_nombre_de_fichero_quita_lo_que_no_vale() {
         assert_eq!(nombre_de_fichero_compartido("a/b: c?.".into()), "a-b- c-");

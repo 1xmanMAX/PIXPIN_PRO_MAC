@@ -37,9 +37,13 @@ final class HorarioSemanaTests: XCTestCase {
         XCTAssertEqual(m.asignaturas.map(\.aula), ["A-12"])
         XCTAssertEqual(m.aviso, "Arrastra «Geometría» a la semana")
         let texto = try String(contentsOfFile: nucleo.ficheroDelHorario(), encoding: .utf8)
-        XCTAssertTrue(texto.contains("## Asignaturas\nAsignatura Geometría @A-12\n"), texto)
         let listas = try nucleo.tareas(desfaseMs: 0)
-        XCTAssertNotNil(nucleo.listaDeAsignatura(listas: listas, asignatura: "geometria"))
+        let lista = nucleo.listaDeAsignatura(listas: listas, asignatura: "geometria")
+        XCTAssertNotNil(lista)
+        // La linea nace con el enlace a su lista (Windows 71bf70f).
+        XCTAssertTrue(texto.contains("## Asignaturas\nAsignatura Geometría @A-12 lista:\(lista?.mensaje ?? "-")\n"), texto)
+        // En Tareas, con el color de la asignatura aunque este vacia.
+        XCTAssertNotNil(listas.first { $0.mensaje == lista?.mensaje }?.asignatura)
         XCTAssertEqual(m.anadir("GEOMETRIA"), "Geometría")
         XCTAssertEqual(m.asignaturas.count, 1)
         m.cambiar { $0.soltar(asignatura: 0, dia: 0, minuto: 8 * 60) }
@@ -47,6 +51,24 @@ final class HorarioSemanaTests: XCTestCase {
         XCTAssertTrue(m.bloques.isEmpty)
         m.deshacer()
         XCTAssertEqual(m.bloques.count, 1)
+        XCTAssertNil(m.error)
+    }
+
+    /// Renombrar una asignatura en su ficha renombra su lista, que sigue con
+    /// sus tareas (Windows 71bf70f); a otra que ya esta, nada.
+    func testRenombrarUnaAsignaturaRenombraSuLista() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("semana-renombrar-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let nucleo = try Nucleo.abrir(raiz: dir.path, nombreDelAparato: "Mac de prueba")
+        let m = ModeloSemana(nucleo: nucleo)
+        XCTAssertEqual(m.anadir("Geometría"), "Geometría")
+        _ = try nucleo.apuntarEnAsignatura(asignatura: "Geometría", texto: "compás", imagenes: [], desfaseMs: 0)
+        XCTAssertEqual(m.renombrar(0, a: "Dibujo"), .hecho(antes: "Geometría", nombre: "Dibujo"))
+        XCTAssertEqual(m.asignaturas.map(\.nombre), ["Dibujo"])
+        let listas = try nucleo.tareas(desfaseMs: 0)
+        XCTAssertEqual(nucleo.listaDeAsignatura(listas: listas, asignatura: "dibujo")?.tareas.count, 1)
+        XCTAssertEqual(m.anadir("Física"), "Física")
+        XCTAssertEqual(m.renombrar(1, a: "DIBUJO"), .repetida(nombre: "Dibujo"))
         XCTAssertNil(m.error)
     }
 }

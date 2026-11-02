@@ -19,6 +19,19 @@
 // tareas con hora como chapitas). La Lista se quito; quien la tenia abre
 // en las tarjetas. Lo puro de las vistas (su palabra, su atajo, el ancho,
 // donde va cada cosa del horario) es del nucleo (`vista_tareas.rs`).
+//
+// **Lo tachado se queda en su sitio** (Windows 8ce1927, 1-nov-2026): marcar
+// se guarda al momento, pero la vista no se mueve bajo el raton (lo recien
+// tachado sigue arriba, tachado; lo destachado sigue en «Hechas»; el orden
+// de las listas y sus tareas, quieto) hasta salir de Tareas: cerrar o
+// minimizar la ventana, volver a pedirla, otra vista u otra busqueda
+// (`TareasQuietas`, `pindesk_ui::tareas_quietas` por el nucleo).
+//
+// **Las asignaturas, con su lista** (Windows 71bf70f): la lista de cada
+// asignatura del horario sale con su color y aunque este vacia; cada
+// encabezado tiene su «+» (lo apuntado va a esa lista) y el libro de la
+// caja elige entre el Inbox, las asignaturas y todas las demas listas
+// (`destinosDeTareas`).
 
 import AppKit
 import Foundation
@@ -89,6 +102,9 @@ public final class ModeloTareas: ObservableObject {
     @Published public private(set) var grupos: [GrupoTareas] = []
 
     private let nucleo: Nucleo
+    /// Lo que no se mueve bajo el raton mientras se mira (Windows 8ce1927):
+    /// lo recien tachado y el orden, quietos hasta salir de Tareas.
+    private let quietas = TareasQuietas.nuevas()
 
     public init(nucleo: Nucleo) {
         self.nucleo = nucleo
@@ -142,7 +158,14 @@ public final class ModeloTareas: ObservableObject {
     }
 
     private func reagrupar() {
-        grupos = gruposDeTareas(listas: listas, busqueda: busqueda, desfaseMs: desfaseLocalMs())
+        grupos = quietas.grupos(listas: listas, busqueda: busqueda, desfaseMs: desfaseLocalMs())
+    }
+
+    /// **Se sale de Tareas** (cerrar, minimizar, volver a pedirla, otra
+    /// vista): lo tachado se va a «Hechas» y todo se vuelve a ordenar.
+    public func soltarQuietas() {
+        quietas.soltar()
+        reagrupar()
     }
 
     /// La lista de un grupo.
@@ -196,6 +219,7 @@ public final class ModeloTareas: ObservableObject {
     /// **Borra** una tarea; se puede deshacer hasta el siguiente borrado.
     public func borrar(_ t: TareaConLista) async {
         let (chat, lista, i, crudo) = (t.lista.chat, t.lista.mensaje, t.tarea.indice, t.tarea.crudo)
+        quietas.quitar(clave: "\(chat)/\(lista)", crudo: crudo)
         if await cambiar(chat: chat, { try $0.borrarTarea(chat: chat, lista: lista, indice: i, crudo: crudo) }) {
             borrada = t
         }
@@ -218,6 +242,7 @@ public final class ModeloTareas: ObservableObject {
         guard destino.mensaje != t.lista.mensaje || destino.chat != t.lista.chat else { return }
         let (chat, lista, i, crudo) = (t.lista.chat, t.lista.mensaje, t.tarea.indice, t.tarea.crudo)
         let (aChat, aLista) = (destino.chat, destino.mensaje)
+        quietas.quitar(clave: "\(chat)/\(lista)", crudo: crudo)
         if await cambiar(chat: chat, {
             try $0.moverTarea(chat: chat, lista: lista, indice: i, crudo: crudo, aChat: aChat, aLista: aLista)
         }) {
@@ -300,6 +325,8 @@ public final class ModeloTareas: ObservableObject {
                 try nucleo.marcarTarea(chat: chat, mensaje: mensaje, indice: indice, crudo: crudo, hecha: hecha)
             }.value
             if hecho {
+                // Se guarda ya; lo que se queda quieto es la vista.
+                quietas.marcar(clave: "\(chat)/\(mensaje)", crudo: crudo, hecha: hecha)
                 NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
                 // Las tareas, al instante a los otros aparatos.
                 NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: chat)
@@ -428,6 +455,8 @@ public struct VentanaTareas: View {
     @State private var pedida: String?
     /// La lista a cuyo encabezado se desplaza la vista (su clave).
     @State private var irAEncabezado: String?
+    /// La caja de apuntar tiene el foco (el «+» de una lista la deja lista).
+    @FocusState private var enLaCaja: Bool
 
     /// La lista que pidio el chat antes de que la ventana existiera: su
     /// clave (`chat/mensaje`, `Lista::clave` de Windows).
@@ -440,7 +469,40 @@ public struct VentanaTareas: View {
 
     private func cambiarVista(_ v: VistaTareas) {
         if v == .horario, vista != .horario { semana.abrir() }
+        // Otra vista es mirar de otra manera: lo tachado, a «Hechas».
+        if v != vista { modelo.soltarQuietas() }
         vistaGuardada = vistaTareasComoTexto(vista: v)
+    }
+
+    /// Lo que esta elegido ahora en la caja (`destino::elegido` de Windows):
+    /// la asignatura si hay una, si no la lista, y si no el Inbox.
+    private var elegido: DestinoTarea {
+        if !destino.isEmpty { return .asignatura(nombre: destino) }
+        if let l = apuntarEn { return .lista(clave: "\(l.chat)/\(l.mensaje)") }
+        return .inbox
+    }
+
+    /// Lo elegido en el desplegable del libro o con el «+» de una lista
+    /// (`elegir_destino` de Windows): adonde va lo que se apunte en la caja.
+    private func elegirDestino(_ d: DestinoTarea) {
+        switch d {
+        case .inbox:
+            destino = ""
+            apuntarEn = nil
+        case let .asignatura(nombre):
+            destino = nombre
+            apuntarEn = nil
+        case let .lista(clave):
+            destino = ""
+            apuntarEn = modelo.lista(clave: clave)
+        }
+    }
+
+    /// El «+» del encabezado de la lista `l`: lo apuntado va a ella (la de
+    /// una asignatura, como su asignatura, que sigue a su enlace).
+    private func apuntarEnLaLista(_ l: ListaTareas) {
+        elegirDestino(destinoDeLaLista(l: l, asignaturas: modelo.asignaturas))
+        enLaCaja = true
     }
 
     private var eleccion: Binding<VistaTareas> {
@@ -473,6 +535,9 @@ public struct VentanaTareas: View {
             ?? modelo.listas.first(where: { $0.mensaje == mensaje })
             ?? modelo.listas.first(where: { $0.titulo == clave })
         guard let l else { return }
+        // Volver a pedir Tareas (una lista pulsada en el chat) es volver: lo
+        // tachado mientras se estaba fuera ya no se queda arriba.
+        modelo.soltarQuietas()
         modelo.busqueda = ""
         destino = ""
         apuntarEn = l
@@ -502,11 +567,17 @@ public struct VentanaTareas: View {
                                    cambiarVista(.tarjetas)
                                },
                                abrirEnTareas: { nombre in
-                                   // Sus tarjetas, y lo apuntado va a su lista.
+                                   // Su lista (la de su enlace, Windows
+                                   // 71bf70f: `Salida::IrATareas`), y lo
+                                   // apuntado va a ella.
+                                   if let l = modelo.listaDeAsignatura(nombre) {
+                                       irALista("\(l.chat)/\(l.mensaje)")
+                                   } else {
+                                       modelo.busqueda = nombre
+                                       cambiarVista(.tarjetas)
+                                   }
                                    destino = nombre
                                    apuntarEn = nil
-                                   modelo.busqueda = nombre
-                                   cambiarVista(.tarjetas)
                                })
                     .padding(.horizontal, 0)
             } else {
@@ -514,12 +585,17 @@ public struct VentanaTareas: View {
                 Divider()
                 Group {
                     switch vista {
-                    case .kanban: TableroKanban(modelo: modelo, irAEncabezado: $irAEncabezado)
-                    default: RejillaTarjetas(modelo: modelo, resaltada: $resaltada, irAEncabezado: $irAEncabezado)
+                    case .kanban: TableroKanban(modelo: modelo, irAEncabezado: $irAEncabezado,
+                                                alApuntarEn: { apuntarEnLaLista($0) })
+                    default: RejillaTarjetas(modelo: modelo, resaltada: $resaltada, irAEncabezado: $irAEncabezado,
+                                             alApuntarEn: { apuntarEnLaLista($0) })
                     }
                 }
                 .overlay {
-                    if modelo.cargado, modelo.listas.allSatisfy({ $0.tareas.isEmpty }) {
+                    // Sin nada que ensenar y sin buscar (las listas de las
+                    // asignaturas salen aunque esten vacias).
+                    if modelo.cargado, modelo.grupos.isEmpty,
+                       modelo.busqueda.trimmingCharacters(in: .whitespaces).isEmpty {
                         // `tareas-vacia` de Windows.
                         ContentUnavailableView("Sin tareas", systemImage: "checklist",
                                                description: Text("Aún no hay tareas. Escribe arriba y pulsa Intro: irá al Inbox y desde ahí la pasas a su grupo."))
@@ -530,6 +606,8 @@ public struct VentanaTareas: View {
             }
         }
         .background(AnchoDeTareas(vista: vista))
+        // Minimizar o cerrar la ventana es salir de Tareas.
+        .background(SalirDeTareas { modelo.soltarQuietas() })
         .background {
             // ⌃⌘T, ⌃⌘K y ⌃⌘H: las vistas (el Ctrl+T/K/H de Windows).
             ForEach(VistaTareas.todas, id: \.self) { v in
@@ -570,6 +648,16 @@ public struct VentanaTareas: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .pixpinAbrirListaTareas)) { irALista($0.object as? String) }
         .onReceive(NotificationCenter.default.publisher(for: .pixpinAbrirVistaTareas)) { irAVista($0.object as? String) }
+        // Volver a pedir la ventana estando abierta (el boton, el atajo, el
+        // menu de la barra) es volver a Tareas: se suelta lo quieto.
+        // El vigia del horario creo o renombro las listas de las asignaturas
+        // (sin chat en el aviso): releer, que salgan ya.
+        .onReceive(NotificationCenter.default.publisher(for: .pixpinTareasCambiadas)) {
+            if $0.object == nil { Task { await modelo.cargar() } }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .pixpinVentanaPedida)) {
+            if ($0.object as? String) == IdVentana.tareas { modelo.soltarQuietas() }
+        }
         .frame(minWidth: 480, minHeight: 400)
     }
 
@@ -609,22 +697,29 @@ public struct VentanaTareas: View {
                       ?? (destino.isEmpty ? "Apuntar en el Inbox (urgente, #etiqueta, recordar a las 5)"
                                           : "Nueva tarea de \(destino)…"), text: $nueva)
                 .textFieldStyle(.roundedBorder)
+                .focused($enLaCaja)
                 .onSubmit(apuntar)
             if !imagenes.isEmpty {
                 Label("\(imagenes.count)", systemImage: "photo")
                     .help(imagenes.map(\.lastPathComponent).joined(separator: "\n"))
                     .onTapGesture { imagenes = [] }
             }
-            let asignaturas = modelo.asignaturas
-            if !asignaturas.isEmpty {
-                Picker("", selection: Binding(get: { destino }, set: { destino = $0; apuntarEn = nil })) {
-                    Text("Inbox").tag("")
-                    ForEach(asignaturas, id: \.self) { Text($0).tag($0) }
+            // El libro (Windows 71bf70f, `destino::opciones`): el Inbox, las
+            // asignaturas del horario y todas las demas listas.
+            let opciones = destinosDeTareas(inbox: Lengua.t("tareas-sin-asignatura"), asignaturas: modelo.asignaturas,
+                                            listas: modelo.listas, elegido: elegido)
+            Menu {
+                ForEach(Array(opciones.enumerated()), id: \.offset) { _, o in
+                    Button(o.rotulo) { elegirDestino(o.destino) }
                 }
-                .labelsHidden()
-                .frame(maxWidth: 150)
-                .help("Apuntar en el Inbox o en la lista de una asignatura")
+            } label: {
+                Image(systemName: "book")
+                    .foregroundStyle(elegido == .inbox ? Paleta.v2.gris : Paleta.v2.acento)
             }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(pistaDelDestino)
             Button { pegarImagen() } label: { Image(systemName: "photo.badge.plus") }
                 .help("Pegar una imagen del portapapeles (o suelta imágenes en la caja)")
             Button("Apuntar", action: apuntar)
@@ -648,6 +743,14 @@ public struct VentanaTareas: View {
         }
     }
 
+    /// La pista del libro (`tareas-destino-pista`), con lo elegido detras.
+    private var pistaDelDestino: String {
+        let pista = Lengua.t("tareas-destino-pista")
+        if !destino.isEmpty { return "\(pista): \(destino)" }
+        if let l = apuntarEn { return "\(pista): \(l.titulo.isEmpty ? "Tareas" : l.titulo)" }
+        return pista
+    }
+
     private func apuntar() {
         let texto = nueva
         let fotos = imagenes
@@ -666,6 +769,25 @@ public struct VentanaTareas: View {
         }
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("pegada-\(UUID().uuidString).png")
         if (try? png.write(to: url)) != nil { imagenes.append(url) }
+    }
+}
+
+/// **Minimizar o cerrar la ventana es salir de Tareas** (Windows 8ce1927 con
+/// `VentanaOverlay::minimizada`, b0205a4): lo tachado se va a «Hechas» y
+/// todo se vuelve a ordenar. Perder el foco NO cuenta: el menu del boton
+/// derecho o «Mover a…» se lo llevan un momento.
+struct SalirDeTareas: View {
+    let alSalir: () -> Void
+    @Environment(\.ventanaDeLaVista) private var ventana
+
+    var body: some View {
+        Color.clear
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.didMiniaturizeNotification)) { n in
+                if let w = n.object as? NSWindow, w === ventana?.ventana { alSalir() }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { n in
+                if let w = n.object as? NSWindow, w === ventana?.ventana { alSalir() }
+            }
     }
 }
 
@@ -727,6 +849,8 @@ struct RejillaTarjetas: View {
     @ObservedObject var modelo: ModeloTareas
     @Binding var resaltada: String?
     @Binding var irAEncabezado: String?
+    /// El «+» del encabezado de una lista: lo apuntado va a ella.
+    var alApuntarEn: (ListaTareas) -> Void = { _ in }
     /// Las listas con lo hecho abierto.
     @State private var abiertas: Set<String> = []
 
@@ -770,7 +894,7 @@ struct RejillaTarjetas: View {
         let hechas = modelo.tareas(g.hechas, de: l)
         let buscando = !modelo.busqueda.trimmingCharacters(in: .whitespaces).isEmpty
         return VStack(alignment: .leading, spacing: 10) {
-            CabeceraLista(l: l, g: g)
+            CabeceraLista(l: l, g: g, alApuntar: { alApuntarEn(l) })
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 200, maximum: 260), spacing: 12, alignment: .top)],
                       alignment: .leading, spacing: 12) {
                 ForEach(modelo.tareas(g.arriba, de: l), id: \.indice) { t in
@@ -940,6 +1064,9 @@ struct FotoDeTarjeta: View {
 struct CabeceraLista: View {
     let l: ListaTareas
     let g: GrupoTareas
+    /// El «+» (Windows 71bf70f): lo que se apunte en la caja va a esta lista
+    /// (el usuario no encontraba como añadir tareas a sus asignaturas).
+    var alApuntar: (() -> Void)?
 
     private var pendientes: String {
         switch g.pendientes {
@@ -964,6 +1091,17 @@ struct CabeceraLista: View {
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
+            if let alApuntar {
+                Button(action: alApuntar) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Paleta.v2.gris)
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(Lengua.t("tareas-apuntar-en-pista", ["lista": l.titulo.isEmpty ? "Tareas" : l.titulo]))
+            }
             Text(pendientes).font(.system(size: 13).monospacedDigit())
                 .foregroundStyle(Paleta.v2.gris)
         }
@@ -1204,6 +1342,8 @@ struct FilaTarea: View {
 struct TableroKanban: View {
     @ObservedObject var modelo: ModeloTareas
     @Binding var irAEncabezado: String?
+    /// El «+» del encabezado de una columna: lo apuntado va a esa lista.
+    var alApuntarEn: (ListaTareas) -> Void = { _ in }
 
     var body: some View {
         ScrollViewReader { lector in
@@ -1212,7 +1352,7 @@ struct TableroKanban: View {
                           alignment: .leading, spacing: 18) {
                     ForEach(modelo.grupos, id: \.clave) { g in
                         if let l = modelo.lista(de: g) {
-                            ColumnaKanban(g: g, l: l, modelo: modelo).id(g.idEncabezado)
+                            ColumnaKanban(g: g, l: l, modelo: modelo, alApuntarEn: alApuntarEn).id(g.idEncabezado)
                         }
                     }
                 }
@@ -1236,6 +1376,7 @@ struct ColumnaKanban: View {
     let g: GrupoTareas
     let l: ListaTareas
     @ObservedObject var modelo: ModeloTareas
+    var alApuntarEn: (ListaTareas) -> Void = { _ in }
     @State private var encima = false
     @State private var verHechas = false
 
@@ -1243,7 +1384,7 @@ struct ColumnaKanban: View {
         let buscando = !modelo.busqueda.trimmingCharacters(in: .whitespaces).isEmpty
         let hechas = modelo.tareas(g.hechas, de: l)
         VStack(alignment: .leading, spacing: 12) {
-            CabeceraLista(l: l, g: g)
+            CabeceraLista(l: l, g: g, alApuntar: { alApuntarEn(l) })
             ForEach(modelo.tareas(g.arriba, de: l), id: \.indice) { t in
                 TarjetaTarea(t: TareaConLista(lista: l, tarea: t), g: g, modelo: modelo)
             }

@@ -72,6 +72,9 @@ pub mod compartir;
 /// Compartir una grabacion: su pagina web, sus hojas A4, Word, Markdown,
 /// texto y Anki (Windows 2921a1d).
 pub mod compartir_grabacion;
+// Una lista de tareas: su pagina propia, hojas cuidadas, Word y Markdown
+// (Windows bc4533b).
+pub mod compartir_tareas;
 /// Compartir igual en toda la app: el orden y el nombre de los formatos y
 /// los cuadernos con todos sus formatos (Windows 5df1ecde y 4a6112d4).
 pub mod compartir_formatos;

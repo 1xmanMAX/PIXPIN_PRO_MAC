@@ -262,22 +262,49 @@ struct CabeceraMini: View {
 struct VistaTareasPin: View {
     @ObservedObject var doc: DocumentoMini
     @State private var nueva = ""
+    /// Las hechas, escondidas (`Teclado::ocultar_hechas` del mini panel de
+    /// Windows): vive mientras el panel esta abierto; es como se mira, no un
+    /// dato.
+    @State private var ocultarHechas = false
+    /// Con las hechas escondidas, las recien tachadas (su texto guardado):
+    /// siguen a la vista, tachadas y en su sitio, hasta volver a pulsar el
+    /// boton o cerrar el panel (Windows 582b2e1). Si se escondieran en el
+    /// mismo clic, la de debajo subiria bajo el raton y el siguiente clic
+    /// tacharia otra.
+    @State private var tachadas: [String] = []
 
     private var desfase: Int64 { Int64(TimeZone.current.secondsFromGMT()) * 1000 }
 
     var body: some View {
         let tareas = miniTareasLeer(documento: doc.documento, desfaseMs: desfase)
+        let vista = miniTareasVista(documento: doc.documento, ocultarHechas: ocultarHechas, tachadas: tachadas)
+        let visibles = tareas.filter { vista.indices.contains($0.indice) }
+        let hechas = tareas.filter(\.hecha).count
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 CabeceraMini(doc: doc)
-                Text("\(tareas.filter(\.hecha).count) de \(tareas.count)")
+                Text("\(hechas) de \(tareas.count)")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            // «Ocultar las hechas» delante de «Quitar las hechas», como en
+            // Windows: lo primero no borra nada.
+            HStack(spacing: 6) {
+                botonVerHechas(hechas: hechas, escondidas: Int(vista.escondidas))
+                Button(Lengua.t("mini-limpiar-hechas")) {
+                    tachadas = []
+                    doc.cambiar { miniTareasLimpiarHechas(documento: $0) }
+                }
+                .buttonStyle(.bordered)
+                .disabled(hechas == 0)
+            }
+            .controlSize(.small)
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(tareas, id: \.indice) { t in
+                    ForEach(visibles, id: \.indice) { t in
                         HStack(alignment: .firstTextBaseline) {
                             Button {
+                                tachadas = miniTareasAnotarTachada(documento: doc.documento, indice: t.indice,
+                                                                   ocultarHechas: ocultarHechas, tachadas: tachadas)
                                 doc.cambiar { miniTareasAlternar(documento: $0, indice: t.indice) }
                             } label: {
                                 Image(systemName: t.hecha ? "checkmark.square.fill" : "square")
@@ -310,6 +337,22 @@ struct VistaTareasPin: View {
                 }
         }
         .padding(10)
+    }
+
+    /// «Ocultar las hechas» / «Ver las hechas»: relleno mientras haya alguna
+    /// escondida (una lista que se queda corta sin que nada lo diga parece
+    /// rota). Pulsarlo es mirar de otra manera: lo tachado, escondido ya.
+    @ViewBuilder private func botonVerHechas(hechas: Int, escondidas: Int) -> some View {
+        let boton = Button(Lengua.t(ocultarHechas ? "mini-mostrar-hechas" : "mini-ocultar-hechas")) {
+            ocultarHechas.toggle()
+            tachadas = []
+        }
+        .disabled(!ocultarHechas && hechas == 0)
+        if ocultarHechas && escondidas > 0 {
+            boton.buttonStyle(.borderedProminent)
+        } else {
+            boton.buttonStyle(.bordered)
+        }
     }
 }
 

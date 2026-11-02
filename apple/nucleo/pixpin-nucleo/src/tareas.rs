@@ -34,6 +34,9 @@ use std::path::Path;
 // Lo que se entiende al escribir una tarea (prioridad, #etiquetas, «recordar
 // a las 5») y sus chapitas, tal cual las de Windows (17-oct).
 mod cambiar;
+// Adonde va lo apuntado en la caja (Windows 71bf70f): el Inbox, las
+// asignaturas y las demas listas.
+pub mod destino;
 mod emoticonos;
 pub(crate) mod frase;
 // Lo que se ve en Tarjetas y Kanban: buscar, agrupar y el color de cada
@@ -102,6 +105,12 @@ pub struct ListaTareas {
     /// Todas sus tareas en el orden del documento.
     pub tareas: Vec<Tarea>,
     pub pendientes: u32,
+    /// Si es la lista de una asignatura del horario (Windows 71bf70f,
+    /// 1-nov-2026): su color, `0xRRGGBB` (`horario::asignaturas::colorear`).
+    /// Esas salen en Tarjetas y Kanban aunque esten vacias, para poder
+    /// apuntarles tareas, y con el color de la asignatura. No viaja: se
+    /// calcula del horario de este equipo.
+    pub asignatura: Option<u32>,
 }
 
 /// Si un mensaje es una lista de tareas (`pedidos::es_lista`).
@@ -180,6 +189,7 @@ impl Nucleo {
             cuando: m.cuando,
             pendientes: tareas.iter().filter(|t| !t.hecha).count() as u32,
             tareas,
+            asignatura: None,
         }
     }
 }
@@ -372,7 +382,7 @@ pub fn de_id_de_recordatorio(id: &str) -> Option<(&str, i64)> {
 
 /// Las listas de tareas de un cuaderno (lineas que no se entienden o que
 /// estan en el buzon no cuentan, como en Windows al apuntar).
-fn listas_del_cuaderno(fichero: &Path) -> std::io::Result<Vec<Mensaje>> {
+pub(crate) fn listas_del_cuaderno(fichero: &Path) -> std::io::Result<Vec<Mensaje>> {
     let texto = match std::fs::read_to_string(fichero) {
         Ok(t) => t,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
@@ -410,6 +420,9 @@ impl Nucleo {
             };
             listas.extend(mensajes.iter().map(|m| self.lista_de(ficha, m, hoy)));
         }
+        // Las de las asignaturas, con su color (y a la vista aunque esten
+        // vacias), como `reunir` de Windows.
+        self.colorear_asignaturas(&mut listas, desfase_ms);
         ordenar_listas(&mut listas);
         Ok(listas)
     }

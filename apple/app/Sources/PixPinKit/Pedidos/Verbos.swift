@@ -116,11 +116,17 @@ public enum Verbos {
              opciones: [], porEnlace: true) { _ in uno("ventana_principal") },
         Fila(nombres: ["proyecto"], uso: "proyecto <id|nombre>", ayuda: "Abre el chat de ese proyecto.",
              opciones: ["id", "proyecto"], porEnlace: true, armar: armarProyecto),
-        Fila(nombres: ["tarea", "task", "todo"], uso: "tarea \"<texto>\" [--proyecto P] [--lista <id>]",
-             ayuda: "Apunta una tarea (sin proyecto ni lista, en el Inbox); sin texto, abre las tareas.",
-             opciones: ["proyecto", "lista", "texto"], porEnlace: true, armar: armarTarea),
-        Fila(nombres: ["tareas", "tasks"], uso: "tareas", ayuda: "Abre la ventana de tareas.",
-             opciones: [], porEnlace: true) { _ in ventana("tareas") },
+        Fila(nombres: ["tarea", "task", "todo"],
+             uso: "tarea \"<texto>\" [--proyecto P] [--lista <id>] [--asignatura <nombre>]",
+             ayuda: "Apunta una tarea (sin proyecto ni lista, en el Inbox; con --asignatura, en la lista de esa asignatura del horario); sin texto, abre las tareas.",
+             opciones: ["proyecto", "lista", "texto", "asignatura"], porEnlace: true, armar: armarTarea),
+        // Windows dbbd4ec: con --asignatura, la ventana en la lista de esa asignatura.
+        Fila(nombres: ["tareas", "tasks"], uso: "tareas [--asignatura <nombre>]",
+             ayuda: "Abre la ventana de tareas (con --asignatura, en la lista de esa asignatura).",
+             opciones: ["asignatura"], porEnlace: true) { e in
+            if let a = e.campo("asignatura") { return uno("abrir_lista", ["asignatura": .texto(a)]) }
+            return ventana("tareas")
+        },
         Fila(nombres: ["capturas", "galeria"], uso: "capturas", ayuda: "Abre la galeria de capturas.",
              opciones: [], porEnlace: true) { _ in ventana("galeria") },
         Fila(nombres: ["nota", "note"], uso: "nota [texto] [imagen…] [--proyecto P]",
@@ -367,6 +373,7 @@ public enum Verbos {
         // Sin proyecto, el Inbox: el campo ni va (no es «Mensajes guardados»).
         var p = Pedido("anadir_tarea", ["texto": .texto(texto), "codigo": .t(e.campo("lista"))])
         if e.campo("proyecto") != nil { p["proyecto"] = e.proyecto }
+        if let a = e.campo("asignatura") { p["asignatura"] = .texto(a) }
         if !ficheros.isEmpty { p["imagenes"] = .textos(ficheros) }
         return .pedidos([p])
     }

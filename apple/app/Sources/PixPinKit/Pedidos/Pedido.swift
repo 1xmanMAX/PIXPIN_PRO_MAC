@@ -132,6 +132,9 @@ public struct Pedido: Equatable, Sendable, CustomStringConvertible {
         "tabla_nueva", "posponer", "pines", "timeline", "leer_en_voz", "ocr", "herramienta",
         // 26-oct (Windows 22c3ce2): las carpetas de paginas desde Flow.
         "carpeta_paginas",
+        // 1-nov (Windows dbbd4ec): la ventana de Tareas en una lista, o en la
+        // de una asignatura.
+        "abrir_lista",
     ]
 
     public var accion: String

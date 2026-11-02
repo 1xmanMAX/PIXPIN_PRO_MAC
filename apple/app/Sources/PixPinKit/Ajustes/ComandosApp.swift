@@ -9,6 +9,12 @@ import AppKit
 import Carbon.HIToolbox
 import SwiftUI
 
+public extension Notification.Name {
+    /// Se pidio abrir una ventana por su id (`object`), este ya abierta o no:
+    /// la de Tareas lo toma como «volver a Tareas» (Windows 8ce1927).
+    static let pixpinVentanaPedida = Notification.Name("PixPinVentanaPedida")
+}
+
 @MainActor
 public enum ComandosApp {
     /// Abrir una ventana de SwiftUI por su id (lo pone la app desde una

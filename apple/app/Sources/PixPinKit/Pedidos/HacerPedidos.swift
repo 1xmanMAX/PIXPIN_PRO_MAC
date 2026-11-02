@@ -194,6 +194,7 @@ public final class HacerPedidos {
         case "lienzo_nuevo": await lienzoNuevo(p)
         case "lista_nueva": await listaNueva(p)
         case "anadir_tarea": await anadirTarea(p)
+        case "abrir_lista": await abrirLista(p)
         case "marcar_tarea", "quitar_tarea", "corregir_tarea": await cambiarTarea(p)
         case "borrar_lista": await borrarLista(p)
         case "grabar":
@@ -484,6 +485,20 @@ public final class HacerPedidos {
         guard !texto.isEmpty else { return }
         let nucleo = almacen.nucleo
         let desfase = desfaseLocalMs()
+        // A una asignatura (Windows dbbd4ec): a la lista de su enlace (se
+        // crea si aun no esta), y no se miran `proyecto` ni `codigo`.
+        if let asignatura = p.texto("asignatura") {
+            do {
+                let lista = try await Task.detached {
+                    try nucleo.apuntarEnAsignatura(asignatura: asignatura, texto: texto, imagenes: [], desfaseMs: desfase)
+                }.value
+                avisoDeTareas(lista.chat)
+                avisar("Apuntado en «\(lista.titulo)»: «\(texto)».")
+            } catch {
+                avisar("No se pudo apuntar la tarea: \(error)")
+            }
+            return
+        }
         let codigo = p.texto("codigo")
         if codigo == nil, p["proyecto"] == nil {
             do {
@@ -514,6 +529,36 @@ public final class HacerPedidos {
         } else {
             avisar("No se pudo apuntar: esa lista no está o cambió entre medias.")
         }
+    }
+
+    /// **`abrir_lista`** (Windows dbbd4ec): la ventana de Tareas en la lista
+    /// de la `asignatura` (por su nombre; se crea vacia si aun no tiene) o en
+    /// la `codigo` del chat `proyecto`, como pulsarla en el chat. Sin
+    /// ninguna, la ventana como `ventana {cual:"tareas"}`.
+    private func abrirLista(_ p: Pedido) async {
+        guard let nucleo = almacen?.nucleo else { return ventana(IdVentana.tareas) }
+        let desfase = desfaseLocalMs()
+        var clave: String?
+        if let a = p.texto("asignatura") {
+            do {
+                let l = try await Task.detached { try nucleo.listaParaAsignatura(asignatura: a, desfaseMs: desfase) }.value
+                clave = "\(l.chat)/\(l.mensaje)"
+                avisoDeTareas(l.chat)
+            } catch {
+                return avisar("No se pudo abrir la lista de «\(a)»: \(error)")
+            }
+        } else if let codigo = p.texto("codigo") {
+            guard let c = await chat(p["proyecto"]) else { return }
+            let todas = (try? await Task.detached { try nucleo.tareas(desfaseMs: desfase) }.value) ?? []
+            guard todas.contains(where: { $0.chat == c && $0.mensaje == codigo }) else {
+                return avisar("«\(codigo)» no es una lista de tareas.")
+            }
+            clave = "\(c)/\(codigo)"
+        }
+        guard let clave else { return ventana(IdVentana.tareas) }
+        VentanaTareas.listaPedida = clave
+        ventana(IdVentana.tareas)
+        NotificationCenter.default.post(name: .pixpinAbrirListaTareas, object: clave)
     }
 
     /// `marcar_tarea`, `quitar_tarea` y `corregir_tarea`: la tarea numero

@@ -8681,6 +8681,12 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func grabacionParaCompartir(chat: String, mensaje: String) throws  -> GrabacionParaCompartir?
     
     /**
+     * **La lista `mensaje` del chat `chat`** para compartirla, con sus
+     * fotos resueltas en este Mac. `None` si no es una lista de tareas.
+     */
+    func listaParaCompartir(chat: String, mensaje: String) throws  -> ListaParaCompartir?
+    
+    /**
      * **La chapa de la lista**: los chats compartidos donde estoy, por su
      * ficha, con cuantas personas son (`personas_del_chat` de Windows). Los
      * que aun no tienen proyecto aqui no salen.
@@ -9309,8 +9315,9 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func rutaDelHorario()  -> String
     
     /**
-     * **Apunta una tarea en la asignatura** `asignatura`: su lista en el
-     * chat «Asignaturas» (los dos se crean si no estan).
+     * **Apunta una tarea en la asignatura** `asignatura`: la lista de su
+     * enlace en el chat «Asignaturas» (o la de su nombre; los dos se crean
+     * si no estan).
      */
     func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [String], desfaseMs: Int64) throws  -> ListaTareas
     
@@ -9318,17 +9325,41 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * **El grupo de tareas de una asignatura nueva**, ya (el «+» del
      * Horario, `asignaturas::asegurar_lista` de Windows): su lista vacia en
      * el chat «Asignaturas» (los dos se crean si no estan), para que salga
-     * en el desplegable de Tareas y en el chat. Si ya estaba, la de antes.
+     * en Tareas y en el chat. Si ya estaba, la de antes. Su `mensaje` es el
+     * enlace (`lista:<id>`) que se apunta en la linea de la asignatura.
      */
     func asegurarListaDeAsignatura(asignatura: String, desfaseMs: Int64) throws  -> ListaTareas
     
     /**
+     * **Cada asignatura con su lista** (Windows 71bf70f, `asignaturas::enlazar`;
+     * el usuario: «que cada asignatura se cree a la vez como asignatura y
+     * como grupo de tareas»): crea las que faltan (las de horarios de antes
+     * y las escritas a mano), apunta su enlace `lista:<id>` en `horario.md`
+     * (solo el final de las lineas `Asignatura …`) y renombra la lista de
+     * una asignatura renombrada. Lo llama el vigia del horario al arrancar y
+     * cada vez que `horario.md` cambia.
+     *
+     * No borra nada: una lista sin asignatura (se quito del horario) se
+     * queda en el chat con sus tareas. Devuelve si cambio algo.
+     */
+    func enlazarAsignaturas(desfaseMs: Int64) throws  -> Bool
+    
+    /**
      * **La lista de la asignatura** `asignatura` entre `listas` (las de
-     * Tareas): la del chat «Asignaturas» que se llama asi, sin tildes ni
-     * mayusculas (`asignaturas::de` de Windows). No crea nada: `None` si
-     * aun no tiene tareas. Lo que ensena el Horario debajo de la elegida.
+     * Tareas): la de su enlace en el horario o, si no, la del chat
+     * «Asignaturas» que se llama asi, sin tildes ni mayusculas. No crea
+     * nada: `None` si aun no tiene. Lo que ensena el Horario debajo de la
+     * elegida.
      */
     func listaDeAsignatura(listas: [ListaTareas], asignatura: String)  -> ListaTareas?
+    
+    /**
+     * **La lista de la asignatura que se llama `asignatura`**, creandola
+     * vacia si aun no tiene (los pedidos `anadir_tarea` y `abrir_lista` con
+     * `asignatura`, Windows dbbd4ec): la de su enlace en el horario o la de
+     * su nombre. Su clave (`chat/mensaje`) abre Tareas en ella.
+     */
+    func listaParaAsignatura(asignatura: String, desfaseMs: Int64) throws  -> ListaTareas
     
     /**
      * Los nombres de las asignaturas del horario (la lista lateral y las de
@@ -11854,6 +11885,21 @@ open func grabacionParaCompartir(chat: String, mensaje: String)throws  -> Grabac
 }
     
     /**
+     * **La lista `mensaje` del chat `chat`** para compartirla, con sus
+     * fotos resueltas en este Mac. `None` si no es una lista de tareas.
+     */
+open func listaParaCompartir(chat: String, mensaje: String)throws  -> ListaParaCompartir?  {
+    return try  FfiConverterOptionTypeListaParaCompartir.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_lista_para_compartir(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **La chapa de la lista**: los chats compartidos donde estoy, por su
      * ficha, con cuantas personas son (`personas_del_chat` de Windows). Los
      * que aun no tienen proyecto aqui no salen.
@@ -13236,8 +13282,9 @@ open func rutaDelHorario() -> String  {
 }
     
     /**
-     * **Apunta una tarea en la asignatura** `asignatura`: su lista en el
-     * chat «Asignaturas» (los dos se crean si no estan).
+     * **Apunta una tarea en la asignatura** `asignatura`: la lista de su
+     * enlace en el chat «Asignaturas» (o la de su nombre; los dos se crean
+     * si no estan).
      */
 open func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [String], desfaseMs: Int64)throws  -> ListaTareas  {
     return try  FfiConverterTypeListaTareas_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -13256,7 +13303,8 @@ open func apuntarEnAsignatura(asignatura: String, texto: String, imagenes: [Stri
      * **El grupo de tareas de una asignatura nueva**, ya (el «+» del
      * Horario, `asignaturas::asegurar_lista` de Windows): su lista vacia en
      * el chat «Asignaturas» (los dos se crean si no estan), para que salga
-     * en el desplegable de Tareas y en el chat. Si ya estaba, la de antes.
+     * en Tareas y en el chat. Si ya estaba, la de antes. Su `mensaje` es el
+     * enlace (`lista:<id>`) que se apunta en la linea de la asignatura.
      */
 open func asegurarListaDeAsignatura(asignatura: String, desfaseMs: Int64)throws  -> ListaTareas  {
     return try  FfiConverterTypeListaTareas_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
@@ -13270,10 +13318,33 @@ open func asegurarListaDeAsignatura(asignatura: String, desfaseMs: Int64)throws 
 }
     
     /**
+     * **Cada asignatura con su lista** (Windows 71bf70f, `asignaturas::enlazar`;
+     * el usuario: «que cada asignatura se cree a la vez como asignatura y
+     * como grupo de tareas»): crea las que faltan (las de horarios de antes
+     * y las escritas a mano), apunta su enlace `lista:<id>` en `horario.md`
+     * (solo el final de las lineas `Asignatura …`) y renombra la lista de
+     * una asignatura renombrada. Lo llama el vigia del horario al arrancar y
+     * cada vez que `horario.md` cambia.
+     *
+     * No borra nada: una lista sin asignatura (se quito del horario) se
+     * queda en el chat con sus tareas. Devuelve si cambio algo.
+     */
+open func enlazarAsignaturas(desfaseMs: Int64)throws  -> Bool  {
+    return try  FfiConverterBool.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_enlazar_asignaturas(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **La lista de la asignatura** `asignatura` entre `listas` (las de
-     * Tareas): la del chat «Asignaturas» que se llama asi, sin tildes ni
-     * mayusculas (`asignaturas::de` de Windows). No crea nada: `None` si
-     * aun no tiene tareas. Lo que ensena el Horario debajo de la elegida.
+     * Tareas): la de su enlace en el horario o, si no, la del chat
+     * «Asignaturas» que se llama asi, sin tildes ni mayusculas. No crea
+     * nada: `None` si aun no tiene. Lo que ensena el Horario debajo de la
+     * elegida.
      */
 open func listaDeAsignatura(listas: [ListaTareas], asignatura: String) -> ListaTareas?  {
     return try!  FfiConverterOptionTypeListaTareas.lift(try! rustCall() {
@@ -13282,6 +13353,23 @@ open func listaDeAsignatura(listas: [ListaTareas], asignatura: String) -> ListaT
             self.uniffiCloneHandle(),
         FfiConverterSequenceTypeListaTareas.lower(listas),
         FfiConverterString.lower(asignatura),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **La lista de la asignatura que se llama `asignatura`**, creandola
+     * vacia si aun no tiene (los pedidos `anadir_tarea` y `abrir_lista` con
+     * `asignatura`, Windows dbbd4ec): la de su enlace en el horario o la de
+     * su nombre. Su clave (`chat/mensaje`) abre Tareas en ella.
+     */
+open func listaParaAsignatura(asignatura: String, desfaseMs: Int64)throws  -> ListaTareas  {
+    return try  FfiConverterTypeListaTareas_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_lista_para_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(asignatura),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
     )
 })
 }
@@ -17558,9 +17646,23 @@ public protocol SemanaHorarioProtocol: AnyObject, Sendable {
     func ponerFichaDeClase(i: UInt32, ficha: FichaDeClase) 
     
     /**
+     * **El enlace de la asignatura `i` con su lista** (`lista:<id>`, el
+     * `mensaje` de [`Nucleo::asegurar_lista_de_asignatura`]): la linea
+     * nace con el al guardar, como en Windows.
+     */
+    func ponerListaDeAsignatura(i: UInt32, lista: String) 
+    
+    /**
      * Si hay un cambio que deshacer.
      */
     func puedeDeshacer()  -> Bool
+    
+    /**
+     * **Renombra la asignatura `i`** desde su ficha (Windows 71bf70f): sus
+     * clases y su lista de tareas (la de su enlace o, sin el, la de su
+     * nombre de antes), que sigue con sus tareas. Si cambio, se guarda ya.
+     */
+    func renombrarAsignatura(i: UInt32, nuevo: String) throws  -> AsignaturaRenombrada
     
     /**
      * Suelta la asignatura `asignatura` en el dia y minuto: un bloque nuevo.
@@ -17810,6 +17912,21 @@ open func ponerFichaDeClase(i: UInt32, ficha: FichaDeClase)  {try! rustCall() {
 }
     
     /**
+     * **El enlace de la asignatura `i` con su lista** (`lista:<id>`, el
+     * `mensaje` de [`Nucleo::asegurar_lista_de_asignatura`]): la linea
+     * nace con el al guardar, como en Windows.
+     */
+open func ponerListaDeAsignatura(i: UInt32, lista: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_poner_lista_de_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(i),
+        FfiConverterString.lower(lista),uniffiCallStatus
+    )
+}
+}
+    
+    /**
      * Si hay un cambio que deshacer.
      */
 open func puedeDeshacer() -> Bool  {
@@ -17817,6 +17934,22 @@ open func puedeDeshacer() -> Bool  {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_method_semanahorario_puede_deshacer(
             self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Renombra la asignatura `i`** desde su ficha (Windows 71bf70f): sus
+     * clases y su lista de tareas (la de su enlace o, sin el, la de su
+     * nombre de antes), que sigue con sus tareas. Si cambio, se guarda ya.
+     */
+open func renombrarAsignatura(i: UInt32, nuevo: String)throws  -> AsignaturaRenombrada  {
+    return try  FfiConverterTypeAsignaturaRenombrada_lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_semanahorario_renombrar_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterUInt32.lower(i),
+        FfiConverterString.lower(nuevo),uniffiCallStatus
     )
 })
 }
@@ -18109,6 +18242,242 @@ public func FfiConverterTypeSesionNota_lift(_ handle: UInt64) throws -> SesionNo
 #endif
 public func FfiConverterTypeSesionNota_lower(_ value: SesionNota) -> UInt64 {
     return FfiConverterTypeSesionNota.lower(value)
+}
+
+
+
+
+
+
+/**
+ * **Lo que no se mueve bajo el raton** en la ventana de Tareas (Windows
+ * 8ce1927, `pindesk_ui::tareas_quietas`, 1-nov-2026; el usuario: «cuando
+ * hago clic en la casilla de una tarea y voy a hacer clic en la siguiente,
+ * la anterior se va y acabo pulsando otra»). Marcar se guarda al momento;
+ * lo que se queda quieto es solo la vista: lo recien tachado sigue arriba,
+ * en su sitio, tachado; lo recien destachado sigue en «Hechas», y el orden
+ * de las listas y de sus tareas no cambia (tampoco por lo que contesta Jev
+ * tarde). Se suelta ([`TareasQuietas::soltar`]) al salir de Tareas:
+ * cerrar, minimizar, volver a pedirla, otra vista u otra busqueda.
+ */
+public protocol TareasQuietasProtocol: AnyObject, Sendable {
+    
+    /**
+     * **Los grupos de Tarjetas y Kanban, quietos** (`grupos_quietos` de
+     * Windows): como [`grupos_de_tareas`], con lo recien tachado arriba en
+     * su sitio, lo recien destachado en «Hechas» y las listas y sus tareas
+     * en el orden en que ya se veian. Buscar otra cosa suelta todo.
+     */
+    func grupos(listas: [ListaTareas], busqueda: String, desfaseMs: Int64)  -> [GrupoTareas]
+    
+    /**
+     * Se marco (`hecha`) o destaco la tarea `crudo` de la lista `clave`
+     * (`chat/mensaje`). Deshacer lo recien hecho la deja como estaba.
+     */
+    func marcar(clave: String, crudo: String, hecha: Bool) 
+    
+    /**
+     * La tarea ya no esta (se quito o se movio a otra lista).
+     */
+    func quitar(clave: String, crudo: String) 
+    
+    /**
+     * Se sale de Tareas: lo tachado se va a «Hechas» y todo se vuelve a
+     * ordenar como toca.
+     */
+    func soltar() 
+    
+    /**
+     * Cuantas se marcaron o destacaron desde la ultima vez que se solto.
+     */
+    func tocadas()  -> UInt32
+    
+}
+/**
+ * **Lo que no se mueve bajo el raton** en la ventana de Tareas (Windows
+ * 8ce1927, `pindesk_ui::tareas_quietas`, 1-nov-2026; el usuario: «cuando
+ * hago clic en la casilla de una tarea y voy a hacer clic en la siguiente,
+ * la anterior se va y acabo pulsando otra»). Marcar se guarda al momento;
+ * lo que se queda quieto es solo la vista: lo recien tachado sigue arriba,
+ * en su sitio, tachado; lo recien destachado sigue en «Hechas», y el orden
+ * de las listas y de sus tareas no cambia (tampoco por lo que contesta Jev
+ * tarde). Se suelta ([`TareasQuietas::soltar`]) al salir de Tareas:
+ * cerrar, minimizar, volver a pedirla, otra vista u otra busqueda.
+ */
+open class TareasQuietas: TareasQuietasProtocol, @unchecked Sendable {
+    fileprivate let handle: UInt64
+
+    /// Used to instantiate a [FFIObject] without an actual handle, for fakes in tests, mostly.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public struct NoHandle {
+        public init() {}
+    }
+
+    // TODO: We'd like this to be `private` but for Swifty reasons,
+    // we can't implement `FfiConverter` without making this `required` and we can't
+    // make it `required` without making it `public`.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    required public init(unsafeFromHandle handle: UInt64) {
+        self.handle = handle
+    }
+
+    // This constructor can be used to instantiate a fake object.
+    // - Parameter noHandle: Placeholder value so we can have a constructor separate from the default empty one that may be implemented for classes extending [FFIObject].
+    //
+    // - Warning:
+    //     Any object instantiated with this constructor cannot be passed to an actual Rust-backed object. Since there isn't a backing handle the FFI lower functions will crash.
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public init(noHandle: NoHandle) {
+        self.handle = 0
+    }
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+    public func uniffiCloneHandle() -> UInt64 {
+        return try! rustCall { uniffi_pixpin_nucleo_fn_clone_tareasquietas(self.handle, $0) }
+    }
+    // No primary constructor declared for this class.
+
+    deinit {
+        if handle == 0 {
+            // Mock objects have handle=0 don't try to free them
+            return
+        }
+
+        try! rustCall { uniffi_pixpin_nucleo_fn_free_tareasquietas(handle, $0) }
+    }
+
+    
+public static func nuevas() -> TareasQuietas  {
+    return try!  FfiConverterTypeTareasQuietas_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_constructor_tareasquietas_nuevas(uniffiCallStatus
+    )
+})
+}
+    
+
+    
+    /**
+     * **Los grupos de Tarjetas y Kanban, quietos** (`grupos_quietos` de
+     * Windows): como [`grupos_de_tareas`], con lo recien tachado arriba en
+     * su sitio, lo recien destachado en «Hechas» y las listas y sus tareas
+     * en el orden en que ya se veian. Buscar otra cosa suelta todo.
+     */
+open func grupos(listas: [ListaTareas], busqueda: String, desfaseMs: Int64) -> [GrupoTareas]  {
+    return try!  FfiConverterSequenceTypeGrupoTareas.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_tareasquietas_grupos(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceTypeListaTareas.lower(listas),
+        FfiConverterString.lower(busqueda),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * Se marco (`hecha`) o destaco la tarea `crudo` de la lista `clave`
+     * (`chat/mensaje`). Deshacer lo recien hecho la deja como estaba.
+     */
+open func marcar(clave: String, crudo: String, hecha: Bool)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_tareasquietas_marcar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clave),
+        FfiConverterString.lower(crudo),
+        FfiConverterBool.lower(hecha),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * La tarea ya no esta (se quito o se movio a otra lista).
+     */
+open func quitar(clave: String, crudo: String)  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_tareasquietas_quitar(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(clave),
+        FfiConverterString.lower(crudo),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Se sale de Tareas: lo tachado se va a «Hechas» y todo se vuelve a
+     * ordenar como toca.
+     */
+open func soltar()  {try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_tareasquietas_soltar(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+}
+}
+    
+    /**
+     * Cuantas se marcaron o destacaron desde la ultima vez que se solto.
+     */
+open func tocadas() -> UInt32  {
+    return try!  FfiConverterUInt32.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_tareasquietas_tocadas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+
+    
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeTareasQuietas: FfiConverter {
+    typealias FfiType = UInt64
+    typealias SwiftType = TareasQuietas
+
+    public static func lift(_ handle: UInt64) throws -> TareasQuietas {
+        return TareasQuietas(unsafeFromHandle: handle)
+    }
+
+    public static func lower(_ value: TareasQuietas) -> UInt64 {
+        return value.uniffiCloneHandle()
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TareasQuietas {
+        let handle: UInt64 = try readInt(&buf)
+        return try lift(handle)
+    }
+
+    public static func write(_ value: TareasQuietas, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTareasQuietas_lift(_ handle: UInt64) throws -> TareasQuietas {
+    return try FfiConverterTypeTareasQuietas.lift(handle)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeTareasQuietas_lower(_ value: TareasQuietas) -> UInt64 {
+    return FfiConverterTypeTareasQuietas.lower(value)
 }
 
 
@@ -28893,6 +29262,63 @@ public func FfiConverterTypeFotoDeNota_lower(_ value: FotoDeNota) -> RustBuffer 
 
 
 /**
+ * Una foto de una tarea: su enlace en el texto y su fichero en este Mac.
+ */
+public struct FotoDeTarea: Equatable, Hashable {
+    public var enlace: String
+    public var ruta: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(enlace: String, ruta: String) {
+        self.enlace = enlace
+        self.ruta = ruta
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension FotoDeTarea: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeFotoDeTarea: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> FotoDeTarea {
+        return
+            try FotoDeTarea(
+                enlace: FfiConverterString.read(from: &buf), 
+                ruta: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: FotoDeTarea, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.enlace, into: &buf)
+        FfiConverterString.write(value.ruta, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoDeTarea_lift(_ buf: RustBuffer) throws -> FotoDeTarea {
+    return try FfiConverterTypeFotoDeTarea.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeFotoDeTarea_lower(_ value: FotoDeTarea) -> RustBuffer {
+    return FfiConverterTypeFotoDeTarea.lower(value)
+}
+
+
+/**
  * **La foto de un chat, para pintarla** (`logo::pintar` de Windows).
  */
 public struct FotoDelChat: Equatable, Hashable {
@@ -31174,6 +31600,63 @@ public func FfiConverterTypeHojasDeGrabacion_lower(_ value: HojasDeGrabacion) ->
 
 
 /**
+ * Las hojas A4 de una lista, con las fotos que pintan.
+ */
+public struct HojasDeTareas: Equatable, Hashable {
+    public var hojas: [HojaDeDibujo]
+    public var fotos: [FotoDeGrabacion]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(hojas: [HojaDeDibujo], fotos: [FotoDeGrabacion]) {
+        self.hojas = hojas
+        self.fotos = fotos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension HojasDeTareas: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeHojasDeTareas: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> HojasDeTareas {
+        return
+            try HojasDeTareas(
+                hojas: FfiConverterSequenceTypeHojaDeDibujo.read(from: &buf), 
+                fotos: FfiConverterSequenceTypeFotoDeGrabacion.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: HojasDeTareas, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeHojaDeDibujo.write(value.hojas, into: &buf)
+        FfiConverterSequenceTypeFotoDeGrabacion.write(value.fotos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojasDeTareas_lift(_ buf: RustBuffer) throws -> HojasDeTareas {
+    return try FfiConverterTypeHojasDeTareas.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeHojasDeTareas_lower(_ value: HojasDeTareas) -> RustBuffer {
+    return FfiConverterTypeHojasDeTareas.lower(value)
+}
+
+
+/**
  * Una hora tecleada.
  */
 public struct HoraMini: Equatable, Hashable {
@@ -32795,6 +33278,69 @@ public func FfiConverterTypeLineaDeGrabacion_lower(_ value: LineaDeGrabacion) ->
 
 
 /**
+ * **Una lista lista para sacarla** (`ListaPreparada` de Windows): su
+ * documento tal cual, el nombre de su fila y, de cada foto que esta en
+ * este Mac, su fichero. Swift la guarda y la devuelve a cada formato.
+ */
+public struct ListaParaCompartir: Equatable, Hashable {
+    public var titulo: String
+    public var documento: String
+    public var fotos: [FotoDeTarea]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(titulo: String, documento: String, fotos: [FotoDeTarea]) {
+        self.titulo = titulo
+        self.documento = documento
+        self.fotos = fotos
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ListaParaCompartir: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeListaParaCompartir: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ListaParaCompartir {
+        return
+            try ListaParaCompartir(
+                titulo: FfiConverterString.read(from: &buf), 
+                documento: FfiConverterString.read(from: &buf), 
+                fotos: FfiConverterSequenceTypeFotoDeTarea.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ListaParaCompartir, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.titulo, into: &buf)
+        FfiConverterString.write(value.documento, into: &buf)
+        FfiConverterSequenceTypeFotoDeTarea.write(value.fotos, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeListaParaCompartir_lift(_ buf: RustBuffer) throws -> ListaParaCompartir {
+    return try FfiConverterTypeListaParaCompartir.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeListaParaCompartir_lower(_ value: ListaParaCompartir) -> RustBuffer {
+    return FfiConverterTypeListaParaCompartir.lower(value)
+}
+
+
+/**
  * Una lista de tareas de un chat.
  */
 public struct ListaTareas: Equatable, Hashable {
@@ -32825,6 +33371,14 @@ public struct ListaTareas: Equatable, Hashable {
      */
     public var tareas: [Tarea]
     public var pendientes: UInt32
+    /**
+     * Si es la lista de una asignatura del horario (Windows 71bf70f,
+     * 1-nov-2026): su color, `0xRRGGBB` (`horario::asignaturas::colorear`).
+     * Esas salen en Tarjetas y Kanban aunque esten vacias, para poder
+     * apuntarles tareas, y con el color de la asignatura. No viaja: se
+     * calcula del horario de este equipo.
+     */
+    public var asignatura: UInt32?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -32846,7 +33400,14 @@ public struct ListaTareas: Equatable, Hashable {
          */cuando: Int64, esInbox: Bool, 
         /**
          * Todas sus tareas en el orden del documento.
-         */tareas: [Tarea], pendientes: UInt32) {
+         */tareas: [Tarea], pendientes: UInt32, 
+        /**
+         * Si es la lista de una asignatura del horario (Windows 71bf70f,
+         * 1-nov-2026): su color, `0xRRGGBB` (`horario::asignaturas::colorear`).
+         * Esas salen en Tarjetas y Kanban aunque esten vacias, para poder
+         * apuntarles tareas, y con el color de la asignatura. No viaja: se
+         * calcula del horario de este equipo.
+         */asignatura: UInt32?) {
         self.chat = chat
         self.nombreChat = nombreChat
         self.guardados = guardados
@@ -32856,6 +33417,7 @@ public struct ListaTareas: Equatable, Hashable {
         self.esInbox = esInbox
         self.tareas = tareas
         self.pendientes = pendientes
+        self.asignatura = asignatura
     }
 
     
@@ -32882,7 +33444,8 @@ public struct FfiConverterTypeListaTareas: FfiConverterRustBuffer {
                 cuando: FfiConverterInt64.read(from: &buf), 
                 esInbox: FfiConverterBool.read(from: &buf), 
                 tareas: FfiConverterSequenceTypeTarea.read(from: &buf), 
-                pendientes: FfiConverterUInt32.read(from: &buf)
+                pendientes: FfiConverterUInt32.read(from: &buf), 
+                asignatura: FfiConverterOptionUInt32.read(from: &buf)
         )
     }
 
@@ -32896,6 +33459,7 @@ public struct FfiConverterTypeListaTareas: FfiConverterRustBuffer {
         FfiConverterBool.write(value.esInbox, into: &buf)
         FfiConverterSequenceTypeTarea.write(value.tareas, into: &buf)
         FfiConverterUInt32.write(value.pendientes, into: &buf)
+        FfiConverterOptionUInt32.write(value.asignatura, into: &buf)
     }
 }
 
@@ -35706,6 +36270,64 @@ public func FfiConverterTypeOfertaRecibida_lift(_ buf: RustBuffer) throws -> Ofe
 #endif
 public func FfiConverterTypeOfertaRecibida_lower(_ value: OfertaRecibida) -> RustBuffer {
     return FfiConverterTypeOfertaRecibida.lower(value)
+}
+
+
+/**
+ * Una entrada del desplegable, con su rotulo (y la marca ✓ si es la
+ * elegida).
+ */
+public struct OpcionDeDestino: Equatable, Hashable {
+    public var destino: DestinoTarea
+    public var rotulo: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(destino: DestinoTarea, rotulo: String) {
+        self.destino = destino
+        self.rotulo = rotulo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension OpcionDeDestino: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeOpcionDeDestino: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> OpcionDeDestino {
+        return
+            try OpcionDeDestino(
+                destino: FfiConverterTypeDestinoTarea.read(from: &buf), 
+                rotulo: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: OpcionDeDestino, into buf: inout [UInt8]) {
+        FfiConverterTypeDestinoTarea.write(value.destino, into: &buf)
+        FfiConverterString.write(value.rotulo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionDeDestino_lift(_ buf: RustBuffer) throws -> OpcionDeDestino {
+    return try FfiConverterTypeOpcionDeDestino.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeOpcionDeDestino_lower(_ value: OpcionDeDestino) -> RustBuffer {
+    return FfiConverterTypeOpcionDeDestino.lower(value)
 }
 
 
@@ -43310,6 +43932,79 @@ public func FfiConverterTypeVistaDeFigura_lower(_ value: VistaDeFigura) -> RustB
 
 
 /**
+ * Lo que se ve de una lista en el panel con las hechas escondidas o no.
+ */
+public struct VistaMiniTareas: Equatable, Hashable {
+    /**
+     * Los `indice` de las tareas que se ven, en el orden del documento.
+     */
+    public var indices: [UInt32]
+    /**
+     * Cuantas hechas se esconden (el boton «Ver las hechas» va relleno
+     * mientras haya alguna: una lista que se queda corta sin que nada lo
+     * diga parece rota).
+     */
+    public var escondidas: UInt32
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Los `indice` de las tareas que se ven, en el orden del documento.
+         */indices: [UInt32], 
+        /**
+         * Cuantas hechas se esconden (el boton «Ver las hechas» va relleno
+         * mientras haya alguna: una lista que se queda corta sin que nada lo
+         * diga parece rota).
+         */escondidas: UInt32) {
+        self.indices = indices
+        self.escondidas = escondidas
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension VistaMiniTareas: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeVistaMiniTareas: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VistaMiniTareas {
+        return
+            try VistaMiniTareas(
+                indices: FfiConverterSequenceUInt32.read(from: &buf), 
+                escondidas: FfiConverterUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VistaMiniTareas, into buf: inout [UInt8]) {
+        FfiConverterSequenceUInt32.write(value.indices, into: &buf)
+        FfiConverterUInt32.write(value.escondidas, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistaMiniTareas_lift(_ buf: RustBuffer) throws -> VistaMiniTareas {
+    return try FfiConverterTypeVistaMiniTareas.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeVistaMiniTareas_lower(_ value: VistaMiniTareas) -> RustBuffer {
+    return FfiConverterTypeVistaMiniTareas.lower(value)
+}
+
+
+/**
  * **Lo que Swift pinta para el modelo**: la zona `(x0, y0)–(x1, y1)` del
  * mundo en una imagen de `ancho` x `alto` (`escala` pixeles por unidad),
  * con el papel y lo dibujado (`plano`, sus fotos en `imagenes`) y encima la
@@ -44431,6 +45126,100 @@ public func FfiConverterTypeAsignaturaAnadida_lift(_ buf: RustBuffer) throws -> 
 #endif
 public func FfiConverterTypeAsignaturaAnadida_lower(_ value: AsignaturaAnadida) -> RustBuffer {
     return FfiConverterTypeAsignaturaAnadida.lower(value)
+}
+
+
+
+/**
+ * **Lo que paso al renombrar una asignatura** en su ficha (Windows 71bf70f,
+ * el campo «Nombre»).
+ */
+
+public enum AsignaturaRenombrada: Equatable, Hashable {
+    
+    /**
+     * Renombrada (y sus clases, y su lista de tareas si la tiene).
+     */
+    case hecho(antes: String, nombre: String
+    )
+    /**
+     * Ya hay otra que se llama asi (Windows: «X» ya está en la lista): no
+     * se cambio nada.
+     */
+    case repetida(nombre: String
+    )
+    /**
+     * Vacio o el mismo nombre: nada.
+     */
+    case igual
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension AsignaturaRenombrada: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeAsignaturaRenombrada: FfiConverterRustBuffer {
+    typealias SwiftType = AsignaturaRenombrada
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AsignaturaRenombrada {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .hecho(antes: try FfiConverterString.read(from: &buf), nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .repetida(nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .igual
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AsignaturaRenombrada, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .hecho(antes,nombre):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(antes, into: &buf)
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case let .repetida(nombre):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case .igual:
+            writeInt(&buf, Int32(3))
+        
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsignaturaRenombrada_lift(_ buf: RustBuffer) throws -> AsignaturaRenombrada {
+    return try FfiConverterTypeAsignaturaRenombrada.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeAsignaturaRenombrada_lower(_ value: AsignaturaRenombrada) -> RustBuffer {
+    return FfiConverterTypeAsignaturaRenombrada.lower(value)
 }
 
 
@@ -46178,6 +46967,97 @@ public func FfiConverterTypeDestinoNota_lift(_ buf: RustBuffer) throws -> Destin
 #endif
 public func FfiConverterTypeDestinoNota_lower(_ value: DestinoNota) -> RustBuffer {
     return FfiConverterTypeDestinoNota.lower(value)
+}
+
+
+
+/**
+ * Lo que se puede elegir.
+ */
+
+public enum DestinoTarea: Equatable, Hashable {
+    
+    /**
+     * El Inbox de «Mensajes guardados» (sin elegir nada).
+     */
+    case inbox
+    /**
+     * La lista de la asignatura de ese nombre.
+     */
+    case asignatura(nombre: String
+    )
+    /**
+     * Una lista cualquiera, por su clave (`chat/mensaje`).
+     */
+    case lista(clave: String
+    )
+
+
+
+
+
+}
+
+#if compiler(>=6)
+extension DestinoTarea: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeDestinoTarea: FfiConverterRustBuffer {
+    typealias SwiftType = DestinoTarea
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> DestinoTarea {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .inbox
+        
+        case 2: return .asignatura(nombre: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 3: return .lista(clave: try FfiConverterString.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: DestinoTarea, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .inbox:
+            writeInt(&buf, Int32(1))
+        
+        
+        case let .asignatura(nombre):
+            writeInt(&buf, Int32(2))
+            FfiConverterString.write(nombre, into: &buf)
+            
+        
+        case let .lista(clave):
+            writeInt(&buf, Int32(3))
+            FfiConverterString.write(clave, into: &buf)
+            
+        }
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDestinoTarea_lift(_ buf: RustBuffer) throws -> DestinoTarea {
+    return try FfiConverterTypeDestinoTarea.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeDestinoTarea_lower(_ value: DestinoTarea) -> RustBuffer {
+    return FfiConverterTypeDestinoTarea.lower(value)
 }
 
 
@@ -52850,6 +53730,30 @@ fileprivate struct FfiConverterOptionTypeLienzoPlano: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeListaParaCompartir: FfiConverterRustBuffer {
+    typealias SwiftType = ListaParaCompartir?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeListaParaCompartir.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeListaParaCompartir.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeListaTareas: FfiConverterRustBuffer {
     typealias SwiftType = ListaTareas?
 
@@ -55637,6 +56541,31 @@ fileprivate struct FfiConverterSequenceTypeFotoDeNota: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeFotoDeTarea: FfiConverterRustBuffer {
+    typealias SwiftType = [FotoDeTarea]
+
+    public static func write(_ value: [FotoDeTarea], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeFotoDeTarea.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [FotoDeTarea] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [FotoDeTarea]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeFotoDeTarea.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeFotoMd: FfiConverterRustBuffer {
     typealias SwiftType = [FotoMd]
 
@@ -56237,6 +57166,31 @@ fileprivate struct FfiConverterSequenceTypeLineaDeGrabacion: FfiConverterRustBuf
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeListaParaCompartir: FfiConverterRustBuffer {
+    typealias SwiftType = [ListaParaCompartir]
+
+    public static func write(_ value: [ListaParaCompartir], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeListaParaCompartir.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ListaParaCompartir] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ListaParaCompartir]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeListaParaCompartir.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeListaTareas: FfiConverterRustBuffer {
     typealias SwiftType = [ListaTareas]
 
@@ -56679,6 +57633,31 @@ fileprivate struct FfiConverterSequenceTypeNoDibujado: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterTypeNoDibujado.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeOpcionDeDestino: FfiConverterRustBuffer {
+    typealias SwiftType = [OpcionDeDestino]
+
+    public static func write(_ value: [OpcionDeDestino], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeOpcionDeDestino.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [OpcionDeDestino] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [OpcionDeDestino]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeOpcionDeDestino.read(from: &buf))
         }
         return seq
     }
@@ -58859,6 +59838,79 @@ public func grabacionWord(g: GrabacionParaCompartir, base: String, carpeta: Stri
 })
 }
 /**
+ * **Las hojas A4 de la lista** para el PDF, el PNG, el JPG y el SVG, con
+ * las fotos que pintan. Siempre una al menos. Bloqueante (mide las fotos).
+ */
+public func tareasHojas(lista: ListaParaCompartir, idioma: String, desfaseMs: Int64) -> HojasDeTareas  {
+    return try!  FfiConverterTypeHojasDeTareas_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tareas_hojas(
+        FfiConverterTypeListaParaCompartir_lower(lista),
+        FfiConverterString.lower(idioma),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El Markdown de la lista** (de ahi sale tambien el Word).
+ */
+public func tareasMarkdown(lista: ListaParaCompartir, idioma: String, desfaseMs: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tareas_markdown(
+        FfiConverterTypeListaParaCompartir_lower(lista),
+        FfiConverterString.lower(idioma),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El SVG de la hoja `indice`** de [`tareas_hojas`], con las fotos dentro.
+ * `None` si no hay esa hoja.
+ */
+public func tareasSvgDeHoja(lista: ListaParaCompartir, idioma: String, desfaseMs: Int64, indice: UInt32) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tareas_svg_de_hoja(
+        FfiConverterTypeListaParaCompartir_lower(lista),
+        FfiConverterString.lower(idioma),
+        FfiConverterInt64.lower(desfaseMs),
+        FfiConverterUInt32.lower(indice),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El texto de la lista**, con sus casillas y sin las marcas crudas.
+ */
+public func tareasTexto(lista: ListaParaCompartir, idioma: String, desfaseMs: Int64) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tareas_texto(
+        FfiConverterTypeListaParaCompartir_lower(lista),
+        FfiConverterString.lower(idioma),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * **La pagina web de las listas** (una o varias) en `carpeta`, como
+ * `<base>.html` (`tareas::web` de Windows). `titulo`: el de lo compartido;
+ * con una lista sola, el suyo.
+ */
+public func tareasWeb(listas: [ListaParaCompartir], titulo: String, idioma: String, desfaseMs: Int64, base: String, carpeta: String)throws  -> [String]  {
+    return try  FfiConverterSequenceString.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_tareas_web(
+        FfiConverterSequenceTypeListaParaCompartir.lower(listas),
+        FfiConverterString.lower(titulo),
+        FfiConverterString.lower(idioma),
+        FfiConverterInt64.lower(desfaseMs),
+        FfiConverterString.lower(base),
+        FfiConverterString.lower(carpeta),uniffiCallStatus
+    )
+})
+}
+/**
  * **Las capas del fotograma** de `efecto` en `t` (0..1): en 0 solo la
  * vieja, en 1 solo la nueva. Las de Windows (`pase::capas`), con su
  * arrancar y frenar suave.
@@ -60552,6 +61604,23 @@ public func miniTareasAnadir(documento: String, texto: String, desfaseMs: Int64)
 })
 }
 /**
+ * **La tarea `indice` se va a tachar o destachar** (`anotar_tachada` de
+ * Windows): con las hechas escondidas, la que se tacha se apunta para que
+ * siga a la vista, y la que se destacha se borra de la cuenta. Devuelve
+ * las `tachadas` como quedan (sin hechas escondidas, tal cual).
+ */
+public func miniTareasAnotarTachada(documento: String, indice: UInt32, ocultarHechas: Bool, tachadas: [String]) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_tareas_anotar_tachada(
+        FfiConverterString.lower(documento),
+        FfiConverterUInt32.lower(indice),
+        FfiConverterBool.lower(ocultarHechas),
+        FfiConverterSequenceString.lower(tachadas),uniffiCallStatus
+    )
+})
+}
+/**
  * Las tareas de un documento, con su fecha y los dias que llevan (sin
  * imagenes: resolverlas es cosa del chat, `Nucleo::tareas`).
  */
@@ -60561,6 +61630,18 @@ public func miniTareasLeer(documento: String, desfaseMs: Int64) -> [Tarea]  {
     uniffi_pixpin_nucleo_fn_func_mini_tareas_leer(
         FfiConverterString.lower(documento),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * «Quitar las hechas» del panel (`Orden::LimpiarHechas` del mini panel de
+ * Windows): el documento sin lo hecho, con su titulo.
+ */
+public func miniTareasLimpiarHechas(documento: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_tareas_limpiar_hechas(
+        FfiConverterString.lower(documento),uniffiCallStatus
     )
 })
 }
@@ -60586,6 +61667,24 @@ public func miniTareasRenombrar(documento: String, indice: UInt32, texto: String
         FfiConverterString.lower(documento),
         FfiConverterUInt32.lower(indice),
         FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Las tareas que se ven en el panel** (`vista_con` e `indices_visibles`
+ * del mini panel de Windows, 582b2e1). Con `ocultar_hechas`, lo hecho se
+ * esconde salvo lo recien tachado (`tachadas`, su texto guardado), que
+ * sigue a la vista, tachado y en su sitio, hasta volver a pulsar el boton
+ * o cerrar el panel: si se escondiera en el mismo clic, la de debajo
+ * subiria bajo el raton y el siguiente clic tacharia otra.
+ */
+public func miniTareasVista(documento: String, ocultarHechas: Bool, tachadas: [String]) -> VistaMiniTareas  {
+    return try!  FfiConverterTypeVistaMiniTareas_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_mini_tareas_vista(
+        FfiConverterString.lower(documento),
+        FfiConverterBool.lower(ocultarHechas),
+        FfiConverterSequenceString.lower(tachadas),uniffiCallStatus
     )
 })
 }
@@ -61309,6 +62408,39 @@ public func tareaEntendida(texto: String, desfaseMs: Int64) -> String  {
 })
 }
 /**
+ * **El «＋» del encabezado de la lista `l`** (`de_la_lista` de Windows): lo
+ * que queda elegido en la caja. La de una asignatura, como su asignatura
+ * (asi lo apuntado sigue a su enlace aunque la lista se renombre); el
+ * Inbox, el Inbox; las demas, como esa lista.
+ */
+public func destinoDeLaLista(l: ListaTareas, asignaturas: [String]) -> DestinoTarea  {
+    return try!  FfiConverterTypeDestinoTarea_lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_destino_de_la_lista(
+        FfiConverterTypeListaTareas_lower(l),
+        FfiConverterSequenceString.lower(asignaturas),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Las entradas del desplegable**, en orden (`opciones` de Windows): el
+ * Inbox (`inbox`, ya traducido), cada asignatura de `asignaturas` (con su
+ * libro delante) y despues las demas listas de `listas` que no son ni el
+ * Inbox ni la de una asignatura, cada una con su chat. `elegido` lleva la
+ * marca ✓.
+ */
+public func destinosDeTareas(inbox: String, asignaturas: [String], listas: [ListaTareas], elegido: DestinoTarea) -> [OpcionDeDestino]  {
+    return try!  FfiConverterSequenceTypeOpcionDeDestino.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_destinos_de_tareas(
+        FfiConverterString.lower(inbox),
+        FfiConverterSequenceString.lower(asignaturas),
+        FfiConverterSequenceTypeListaTareas.lower(listas),
+        FfiConverterTypeDestinoTarea_lower(elegido),uniffiCallStatus
+    )
+})
+}
+/**
  * **Los grupos de Tarjetas y Kanban** (`tarjetas::agrupar` de Windows):
  * en el orden de las listas, con lo que sale con `busqueda` (vacia: todo),
  * y una lista sin nada que salga no sale. Los colores se reparten entre
@@ -61732,6 +62864,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_grabacion_word() != 16471) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_tareas_hojas() != 42140) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tareas_markdown() != 55448) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tareas_svg_de_hoja() != 35757) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tareas_texto() != 37395) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_tareas_web() != 53578) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_capas_de_transicion() != 31797) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -62131,13 +63278,22 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_func_mini_tareas_anadir() != 19652) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_tareas_anotar_tachada() != 51762) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_func_mini_tareas_leer() != 58759) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_tareas_limpiar_hechas() != 65052) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_mini_tareas_quitar() != 8158) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_mini_tareas_renombrar() != 10428) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_mini_tareas_vista() != 44136) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_mini_titulo() != 28928) {
@@ -62306,6 +63462,12 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_tarea_entendida() != 12070) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_destino_de_la_lista() != 23076) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_destinos_de_tareas() != 5958) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_grupos_de_tareas() != 62351) {
@@ -62692,6 +63854,9 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_grabacion_para_compartir() != 17061) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_lista_para_compartir() != 3632) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_chapas_de_compartidos() != 13514) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -62959,13 +64124,19 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ruta_del_horario() != 32022) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_en_asignatura() != 29781) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_apuntar_en_asignatura() != 49692) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_asegurar_lista_de_asignatura() != 60953) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_asegurar_lista_de_asignatura() != 29822) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_pixpin_nucleo_checksum_method_nucleo_lista_de_asignatura() != 51738) {
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_enlazar_asignaturas() != 41418) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_lista_de_asignatura() != 52609) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_lista_para_asignatura() != 49711) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_nombres_de_asignaturas() != 21994) {
@@ -63796,7 +64967,13 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_poner_ficha_de_clase() != 56435) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_poner_lista_de_asignatura() != 54807) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_puede_deshacer() != 11244) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_semanahorario_renombrar_asignatura() != 52654) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_semanahorario_soltar() != 54008) {
@@ -64162,6 +65339,21 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_relojsincro_ver_cambios() != 40349) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_tareasquietas_grupos() != 52996) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_tareasquietas_marcar() != 55511) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_tareasquietas_quitar() != 40546) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_tareasquietas_soltar() != 10903) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_tareasquietas_tocadas() != 11008) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_catalogodetextos_codigo() != 7717) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -64232,6 +65424,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_relojsincro_new() != 30980) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_constructor_tareasquietas_nuevas() != 4673) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_constructor_catalogodetextos_nuevo() != 9098) {

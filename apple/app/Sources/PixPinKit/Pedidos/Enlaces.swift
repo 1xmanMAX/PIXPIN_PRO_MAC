@@ -235,6 +235,8 @@ public enum Enlaces {
         "abrir", "chat", "nota_nueva", "lienzo_nuevo", "lista_nueva", "anadir_tarea",
         "ventana_principal", "ventana", "capturar", "lecciones", "leccion_nueva", "soltar",
         "pinear", "pinear_ultima", "marcar_tarea", "posponer", "conservar_captura",
+        // 1-nov (Windows dbbd4ec): abrir Tareas en una lista no cambia nada.
+        "abrir_lista",
     ]
 
     /// **Cuanto se fia uno de un pedido llegado por enlace.** Se mira el

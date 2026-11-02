@@ -14,8 +14,10 @@
 // hora, y pulsar una la ensena en las tarjetas.
 //
 // Como en Windows (`horario/panel.rs`): el «+» de «Nueva asignatura» le
-// crea ya su lista de tareas; doble clic en una asignatura abre su ficha
-// (el aula) y en una clase la suya (aula, nota para la voz y aviso); borrar
+// crea ya su lista de tareas y su linea nace con el enlace `lista:<id>`
+// (Windows 71bf70f); doble clic en una asignatura abre su ficha (nombre y
+// aula: renombrarla renombra sus clases y su lista, que sigue con sus
+// tareas) y en una clase la suya (aula, nota para la voz y aviso); borrar
 // una clase o una asignatura deja «Deshacer» en el aviso de abajo. Siempre
 // en oscuro, como la ventana de Tareas: los textos con `Paleta.v2`, nunca
 // el negro del sistema en claro.
@@ -81,14 +83,18 @@ final class ModeloSemana: ObservableObject {
             return nil
         }
         switch semana.anadirAsignaturaEscrita(escrito: escrito) {
-        case let .nueva(_, nombre):
-            cambiar { _ in }
+        case let .nueva(indice, nombre):
+            // Su grupo de tareas, a la vez (Windows 71bf70f): asi sale en
+            // Tareas y en el chat, y su linea nace con el enlace
+            // (`lista:<id>`) que la sigue al renombrarla.
             do {
-                _ = try nucleo.asegurarListaDeAsignatura(asignatura: nombre, desfaseMs: desfaseLocalMs())
+                let l = try nucleo.asegurarListaDeAsignatura(asignatura: nombre, desfaseMs: desfaseLocalMs())
+                semana.ponerListaDeAsignatura(i: indice, lista: l.mensaje)
             } catch {
-                // Sin lista se puede seguir: se crea al apuntar la primera.
+                // Sin lista se puede seguir: la crea el vigia del horario.
                 NSLog("horario: sin lista para la asignatura: %@", "\(error)")
             }
+            cambiar { _ in }
             decir("Arrastra «\(nombre)» a la semana")
             return nombre
         case let .repetida(_, nombre):
@@ -111,6 +117,25 @@ final class ModeloSemana: ObservableObject {
         aviso = nil
         avisoConDeshacer = false
         releer()
+    }
+
+    /// **Renombra la asignatura `i`** (el «Nombre» de su ficha): sus clases
+    /// y su lista de tareas, que sigue con sus tareas. Ya guardado.
+    func renombrar(_ i: Int, a nuevo: String) -> AsignaturaRenombrada {
+        guard let semana else { return .igual }
+        do {
+            let r = try semana.renombrarAsignatura(i: UInt32(i), nuevo: nuevo)
+            if case .hecho = r {
+                Recordatorios.compartido.releer()
+                // El nombre nuevo de la lista, a los otros aparatos.
+                NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            }
+            releer()
+            return r
+        } catch {
+            self.error = "No se pudo guardar el horario: \(error)"
+            return .igual
+        }
     }
 
     /// La ficha de la clase `i` (aula, notas y aviso).
@@ -173,6 +198,8 @@ struct VentanaHorario: View {
     @State private var encima: String?
     /// La ficha abierta y lo escrito en ella.
     @State private var edicion: EdicionHorario?
+    /// El nombre de la asignatura, en su ficha: renombrarla (Windows 71bf70f).
+    @State private var nombreFicha = ""
     @State private var aula = ""
     @State private var nota = ""
     @State private var avisar = ""
@@ -321,7 +348,7 @@ struct VentanaHorario: View {
         .draggable("asignatura:\(i)")
         .contextMenu {
             Button("Abrir en Tareas") { abrirEnTareas(a.nombre) }
-            Button("Aula…") { editar(.asignatura(i)) }
+            Button("Nombre y aula…") { editar(.asignatura(i)) }
             Button("Borrar", role: .destructive) { borrarAsignatura(i, a) }
         }
     }
@@ -388,6 +415,7 @@ struct VentanaHorario: View {
             avisar = f.antelacion.map { String($0) } ?? ""
         case let .asignatura(i):
             guard i < modelo.asignaturas.count else { return }
+            nombreFicha = modelo.asignaturas[i].nombre
             aula = modelo.asignaturas[i].aula ?? ""
             nota = ""
             avisar = ""
@@ -410,6 +438,20 @@ struct VentanaHorario: View {
             let ficha = FichaDeClase(aula: aulaNueva, notas: notas, antelacion: UInt32(n))
             modelo.cambiar { $0.ponerFichaDeClase(i: UInt32(i), ficha: ficha) }
         case let .asignatura(i):
+            // Renombrarla renombra sus clases y su lista de tareas (la de su
+            // enlace): las tareas siguen con ella. Si ya hay otra que se
+            // llama asi, la ficha sigue abierta y no se cambia nada.
+            switch modelo.renombrar(i, a: nombreFicha) {
+            case let .repetida(nombre):
+                modelo.decir(Lengua.t("horario-repetida", ["asignatura": nombre]))
+                edicion = ed
+                return
+            case let .hecho(antes, nombre):
+                if elegida == antes { elegida = nombre }
+                Task { await tareas.cargar() }
+            case .igual:
+                break
+            }
             modelo.cambiar { $0.ponerAulaDeAsignatura(i: UInt32(i), aula: aulaNueva) }
         }
     }
@@ -440,8 +482,12 @@ struct VentanaHorario: View {
                     if !datos.sub.isEmpty {
                         Text(datos.sub).font(.callout).foregroundStyle(Paleta.v2.gris)
                     }
+                    if datos.soloAula {
+                        campo(Lengua.t("horario-nombre")) { cajaDeTexto("", texto: $nombreFicha) }
+                            .padding(.top, 6)
+                    }
                     campo("Aula") { cajaDeTexto("", texto: $aula) }
-                        .padding(.top, 6)
+                        .padding(.top, datos.soloAula ? 0 : 6)
                     if !datos.soloAula {
                         campo("Nota para la voz (lo que lee la llamada)") {
                             cajaDeTexto("", texto: $nota, lineas: 3)

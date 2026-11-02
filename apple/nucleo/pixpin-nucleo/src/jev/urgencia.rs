@@ -354,6 +354,7 @@ mod pruebas {
                 })
                 .collect(),
             pendientes: textos.len() as u32,
+            asignatura: None,
         }
     }
 

@@ -13,6 +13,9 @@
 //   grabacion): su pagina web, sus hojas A4, Word, Markdown, Texto y Anki
 //   (`CompartirGrabacion.swift`); una nota de voz entre otros mensajes, su
 //   texto, si ya se paso;
+// - una **lista de tareas**: sus hojas A4 cuidadas, su pagina web propia
+//   (si todo son listas) y, sola, Word, Markdown y texto
+//   (`CompartirTareas.swift`, Windows bc4533b);
 // - una **nota** o lo demas: su texto en paginas A4 y, sola, el `.txt`;
 // - los ficheros de los mensajes, en «Original» u «Originales», y el
 //   proyecto del chat entero como `.pixpin`.
@@ -148,6 +151,8 @@ enum PrepararCompartir {
             await anadirMensaje(p, m, chat: chat, fichero: url, solo: solo, almacen: almacen)
         }
         anadirOriginales(p, originales)
+        // Solo listas de tareas: su pagina propia (Windows bc4533b).
+        paginaDeTareas(p, cuantos: mensajes.count)
         // El proyecto entero del chat, para abrirlo en otro PixPin o el movil.
         if let almacen, let ficha = almacen.chats.first(where: { $0.id == chat }) {
             p.extras.append(paquete(almacen, [ficha], id: IdFormato.pixpin, nombre: ".pindesk"))
@@ -204,6 +209,12 @@ enum PrepararCompartir {
                 await PdfDeCarpeta.anadirPagina(p, pagina, chat: chat, almacen: almacen)
             }
         default:
+            // Una lista de tareas sale cuidada (Windows bc4533b): sus hojas,
+            // su pagina y, sola, Word, Markdown y texto (`CompartirTareas.swift`).
+            if esListaDeTareas(m), let almacen,
+               await anadirLista(p, m, chat: chat, clave: clave, nombre: nombre, solo: solo, almacen: almacen) {
+                return
+            }
             // Una mini-app guarda su documento en el texto: se lee su resumen.
             let texto = m.clase == "MINIAPP" ? m.resumen : (m.texto.isEmpty ? m.resumen : m.texto)
             guard !texto.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }

@@ -199,6 +199,72 @@ pub fn mini_tareas_renombrar(documento: String, indice: u32, texto: String) -> S
     mini::renombrar(&documento, indice as usize, &texto)
 }
 
+/// «Quitar las hechas» del panel (`Orden::LimpiarHechas` del mini panel de
+/// Windows): el documento sin lo hecho, con su titulo.
+#[uniffi::export]
+pub fn mini_tareas_limpiar_hechas(documento: String) -> String {
+    let v: Vec<_> = mini::leer_tareas(&documento).into_iter().filter(|t| !t.hecha).collect();
+    mini::escribir_tareas(&mini::titulo(&documento), &v)
+}
+
+/// Lo que se ve de una lista en el panel con las hechas escondidas o no.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct VistaMiniTareas {
+    /// Los `indice` de las tareas que se ven, en el orden del documento.
+    pub indices: Vec<u32>,
+    /// Cuantas hechas se esconden (el boton «Ver las hechas» va relleno
+    /// mientras haya alguna: una lista que se queda corta sin que nada lo
+    /// diga parece rota).
+    pub escondidas: u32,
+}
+
+/// **Las tareas que se ven en el panel** (`vista_con` e `indices_visibles`
+/// del mini panel de Windows, 582b2e1). Con `ocultar_hechas`, lo hecho se
+/// esconde salvo lo recien tachado (`tachadas`, su texto guardado), que
+/// sigue a la vista, tachado y en su sitio, hasta volver a pulsar el boton
+/// o cerrar el panel: si se escondiera en el mismo clic, la de debajo
+/// subiria bajo el raton y el siguiente clic tacharia otra.
+#[uniffi::export]
+pub fn mini_tareas_vista(documento: String, ocultar_hechas: bool, tachadas: Vec<String>) -> VistaMiniTareas {
+    let tareas = mini::leer_tareas(&documento);
+    let se_ve = |t: &mini::Tarea| !(ocultar_hechas && t.hecha && !tachadas.contains(&t.texto));
+    VistaMiniTareas {
+        indices: tareas
+            .iter()
+            .enumerate()
+            .filter(|(_, t)| se_ve(t))
+            .map(|(i, _)| i as u32)
+            .collect(),
+        escondidas: tareas.iter().filter(|t| !se_ve(t)).count() as u32,
+    }
+}
+
+/// **La tarea `indice` se va a tachar o destachar** (`anotar_tachada` de
+/// Windows): con las hechas escondidas, la que se tacha se apunta para que
+/// siga a la vista, y la que se destacha se borra de la cuenta. Devuelve
+/// las `tachadas` como quedan (sin hechas escondidas, tal cual).
+#[uniffi::export]
+pub fn mini_tareas_anotar_tachada(
+    documento: String,
+    indice: u32,
+    ocultar_hechas: bool,
+    tachadas: Vec<String>,
+) -> Vec<String> {
+    let mut tachadas = tachadas;
+    if !ocultar_hechas {
+        return tachadas;
+    }
+    let Some(t) = mini::leer_tareas(&documento).into_iter().nth(indice as usize) else {
+        return tachadas;
+    };
+    if t.hecha {
+        tachadas.retain(|c| *c != t.texto);
+    } else {
+        tachadas.push(t.texto);
+    }
+    tachadas
+}
+
 // ---- Contador ---------------------------------------------------------------
 
 #[uniffi::export]
@@ -435,6 +501,35 @@ impl Nucleo {
 #[cfg(test)]
 mod pruebas {
     use super::*;
+
+    #[test]
+    fn con_las_hechas_escondidas_lo_recien_tachado_no_se_va_bajo_el_raton() {
+        let mut d = "# L\n\n- [ ] a\n- [ ] b\n- [ ] c".to_string();
+        let mut tachadas: Vec<String> = Vec::new();
+        // Se tacha «a» y luego «b» (lo que se ve en el sitio 0 y en el 1):
+        // las dos siguen a la vista donde estaban.
+        for n in [0usize, 1] {
+            let v = mini_tareas_vista(d.clone(), true, tachadas.clone());
+            let i = v.indices[n];
+            tachadas = mini_tareas_anotar_tachada(d.clone(), i, true, tachadas);
+            d = mini_tareas_alternar(d, i);
+        }
+        let v = mini_tareas_vista(d.clone(), true, tachadas.clone());
+        assert_eq!((v.indices.clone(), v.escondidas), (vec![0, 1, 2], 0));
+        // Destachar una recien tachada la deja pendiente, en su sitio.
+        tachadas = mini_tareas_anotar_tachada(d.clone(), 0, true, tachadas);
+        d = mini_tareas_alternar(d, 0);
+        assert_eq!(tachadas, ["b"]);
+        assert_eq!(mini_tareas_vista(d.clone(), true, tachadas).indices, [0, 1, 2]);
+        // Volver a pulsar el boton (o cerrar el panel) olvida las tachadas:
+        // ya se esconde «b».
+        let v = mini_tareas_vista(d.clone(), true, Vec::new());
+        assert_eq!((v.indices, v.escondidas), (vec![0, 2], 1));
+        // Caso negativo: sin esconder, se ve todo y no se apunta nada.
+        assert_eq!(mini_tareas_vista(d.clone(), false, Vec::new()).indices, [0, 1, 2]);
+        assert!(mini_tareas_anotar_tachada(d.clone(), 2, false, Vec::new()).is_empty());
+        assert_eq!(mini_tareas_limpiar_hechas(d), "# L\n\n- [ ] a\n- [ ] c");
+    }
 
     #[test]
     fn tareas_ida_y_vuelta_con_fecha() {

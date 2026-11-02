@@ -120,6 +120,10 @@ final class PreparadoCompartir {
     /// orden: el de un cuaderno lleva el titulo de cada pagina en el indice
     /// (`PdfDeCarpeta.conIndice`).
     var retocarPdf: (@MainActor ([String], Data) -> Data)?
+    /// **Las listas de tareas** que van (Windows bc4533b): si todo lo
+    /// compartido son listas, su pagina web es la de las tareas
+    /// (`CompartirTareas.swift`).
+    var listasDeTareas: [ListaParaCompartir] = []
 
     init(titulo: String) { self.titulo = titulo }
 

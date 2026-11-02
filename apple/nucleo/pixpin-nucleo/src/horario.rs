@@ -147,6 +147,13 @@ pub struct Asignatura {
     pub aula: Option<String>,
     /// Su color, `0xRRGGBB`; `None` es el de su nombre.
     pub color: Option<u32>,
+    /// **El enlace con su lista de tareas** (`lista:<id>` en su linea,
+    /// Windows 71bf70f, 1-nov-2026): el `id` del mensaje de su lista en el
+    /// chat «Asignaturas» ([`asignaturas`]). Con el, renombrar la asignatura
+    /// renombra la lista y no crea otra; sin el (escrita a mano, o de
+    /// antes), la lista se busca por el nombre y el enlace se apunta solo
+    /// (`Nucleo::enlazar_asignaturas`).
+    pub lista: Option<String>,
 }
 
 /// Una evaluacion (examen, entrega…) con su fecha.
@@ -185,6 +192,7 @@ impl Horario {
                     nombre: c.nombre.clone(),
                     aula: c.aula.clone(),
                     color: None,
+                    lista: None,
                 });
             }
         }
@@ -441,15 +449,20 @@ fn asignatura_de_linea(palabras: &[&str]) -> Option<Asignatura> {
         return None;
     }
     let mut color = None;
+    let mut lista = None;
     let resto: Vec<&str> = palabras[1..]
         .iter()
         .copied()
-        .filter(|p| match color_de(p) {
-            Some(c) => {
+        .filter(|p| {
+            if let Some(c) = color_de(p) {
                 color = Some(c);
-                false
+                return false;
             }
-            None => true,
+            if let Some(id) = enlace_de(p) {
+                lista = Some(id.to_string());
+                return false;
+            }
+            true
         })
         .collect();
     let (nombre, aula) = nombre_y_aula(&resto);
@@ -457,7 +470,51 @@ fn asignatura_de_linea(palabras: &[&str]) -> Option<Asignatura> {
         nombre,
         aula,
         color,
+        lista,
     })
+}
+
+/// Lo que marca el enlace de una asignatura con su lista: `lista:<id>`.
+pub const ENLACE: &str = "lista:";
+
+/// El `id` de un `lista:<id>` (letras, cifras, `-` y `_`: como los `id`
+/// de los mensajes).
+fn enlace_de(p: &str) -> Option<&str> {
+    let id = p.strip_prefix(ENLACE)?;
+    (!id.is_empty() && id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')).then_some(id)
+}
+
+/// **Pone o corrige el enlace** de las lineas `Asignatura …` de `texto`
+/// (`con_enlaces` de Windows): `enlace(asignatura)` dice el id de su lista
+/// (o `None` para dejarla como esta). Solo se tocan esas lineas, y solo su
+/// final: el resto del horario (comentarios, tablas, clases, evaluaciones)
+/// queda tal cual, letra a letra.
+pub(crate) fn con_enlaces(texto: &str, enlace: &dyn Fn(&Asignatura) -> Option<String>) -> String {
+    let (_, suyas) = leer_con_sitios(texto, Momento::de_ms_locales(0));
+    let mut fuera = Vec::new();
+    for (n, linea) in texto.lines().enumerate() {
+        let t = linea.trim().trim_start_matches(['-', '*', '•']).trim();
+        let palabras: Vec<&str> = t.split_whitespace().collect();
+        let a = if suyas.get(n).copied().unwrap_or(false) && celdas(linea).is_none() {
+            asignatura_de_linea(&palabras)
+        } else {
+            None
+        };
+        match a.and_then(|a| enlace(&a).filter(|id| a.lista.as_ref() != Some(id))) {
+            Some(id) => {
+                let sin: Vec<&str> = linea.split(' ').filter(|p| enlace_de(p.trim()).is_none()).collect();
+                fuera.push(format!("{} {ENLACE}{id}", sin.join(" ").trim_end()));
+            }
+            None => fuera.push(linea.to_string()),
+        }
+    }
+    // Con los saltos de linea que tenia.
+    let salto = if texto.contains("\r\n") { "\r\n" } else { "\n" };
+    let mut s = fuera.join(salto);
+    if texto.ends_with('\n') {
+        s.push_str(salto);
+    }
+    s
 }
 
 /// Un color `#RRGGBB`.
@@ -1303,5 +1360,42 @@ Esto no es nada
         assert_eq!(clase_para_grabar(&h, ms(17, 9, 0)), Some(0), "sabado: la proxima es Geometría del lunes");
         assert_eq!(clase_para_grabar(&Horario::default(), ms(14, 9, 0)), None);
         assert_eq!(fichero_de_voz("Geometría Analítica II"), "geometria-analitica-ii.m4a");
+    }
+
+    #[test]
+    fn con_enlaces_solo_toca_el_final_de_las_lineas_de_asignatura() {
+        let t = "# Mi horario\r\n\
+                 <!--\r\nAsignatura Comentada\r\n-->\r\n\
+                 - Asignatura Geometría @A-12 #0A84FF\r\n\
+                 Asignatura Física lista:viejo-1\r\n\
+                 Lun 8:00-9:00 Geometría\r\n\
+                 Evaluación Geometría 23/10\r\n";
+        let n = con_enlaces(t, &|a| match a.nombre.as_str() {
+            "Geometría" => Some("m-geo".to_string()),
+            "Física" => Some("m-fis".to_string()),
+            _ => Some("no-deberia".to_string()),
+        });
+        assert!(n.contains("- Asignatura Geometría @A-12 #0A84FF lista:m-geo\r\n"), "{n}");
+        assert!(n.contains("Asignatura Física lista:m-fis\r\n"), "{n}");
+        assert!(!n.contains("viejo-1"));
+        assert!(n.contains("Asignatura Comentada\r\n"), "lo comentado no se toca");
+        assert!(!n.contains("no-deberia"), "{n}");
+        assert!(n.contains("Lun 8:00-9:00 Geometría\r\nEvaluación Geometría 23/10\r\n"));
+        // Leido otra vez: los enlaces, y nada mas cambiado.
+        let h = leer(&n, ahora());
+        assert_eq!(h.asignaturas[0].lista.as_deref(), Some("m-geo"));
+        assert_eq!(h.asignaturas[1].lista.as_deref(), Some("m-fis"));
+        assert_eq!(h.clases.len(), 1);
+    }
+
+    #[test]
+    fn caso_negativo_sin_nada_que_enlazar_el_texto_queda_igual() {
+        let t = "Asignatura Geometría lista:m-geo\nLun 8:00-9:00 Geometría\nnota\n";
+        assert_eq!(con_enlaces(t, &|a| a.lista.clone()), t);
+        assert_eq!(con_enlaces(t, &|_| None), t);
+        // Un «lista:» vacio no es un enlace: es nombre.
+        let h = leer("Asignatura Arte lista:", ahora());
+        assert_eq!(h.asignaturas[0].nombre, "Arte lista");
+        assert_eq!(h.asignaturas[0].lista, None);
     }
 }

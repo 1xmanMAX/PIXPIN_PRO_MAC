@@ -183,6 +183,9 @@ public final class Recordatorios {
         // El horario se edita como una nota: se mira cada pocos segundos si
         // cambio (o cambio el dia) y entonces se relee (`vigilar` de Windows).
         firmaHorario = Recordatorios.firma(nucleo)
+        // Y cada asignatura con su lista de tareas (Windows 71bf70f), al
+        // arrancar y a cada cambio.
+        enlazarAsignaturas()
         let t = Timer(timeInterval: 5, repeats: true) { _ in
             MainActor.assumeIsolated {
                 let r = Recordatorios.compartido
@@ -191,6 +194,7 @@ public final class Recordatorios {
                 if f != r.firmaHorario {
                     r.firmaHorario = f
                     r.releer()
+                    r.enlazarAsignaturas()
                 }
             }
         }
@@ -205,6 +209,30 @@ public final class Recordatorios {
         vigiaCalendario = c
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { Recordatorios.compartido.leerCalendario() }
         releer()
+    }
+
+    /// **Cada asignatura con su lista** (`horario::vigilar` de Windows,
+    /// `Nucleo.enlazarAsignaturas`): crea las listas que faltan, apunta su
+    /// enlace `lista:<id>` en `horario.md` y renombra la de una asignatura
+    /// renombrada. En su hilo; si cambio algo, Tareas y el chat se releen y
+    /// lo escrito en `horario.md` no cuenta como otro cambio.
+    func enlazarAsignaturas() {
+        guard let nucleo else { return }
+        let desfase = desfaseLocalMs()
+        Task {
+            let cambio = await Task.detached(priority: .utility) { () -> Bool in
+                do {
+                    return try nucleo.enlazarAsignaturas(desfaseMs: desfase)
+                } catch {
+                    NSLog("horario: no se enlazaron las asignaturas con sus listas: %@", "\(error)")
+                    return false
+                }
+            }.value
+            guard cambio else { return }
+            self.firmaHorario = Recordatorios.firma(nucleo)
+            NotificationCenter.default.post(name: .pixpinCambioLocal, object: nil)
+            NotificationCenter.default.post(name: .pixpinTareasCambiadas, object: nil)
+        }
     }
 
     /// Lee Google Calendar ya (al arrancar, cada 15 min y al conectarlo).

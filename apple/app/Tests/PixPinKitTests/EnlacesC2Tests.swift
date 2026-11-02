@@ -33,6 +33,11 @@ final class EnlacesC2Tests: XCTestCase {
             (["tarea", "comprar", "yeso"], #"{"pixpin":1,"accion":"anadir_tarea","texto":"comprar yeso"}"#),
             (["TAREA", "comprar yeso", "--proyecto", "Obra"], #"{"pixpin":1,"accion":"anadir_tarea","texto":"comprar yeso","proyecto":"Obra"}"#),
             (["tarea"], #"{"pixpin":1,"accion":"ventana","cual":"tareas"}"#),
+            // Windows dbbd4ec: a la lista de una asignatura, y la ventana en ella.
+            (["tarea", "hoja 3", "--asignatura", "Geometría"],
+             #"{"pixpin":1,"accion":"anadir_tarea","texto":"hoja 3","asignatura":"Geometría"}"#),
+            (["tareas", "--asignatura", "Física"], #"{"pixpin":1,"accion":"abrir_lista","asignatura":"Física"}"#),
+            (["tareas"], #"{"pixpin":1,"accion":"ventana","cual":"tareas"}"#),
             (["nota"], #"{"pixpin":1,"accion":"nota_nueva","proyecto":null}"#),
             (["nota", "idea", "--proyecto=pr-1"], #"{"pixpin":1,"accion":"nota_nueva","texto":"idea","proyecto":"pr-1"}"#),
             (["chat"], #"{"pixpin":1,"accion":"abrir","que":{"tipo":"proyecto","proyecto":null}}"#),

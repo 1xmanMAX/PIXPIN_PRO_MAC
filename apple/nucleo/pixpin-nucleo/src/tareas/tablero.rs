@@ -185,6 +185,30 @@ pub fn grupos_de_tareas(
 }
 
 fn grupos_el(listas: &[ListaTareas], busqueda: &str, hoy: mini::Fecha) -> Vec<GrupoTareas> {
+    grupos_con(listas, busqueda, hoy, &|_, _| false)
+}
+
+/// El degradado de la lista de una asignatura (`degradado_de_lista` de
+/// Windows): su color y, abajo, el mismo un 35 % hacia el negro.
+fn degradado_de_asignatura(c: u32) -> (u32, u32) {
+    let oscuro = |x: u32| ((x as f32) * 0.65).round() as u32;
+    let hasta = (oscuro((c >> 16) & 0xFF) << 16) | (oscuro((c >> 8) & 0xFF) << 8) | oscuro(c & 0xFF);
+    (c, hasta)
+}
+
+/// Lo de [`grupos_el`] con lo que se queda arriba aunque este hecho
+/// (`sigue_arriba`, lo recien tachado de [`TareasQuietas`]), como
+/// `tarjetas::agrupar` con `Lista::a_la_vista` de Windows: arriba lo
+/// pendiente y lo que sigue arriba, ordenado con `orden_de_pendiente`; lo
+/// demas, plegado en el orden del documento. La lista de una asignatura
+/// (`ListaTareas::asignatura`, Windows 71bf70f) sale aunque este vacia
+/// (buscando, si su nombre o el de su chat coincide) y con su color.
+fn grupos_con(
+    listas: &[ListaTareas],
+    busqueda: &str,
+    hoy: mini::Fecha,
+    sigue_arriba: &dyn Fn(&ListaTareas, &Tarea) -> bool,
+) -> Vec<GrupoTareas> {
     let palabras: Vec<&str> = busqueda.split_whitespace().collect();
     let claves: Vec<(String, bool)> = listas
         .iter()
@@ -196,24 +220,35 @@ fn grupos_el(listas: &[ListaTareas], busqueda: &str, hoy: mini::Fecha) -> Vec<Gr
         .enumerate()
         .filter_map(|(li, l)| {
             let vale = |t: &&Tarea| coincide(l, t, &palabras, hoy);
-            let mut arriba: Vec<&Tarea> =
-                l.tareas.iter().filter(|t| !t.hecha).filter(vale).collect();
+            let mut arriba: Vec<&Tarea> = l
+                .tareas
+                .iter()
+                .filter(|t| !t.hecha || sigue_arriba(l, t))
+                .filter(vale)
+                .collect();
             arriba.sort_by_key(|t| orden_de_pendiente(t));
             let hechas: Vec<u32> = l
                 .tareas
                 .iter()
-                .filter(|t| t.hecha)
+                .filter(|t| t.hecha && !sigue_arriba(l, t))
                 .filter(vale)
                 .map(|t| t.indice)
                 .collect();
-            if arriba.is_empty() && hechas.is_empty() {
+            let de_asignatura = l.asignatura.is_some()
+                && palabras
+                    .iter()
+                    .all(|p| hay_coincidencia(&l.titulo, p) || hay_coincidencia(&l.nombre_chat, p));
+            if arriba.is_empty() && hechas.is_empty() && !de_asignatura {
                 return None;
             }
-            let (desde, hasta) = DEGRADADOS[colores[li] % DEGRADADOS.len()];
+            let (desde, hasta) = match l.asignatura {
+                Some(c) => degradado_de_asignatura(c),
+                None => DEGRADADOS[colores[li] % DEGRADADOS.len()],
+            };
             Some(GrupoTareas {
                 lista: li as u32,
                 clave: claves[li].0.clone(),
-                pendientes: arriba.len() as u32,
+                pendientes: arriba.iter().filter(|t| !t.hecha).count() as u32,
                 arriba: arriba.into_iter().map(|t| t.indice).collect(),
                 hechas,
                 desde,
@@ -221,6 +256,90 @@ fn grupos_el(listas: &[ListaTareas], busqueda: &str, hoy: mini::Fecha) -> Vec<Gr
             })
         })
         .collect()
+}
+
+/// **Lo que no se mueve bajo el raton** en la ventana de Tareas (Windows
+/// 8ce1927, `pindesk_ui::tareas_quietas`, 1-nov-2026; el usuario: «cuando
+/// hago clic en la casilla de una tarea y voy a hacer clic en la siguiente,
+/// la anterior se va y acabo pulsando otra»). Marcar se guarda al momento;
+/// lo que se queda quieto es solo la vista: lo recien tachado sigue arriba,
+/// en su sitio, tachado; lo recien destachado sigue en «Hechas», y el orden
+/// de las listas y de sus tareas no cambia (tampoco por lo que contesta Jev
+/// tarde). Se suelta ([`TareasQuietas::soltar`]) al salir de Tareas:
+/// cerrar, minimizar, volver a pedirla, otra vista u otra busqueda.
+#[derive(uniffi::Object, Default)]
+pub struct TareasQuietas {
+    q: std::sync::Mutex<pindesk_ui::tareas_quietas::Quietas>,
+}
+
+impl TareasQuietas {
+    fn tomar(&self) -> std::sync::MutexGuard<'_, pindesk_ui::tareas_quietas::Quietas> {
+        self.q.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    fn grupos_el(&self, listas: &[ListaTareas], busqueda: &str, hoy: mini::Fecha) -> Vec<GrupoTareas> {
+        let mut q = self.tomar();
+        q.buscar(busqueda);
+        let mut grupos = {
+            let q: &pindesk_ui::tareas_quietas::Quietas = &q;
+            grupos_con(listas, busqueda, hoy, &|l, t| q.sigue_arriba(&clave(l), &t.crudo))
+        };
+        for g in &mut grupos {
+            let Some(l) = listas.get(g.lista as usize) else {
+                continue;
+            };
+            let crudo = |i: &u32| l.tareas.iter().find(|t| t.indice == *i).map(|t| t.crudo.clone()).unwrap_or_default();
+            q.ordenar_tareas(&g.clave, &mut g.arriba, &mut g.hechas, crudo);
+            // Lo recien destachado que se quedo en «Hechas» sigue pendiente.
+            g.pendientes = g
+                .arriba
+                .iter()
+                .chain(&g.hechas)
+                .filter(|i| l.tareas.iter().any(|t| t.indice == **i && !t.hecha))
+                .count() as u32;
+        }
+        q.ordenar_listas(&mut grupos, |g| g.clave.clone());
+        grupos
+    }
+}
+
+#[uniffi::export]
+impl TareasQuietas {
+    #[uniffi::constructor]
+    pub fn nuevas() -> std::sync::Arc<TareasQuietas> {
+        std::sync::Arc::new(TareasQuietas::default())
+    }
+
+    /// Se marco (`hecha`) o destaco la tarea `crudo` de la lista `clave`
+    /// (`chat/mensaje`). Deshacer lo recien hecho la deja como estaba.
+    pub fn marcar(&self, clave: String, crudo: String, hecha: bool) {
+        self.tomar().marcar(&clave, &crudo, hecha);
+    }
+
+    /// La tarea ya no esta (se quito o se movio a otra lista).
+    pub fn quitar(&self, clave: String, crudo: String) {
+        self.tomar().quitar(&clave, &crudo);
+    }
+
+    /// Se sale de Tareas: lo tachado se va a «Hechas» y todo se vuelve a
+    /// ordenar como toca.
+    pub fn soltar(&self) {
+        self.tomar().soltar();
+    }
+
+    /// Cuantas se marcaron o destacaron desde la ultima vez que se solto.
+    pub fn tocadas(&self) -> u32 {
+        self.tomar().tocadas() as u32
+    }
+
+    /// **Los grupos de Tarjetas y Kanban, quietos** (`grupos_quietos` de
+    /// Windows): como [`grupos_de_tareas`], con lo recien tachado arriba en
+    /// su sitio, lo recien destachado en «Hechas» y las listas y sus tareas
+    /// en el orden en que ya se veian. Buscar otra cosa suelta todo.
+    pub fn grupos(&self, listas: Vec<ListaTareas>, busqueda: String, desfase_ms: i64) -> Vec<GrupoTareas> {
+        let hoy = mini::Fecha::de_ms_locales(crate::ahora_ms() + desfase_ms);
+        self.grupos_el(&listas, &busqueda, hoy)
+    }
 }
 
 #[cfg(test)]
@@ -263,6 +382,7 @@ mod pruebas {
             es_inbox: false,
             pendientes: tareas.iter().filter(|t| !t.hecha).count() as u32,
             tareas,
+            asignatura: None,
         }
     }
 
@@ -356,6 +476,66 @@ mod pruebas {
             HOY,
         );
         assert_eq!(g[0].hechas, [2]);
+    }
+
+    #[test]
+    fn la_lista_de_una_asignatura_sale_aunque_este_vacia_y_con_su_color() {
+        let mut v = vec![lista("a", "g1", "Geometría", false, vec![]), lista("c", "m0", "Nada", false, vec![])];
+        v[0].asignatura = Some(0x0A84FF);
+        let g = grupos_el(&v, "", HOY);
+        assert_eq!(g.len(), 1, "solo la de la asignatura");
+        assert_eq!(g[0].lista, 0);
+        assert!(g[0].arriba.is_empty() && g[0].hechas.is_empty());
+        assert_eq!(g[0].desde, 0x0A84FF);
+        assert_eq!(g[0].hasta, degradado_de_asignatura(0x0A84FF).1);
+        assert!(g[0].hasta < g[0].desde, "mas oscuro abajo");
+        // Buscando, si su nombre coincide (sin tildes).
+        assert_eq!(grupos_el(&v, "geometria", HOY).len(), 1);
+        // Caso negativo: buscando otra cosa no sale.
+        assert!(grupos_el(&v, "fontanero", HOY).is_empty());
+    }
+
+    #[test]
+    fn lo_tachado_se_queda_arriba_y_el_orden_quieto_hasta_soltar() {
+        let q = TareasQuietas::default();
+        let l = sabado();
+        let g = q.grupos_el(std::slice::from_ref(&l), "", HOY);
+        assert_eq!((g[0].arriba.clone(), g[0].pendientes), (vec![1, 0], 2));
+        // Se tacha «lavar el coche» (1): se guarda tachada, y se queda arriba.
+        let mut tachada = l.clone();
+        tachada.tareas[1].hecha = true;
+        q.marcar("g/m1".into(), "lavar el coche".into(), true);
+        let g = q.grupos_el(std::slice::from_ref(&tachada), "", HOY);
+        assert_eq!(g[0].arriba, [1, 0], "en su sitio");
+        assert_eq!(g[0].hechas, [2]);
+        assert_eq!(g[0].pendientes, 1, "lo recien tachado no cuenta");
+        // Jev contesta tarde: «comprar pan» urgente; no salta bajo el raton.
+        let mut urgente = tachada.clone();
+        urgente.tareas[0].prioridad = Some("urgente".into());
+        assert_eq!(q.grupos_el(std::slice::from_ref(&urgente), "", HOY)[0].arriba, [1, 0]);
+        // Al salir de Tareas, a «Hechas» y ordenado.
+        q.soltar();
+        let g = q.grupos_el(std::slice::from_ref(&urgente), "", HOY);
+        assert_eq!((g[0].arriba.clone(), g[0].hechas.clone()), (vec![0], vec![1, 2]));
+        // Caso negativo: sin marcar nada, como `grupos_de_tareas`.
+        let otra = TareasQuietas::default();
+        assert_eq!(otra.grupos_el(std::slice::from_ref(&l), "", HOY), grupos_el(std::slice::from_ref(&l), "", HOY));
+    }
+
+    #[test]
+    fn lo_destachado_sigue_en_hechas_y_cuenta_como_pendiente() {
+        let q = TareasQuietas::default();
+        let l = sabado();
+        q.grupos_el(std::slice::from_ref(&l), "", HOY);
+        let mut destachada = l.clone();
+        destachada.tareas[2].hecha = false;
+        q.marcar("g/m1".into(), "llamar a mamá".into(), false);
+        let g = q.grupos_el(std::slice::from_ref(&destachada), "", HOY);
+        assert_eq!(g[0].hechas, [2], "se queda abajo");
+        assert_eq!(g[0].pendientes, 3);
+        // Buscar otra cosa es mirar de otra manera: se suelta.
+        let g = q.grupos_el(std::slice::from_ref(&destachada), "mama", HOY);
+        assert_eq!((g[0].arriba.clone(), g[0].hechas.clone()), (vec![2], vec![]));
     }
 
     #[test]
