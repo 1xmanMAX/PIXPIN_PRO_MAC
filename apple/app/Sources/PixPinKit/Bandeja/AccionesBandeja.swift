@@ -57,7 +57,7 @@ public enum AccionBandeja: Hashable, Sendable {
         case .comando(.pinearPortapapeles): return Lengua.t("bandeja2-fav-pinear-copiado")
         case .comando(.anotar): return Lengua.t("bandeja2-fav-anotar")
         case .comando(.pinearEnVivo): return Lengua.t("bandeja2-fav-pin-vivo")
-        case .comando(.abrirChat): return Lengua.t("bandeja2-abrir-pixpin")
+        case .comando(.abrirChat): return Lengua.t("bandeja2-abrir-pindesk")
         case let .comando(c): return c.titulo
         default: return Self.otras.first { $0.accion == self }?.titulo ?? ""
         }
