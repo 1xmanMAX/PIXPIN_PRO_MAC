@@ -520,6 +520,27 @@ pub(crate) fn con_guardar(botones: &[&'static str], si: bool) -> Vec<&'static st
     }
     v
 }
+
+/// **Los botones de la barra con «En línea / Sin conexión»** si lo abierto
+/// es de un chat de la nube: antes de luna/sol, junto a «Guardar».
+pub(crate) fn con_nube(botones: Vec<&'static str>, si: bool) -> Vec<&'static str> {
+    let mut v = botones;
+    if si {
+        let i = v.iter().position(|b| *b == "tema").unwrap_or(v.len());
+        v.insert(i, "nube");
+    }
+    v
+}
+
+/// **«En línea / Sin conexión»** de un documento de un chat de la nube
+/// (lo de dentro lo sabe la app, `en_linea`): un boton de la barra, la nube
+/// verde en linea y tachada en ambar sin conexion.
+pub struct EnLinea {
+    /// Si esta sin conexion ahora.
+    pub sin_conexion: Box<dyn Fn() -> bool>,
+    /// Pasar de en linea a sin conexion o al reves.
+    pub cambiar: Box<dyn Fn()>,
+}
 const BOTON: f64 = 40.0;
 
 /// Lo que mide la barra con `n` botones (el asa cuenta como uno).
@@ -666,12 +687,16 @@ pub(crate) fn barra_con_avisos(
                 CAPA_RAYAS * 10.0,
             );
         }
-        let (cx, cy) = ((x0 + x1) / 2.0, h / 2.0);
-        let r = 8.0 * e;
+        let aviso = avisos.get(i).copied().unwrap_or(false);
         let col = if activo {
             rgba(255, 255, 255)
-        } else if avisos.get(i).copied().unwrap_or(false) {
+        } else if aviso {
             rgba(0xFF, 0xB0, 0x20)
+        } else if botones[i] == "nube" {
+            // La nube en linea, en el verde del boton de los lectores.
+            rgba(0x5C, 0xC7, 0x80)
+        } else if botones[i] == "asa" {
+            tenue
         } else {
             tinta
         };
@@ -914,7 +939,15 @@ pub(crate) fn barra_con_avisos(
                     raya(&mut c, p(t, -ancho), p(t, -ancho + largo), 1.3 * e, col);
                 }
             }
-        } else if let Some(icono) = crate::iconos::de_boton(botones[i], claro, pantalla_completa) {
+        } else if let Some(icono) = crate::iconos::de_boton(
+            if botones[i] == "nube" && aviso {
+                "nube-sin"
+            } else {
+                botones[i]
+            },
+            claro,
+            pantalla_completa,
+        ) {
             // El icono de Material, de 20 px en el centro del boton, como en
             // la barra del lector.
             let lado = ICONO * e;
@@ -1104,6 +1137,8 @@ pub struct NombresDeBotones {
     pub cerrar: String,
     /// «Guardar» lo abierto de paso en un chat.
     pub guardar: String,
+    /// «En línea / Sin conexión» en un chat de la nube.
+    pub nube: String,
 }
 
 impl Default for NombresDeBotones {
@@ -1123,6 +1158,7 @@ impl Default for NombresDeBotones {
             fijar: "Siempre encima".into(),
             cerrar: "Cerrar".into(),
             guardar: "Guardar en un chat".into(),
+            nube: "En línea / Sin conexión".into(),
         }
     }
 }
@@ -1144,6 +1180,7 @@ impl NombresDeBotones {
             fijar: "Always on top".into(),
             cerrar: "Close".into(),
             guardar: "Save to a chat".into(),
+            nube: "Online / Offline".into(),
         }
     }
 
@@ -1165,6 +1202,7 @@ impl NombresDeBotones {
             "fijar" => &self.fijar,
             "cerrar" => &self.cerrar,
             "guardar" => &self.guardar,
+            "nube" => &self.nube,
             _ => return None,
         };
         Some(match tecla_de_boton(boton) {
@@ -1789,6 +1827,9 @@ pub struct Acciones {
     /// **«Guardar» en un chat** lo abierto de paso (la ventana del visor):
     /// con el, la barra lleva su boton.
     pub guardar: Option<Box<dyn Fn(isize)>>,
+    /// «En línea / Sin conexión» (un documento de un chat de la nube): con
+    /// el, la barra lleva su boton.
+    pub en_linea: Option<EnLinea>,
 }
 
 /// **El marcador de la vista de ahora** en el plano: el centro (absoluto) y
@@ -1925,7 +1966,10 @@ pub fn ver(
     let e = dpi as f64 / 96.0;
     let mut textos = Textos::nuevo();
     let cabecera = Cabecera::nueva(&mut textos, titulo, acciones.tipo.take(), e);
-    let botones = con_guardar(&BOTONES, acciones.guardar.is_some());
+    let botones = con_nube(
+        con_guardar(&BOTONES, acciones.guardar.is_some()),
+        acciones.en_linea.is_some(),
+    );
     let (bw, bh) = (
         ancho_barra(e, &botones, &cabecera).ceil() as i32,
         (ALTO_BARRA * e).ceil() as i32,
@@ -2117,6 +2161,7 @@ pub fn ver(
         let mut imprimir_entero = false;
         let mut exportar = false;
         let mut guardar = false;
+        let mut cambiar_nube = false;
         let mut ver_letras = false;
         // Poner un marcador aqui, ir a uno o quitarlo.
         let mut poner_marcador = false;
@@ -2316,6 +2361,7 @@ pub fn ver(
                     Some("tres") => ver_en_3d = true,
                     Some("letras") => ver_letras = true,
                     Some("guardar") => guardar = true,
+                    Some("nube") => cambiar_nube = true,
                     Some("pantalla") => cambiar_pantalla = true,
                     Some("fijar") => cambiar_encima = true,
                     Some("cerrar") => break 'bucle,
@@ -2587,6 +2633,10 @@ pub fn ver(
         if guardar && let Some(f) = &acciones.guardar {
             f(hwnd.0 as isize);
         }
+        if cambiar_nube && let Some(n) = &acciones.en_linea {
+            (n.cambiar)();
+            barra_sucia = true;
+        }
         if exportar && let (Some(f), Some((m, _))) = (&acciones.exportar, &plano) {
             let mut cotas = acotar.hechas.clone();
             if acotar.puntos.len() >= 2 {
@@ -2804,7 +2854,14 @@ pub fn ver(
                 .collect();
             let avisos: Vec<bool> = botones
                 .iter()
-                .map(|b| *b == "letras" && !faltan_letras.is_empty())
+                .map(|b| match *b {
+                    "letras" => !faltan_letras.is_empty(),
+                    "nube" => acciones
+                        .en_linea
+                        .as_ref()
+                        .is_some_and(|n| (n.sin_conexion)()),
+                    _ => false,
+                })
                 .collect();
             let aspecto = Aspecto {
                 encima: boton_encima,
@@ -3260,6 +3317,23 @@ mod pruebas_letras {
         let tres = con_guardar(&crate::ventana3d::BOTONES, true);
         assert_eq!(
             tres[tres.iter().position(|b| *b == "guardar").unwrap() + 1],
+            "tema"
+        );
+    }
+
+    #[test]
+    fn la_nube_va_antes_de_la_luna_solo_en_un_chat_de_la_nube() {
+        let con = con_nube(con_guardar(&BOTONES, true), true);
+        let i = con.iter().position(|b| *b == "nube").unwrap();
+        assert_eq!((con[i - 1], con[i + 1]), ("guardar", "tema"));
+        assert!(crate::iconos::de_boton("nube", false, false).is_some());
+        assert!(crate::iconos::de_boton("nube-sin", false, false).is_some());
+        assert!(NombresDeBotones::default().globo("nube").is_some());
+        // Caso negativo: fuera de la nube, la barra de siempre.
+        assert_eq!(con_nube(BOTONES.to_vec(), false), BOTONES.to_vec());
+        let tres = con_nube(crate::ventana3d::BOTONES.to_vec(), true);
+        assert_eq!(
+            tres[tres.iter().position(|b| *b == "nube").unwrap() + 1],
             "tema"
         );
     }
