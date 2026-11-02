@@ -117,6 +117,11 @@ public final class ModeloEditorLienzo: ObservableObject {
         estilo = editor.estilo()
         let papel = (try? leerLienzo(editor.planoDeVista(x: 0, y: 0, zoom: 1, anchoPx: 1, altoPx: 1)))?.fondo
         papelOscuro = papel.map { 0.299 * $0.r + 0.587 * $0.g + 0.114 * $0.b < 0.5 } ?? false
+        // El ultimo «trazo a mano» elegido, para lo proximo (Windows 08c54f26).
+        if let r = nucleo?.lienzoRugosidad() {
+            _ = editor.cambiarEstilo(cambio: .rugosidad(valor: Float(r)))
+            estilo = editor.estilo()
+        }
     }
 
     /// **Para quien usa esta barra con otros editores** (los lectores: un
@@ -183,6 +188,30 @@ public final class ModeloEditorLienzo: ObservableObject {
         alCambiarEstilo?(cambio)
         _ = editor.cambiarEstilo(cambio: cambio)
         estilo = editor.estilo()
+        vista?.trasCambio()
+        // El ultimo «trazo a mano» se recuerda (Windows 08c54f26).
+        if case let .rugosidad(valor) = cambio { nucleo?.recordarLienzoRugosidad(valor: valor) }
+    }
+
+    /// **Arrastrando un mando del estilo** (el cuadro del color, sus tiras):
+    /// todo el arrastre es un solo paso de deshacer (Windows 8b11e547).
+    func empezarArrastreDeEstilo() {
+        editor.empezarArrastreDeEstilo()
+    }
+
+    /// Un movimiento del arrastre: para lo proximo y para lo elegido.
+    func arrastrarEstilo(_ cambio: CambioDeEstilo) {
+        alCambiarEstilo?(cambio)
+        _ = editor.arrastrarEstilo(cambio: cambio)
+        estilo = editor.estilo()
+        vista?.trasCambio()
+    }
+
+    /// Al soltar: se cierra el paso.
+    func terminarArrastreDeEstilo() {
+        _ = editor.terminarArrastreDeEstilo()
+        estilo = editor.estilo()
+        puedeDeshacer = editor.puedeDeshacer()
         vista?.trasCambio()
     }
 

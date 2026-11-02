@@ -287,8 +287,8 @@ struct PanelEstiloLienzo: View {
                         .buttonStyle(.plain)
                         .help("Trazo: \(o.nombre)")
                     }
-                    otroColor(estilo.trazo, tema: tema, ayuda: "Otro color de trazo") {
-                        modelo.cambiarEstilo(.trazo(color: $0))
+                    otroColor(estilo.trazo, tema: tema, ayuda: Lengua.t("lienzo-panel-personalizado")) {
+                        .trazo(color: $0)
                     }
                 }
             }
@@ -302,8 +302,8 @@ struct PanelEstiloLienzo: View {
                         .buttonStyle(.plain)
                         .help("Fondo: \(o.nombre)")
                     }
-                    otroColor(estilo.fondo, tema: tema, ayuda: "Otro color de fondo") {
-                        modelo.cambiarEstilo(.fondo(color: $0))
+                    otroColor(estilo.fondo, tema: tema, ayuda: Lengua.t("lienzo-panel-personalizado")) {
+                        .fondo(color: $0)
                     }
                 }
             }
@@ -384,18 +384,219 @@ struct PanelEstiloLienzo: View {
         }
     }
 
-    /// La muestra del color de ahora tras una raya: abre el selector.
+    /// La muestra del color de ahora tras una raya: abre el color avanzado
+    /// (Windows f7599df9) en su globo.
     private func otroColor(_ actual: ColorEstilo?, tema: TemaBarraLienzo, ayuda: String,
-                           _ alCambiar: @escaping (ColorEstilo) -> Void) -> some View {
+                           mando: @escaping (ColorEstilo) -> CambioDeEstilo) -> some View {
+        OtroColorLienzo(modelo: modelo, actual: actual, tema: tema, ayuda: ayuda, mando: mando)
+    }
+}
+
+/// **El color avanzado** del panel del lienzo (Windows 6fd2732a, f7599df9,
+/// 19f0c8c9): el cuadro de saturacion y brillo, la tira de tonos, la
+/// opacidad, el codigo (#RGB, #RRGGBB o #RRGGBBAA), el cuentagotas y los
+/// colores recientes. Las cuentas son las del nucleo (`selector_color.rs`);
+/// cada arrastre es un solo paso de deshacer
+/// (`empezar/arrastrar/terminarArrastreDeEstilo`).
+struct SelectorColorAvanzado: View {
+    @ObservedObject var modelo: ModeloEditorLienzo
+    let actual: ColorEstilo?
+    let tema: TemaBarraLienzo
+    /// El mando que cambia: el trazo o el fondo.
+    let mando: (ColorEstilo) -> CambioDeEstilo
+
+    @State private var hsv = ColorHsv(h: 0, s: 0, v: 0)
+    @State private var codigo = ""
+    @State private var recientes: [ColorEstilo] = []
+    @State private var arrastrando = false
+
+    private let ancho: CGFloat = 188
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            cuadro
+            tira(alto: 12) {
+                LinearGradient(colors: stride(from: 0.0, through: 1.0, by: 1.0 / 6).map {
+                    Color(hue: $0, saturation: 1, brightness: 1)
+                }, startPoint: .leading, endPoint: .trailing)
+            } marca: { CGFloat(hsv.h) / 360 } mover: { x in
+                hsv = ColorHsv(h: tonoDeLaTira(x: x), s: hsv.s, v: hsv.v)
+                aplicar(colorDeHsv(valor: hsv))
+            }
+            tira(alto: 12) {
+                ZStack {
+                    DameroColor()
+                    LinearGradient(colors: [OpcionesEstiloLienzo.color(colorDeHsv(valor: hsv)).opacity(0),
+                                            OpcionesEstiloLienzo.color(colorDeHsv(valor: hsv))],
+                                   startPoint: .leading, endPoint: .trailing)
+                }
+            } marca: { CGFloat(modelo.estilo.opacidad) } mover: { x in
+                modelo.arrastrarEstilo(.opacidad(valor: opacidadEnPasos(x: x)))
+            }
+            HStack(spacing: 6) {
+                TextField("#RRGGBB", text: $codigo)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+                    .frame(width: 112)
+                    .onSubmit(aplicarCodigo)
+                Button(action: cuentagotas) {
+                    Image(systemName: "eyedropper").foregroundStyle(tema.icono)
+                }
+                .buttonStyle(.plain)
+                .help(Lengua.t("comando-cuentagotas"))
+                Spacer(minLength: 0)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(OpcionesEstiloLienzo.color(colorDeHsv(valor: hsv)))
+                    .frame(width: 22, height: 22)
+                    .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.primary.opacity(0.2)))
+            }
+            if !recientes.isEmpty {
+                Text(Lengua.t("lienzo-panel-recientes"))
+                    .font(.system(size: 11)).foregroundStyle(tema.icono.opacity(0.75))
+                HStack(spacing: 3) {
+                    ForEach(Array(recientes.enumerated()), id: \.offset) { _, c in
+                        Button { elegir(c) } label: {
+                            Muestra(color: c, elegida: OpcionesEstiloLienzo.igual(actual, c), tema: tema)
+                        }
+                        .buttonStyle(.plain)
+                        .help(escribirCodigoDeColor(color: c, opacidad: 1))
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .frame(width: ancho + 20)
+        .onAppear {
+            hsv = hsvDeColor(color: actual, tonoRecordado: nil)
+            codigo = actual.map { escribirCodigoDeColor(color: $0, opacidad: 1) } ?? ""
+            recientes = modelo.nucleo?.lienzoColoresRecientes() ?? []
+        }
+    }
+
+    /// El cuadro: de izquierda a derecha la saturacion, de arriba abajo el
+    /// brillo, del tono de la tira.
+    private var cuadro: some View {
+        let alto = ancho * 0.66
+        return ZStack {
+            Color(hue: Double(hsv.h) / 360, saturation: 1, brightness: 1)
+            LinearGradient(colors: [.white, .white.opacity(0)], startPoint: .leading, endPoint: .trailing)
+            LinearGradient(colors: [.black.opacity(0), .black], startPoint: .top, endPoint: .bottom)
+            Circle()
+                .strokeBorder(marcaClaraSobre(fondo: colorDeHsv(valor: hsv)) ? Color.white : Color.black,
+                              lineWidth: 2)
+                .frame(width: 12, height: 12)
+                .position(x: CGFloat(hsv.s) * ancho, y: (1 - CGFloat(hsv.v)) * alto)
+        }
+        .frame(width: ancho, height: alto)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                empezar()
+                let x = Float(min(max(g.location.x / ancho, 0), 1))
+                let y = Float(min(max(g.location.y / alto, 0), 1))
+                hsv = hsvDelCuadro(h: hsv.h, x: x, y: y)
+                aplicar(colorDeHsv(valor: hsv))
+            }
+            .onEnded { _ in terminar() })
+    }
+
+    /// Una tira con su marca, que se arrastra.
+    private func tira(alto: CGFloat, @ViewBuilder fondo: () -> some View,
+                      marca: @escaping () -> CGFloat, mover: @escaping (Float) -> Void) -> some View {
+        ZStack(alignment: .leading) {
+            fondo()
+            RoundedRectangle(cornerRadius: 2)
+                .strokeBorder(Color.white, lineWidth: 2)
+                .shadow(radius: 1)
+                .frame(width: 6, height: alto + 4)
+                .offset(x: min(max(marca(), 0), 1) * (ancho - 6))
+        }
+        .frame(width: ancho, height: alto)
+        .clipShape(RoundedRectangle(cornerRadius: alto / 2))
+        .contentShape(Rectangle())
+        .gesture(DragGesture(minimumDistance: 0)
+            .onChanged { g in
+                empezar()
+                mover(Float(min(max(g.location.x / ancho, 0), 1)))
+            }
+            .onEnded { _ in terminar() })
+    }
+
+    private func empezar() {
+        guard !arrastrando else { return }
+        arrastrando = true
+        modelo.empezarArrastreDeEstilo()
+    }
+
+    private func terminar() {
+        guard arrastrando else { return }
+        arrastrando = false
+        modelo.terminarArrastreDeEstilo()
+        apuntar(colorDeHsv(valor: hsv))
+    }
+
+    private func aplicar(_ c: ColorEstilo) {
+        codigo = escribirCodigoDeColor(color: c, opacidad: 1)
+        modelo.arrastrarEstilo(mando(c))
+    }
+
+    /// Un color de una vez (un reciente, el codigo, el cuentagotas): su paso.
+    private func elegir(_ c: ColorEstilo) {
+        hsv = hsvDeColor(color: c, tonoRecordado: hsv.h)
+        codigo = escribirCodigoDeColor(color: c, opacidad: 1)
+        modelo.cambiarEstilo(mando(c))
+        apuntar(c)
+    }
+
+    private func apuntar(_ c: ColorEstilo) {
+        if let r = modelo.nucleo?.apuntarColorReciente(color: c) { recientes = r }
+    }
+
+    private func aplicarCodigo() {
+        guard let leido = leerCodigoDeColor(escrito: codigo) else {
+            codigo = limpiarCodigoDeColor(escrito: codigo)
+            return
+        }
+        elegir(leido.color)
+        if let o = leido.opacidad { modelo.cambiarEstilo(.opacidad(valor: o)) }
+    }
+
+    private func cuentagotas() {
+        NSColorSampler().show { elegido in
+            guard let c = elegido?.usingColorSpace(.sRGB) else { return }
+            let color = ColorEstilo(r: Float(c.redComponent), g: Float(c.greenComponent),
+                                    b: Float(c.blueComponent), a: 1)
+            MainActor.assumeIsolated { elegir(color) }
+        }
+    }
+}
+
+/// El damero de lo transparente bajo la tira de la opacidad.
+private struct DameroColor: View {
+    var body: some View { Damero() }
+}
+
+/// La muestra del color de ahora que abre el color avanzado.
+private struct OtroColorLienzo: View {
+    @ObservedObject var modelo: ModeloEditorLienzo
+    let actual: ColorEstilo?
+    let tema: TemaBarraLienzo
+    let ayuda: String
+    let mando: (ColorEstilo) -> CambioDeEstilo
+    @State private var abierto = false
+
+    var body: some View {
         HStack(spacing: 4) {
             Rectangle().fill(tema.separador).frame(width: 1, height: 20)
-            Button {
-                SelectorColorLienzo.compartido.abrir(actual, alCambiar: alCambiar)
-            } label: {
-                Muestra(color: actual, elegida: false, tema: tema)
+            Button { abierto.toggle() } label: {
+                Muestra(color: actual, elegida: abierto, tema: tema)
             }
             .buttonStyle(.plain)
             .help(ayuda)
+            .popover(isPresented: $abierto, arrowEdge: .trailing) {
+                SelectorColorAvanzado(modelo: modelo, actual: actual, tema: tema, mando: mando)
+            }
         }
     }
 }
