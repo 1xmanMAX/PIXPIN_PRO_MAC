@@ -412,7 +412,7 @@ pub fn textos_de_jev(locale: String) -> TextosJev {
         importante_pregunta: t.t("clase-importante-pregunta"),
         importante_examen: t.t("clase-importante-examen"),
         importante_buscando: t.t("clase-importante-buscando"),
-        importante_nada: t.t("clase-importante-nada"),
+        importante_nada: crate::textos::texto(&t, "clase-importante-nada"),
         prioridad_urgente: t.t("tareas-prioridad-urgente"),
         prioridad_alta: t.t("tareas-prioridad-alta"),
         prioridad_baja: t.t("tareas-prioridad-baja"),

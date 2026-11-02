@@ -66,6 +66,61 @@ fn argumentos(a: &HashMap<String, String>) -> FluentArgs<'static> {
     args
 }
 
+/// **Los textos que usa solo el Mac** y que Windows quito de su catalogo
+/// (`i18n-mac/<etiqueta>.ftl`): se leen solo si la clave falta en
+/// `pindesk-store`, en el idioma elegido o, si no, en ingles o espanol.
+fn del_mac(idioma: Idioma, clave: &str, args: Option<&FluentArgs>) -> Option<String> {
+    use fluent_bundle::{FluentResource, concurrent::FluentBundle};
+    use std::sync::OnceLock;
+    static MAC: OnceLock<Vec<(Idioma, FluentBundle<FluentResource>)>> = OnceLock::new();
+    let todos = MAC.get_or_init(|| {
+        Idioma::TODOS
+            .into_iter()
+            .filter_map(|i| {
+                let texto = match i.etiqueta() {
+                    "es-ES" => include_str!("../i18n-mac/es-ES.ftl"),
+                    "en-US" => include_str!("../i18n-mac/en-US.ftl"),
+                    "zh-CN" => include_str!("../i18n-mac/zh-CN.ftl"),
+                    "hi-IN" => include_str!("../i18n-mac/hi-IN.ftl"),
+                    "ar-SA" => include_str!("../i18n-mac/ar-SA.ftl"),
+                    "pt-BR" => include_str!("../i18n-mac/pt-BR.ftl"),
+                    "fr-FR" => include_str!("../i18n-mac/fr-FR.ftl"),
+                    "de-DE" => include_str!("../i18n-mac/de-DE.ftl"),
+                    "ja-JP" => include_str!("../i18n-mac/ja-JP.ftl"),
+                    "ru-RU" => include_str!("../i18n-mac/ru-RU.ftl"),
+                    "ko-KR" => include_str!("../i18n-mac/ko-KR.ftl"),
+                    "it-IT" => include_str!("../i18n-mac/it-IT.ftl"),
+                    "id-ID" => include_str!("../i18n-mac/id-ID.ftl"),
+                    "tr-TR" => include_str!("../i18n-mac/tr-TR.ftl"),
+                    _ => return None,
+                };
+                let recurso = FluentResource::try_new(texto.to_string()).unwrap_or_else(|(r, _)| r);
+                let lang = i.etiqueta().parse().ok()?;
+                let mut b = FluentBundle::new_concurrent(vec![lang]);
+                b.set_use_isolating(false);
+                b.add_resource_overriding(recurso);
+                Some((i, b))
+            })
+            .collect()
+    });
+    [idioma, Idioma::Ingles, Idioma::Espanol].into_iter().find_map(|i| {
+        let (_, b) = todos.iter().find(|(j, _)| *j == i)?;
+        let patron = b.get_message(clave)?.value()?;
+        let mut errores = Vec::new();
+        Some(b.format_pattern(patron, args, &mut errores).into_owned())
+    })
+}
+
+/// El texto de `clave` en `c`, o el del Mac si `pindesk-store` ya no la
+/// tiene ([`del_mac`]).
+pub(crate) fn texto(c: &Catalogo, clave: &str) -> String {
+    let t = c.t(clave);
+    if t != clave {
+        return t;
+    }
+    del_mac(c.idioma(), clave, None).unwrap_or(t)
+}
+
 /// El texto de «el del sistema» en el Mac: el catalogo dice «El de
 /// Windows» en cada lengua; aqui es macOS.
 fn nombre_del_sistema(c: &Catalogo) -> String {
@@ -84,17 +139,22 @@ impl CatalogoDeTextos {
 
     /// El texto de `clave` (la propia clave si no esta en ningun catalogo).
     pub fn t(&self, clave: String) -> String {
-        self.catalogo.t(&clave)
+        texto(&self.catalogo, &clave)
     }
 
     /// El texto de `clave` con sus `{ $argumentos }`.
     pub fn con_argumentos(&self, clave: String, argumentos: HashMap<String, String>) -> String {
-        self.catalogo.t_args(&clave, &self::argumentos(&argumentos))
+        let args = self::argumentos(&argumentos);
+        let t = self.catalogo.t_args(&clave, &args);
+        if t != clave {
+            return t;
+        }
+        del_mac(self.idioma, &clave, Some(&args)).unwrap_or(t)
     }
 
     /// Si `clave` esta en algun catalogo (el elegido, ingles o espanol).
     pub fn tiene(&self, clave: String) -> bool {
-        self.catalogo.t(&clave) != clave
+        texto(&self.catalogo, &clave) != clave
     }
 
     /// La etiqueta BCP 47 del idioma (`es-ES`, `ar-SA`…): el `Locale` de
@@ -166,6 +226,9 @@ mod pruebas {
         assert_eq!(c.preferencia(), "ja");
         assert!(!c.sigue_al_sistema());
         assert_eq!(c.t("ajustes-idioma".into()), Catalogo::nuevo(Idioma::Japones).t("ajustes-idioma"));
+        // Lo que Windows quito y el Mac usa sale del catalogo del Mac.
+        assert_ne!(c.t("carpeta-renombrar".into()), "carpeta-renombrar");
+        assert!(c.tiene("info-ver-en-el-chat".into()));
     }
 
     #[test]
