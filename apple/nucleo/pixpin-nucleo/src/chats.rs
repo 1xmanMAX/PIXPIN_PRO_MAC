@@ -140,6 +140,11 @@ pub struct MensajeChat {
     /// Donde va «Hacer lección» (`None`: no se ofrece).
     #[uniffi(default = None)]
     pub menu_leccion: Option<crate::opciones_del_mensaje::SitioEnElMenu>,
+    /// La asignatura de la que es (`"asignatura"` en `resto`, Windows
+    /// d81934f8): la chapa «📘 Geometría» y el filtro del chat
+    /// «Asignaturas». `None`: de ninguna.
+    #[uniffi(default = None)]
+    pub asignatura: Option<String>,
 }
 
 /// Una pagina de mensajes, del mas antiguo al mas nuevo.
@@ -198,7 +203,9 @@ impl From<Mensaje> for MensajeChat {
         let es_leccion = crate::lecciones::es_leccion(&m);
         let (viene_de, viene_de_dibujo) = crate::burbujas::viene_de(&m).unzip();
         let tipo = crate::opciones_del_mensaje::tipo_de(&m);
+        let asignatura = pindesk_proyecto::asignatura::de(&m).map(str::to_string);
         MensajeChat {
+            asignatura,
             tipo: Some(tipo),
             menu_recordar: crate::opciones_del_mensaje::recordar(tipo, false),
             menu_leccion: if es_leccion {

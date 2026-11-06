@@ -65,20 +65,41 @@ fn ficha(raiz: &Path) -> Option<almacen::Ficha> {
         .cloned()
 }
 
-/// El chat «Asignaturas», creandolo (o adoptando uno con ese nombre).
+/// **Su foto al nacer o al adoptarlo** (Windows d81934f8): el libro azul
+/// 📘, para reconocerlo en la lista. Solo si aun no tiene una: la que elija
+/// el usuario manda (tambien «volver a lo de siempre»).
+fn poner_su_foto(f: &mut almacen::Ficha) {
+    use pindesk_proyecto::{asignatura, avatar};
+    if avatar::valor_de(f).is_none() {
+        let a = avatar::Avatar::emoji(asignatura::EMOJI, Some(asignatura::FONDO), crate::ahora_ms());
+        f.resto.insert(avatar::CLAVE.into(), a.a_valor());
+    }
+}
+
+/// El chat «Asignaturas», creandolo (o adoptando uno con ese nombre), con
+/// su marca y su foto.
 fn asegurar_ficha(raiz: &Path, aparato: &str) -> Result<almacen::Ficha, ErrorNucleo> {
     let mut indice = almacen::Indice::leer_si_esta(raiz)?;
-    if let Some(f) = indice.proyectos.iter().find(|f| tiene_marca(f)) {
+    if let Some(f) = indice.proyectos.iter_mut().find(|f| tiene_marca(f)) {
+        // Uno de antes del 6-nov, sin foto: el libro, una vez.
+        if pindesk_proyecto::avatar::valor_de(f).is_none() {
+            poner_su_foto(f);
+            let f = f.clone();
+            indice.guardar(raiz)?;
+            return Ok(f);
+        }
         return Ok(f.clone());
     }
     let f = match indice.proyectos.iter_mut().find(|f| f.nombre == NOMBRE_CHAT) {
         Some(f) => {
             f.resto.insert(MARCA.into(), serde_json::Value::Bool(true));
+            poner_su_foto(f);
             f.clone()
         }
         None => {
             let mut f = almacen::Ficha::nueva(NOMBRE_CHAT, crate::ahora_ms(), aparato);
             f.resto.insert(MARCA.into(), serde_json::Value::Bool(true));
+            poner_su_foto(&mut f);
             indice.proyectos.push(f.clone());
             f
         }
@@ -349,12 +370,21 @@ impl Nucleo {
             return Ok(false);
         }
         let solo_en_clases = &todas[h.asignaturas.len()..];
+        // Con una asignatura, el chat esta siempre (Windows d81934f8): es
+        // donde va todo lo suyo, aunque sus listas ya existieran.
+        let mut cambio = false;
+        if ficha(self.ruta())
+            .is_none_or(|f| !tiene_marca(&f) || pindesk_proyecto::avatar::valor_de(&f).is_none())
+        {
+            let aparato = self.identidad()?.yo.codigo();
+            asegurar_ficha(self.ruta(), &aparato)?;
+            cambio = true;
+        }
         let ls = match ficha(self.ruta()) {
             Some(f) => self.listas_de_asignaturas(&f)?,
             None => Vec::new(),
         };
         let pasos = plan(&h.asignaturas, solo_en_clases, &ls);
-        let mut cambio = false;
         let mut enlaces: Vec<(String, String)> = Vec::new();
         for p in &pasos {
             match p {
@@ -367,6 +397,8 @@ impl Nucleo {
                 Paso::Renombrar(mensaje, nombre) => {
                     if let Some(l) = ls.iter().find(|l| &l.mensaje == mensaje) {
                         cambio |= self.renombrar_lista_de_tareas(&l.chat, &l.mensaje, nombre)?;
+                        // Lo que era de la asignatura renombrada, tambien.
+                        cambio |= self.reetiquetar(&l.chat, &l.titulo, nombre)? > 0;
                     }
                 }
             }
@@ -384,6 +416,257 @@ impl Nucleo {
             cambio = true;
         }
         Ok(cambio)
+    }
+}
+
+// ------------------------------------------------- un chat para todas
+
+/// Un chip de la fila de arriba del chat «Asignaturas»: la asignatura y su
+/// color (`None`: ya no esta en el horario, sale en gris).
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct ChipAsignatura {
+    pub nombre: String,
+    pub color: Option<u32>,
+}
+
+/// El dia de la semana (0 lunes) y el minuto del dia de `ms` locales.
+fn dia_y_minuto(ms_locales: i64) -> (u8, u32) {
+    let dia = ms_locales.div_euclid(86_400_000);
+    // El 1-ene-1970 fue jueves (3 contando desde el lunes).
+    (((dia + 3).rem_euclid(7)) as u8, (ms_locales.rem_euclid(86_400_000) / 60_000) as u32)
+}
+
+impl Nucleo {
+    fn horario_de_ahora(&self, desfase_ms: i64) -> Option<Horario> {
+        let texto = std::fs::read_to_string(super::ruta(self.ruta())).ok()?;
+        Some(super::leer(&texto, Momento::de_ms_locales(crate::ahora_ms() + desfase_ms)))
+    }
+
+    /// Las asignaturas del horario con su color, en su orden.
+    fn con_su_color(&self, desfase_ms: i64) -> Vec<(String, u32)> {
+        self.horario_de_ahora(desfase_ms)
+            .map(|h| {
+                h.todas_las_asignaturas()
+                    .into_iter()
+                    .map(|a| {
+                        let c = a.color.unwrap_or_else(|| super::semana::color_por_nombre(&a.nombre));
+                        (a.nombre, c)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    fn mensajes_de(&self, chat: &str) -> Vec<cuaderno::Mensaje> {
+        cuaderno::Cuaderno::leer_de(&almacen::carpeta(self.ruta(), chat))
+            .map(|c| c.mensajes)
+            .unwrap_or_default()
+    }
+
+    fn olvidar_lo_leido(&self, chat: &str) {
+        let fichero = almacen::carpeta(self.ruta(), chat).join("guardados.jsonl");
+        self.cache_tomada().quitar(&fichero);
+    }
+
+    /// **La etiqueta de lo de una asignatura renombrada**: lo que llevaba
+    /// `viejo` en el chat pasa a llevar `nuevo` (Windows `reetiquetar`).
+    fn reetiquetar(&self, chat: &str, viejo: &str, nuevo: &str) -> Result<usize, ErrorNucleo> {
+        let carpeta = almacen::carpeta(self.ruta(), chat);
+        let mut mensajes = self.mensajes_de(chat);
+        let cambiados = pindesk_proyecto::asignatura::renombrar(&mut mensajes, viejo, nuevo);
+        for &i in &cambiados {
+            cuaderno::reemplazar(&carpeta, &mensajes[i])?;
+        }
+        if !cambiados.is_empty() {
+            self.olvidar_lo_leido(chat);
+        }
+        Ok(cambiados.len())
+    }
+}
+
+#[uniffi::export]
+impl Nucleo {
+    /// **El chat «Asignaturas»** (el de la marca), si ya esta.
+    pub fn chat_de_asignaturas(&self) -> Option<String> {
+        ficha(self.ruta()).filter(tiene_marca).map(|f| f.id)
+    }
+
+    /// **Los chips de su fila**: las del horario con su color y, detras, las
+    /// que solo nombran sus mensajes (en gris).
+    pub fn chips_de_asignaturas(&self, desfase_ms: i64) -> Vec<ChipAsignatura> {
+        use pindesk_proyecto::asignatura;
+        let del_horario = asignatura::del_horario(&self.con_su_color(desfase_ms));
+        let mensajes = self
+            .chat_de_asignaturas()
+            .map(|c| self.mensajes_de(&c))
+            .unwrap_or_default();
+        asignatura::chips(&del_horario, &mensajes)
+            .into_iter()
+            .map(|c| ChipAsignatura { nombre: c.nombre, color: c.color })
+            .collect()
+    }
+
+    /// **Las asignaturas que ofrece el menu de un mensaje** («Asignatura…» en
+    /// su chat, «Enviar a asignatura…» en los demas): sus chips o las del
+    /// horario, y la que ya lleve, sin la puesta.
+    pub fn asignaturas_para_el_menu(&self, chat: String, mensaje: String, desfase_ms: i64) -> Vec<String> {
+        use pindesk_proyecto::asignatura;
+        let mensajes = self.mensajes_de(&chat);
+        let m = mensajes.iter().find(|m| m.id == mensaje);
+        let puesta = m.and_then(asignatura::de);
+        let mut cs = if self.chat_de_asignaturas().as_deref() == Some(chat.as_str()) {
+            self.chips_de_asignaturas(desfase_ms)
+                .into_iter()
+                .map(|c| asignatura::Chip { nombre: c.nombre, color: c.color })
+                .collect()
+        } else {
+            asignatura::del_horario(&self.con_su_color(desfase_ms))
+        };
+        if let Some(n) = puesta
+            && !cs.iter().any(|c| asignatura::mismo(&c.nombre, n))
+        {
+            cs.push(asignatura::Chip { nombre: n.to_string(), color: None });
+        }
+        asignatura::para_enviar(&cs, puesta)
+    }
+
+    /// **La asignatura de la clase de ahora** (en marcha, o que empieza en
+    /// diez minutos): de quien es lo que se graba ahora.
+    pub fn asignatura_en_clase(&self, desfase_ms: i64) -> Option<String> {
+        use pindesk_proyecto::asignatura;
+        let h = self.horario_de_ahora(desfase_ms)?;
+        let (dia, minuto) = dia_y_minuto(crate::ahora_ms() + desfase_ms);
+        let tramos: Vec<asignatura::Tramo> = h
+            .clases
+            .iter()
+            .map(|c| asignatura::Tramo { dias: &c.dias, inicio: c.inicio, fin: c.fin, nombre: &c.nombre })
+            .collect();
+        let n = asignatura::en_clase(&tramos, dia, minuto)?;
+        Some(
+            h.todas_las_asignaturas()
+                .into_iter()
+                .find(|a| asignatura::mismo(&a.nombre, n))
+                .map_or_else(|| n.to_string(), |a| a.nombre),
+        )
+    }
+
+    /// **Pone (o quita, con `""`) la asignatura** de unos mensajes de `chat`,
+    /// con lo que lleven dentro (una carpeta, sus paginas). Devuelve cuantos
+    /// cambiaron.
+    pub fn poner_asignatura(&self, chat: String, mensajes: Vec<String>, nombre: String) -> Result<u32, ErrorNucleo> {
+        use pindesk_proyecto::asignatura;
+        let carpeta = almacen::carpeta(self.ruta(), &chat);
+        let mut todos = self.mensajes_de(&chat);
+        let elegidos: Vec<usize> = todos
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| mensajes.contains(&m.id))
+            .map(|(i, _)| i)
+            .collect();
+        let mut n = 0;
+        for i in asignatura::paquete(&todos, &elegidos) {
+            let m = &mut todos[i];
+            if asignatura::poner(m, &nombre) && cuaderno::reemplazar(&carpeta, m)? {
+                n += 1;
+            }
+        }
+        if n > 0 {
+            self.olvidar_lo_leido(&chat);
+        }
+        Ok(n)
+    }
+
+    /// **Le pone su asignatura a lo nuevo** del chat «Asignaturas» con un chip
+    /// elegido: lo de este Mac puesto desde `desde_ms`, entrara por donde
+    /// entrara. Devuelve cuantos.
+    pub fn etiquetar_lo_nuevo(&self, chat: String, nombre: String, desde_ms: i64) -> Result<u32, ErrorNucleo> {
+        use pindesk_proyecto::asignatura;
+        if nombre.trim().is_empty() || self.chat_de_asignaturas().as_deref() != Some(chat.as_str()) {
+            return Ok(0);
+        }
+        let aparato = self.identidad()?.yo.codigo();
+        let carpeta = almacen::carpeta(self.ruta(), &chat);
+        let mut todos = self.mensajes_de(&chat);
+        let mut n = 0;
+        for i in asignatura::por_etiquetar(&todos, &aparato, desde_ms) {
+            let m = &mut todos[i];
+            asignatura::poner(m, &nombre);
+            // Una hoja que solo esta en `proyecto.json` no tiene linea: nada.
+            if cuaderno::reemplazar(&carpeta, m).unwrap_or(false) {
+                n += 1;
+            }
+        }
+        if n > 0 {
+            self.olvidar_lo_leido(&chat);
+        }
+        Ok(n)
+    }
+
+    /// **«Enviar a asignatura…»** (Windows d81934f8): copia unos mensajes de
+    /// `chat` al chat «Asignaturas» con su asignatura. Una carpeta va con lo
+    /// suyo y sus enlaces se rehacen con los `id` de las copias; mandarlo
+    /// otra vez no lo duplica (por su `origen`), solo le cambia la
+    /// asignatura si iba a otra. Devuelve cuantos se copiaron o cambiaron.
+    pub fn enviar_a_asignatura(&self, chat: String, mensajes: Vec<String>, nombre: String) -> Result<u32, ErrorNucleo> {
+        use pindesk_proyecto::asignatura;
+        if nombre.trim().is_empty() {
+            return Ok(0);
+        }
+        let aparato = self.identidad()?.yo.codigo();
+        let destino = asegurar_ficha(self.ruta(), &aparato)?.id;
+        if destino == chat {
+            return self.poner_asignatura(chat, mensajes, nombre);
+        }
+        let origen = self.mensajes_de(&chat);
+        let elegidos: Vec<usize> = origen
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| mensajes.contains(&m.id))
+            .map(|(i, _)| i)
+            .collect();
+        let todo = asignatura::paquete(&origen, &elegidos);
+        let carpeta = almacen::carpeta(self.ruta(), &destino);
+        let alli = self.mensajes_de(&destino);
+        let mut n = 0u32;
+        let mut por_copiar = Vec::new();
+        for &i in &todo {
+            let m = &origen[i];
+            match asignatura::ya_esta(&alli, m) {
+                Some(x) => {
+                    if asignatura::de(x).is_none_or(|a| !asignatura::mismo(a, &nombre)) {
+                        let mut c = x.clone();
+                        asignatura::poner(&mut c, &nombre);
+                        cuaderno::reemplazar(&carpeta, &c)?;
+                        n += 1;
+                    }
+                }
+                None => por_copiar.push(m.id.clone()),
+            }
+        }
+        if !por_copiar.is_empty() {
+            n += self.reenviar_mensajes(chat.clone(), por_copiar.clone(), destino.clone())?;
+            // Las copias: su asignatura y los enlaces de dentro con los ids
+            // nuevos (la nota de una clase a sus capturas, la carpeta a sus
+            // paginas).
+            let alli = self.mensajes_de(&destino);
+            let mut mapa = std::collections::HashMap::new();
+            let mut copias = Vec::new();
+            for id in &por_copiar {
+                let Some(m) = origen.iter().find(|m| &m.id == id) else { continue };
+                let o = asignatura::origen_de(m);
+                if let Some(c) = alli.iter().rev().find(|x| x.origen.as_deref() == Some(o.as_str())) {
+                    mapa.insert(m.id.clone(), c.id.clone());
+                    copias.push(c.clone());
+                }
+            }
+            for mut c in copias {
+                asignatura::poner(&mut c, &nombre);
+                asignatura::remapear(&mut c, &mapa);
+                cuaderno::reemplazar(&carpeta, &c)?;
+            }
+        }
+        self.olvidar_lo_leido(&destino);
+        Ok(n)
     }
 }
 
@@ -564,5 +847,45 @@ mod pruebas {
         let todas = n.tareas(0).unwrap();
         assert!(todas.iter().all(|l| l.asignatura.is_none()));
         let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn el_chat_de_las_asignaturas_nace_con_su_libro_y_lo_suyo_se_etiqueta() {
+        let (n, d) = raiz("asig-chat");
+        std::fs::write(super::super::ruta(&d), "Asignatura Geometría #4F8EF7\n").unwrap();
+        assert!(n.enlazar_asignaturas(0).unwrap());
+        let chat = n.chat_de_asignaturas().expect("el chat esta");
+        let f = ficha(&d).unwrap();
+        assert!(pindesk_proyecto::avatar::valor_de(&f).is_some(), "con su 📘");
+        let chips = n.chips_de_asignaturas(0);
+        assert_eq!(chips, vec![ChipAsignatura { nombre: "Geometría".into(), color: Some(0x4F8EF7) }]);
+        // Una nota de otro chat, enviada a la asignatura dos veces: una copia.
+        let otro = n.crear_chat("Otro".into()).unwrap().id;
+        let m = n.escribir_nota(otro.clone(), "Teorema de Pitágoras".into(), None).unwrap();
+        assert_eq!(n.enviar_a_asignatura(otro.clone(), vec![m.id.clone()], "Geometría".into()).unwrap(), 1);
+        assert_eq!(n.enviar_a_asignatura(otro.clone(), vec![m.id.clone()], "geometria".into()).unwrap(), 0);
+        let alli = n.mensajes_de(&chat);
+        let copias: Vec<_> = alli.iter().filter(|x| x.texto == "Teorema de Pitágoras").collect();
+        assert_eq!(copias.len(), 1);
+        assert_eq!(pindesk_proyecto::asignatura::de(copias[0]), Some("Geometría"));
+        // El original se queda donde estaba y sin etiqueta.
+        assert!(n.mensajes_de(&otro).iter().all(|x| pindesk_proyecto::asignatura::de(x).is_none()));
+        // Renombrar la asignatura renombra la etiqueta.
+        std::fs::write(
+            super::super::ruta(&d),
+            std::fs::read_to_string(super::super::ruta(&d)).unwrap().replace("Geometría", "Geometría plana"),
+        )
+        .unwrap();
+        n.enlazar_asignaturas(0).unwrap();
+        let alli = n.mensajes_de(&chat);
+        let c = alli.iter().find(|x| x.texto == "Teorema de Pitágoras").unwrap();
+        assert_eq!(pindesk_proyecto::asignatura::de(c), Some("Geometría plana"));
+    }
+
+    #[test]
+    fn el_dia_de_la_semana_empieza_en_lunes() {
+        // 1-ene-1970, jueves a las 00:00; 5-ene-1970, lunes a las 10:30.
+        assert_eq!(dia_y_minuto(0), (3, 0));
+        assert_eq!(dia_y_minuto(4 * 86_400_000 + (10 * 60 + 30) * 60_000), (0, 630));
     }
 }

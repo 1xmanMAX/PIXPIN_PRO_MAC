@@ -9658,6 +9658,30 @@ public protocol NucleoProtocol: AnyObject, Sendable {
     func asegurarListaDeAsignatura(asignatura: String, desfaseMs: Int64) throws  -> ListaTareas
     
     /**
+     * **La asignatura de la clase de ahora** (en marcha, o que empieza en
+     * diez minutos): de quien es lo que se graba ahora.
+     */
+    func asignaturaEnClase(desfaseMs: Int64)  -> String?
+    
+    /**
+     * **Las asignaturas que ofrece el menu de un mensaje** («Asignatura…» en
+     * su chat, «Enviar a asignatura…» en los demas): sus chips o las del
+     * horario, y la que ya lleve, sin la puesta.
+     */
+    func asignaturasParaElMenu(chat: String, mensaje: String, desfaseMs: Int64)  -> [String]
+    
+    /**
+     * **El chat «Asignaturas»** (el de la marca), si ya esta.
+     */
+    func chatDeAsignaturas()  -> String?
+    
+    /**
+     * **Los chips de su fila**: las del horario con su color y, detras, las
+     * que solo nombran sus mensajes (en gris).
+     */
+    func chipsDeAsignaturas(desfaseMs: Int64)  -> [ChipAsignatura]
+    
+    /**
      * **Cada asignatura con su lista** (Windows 71bf70f, `asignaturas::enlazar`;
      * el usuario: «que cada asignatura se cree a la vez como asignatura y
      * como grupo de tareas»): crea las que faltan (las de horarios de antes
@@ -9670,6 +9694,22 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * queda en el chat con sus tareas. Devuelve si cambio algo.
      */
     func enlazarAsignaturas(desfaseMs: Int64) throws  -> Bool
+    
+    /**
+     * **«Enviar a asignatura…»** (Windows d81934f8): copia unos mensajes de
+     * `chat` al chat «Asignaturas» con su asignatura. Una carpeta va con lo
+     * suyo y sus enlaces se rehacen con los `id` de las copias; mandarlo
+     * otra vez no lo duplica (por su `origen`), solo le cambia la
+     * asignatura si iba a otra. Devuelve cuantos se copiaron o cambiaron.
+     */
+    func enviarAAsignatura(chat: String, mensajes: [String], nombre: String) throws  -> UInt32
+    
+    /**
+     * **Le pone su asignatura a lo nuevo** del chat «Asignaturas» con un chip
+     * elegido: lo de este Mac puesto desde `desde_ms`, entrara por donde
+     * entrara. Devuelve cuantos.
+     */
+    func etiquetarLoNuevo(chat: String, nombre: String, desdeMs: Int64) throws  -> UInt32
     
     /**
      * **La lista de la asignatura** `asignatura` entre `listas` (las de
@@ -9693,6 +9733,13 @@ public protocol NucleoProtocol: AnyObject, Sendable {
      * las clases), para elegir donde apuntar una tarea.
      */
     func nombresDeAsignaturas(desfaseMs: Int64)  -> [String]
+    
+    /**
+     * **Pone (o quita, con `""`) la asignatura** de unos mensajes de `chat`,
+     * con lo que lleven dentro (una carpeta, sus paginas). Devuelve cuantos
+     * cambiaron.
+     */
+    func ponerAsignatura(chat: String, mensajes: [String], nombre: String) throws  -> UInt32
     
     /**
      * Los interruptores de `[jev]` (los de fabrica: todos encendidos).
@@ -13767,6 +13814,63 @@ open func asegurarListaDeAsignatura(asignatura: String, desfaseMs: Int64)throws 
 }
     
     /**
+     * **La asignatura de la clase de ahora** (en marcha, o que empieza en
+     * diez minutos): de quien es lo que se graba ahora.
+     */
+open func asignaturaEnClase(desfaseMs: Int64) -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_asignatura_en_clase(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Las asignaturas que ofrece el menu de un mensaje** («Asignatura…» en
+     * su chat, «Enviar a asignatura…» en los demas): sus chips o las del
+     * horario, y la que ya lleve, sin la puesta.
+     */
+open func asignaturasParaElMenu(chat: String, mensaje: String, desfaseMs: Int64) -> [String]  {
+    return try!  FfiConverterSequenceString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_asignaturas_para_el_menu(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(mensaje),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **El chat «Asignaturas»** (el de la marca), si ya esta.
+     */
+open func chatDeAsignaturas() -> String?  {
+    return try!  FfiConverterOptionString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_chat_de_asignaturas(
+            self.uniffiCloneHandle(),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Los chips de su fila**: las del horario con su color y, detras, las
+     * que solo nombran sus mensajes (en gris).
+     */
+open func chipsDeAsignaturas(desfaseMs: Int64) -> [ChipAsignatura]  {
+    return try!  FfiConverterSequenceTypeChipAsignatura.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_chips_de_asignaturas(
+            self.uniffiCloneHandle(),
+        FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
      * **Cada asignatura con su lista** (Windows 71bf70f, `asignaturas::enlazar`;
      * el usuario: «que cada asignatura se cree a la vez como asignatura y
      * como grupo de tareas»): crea las que faltan (las de horarios de antes
@@ -13784,6 +13888,42 @@ open func enlazarAsignaturas(desfaseMs: Int64)throws  -> Bool  {
     uniffi_pixpin_nucleo_fn_method_nucleo_enlazar_asignaturas(
             self.uniffiCloneHandle(),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **«Enviar a asignatura…»** (Windows d81934f8): copia unos mensajes de
+     * `chat` al chat «Asignaturas» con su asignatura. Una carpeta va con lo
+     * suyo y sus enlaces se rehacen con los `id` de las copias; mandarlo
+     * otra vez no lo duplica (por su `origen`), solo le cambia la
+     * asignatura si iba a otra. Devuelve cuantos se copiaron o cambiaron.
+     */
+open func enviarAAsignatura(chat: String, mensajes: [String], nombre: String)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_enviar_a_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterSequenceString.lower(mensajes),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Le pone su asignatura a lo nuevo** del chat «Asignaturas» con un chip
+     * elegido: lo de este Mac puesto desde `desde_ms`, entrara por donde
+     * entrara. Devuelve cuantos.
+     */
+open func etiquetarLoNuevo(chat: String, nombre: String, desdeMs: Int64)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_etiquetar_lo_nuevo(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterString.lower(nombre),
+        FfiConverterInt64.lower(desdeMs),uniffiCallStatus
     )
 })
 }
@@ -13833,6 +13973,23 @@ open func nombresDeAsignaturas(desfaseMs: Int64) -> [String]  {
     uniffi_pixpin_nucleo_fn_method_nucleo_nombres_de_asignaturas(
             self.uniffiCloneHandle(),
         FfiConverterInt64.lower(desfaseMs),uniffiCallStatus
+    )
+})
+}
+    
+    /**
+     * **Pone (o quita, con `""`) la asignatura** de unos mensajes de `chat`,
+     * con lo que lleven dentro (una carpeta, sus paginas). Devuelve cuantos
+     * cambiaron.
+     */
+open func ponerAsignatura(chat: String, mensajes: [String], nombre: String)throws  -> UInt32  {
+    return try  FfiConverterUInt32.lift(try rustCallWithError(FfiConverterTypeErrorNucleo_lift) {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_method_nucleo_poner_asignatura(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(chat),
+        FfiConverterSequenceString.lower(mensajes),
+        FfiConverterString.lower(nombre),uniffiCallStatus
     )
 })
 }
@@ -24624,6 +24781,64 @@ public func FfiConverterTypeChatNuevo_lift(_ buf: RustBuffer) throws -> ChatNuev
 #endif
 public func FfiConverterTypeChatNuevo_lower(_ value: ChatNuevo) -> RustBuffer {
     return FfiConverterTypeChatNuevo.lower(value)
+}
+
+
+/**
+ * Un chip de la fila de arriba del chat «Asignaturas»: la asignatura y su
+ * color (`None`: ya no esta en el horario, sale en gris).
+ */
+public struct ChipAsignatura: Equatable, Hashable {
+    public var nombre: String
+    public var color: UInt32?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(nombre: String, color: UInt32?) {
+        self.nombre = nombre
+        self.color = color
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension ChipAsignatura: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeChipAsignatura: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChipAsignatura {
+        return
+            try ChipAsignatura(
+                nombre: FfiConverterString.read(from: &buf), 
+                color: FfiConverterOptionUInt32.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ChipAsignatura, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.nombre, into: &buf)
+        FfiConverterOptionUInt32.write(value.color, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChipAsignatura_lift(_ buf: RustBuffer) throws -> ChipAsignatura {
+    return try FfiConverterTypeChipAsignatura.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeChipAsignatura_lower(_ value: ChipAsignatura) -> RustBuffer {
+    return FfiConverterTypeChipAsignatura.lower(value)
 }
 
 
@@ -36419,6 +36634,12 @@ public struct MensajeChat: Equatable, Hashable {
      * Donde va «Hacer lección» (`None`: no se ofrece).
      */
     public var menuLeccion: SitioEnElMenu?
+    /**
+     * La asignatura de la que es (`"asignatura"` en `resto`, Windows
+     * d81934f8): la chapa «📘 Geometría» y el filtro del chat
+     * «Asignaturas». `None`: de ninguna.
+     */
+    public var asignatura: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -36509,7 +36730,12 @@ public struct MensajeChat: Equatable, Hashable {
          */menuRecordar: SitioEnElMenu? = nil, 
         /**
          * Donde va «Hacer lección» (`None`: no se ofrece).
-         */menuLeccion: SitioEnElMenu? = nil) {
+         */menuLeccion: SitioEnElMenu? = nil, 
+        /**
+         * La asignatura de la que es (`"asignatura"` en `resto`, Windows
+         * d81934f8): la chapa «📘 Geometría» y el filtro del chat
+         * «Asignaturas». `None`: de ninguna.
+         */asignatura: String? = nil) {
         self.id = id
         self.cuando = cuando
         self.clase = clase
@@ -36543,6 +36769,7 @@ public struct MensajeChat: Equatable, Hashable {
         self.tipo = tipo
         self.menuRecordar = menuRecordar
         self.menuLeccion = menuLeccion
+        self.asignatura = asignatura
     }
 
     
@@ -36593,7 +36820,8 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
                 aparato: FfiConverterOptionString.read(from: &buf), 
                 tipo: FfiConverterOptionTypeTipoDeMensaje.read(from: &buf), 
                 menuRecordar: FfiConverterOptionTypeSitioEnElMenu.read(from: &buf), 
-                menuLeccion: FfiConverterOptionTypeSitioEnElMenu.read(from: &buf)
+                menuLeccion: FfiConverterOptionTypeSitioEnElMenu.read(from: &buf), 
+                asignatura: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -36631,6 +36859,7 @@ public struct FfiConverterTypeMensajeChat: FfiConverterRustBuffer {
         FfiConverterOptionTypeTipoDeMensaje.write(value.tipo, into: &buf)
         FfiConverterOptionTypeSitioEnElMenu.write(value.menuRecordar, into: &buf)
         FfiConverterOptionTypeSitioEnElMenu.write(value.menuLeccion, into: &buf)
+        FfiConverterOptionString.write(value.asignatura, into: &buf)
     }
 }
 
@@ -58444,6 +58673,31 @@ fileprivate struct FfiConverterSequenceTypeChatCompartidoMac: FfiConverterRustBu
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeChipAsignatura: FfiConverterRustBuffer {
+    typealias SwiftType = [ChipAsignatura]
+
+    public static func write(_ value: [ChipAsignatura], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeChipAsignatura.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [ChipAsignatura] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [ChipAsignatura]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeChipAsignatura.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeChipSemana: FfiConverterRustBuffer {
     typealias SwiftType = [ChipSemana]
 
@@ -67469,7 +67723,25 @@ private let initializationResult: InitializationResult = {
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_asegurar_lista_de_asignatura() != 29822) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_asignatura_en_clase() != 54123) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_asignaturas_para_el_menu() != 10670) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_chat_de_asignaturas() != 37865) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_chips_de_asignaturas() != 36517) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_enlazar_asignaturas() != 41418) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_enviar_a_asignatura() != 25421) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_etiquetar_lo_nuevo() != 31762) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_lista_de_asignatura() != 52609) {
@@ -67479,6 +67751,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_nombres_de_asignaturas() != 21994) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_method_nucleo_poner_asignatura() != 35035) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_method_nucleo_ajustes_jev() != 18683) {

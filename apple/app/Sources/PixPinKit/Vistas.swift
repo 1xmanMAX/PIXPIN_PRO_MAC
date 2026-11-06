@@ -225,6 +225,12 @@ public struct VistaChat: View {
     @State private var saltos = 0
     /// Se esta viendo una pagina del medio: no se baja solo al final.
     @State private var enSalto = false
+    /// **El chat «Asignaturas»** (Windows d81934f8): sus chips, el elegido y
+    /// desde cuando (lo puesto desde entonces es de ella).
+    @State private var esDeAsignaturas = false
+    @State private var chipsAsignaturas: [ChipAsignatura] = []
+    @State private var asignaturaElegida: String?
+    @State private var asignaturaDesde: Int64 = 0
     /// Subido mas de un tercio de lo que se ve: sale el «↓» de Telegram
     /// (Windows 013cc70 y 2c5a3cf, `ventana_chat/al_final.rs`).
     @State private var lejosDelFinal = false
@@ -274,7 +280,41 @@ public struct VistaChat: View {
     /// Windows e1150e8), salvo con la lupa o al ir a el desde su carpeta.
     private var filas: [MensajeChat] {
         if buscador.filtrando { return buscador.hallados.map(\.mensaje) }
-        return CarpetasDelChat.sinLoDeDentro(almacen.mensajes[chat] ?? [], salvo: destacado)
+        let todas = CarpetasDelChat.sinLoDeDentro(almacen.mensajes[chat] ?? [], salvo: destacado)
+        // Con una asignatura elegida arriba, solo lo suyo (y lo recien puesto,
+        // que aun no lleva la etiqueta).
+        guard esDeAsignaturas, let a = asignaturaElegida else { return todas }
+        return todas.filter { m in
+            if let suya = m.asignatura { return FilaDeAsignaturas.misma(suya, a) }
+            return m.cuando >= asignaturaDesde
+        }
+    }
+
+    /// Lee si este es el chat «Asignaturas» y sus chips.
+    private func mirarAsignaturas() async {
+        let nucleo = almacen.nucleo
+        let chat = self.chat
+        let (es, chips) = await Task.detached(priority: .utility) { () -> (Bool, [ChipAsignatura]) in
+            let es = nucleo.chatDeAsignaturas() == chat
+            return (es, es ? nucleo.chipsDeAsignaturas(desfaseMs: 0) : [])
+        }.value
+        esDeAsignaturas = es
+        chipsAsignaturas = chips
+    }
+
+    /// Lo nuevo con un chip elegido es de esa asignatura (Windows
+    /// `etiquetar_lo_nuevo`).
+    private func etiquetarLoNuevo() {
+        guard esDeAsignaturas, let a = asignaturaElegida else { return }
+        let nucleo = almacen.nucleo
+        let chat = self.chat
+        let desde = asignaturaDesde
+        Task {
+            let n = await Task.detached(priority: .utility) {
+                (try? nucleo.etiquetarLoNuevo(chat: chat, nombre: a, desdeMs: desde)) ?? 0
+            }.value
+            if n > 0 { await almacen.abrir(chat: chat) }
+        }
     }
 
     /// **El «↓»** (Windows 2c5a3cf): al ultimo mensaje. Desde una pagina del
@@ -315,6 +355,13 @@ public struct VistaChat: View {
             }
             if let fijado, !buscador.filtrando {
                 BarraDeFijado(fijado: fijado) { ir(a: fijado.id) }
+                Divider()
+            }
+            if esDeAsignaturas, !chipsAsignaturas.isEmpty {
+                FilaDeAsignaturas(chips: chipsAsignaturas, elegida: asignaturaElegida) { cual in
+                    asignaturaElegida = cual
+                    asignaturaDesde = Int64(Date().timeIntervalSince1970 * 1000)
+                }
                 Divider()
             }
             ScrollViewReader { lector in
@@ -423,7 +470,9 @@ public struct VistaChat: View {
         .task(id: filas.map(\.id)) { conversacion.releer(filas) }
         .onChange(of: chapas.personas[chat]) { _, _ in conversacion.releer(filas) }
         // Lo elegido que ya no esta cargado (borrado, otra pagina) se olvida.
+        .task(id: chat) { await mirarAsignaturas() }
         .onChange(of: almacen.mensajes[chat]?.count) { _, _ in
+            etiquetarLoNuevo()
             menu.eleccion.quedarse(con: Set(idsCargados))
             // Con la ficha abierta, lo nuevo se ve en ella.
             ficha.releer()
@@ -472,8 +521,12 @@ public struct VistaChat: View {
     /// Una burbuja con lo suyo: la marca del salto o del resultado elegido,
     /// lo elegido, el clic y el menu.
     private func fila(_ m: MensajeChat) -> some View {
-        Burbuja(mensaje: m, chat: chat, almacen: almacen,
-                citado: citado(por: m), irACita: { ir(a: m.respondeA ?? "") })
+        VStack(alignment: .leading, spacing: 3) {
+            Burbuja(mensaje: m, chat: chat, almacen: almacen,
+                    citado: citado(por: m), irACita: { ir(a: m.respondeA ?? "") })
+            // Lo que es de una asignatura lleva su chapa (Windows d81934f8).
+            if let a = m.asignatura { ChapaDeAsignatura(nombre: a).padding(.leading, 12) }
+        }
             .overlay {
                 if m.id == destacado || m.id == elegidoEnBusqueda {
                     RoundedRectangle(cornerRadius: 10)

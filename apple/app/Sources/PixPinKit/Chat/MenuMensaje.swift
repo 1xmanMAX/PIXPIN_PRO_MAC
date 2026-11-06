@@ -548,6 +548,8 @@ private struct MenuDeMensaje<Propias: View>: View {
                 Button { c.escritura = .renombrar(m) } label: { Label(Lengua.t("chat-renombrar"), systemImage: "pencil") }
                     .keyboardShortcut(teclaF2, modifiers: [])
             }
+            // «Asignatura…» o «Enviar a asignatura…» (Windows d81934f8).
+            MenuDeAsignatura(mensaje: m, c: c)
             Button { c.fijar([m.id]) } label: {
                 Label(m.fijado ? Lengua.t("chat-soltar") : Lengua.t("chat-fijar"), systemImage: m.fijado ? "flag.slash" : "flag")
             }
