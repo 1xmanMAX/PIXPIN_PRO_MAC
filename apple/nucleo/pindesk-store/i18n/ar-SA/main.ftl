@@ -354,6 +354,16 @@ sinc-con-direccion = الاتصال بعنوان
 sinc-anadir = إضافة جهاز آخر
 sinc-anadir-como = على الجهاز الآخر: المزامنة ← «الانضمام برمز».
 sinc-toca-codigo = انقر لعرض الرمز
+sinc-qr-como = امسحه بكاميرا هاتفك: يفتح PinDesk وينضم تلقائيًا. يختفي بعد 10 دقائق.
+sinc-red-titulo = ليس لدى PinDesk إذن بالشبكة
+sinc-red-texto = جدار حماية Windows لا يسمح لأجهزتك الأخرى بالوصول إلى PinDesk، لذلك لا تظهر عند الانضمام بالرمز. اسمح له مرة واحدة: سيطلب منك Windows التأكيد كمسؤول.
+sinc-red-boton = السماح بالوصول إلى الشبكة
+sinc-red-pidiendo = بانتظار إذن Windows…
+sinc-red-listo = تم السماح بالوصول إلى الشبكة
+sinc-red-hecho = تم: يمكن لأجهزتك الأخرى الآن العثور على PinDesk في هذه الشبكة.
+sinc-red-publica = أصبح لدى PinDesk إذن في الشبكات الخاصة، لكن شبكة Wi‑Fi هذه مصنفة «عامة». اجعلها خاصة من الإعدادات ← الشبكة والإنترنت ← Wi‑Fi ← هذه الشبكة.
+sinc-red-cancelado = لم يُمنح الإذن. يمكنك المحاولة مرة أخرى متى شئت.
+sinc-red-fallo = لم يسمح Windows بإضافة الإذن (ربما تمنعه سياسة على هذا الكمبيوتر). اطلب المساعدة ممن يدير هذا الكمبيوتر.
 sinc-salir = مغادرة المجموعة
 sinc-pasar = إرسال شيء إلى شخص ما
 sinc-pasar-como = لمرة واحدة، إلى أي شخص لديه PinDesk على شبكة Wi-Fi نفسها. لا حاجة إلى مجموعة.
@@ -1393,10 +1403,17 @@ figuras-todas = الكل
 figuras-vacia = لا توجد أشكال بعد. في لوحة، حدّد شيئًا ثم «حفظ كشكل».
 figuras-borrar = حذف الشكل
 figuras-borrar-seguro = اضغط مجددًا للحذف
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = فتح في { $app }
 figuras-elegir-para = اختر شكلًا لـ«{ $chat }»
 figuras-adjuntar-a = إرفاق بـ«{ $chat }»
 figuras-adjuntar-pista = أو انقر الشكل نقرًا مزدوجًا، أو اضغط Enter.
 figuras-adjuntada = أُرفق بـ«{ $chat }» ✓
+figuras-param-titulo = المعلمات
+figuras-param-por-hoja = لكل ورقة
+figuras-param-ano = السنة
+figuras-param-restablecer = إعادة الضبط
+figuras-zoom-pista = اقرص أو استخدم Ctrl + العجلة للتكبير · انقر مرتين للملاءمة
 asistente-adj-figura = شكل
 asistente-adj-pedir-figura = طلب شكل جديد
 asistente-pide-figura = اصنع لي شكلًا لـ
@@ -2985,6 +3002,11 @@ horario-arrastra = اسحب «{ $asignatura }» إلى الأسبوع
 horario-no-guardado = تعذّر حفظ الجدول
 tareas-destino-pista = قائمة المهمة أو مادتها
 tareas-sin-asignatura = بلا مادة (إلى الوارد)
+asignaturas-todas = الكل
+chat-asignatura-poner = المادة…
+chat-asignatura-quitar = بلا مادة
+chat-enviar-a-asignatura = إرسال إلى مادة…
+chat-enviado-a-asignatura = نُسخ إلى «{ $chat }» · { $asignatura }
 tareas-apuntar-en-asignatura = مهمة جديدة في { $asignatura }…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3399,7 +3421,7 @@ cad-web-anotaciones = التعليقات التوضيحية
 cad-web-todas = الكل
 cad-web-ninguna = لا شيء
 cad-web-sin-soporte = لا يستطيع هذا المتصفح فك ضغط المخطط: افتحه بإصدار حديث من Edge أو Chrome أو Firefox أو Safari.
-cad-web-pista = العجلة أو إصبعان: تحريك · Ctrl+العجلة أو القرص: تكبير · نقر مزدوج: ملاءمة · F، B، L
+cad-web-pista = العجلة أو القرص: تكبير · إصبعان أو السحب: تحريك · نقر مزدوج: ملاءمة · F، B، L
 # El membrete de un plano impreso
 lamina-proyecto = المشروع
 lamina-lamina = اللوحة
@@ -3611,3 +3633,30 @@ nube-cerrar-pregunta =
     نعم: تجاهل هذه التغييرات (تبقى تغييرات الآخرين).
     لا: العودة للاتصال ورفعها.
     إلغاء: إبقاؤه دون اتصال للمرة القادمة.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = عاجل
+comentario-tipo-alta = أولوية عالية
+comentario-tipo-media = أولوية متوسطة
+comentario-tipo-nota = ملاحظة
+comentario-abrir = فتح الدردشة
+comentario-resolver = حلّ
+comentario-reabrir = إعادة فتح
+comentario-crear-tarea = إنشاء مهمة
+comentario-tarea-creada = أُنشئت المهمة في صندوق الوارد
+comentario-quitar = إزالة
+comentario-lista-titulo = التعليقات
+comentario-lista-vacia = لا توجد تعليقات بعد. اختر نوعًا وانقر حيث تريد لصقه.
+comentario-plantando = انقر حيث تريد لصق التعليق (Esc للخروج)
+comentario-escribir = اكتب… (Enter للإرسال)
+comentario-sin-entradas = اكتب أول رسالة أو الصق صورة أو أرفق ملفًا.
+comentario-resuelto = تم الحل
+comentario-sin-sitio = هذا المستند غير محفوظ: لا يمكن إرفاق شيء.
+comentario-abre-el-chat = افتح الدردشة للانتقال إلى تلك الرسالة.
+comentario-elegir-atajo = اختصار إلى…
+comentario-sin-atajos = حدّد شيئًا على اللوحة، أو افتح مستندًا من دردشة، لإنشاء اختصار.
+comentario-elemento = عنصر
+comentario-mensaje = رسالة الدردشة
+comentario-lienzo-propio = لوحة
+comentario-anotar = إضافة تعليقات توضيحية
+comentario-anotada = عليها تعليقات

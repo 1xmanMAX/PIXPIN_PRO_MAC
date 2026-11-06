@@ -342,6 +342,16 @@ sinc-con-direccion = Connect to an address
 sinc-anadir = Add another device
 sinc-anadir-como = On the other device: Sync → “Join with a code”.
 sinc-toca-codigo = Click to see the code
+sinc-qr-como = Scan it with your phone’s camera: it opens PinDesk and joins by itself. It hides in 10 minutes.
+sinc-red-titulo = PinDesk has no network permission
+sinc-red-texto = Windows Firewall isn’t letting your other devices reach PinDesk, so they don’t show up when you join with the code. Allow it once: Windows will ask you to confirm as an administrator.
+sinc-red-boton = Allow network access
+sinc-red-pidiendo = Waiting for Windows’ permission…
+sinc-red-listo = Network access allowed
+sinc-red-hecho = Done: your other devices can now find PinDesk on this network.
+sinc-red-publica = PinDesk is now allowed on private networks, but this Wi‑Fi is marked as “Public”. Mark it as private in Settings → Network & internet → Wi‑Fi → this network.
+sinc-red-cancelado = Permission wasn’t granted. You can try again whenever you like.
+sinc-red-fallo = Windows didn’t allow adding the permission (a policy on this PC may prevent it). Ask whoever manages this PC for help.
 sinc-salir = Leave the group
 sinc-pasar = Send something to someone
 sinc-pasar-como = Just once, to anyone with PinDesk on your Wi-Fi. No group needed.
@@ -1349,10 +1359,17 @@ figuras-todas = All
 figuras-vacia = No shapes yet. On a canvas, select something and “Save as a shape”.
 figuras-borrar = Delete the shape
 figuras-borrar-seguro = Press again to delete
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = Open in { $app }
 figuras-elegir-para = Pick a shape for “{ $chat }”
 figuras-adjuntar-a = Attach to “{ $chat }”
 figuras-adjuntar-pista = Or double-click the shape, or press Enter.
 figuras-adjuntada = Attached to “{ $chat }” ✓
+figuras-param-titulo = Parameters
+figuras-param-por-hoja = Per sheet
+figuras-param-ano = Year
+figuras-param-restablecer = Reset
+figuras-zoom-pista = Pinch or Ctrl + wheel to zoom · double-click to fit
 asistente-adj-figura = Shape
 asistente-adj-pedir-figura = Ask for a new shape
 asistente-pide-figura = Make me a shape of 
@@ -2822,6 +2839,12 @@ horario-arrastra = Drag “{ $asignatura }” onto the week
 horario-no-guardado = The timetable could not be saved
 tareas-destino-pista = Task list or subject
 tareas-sin-asignatura = No subject (to the Inbox)
+# El chat «Asignaturas» (6-nov-2026): la fila de sus chips y el menu del mensaje.
+asignaturas-todas = All
+chat-asignatura-poner = Subject…
+chat-asignatura-quitar = No subject
+chat-enviar-a-asignatura = Send to subject…
+chat-enviado-a-asignatura = Copied to “{ $chat }” · { $asignatura }
 tareas-apuntar-en-asignatura = New { $asignatura } task…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3203,7 +3226,7 @@ cad-web-anotaciones = Annotations
 cad-web-todas = All
 cad-web-ninguna = None
 cad-web-sin-soporte = This browser cannot unpack the drawing: open it with a recent Edge, Chrome, Firefox or Safari.
-cad-web-pista = Wheel or two fingers: pan · Ctrl+wheel or pinch: zoom · Double click: fit · F, B, L
+cad-web-pista = Wheel or pinch: zoom · Two fingers or drag: pan · Double click: fit · F, B, L
 # El membrete de un plano impreso (plano_cad/imprimir.rs)
 lamina-proyecto = PROJECT
 lamina-lamina = SHEET
@@ -3409,3 +3432,30 @@ nube-cerrar-pregunta =
     Yes: discard those changes (the others' stay).
     No: go back online and upload them.
     Cancel: keep it offline for next time.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = Urgent
+comentario-tipo-alta = High priority
+comentario-tipo-media = Medium priority
+comentario-tipo-nota = Note
+comentario-abrir = Open the chat
+comentario-resolver = Resolve
+comentario-reabrir = Reopen
+comentario-crear-tarea = Create task
+comentario-tarea-creada = Task created in the Inbox
+comentario-quitar = Remove
+comentario-lista-titulo = Comments
+comentario-lista-vacia = No comments yet. Pick a type and click where you want to stick it.
+comentario-plantando = Click where you want to stick the comment (Esc to leave)
+comentario-escribir = Write… (Enter sends)
+comentario-sin-entradas = Write the first message, paste an image or attach a file.
+comentario-resuelto = Resolved
+comentario-sin-sitio = This document isn't saved: nothing can be attached.
+comentario-abre-el-chat = Open the chat to go to that message.
+comentario-elegir-atajo = Shortcut to…
+comentario-sin-atajos = Select something on the canvas, or open a document from a chat, to make a shortcut.
+comentario-elemento = Element
+comentario-mensaje = Chat message
+comentario-lienzo-propio = Canvas
+comentario-anotar = Annotate
+comentario-anotada = Annotated

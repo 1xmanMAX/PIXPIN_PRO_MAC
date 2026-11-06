@@ -12,6 +12,8 @@ public struct VistaSincro: View {
     @ObservedObject var sincro: Sincronizador
     @ObservedObject var vecinos: Vecinos
     @State private var codigo = ""
+    /// El enlace `pindesk://emparejar` que se ensena en QR (diez minutos).
+    @State private var enlaceQR: String?
     @State private var direccion = ""
     @State private var verCopias = false
 
@@ -93,10 +95,33 @@ public struct VistaSincro: View {
                     } label: { Image(systemName: "doc.on.doc") }
                         .help("Copiar el código")
                 }
+                // El QR que se lee con cualquier camara y lleva directo a
+                // la app (Windows dcf2b70b, `pindesk://emparejar`). Solo a
+                // peticion y diez minutos: el codigo es la llave del grupo.
+                if let qr = enlaceQR, let imagen = imagenQR(qr, lado: 200) {
+                    VStack(alignment: .center, spacing: 6) {
+                        Image(nsImage: imagen).interpolation(.none)
+                        Text("Léelo con la cámara del móvil. Vale diez minutos.")
+                            .font(.caption).foregroundStyle(.secondary)
+                        Button("Ocultar el QR") { enlaceQR = nil }
+                    }
+                    .frame(maxWidth: .infinity)
+                } else {
+                    Button("Enseñar un QR para emparejar") {
+                        let nombre = sincro.aparato.map { "PinDesk \($0.nombre)" } ?? "PinDesk"
+                        let ips = redesLocales().map(\.ip)
+                        enlaceQR = enlaceDeEmparejar(codigo: legible, ips: ips,
+                                                     puerto: sincro.puerto ?? 47474, nombre: nombre)
+                        let ahora = enlaceQR
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 600) {
+                            if enlaceQR == ahora { enlaceQR = nil }
+                        }
+                    }
+                }
             } header: {
                 Text("Código del grupo")
             } footer: {
-                Text("En el otro aparato: Sincronizar › Unirse a un grupo, con este código.")
+                Text("En el otro aparato: Sincronizar › Unirse a un grupo, con este código, o lee el QR.")
                     .font(.caption).foregroundStyle(.secondary)
             }
 

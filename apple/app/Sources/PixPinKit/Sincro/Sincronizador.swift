@@ -32,6 +32,7 @@
 // bajo consumo llega por notificacion y entre medias se duerme de una vez lo
 // que diga el reloj (`proximoMs`).
 
+import AppKit
 import Foundation
 import PixPinCore
 
@@ -175,9 +176,41 @@ public final class Sincronizador: ObservableObject {
             let ficha = aviso.object as? String
             MainActor.assumeIsolated { if let ficha { self?.cambiaronTareas(ficha) } }
         })
+        // Al volver de la suspension (Windows 603c854d): sondear ya, y quien
+        // conteste cuenta como recien aparecido (vuelta entera enseguida).
+        observadores.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.alDespertar() }
+        })
         vecinos.alCambiar = { [weak self] _ in self?.vecinosCambiaron() }
         relojAuto.verCambios(cambios: cambios, ahora: ahoraMs())
         Task { await refrescar() }
+    }
+
+    /// **El Mac vuelve de dormir**: lo visto antes de cerrar la tapa ya no
+    /// vale; se vuelve a probar a todos y quien conteste cuenta como recien
+    /// aparecido.
+    func alDespertar() {
+        for f in filas where f.direccion != nil {
+            relojAuto.responde(id: f.id, si: false)
+            relojAuto.responde(id: f.id, si: true)
+        }
+        porRecordada = []
+        mirarRecordadas()
+        latido()
+    }
+
+    /// **Una IP del enlace que contesta** (el QR de emparejar lleva hasta
+    /// cuatro, la preferida primero).
+    func primeraQueContesta(_ hosts: [String], puerto: UInt16) async -> Direccion? {
+        let nucleo = self.nucleo
+        for h in hosts {
+            let si = await Task.detached(priority: .utility) {
+                nucleo.sondearDireccion(host: h, puerto: puerto)
+            }.value
+            if si { return Direccion(host: h, puerto: puerto) }
+        }
+        return nil
     }
 
     /// Lo deja todo: deja de anunciarse, de escuchar y de buscar.
@@ -222,9 +255,23 @@ public final class Sincronizador: ObservableObject {
             fase = "Buscando un aparato del grupo en esta Wi-Fi…\nEn el otro aparato, ten PinDesk abierto."
             let yo = aparato?.id ?? ""
             let suya = await Task.detached(priority: .utility) { etiquetaDeGrupo(codigo: codigo) }.value
-            if let v = await vecinos.esperar(tope: 25, { $0.esDelGrupo(etiqueta: suya, yo: yo) }) {
-                destino = await Vecinos.sondear(v.punto)
-            }
+            let vecinos = self.vecinos
+            let puertoTcp = puerto ?? 0
+            let redes = redesLocales()
+            // Por mDNS y por la baliza a la vez (Windows c08e08b1): gana el
+            // primero. La baliza encuentra al otro aunque mDNS no llegue.
+            destino = await CarreraDeDirecciones.primera([
+                { @MainActor in
+                    guard let v = await vecinos.esperar(tope: 25, { $0.esDelGrupo(etiqueta: suya, yo: yo) })
+                    else { return nil }
+                    return await Vecinos.sondear(v.punto)
+                },
+                {
+                    buscarAlGrupoPorLaBaliza(codigo: codigo, yo: yo, puertoTcp: puertoTcp,
+                                             redes: redes, topeMs: 25_000)
+                        .map { Direccion(host: $0.host, puerto: $0.puerto) }
+                },
+            ])
         }
         guard let destino else {
             error = "No apareció ningún aparato con ese código. Comprueba el código, que los dos "

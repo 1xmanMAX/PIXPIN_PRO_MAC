@@ -27830,6 +27830,67 @@ public func FfiConverterTypeEncontradoEnChats_lower(_ value: EncontradoEnChats) 
 
 
 /**
+ * Un aparato del grupo que contesto a la baliza: donde llamarle.
+ */
+public struct EncontradoPorBaliza: Equatable, Hashable {
+    public var id: String
+    public var host: String
+    public var puerto: UInt16
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(id: String, host: String, puerto: UInt16) {
+        self.id = id
+        self.host = host
+        self.puerto = puerto
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EncontradoPorBaliza: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEncontradoPorBaliza: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EncontradoPorBaliza {
+        return
+            try EncontradoPorBaliza(
+                id: FfiConverterString.read(from: &buf), 
+                host: FfiConverterString.read(from: &buf), 
+                puerto: FfiConverterUInt16.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EncontradoPorBaliza, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.id, into: &buf)
+        FfiConverterString.write(value.host, into: &buf)
+        FfiConverterUInt16.write(value.puerto, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEncontradoPorBaliza_lift(_ buf: RustBuffer) throws -> EncontradoPorBaliza {
+    return try FfiConverterTypeEncontradoPorBaliza.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEncontradoPorBaliza_lower(_ value: EncontradoPorBaliza) -> RustBuffer {
+    return FfiConverterTypeEncontradoPorBaliza.lower(value)
+}
+
+
+/**
  * **Como se ve la imagen en su caja**: el aumento (1 = encajada) y lo
  * movida que esta desde el centro, en puntos de la vista.
  */
@@ -28134,6 +28195,89 @@ public func FfiConverterTypeEnlaceDelLienzo_lift(_ buf: RustBuffer) throws -> En
 #endif
 public func FfiConverterTypeEnlaceDelLienzo_lower(_ value: EnlaceDelLienzo) -> RustBuffer {
     return FfiConverterTypeEnlaceDelLienzo.lower(value)
+}
+
+
+/**
+ * Lo que lleva el enlace `pindesk://emparejar` (o el `pixpin://` de antes).
+ */
+public struct EnlaceEmparejar: Equatable, Hashable {
+    /**
+     * El codigo del grupo, limpio (diez signos).
+     */
+    public var codigo: String
+    /**
+     * Las IPv4 de quien lo enseña, la preferida primero (como mucho cuatro).
+     */
+    public var hosts: [String]
+    public var puerto: UInt16
+    /**
+     * Su nombre («PinDesk Casa»), si lo dice.
+     */
+    public var nombre: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * El codigo del grupo, limpio (diez signos).
+         */codigo: String, 
+        /**
+         * Las IPv4 de quien lo enseña, la preferida primero (como mucho cuatro).
+         */hosts: [String], puerto: UInt16, 
+        /**
+         * Su nombre («PinDesk Casa»), si lo dice.
+         */nombre: String) {
+        self.codigo = codigo
+        self.hosts = hosts
+        self.puerto = puerto
+        self.nombre = nombre
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension EnlaceEmparejar: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeEnlaceEmparejar: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EnlaceEmparejar {
+        return
+            try EnlaceEmparejar(
+                codigo: FfiConverterString.read(from: &buf), 
+                hosts: FfiConverterSequenceString.read(from: &buf), 
+                puerto: FfiConverterUInt16.read(from: &buf), 
+                nombre: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EnlaceEmparejar, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.codigo, into: &buf)
+        FfiConverterSequenceString.write(value.hosts, into: &buf)
+        FfiConverterUInt16.write(value.puerto, into: &buf)
+        FfiConverterString.write(value.nombre, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnlaceEmparejar_lift(_ buf: RustBuffer) throws -> EnlaceEmparejar {
+    return try FfiConverterTypeEnlaceEmparejar.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeEnlaceEmparejar_lower(_ value: EnlaceEmparejar) -> RustBuffer {
+    return FfiConverterTypeEnlaceEmparejar.lower(value)
 }
 
 
@@ -41197,6 +41341,64 @@ public func FfiConverterTypeRecursoNota_lift(_ buf: RustBuffer) throws -> Recurs
 #endif
 public func FfiConverterTypeRecursoNota_lower(_ value: RecursoNota) -> RustBuffer {
     return FfiConverterTypeRecursoNota.lower(value)
+}
+
+
+/**
+ * Una red de este Mac: su IPv4 y el largo de su prefijo (24 en
+ * `255.255.255.0`). La saca Swift con `getifaddrs`.
+ */
+public struct RedLocal: Equatable, Hashable {
+    public var ip: String
+    public var prefijo: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(ip: String, prefijo: UInt8) {
+        self.ip = ip
+        self.prefijo = prefijo
+    }
+
+    
+
+    
+}
+
+#if compiler(>=6)
+extension RedLocal: Sendable {}
+#endif
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeRedLocal: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RedLocal {
+        return
+            try RedLocal(
+                ip: FfiConverterString.read(from: &buf), 
+                prefijo: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RedLocal, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.ip, into: &buf)
+        FfiConverterUInt8.write(value.prefijo, into: &buf)
+    }
+}
+
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRedLocal_lift(_ buf: RustBuffer) throws -> RedLocal {
+    return try FfiConverterTypeRedLocal.lift(buf)
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+public func FfiConverterTypeRedLocal_lower(_ value: RedLocal) -> RustBuffer {
+    return FfiConverterTypeRedLocal.lower(value)
 }
 
 
@@ -55655,6 +55857,54 @@ fileprivate struct FfiConverterOptionTypeEnUnaClase: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterOptionTypeEncontradoPorBaliza: FfiConverterRustBuffer {
+    typealias SwiftType = EncontradoPorBaliza?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEncontradoPorBaliza.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEncontradoPorBaliza.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterOptionTypeEnlaceEmparejar: FfiConverterRustBuffer {
+    typealias SwiftType = EnlaceEmparejar?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeEnlaceEmparejar.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeEnlaceEmparejar.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterOptionTypeEnlaceFicha: FfiConverterRustBuffer {
     typealias SwiftType = EnlaceFicha?
 
@@ -60694,6 +60944,31 @@ fileprivate struct FfiConverterSequenceTypeRecordatorioMac: FfiConverterRustBuff
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceTypeRedLocal: FfiConverterRustBuffer {
+    typealias SwiftType = [RedLocal]
+
+    public static func write(_ value: [RedLocal], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeRedLocal.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [RedLocal] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [RedLocal]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeRedLocal.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeRespuestaNota: FfiConverterRustBuffer {
     typealias SwiftType = [RespuestaNota]
 
@@ -62789,6 +63064,67 @@ public func celdasDeTexto(texto: String) -> [[String]]?  {
     return try!  FfiConverterOptionSequenceSequenceString.lift(try! rustCall() {
         uniffiCallStatus in
     uniffi_pixpin_nucleo_fn_func_celdas_de_texto(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Busca al grupo del `codigo` por la baliza** durante `tope_ms` (25 000
+ * como Windows): pregunta cada segundo y devuelve el primero que contesta.
+ * `yo` es el id de este aparato (para no contestarse a si mismo) y
+ * `puerto_tcp` el de su sincronizar (0 si no escucha). Bloquea: Swift lo
+ * llama en su hilo, a la vez que busca por mDNS. `None` si nadie contesta o
+ * no se pudo abrir el puerto.
+ */
+public func buscarAlGrupoPorLaBaliza(codigo: String, yo: String, puertoTcp: UInt16, redes: [RedLocal], topeMs: UInt64) -> EncontradoPorBaliza?  {
+    return try!  FfiConverterOptionTypeEncontradoPorBaliza.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_buscar_al_grupo_por_la_baliza(
+        FfiConverterString.lower(codigo),
+        FfiConverterString.lower(yo),
+        FfiConverterUInt16.lower(puertoTcp),
+        FfiConverterSequenceTypeRedLocal.lower(redes),
+        FfiConverterUInt64.lower(topeMs),uniffiCallStatus
+    )
+})
+}
+/**
+ * **El enlace del QR de emparejar** de este Mac: el codigo, sus IPv4 de la
+ * red local (solo las privadas, como mucho cuatro), su puerto y su nombre;
+ * vale diez minutos desde ahora.
+ */
+public func enlaceDeEmparejar(codigo: String, ips: [String], puerto: UInt16, nombre: String) -> String  {
+    return try!  FfiConverterString.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_enlace_de_emparejar(
+        FfiConverterString.lower(codigo),
+        FfiConverterSequenceString.lower(ips),
+        FfiConverterUInt16.lower(puerto),
+        FfiConverterString.lower(nombre),uniffiCallStatus
+    )
+})
+}
+/**
+ * Si `texto` es un enlace de emparejar, aunque haya caducado (para decir
+ * «Este QR ya no vale» en vez de otra cosa).
+ */
+public func esEnlaceDeEmparejar(texto: String) -> Bool  {
+    return try!  FfiConverterBool.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_es_enlace_de_emparejar(
+        FfiConverterString.lower(texto),uniffiCallStatus
+    )
+})
+}
+/**
+ * **Lee un enlace `pindesk://emparejar`** (o `pixpin://emparejar`). `None`
+ * si no es uno, le falta el codigo o ya caduco (diez minutos y cinco de
+ * margen por los relojes).
+ */
+public func leerEnlaceDeEmparejar(texto: String) -> EnlaceEmparejar?  {
+    return try!  FfiConverterOptionTypeEnlaceEmparejar.lift(try! rustCall() {
+        uniffiCallStatus in
+    uniffi_pixpin_nucleo_fn_func_leer_enlace_de_emparejar(
         FfiConverterString.lower(texto),uniffiCallStatus
     )
 })
@@ -65859,6 +66195,18 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_celdas_de_texto() != 5730) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_buscar_al_grupo_por_la_baliza() != 62839) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_enlace_de_emparejar() != 20557) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_es_enlace_de_emparejar() != 34015) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_pixpin_nucleo_checksum_func_leer_enlace_de_emparejar() != 34102) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_pixpin_nucleo_checksum_func_codigo_de_envio_legible() != 45463) {

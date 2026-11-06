@@ -339,6 +339,16 @@ sinc-con-direccion = アドレスに接続
 sinc-anadir = 別のデバイスを追加
 sinc-anadir-como = 別のデバイスで：同期 →「コードで参加」。
 sinc-toca-codigo = クリックしてコードを表示
+sinc-qr-como = スマホのカメラで読み取ってください。PinDesk が開いて自動で参加します。10 分後に非表示になります。
+sinc-red-titulo = PinDesk にネットワークの許可がありません
+sinc-red-texto = Windows ファイアウォールがほかのデバイスから PinDesk への接続を許可していないため、コードで参加しても表示されません。一度だけ許可してください。Windows が管理者としての確認を求めます。
+sinc-red-boton = ネットワークへのアクセスを許可
+sinc-red-pidiendo = Windows の許可を待っています…
+sinc-red-listo = ネットワークへのアクセスを許可しました
+sinc-red-hecho = 完了しました。ほかのデバイスがこのネットワークで PinDesk を見つけられるようになりました。
+sinc-red-publica = PinDesk はプライベート ネットワークで許可されましたが、この Wi‑Fi は「パブリック」になっています。設定 → ネットワークとインターネット → Wi‑Fi → このネットワーク でプライベートにしてください。
+sinc-red-cancelado = 許可されませんでした。いつでもやり直せます。
+sinc-red-fallo = Windows が許可の追加を認めませんでした（この PC のポリシーで禁止されている可能性があります）。PC の管理者に相談してください。
 sinc-salir = グループから退出
 sinc-pasar = 誰かに何かを送る
 sinc-pasar-como = 一度だけ、同じ Wi-Fi で PinDesk を使っている人に送ります。グループは不要です。
@@ -1338,10 +1348,17 @@ figuras-todas = すべて
 figuras-vacia = まだ図形はありません。キャンバスで何かを選択して「図形として保存」してください。
 figuras-borrar = 図形を削除
 figuras-borrar-seguro = もう一度押すと削除します
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = { $app } で開く
 figuras-elegir-para = 「{ $chat }」用の図形を選択
 figuras-adjuntar-a = 「{ $chat }」に添付
 figuras-adjuntar-pista = 図形をダブルクリックするか、Enter を押しても添付できます。
 figuras-adjuntada = 「{ $chat }」に添付しました ✓
+figuras-param-titulo = パラメーター
+figuras-param-por-hoja = 1枚あたり
+figuras-param-ano = 年
+figuras-param-restablecer = リセット
+figuras-zoom-pista = ピンチまたは Ctrl + ホイールで拡大 · ダブルクリックで全体表示
 asistente-adj-figura = 図形
 asistente-adj-pedir-figura = 新しい図形を依頼
 asistente-pide-figura = 次の図形を作って：
@@ -2782,6 +2799,11 @@ horario-arrastra = 「{ $asignatura }」を週の表にドラッグしてくだ�
 horario-no-guardado = 時間割を保存できませんでした
 tareas-destino-pista = タスクのリストまたは科目
 tareas-sin-asignatura = 科目なし（受信箱へ）
+asignaturas-todas = すべて
+chat-asignatura-poner = 科目…
+chat-asignatura-quitar = 科目なし
+chat-enviar-a-asignatura = 科目に送る…
+chat-enviado-a-asignatura = 「{ $chat }」にコピーしました · { $asignatura }
 tareas-apuntar-en-asignatura = { $asignatura } の新しいタスク…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3160,7 +3182,7 @@ cad-web-anotaciones = 注釈
 cad-web-todas = すべて
 cad-web-ninguna = なし
 cad-web-sin-soporte = このブラウザーでは図面を展開できません：最新の Edge、Chrome、Firefox、Safari で開いてください。
-cad-web-pista = ホイール・2本指：移動 · Ctrl+ホイール・ピンチ：ズーム · ダブルクリック：全体表示 · F、B、L
+cad-web-pista = ホイール・ピンチ：ズーム · 2本指・ドラッグ：移動 · ダブルクリック：全体表示 · F、B、L
 # El membrete de un plano impreso
 lamina-proyecto = プロジェクト
 lamina-lamina = 図面番号
@@ -3344,3 +3366,30 @@ nube-cerrar-pregunta =
     はい：その変更を破棄します（ほかの人の変更は残ります）。
     いいえ：オンラインに戻してアップロードします。
     キャンセル：次回までオフラインのままにします。
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = 緊急
+comentario-tipo-alta = 優先度：高
+comentario-tipo-media = 優先度：中
+comentario-tipo-nota = メモ
+comentario-abrir = チャットを開く
+comentario-resolver = 解決
+comentario-reabrir = 再オープン
+comentario-crear-tarea = タスクを作成
+comentario-tarea-creada = 受信トレイにタスクを作成しました
+comentario-quitar = 削除
+comentario-lista-titulo = コメント
+comentario-lista-vacia = まだコメントはありません。種類を選んで、貼りたい場所をクリックします。
+comentario-plantando = コメントを貼る場所をクリック（Esc で終了）
+comentario-escribir = 入力…（Enter で送信）
+comentario-sin-entradas = 最初のメッセージを書くか、画像を貼り付けるか、ファイルを添付します。
+comentario-resuelto = 解決済み
+comentario-sin-sitio = このドキュメントは保存されていないため、添付できません。
+comentario-abre-el-chat = そのメッセージに移動するにはチャットを開いてください。
+comentario-elegir-atajo = ショートカット先…
+comentario-sin-atajos = キャンバスで何かを選択するか、チャットのドキュメントを開くとショートカットを作れます。
+comentario-elemento = 要素
+comentario-mensaje = チャットのメッセージ
+comentario-lienzo-propio = キャンバス
+comentario-anotar = 注釈を付ける
+comentario-anotada = 注釈あり

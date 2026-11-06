@@ -342,6 +342,16 @@ sinc-con-direccion = Bir adrese bağlan
 sinc-anadir = Başka cihaz ekle
 sinc-anadir-como = Diğer cihazda: Eşitleme → “Kodla katıl”.
 sinc-toca-codigo = Kodu görmek için tıklayın
+sinc-qr-como = Telefonun kamerasıyla tarayın: PinDesk açılır ve kendiliğinden katılır. 10 dakika sonra gizlenir.
+sinc-red-titulo = PinDesk’in ağ izni yok
+sinc-red-texto = Windows Güvenlik Duvarı diğer cihazlarınızın PinDesk’e ulaşmasına izin vermiyor; bu yüzden kodla katılırken görünmüyorlar. Bir kez izin verin: Windows sizden yönetici olarak onaylamanızı isteyecek.
+sinc-red-boton = Ağ erişimine izin ver
+sinc-red-pidiendo = Windows’un izni bekleniyor…
+sinc-red-listo = Ağ erişimine izin verildi
+sinc-red-hecho = Tamam: diğer cihazlarınız artık bu ağda PinDesk’i bulabilir.
+sinc-red-publica = PinDesk’e özel ağlarda izin verildi, ancak bu Wi‑Fi «Ortak» olarak işaretli. Ayarlar → Ağ ve İnternet → Wi‑Fi → bu ağ bölümünden özel yapın.
+sinc-red-cancelado = İzin verilmedi. İstediğiniz zaman yeniden deneyebilirsiniz.
+sinc-red-fallo = Windows izni eklemeye izin vermedi (bu bilgisayardaki bir ilke engelliyor olabilir). Bilgisayarı yöneten kişiden yardım isteyin.
 sinc-salir = Gruptan ayrıl
 sinc-pasar = Birine bir şey gönder
 sinc-pasar-como = Yalnızca bir kez, Wi-Fi'nizde PinDesk kullanan herkese. Grup gerekmez.
@@ -1348,10 +1358,17 @@ figuras-todas = Tümü
 figuras-vacia = Henüz şekil yok. Bir tuvalde bir şey seçip “Şekil olarak kaydet”i kullanın.
 figuras-borrar = Şekli sil
 figuras-borrar-seguro = Silmek için yeniden basın
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = { $app } ile aç
 figuras-elegir-para = “{ $chat }” için bir şekil seçin
 figuras-adjuntar-a = “{ $chat }” sohbetine ekle
 figuras-adjuntar-pista = Veya şekle çift tıklayın ya da Enter'a basın.
 figuras-adjuntada = “{ $chat }” sohbetine eklendi ✓
+figuras-param-titulo = Parametreler
+figuras-param-por-hoja = Sayfa başına
+figuras-param-ano = Yıl
+figuras-param-restablecer = Sıfırla
+figuras-zoom-pista = Yakınlaştırmak için kıstırın veya Ctrl + tekerlek · sığdırmak için çift tıklayın
 asistente-adj-figura = Şekil
 asistente-adj-pedir-figura = Yeni şekil iste
 asistente-pide-figura = Bana şunun şeklini yap:
@@ -2821,6 +2838,11 @@ horario-arrastra = “{ $asignatura }” dersini haftanın üzerine sürükleyin
 horario-no-guardado = Program kaydedilemedi
 tareas-destino-pista = Görevin listesi veya dersi
 tareas-sin-asignatura = Ders yok (Gelen kutusuna)
+asignaturas-todas = Tümü
+chat-asignatura-poner = Ders…
+chat-asignatura-quitar = Ders yok
+chat-enviar-a-asignatura = Derse gönder…
+chat-enviado-a-asignatura = “{ $chat }” sohbetine kopyalandı · { $asignatura }
 tareas-apuntar-en-asignatura = Yeni { $asignatura } görevi…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3204,7 +3226,7 @@ cad-web-anotaciones = Notlar
 cad-web-todas = Tümü
 cad-web-ninguna = Hiçbiri
 cad-web-sin-soporte = Bu tarayıcı çizimi açamıyor: güncel bir Edge, Chrome, Firefox veya Safari ile aç.
-cad-web-pista = Tekerlek veya iki parmak: kaydır · Ctrl+tekerlek veya kıstırma: yakınlaştır · Çift tıklama: sığdır · F, B, L
+cad-web-pista = Tekerlek veya kıstırma: yakınlaştır · İki parmak veya sürükleme: kaydır · Çift tıklama: sığdır · F, B, L
 # El membrete de un plano impreso
 lamina-proyecto = PROJE
 lamina-lamina = PAFTA
@@ -3394,3 +3416,30 @@ nube-cerrar-pregunta =
     Evet: bu değişiklikleri at (diğerlerininkiler kalır).
     Hayır: çevrimiçine dön ve yükle.
     İptal: bir dahaki sefere kadar çevrimdışı bırak.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = Acil
+comentario-tipo-alta = Yüksek öncelik
+comentario-tipo-media = Orta öncelik
+comentario-tipo-nota = Not
+comentario-abrir = Sohbeti aç
+comentario-resolver = Çöz
+comentario-reabrir = Yeniden aç
+comentario-crear-tarea = Görev oluştur
+comentario-tarea-creada = Gelen Kutusu'nda görev oluşturuldu
+comentario-quitar = Kaldır
+comentario-lista-titulo = Yorumlar
+comentario-lista-vacia = Henüz yorum yok. Bir tür seçin ve yapıştırmak istediğiniz yere tıklayın.
+comentario-plantando = Yorumu yapıştırmak istediğiniz yere tıklayın (çıkmak için Esc)
+comentario-escribir = Yazın… (Enter gönderir)
+comentario-sin-entradas = İlk mesajı yazın, bir resim yapıştırın veya dosya ekleyin.
+comentario-resuelto = Çözüldü
+comentario-sin-sitio = Bu belge kaydedilmedi: hiçbir şey eklenemez.
+comentario-abre-el-chat = O mesaja gitmek için sohbeti açın.
+comentario-elegir-atajo = Kısayol…
+comentario-sin-atajos = Kısayol oluşturmak için tuvalde bir şey seçin veya bir sohbetteki belgeyi açın.
+comentario-elemento = Öğe
+comentario-mensaje = Sohbet mesajı
+comentario-lienzo-propio = Tuval
+comentario-anotar = Açıklama ekle
+comentario-anotada = Açıklamalı

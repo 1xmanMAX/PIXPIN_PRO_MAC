@@ -342,6 +342,16 @@ sinc-con-direccion = Mit einer Adresse verbinden
 sinc-anadir = Weiteres Gerät hinzufügen
 sinc-anadir-como = Auf dem anderen Gerät: Synchronisierung → „Mit Code beitreten“.
 sinc-toca-codigo = Klicken, um den Code anzuzeigen
+sinc-qr-como = Mit der Handykamera scannen: Es öffnet PinDesk und tritt von selbst bei. Wird in 10 Minuten ausgeblendet.
+sinc-red-titulo = PinDesk hat keine Netzwerkberechtigung
+sinc-red-texto = Die Windows-Firewall lässt Ihre anderen Geräte nicht zu PinDesk durch, deshalb erscheinen sie beim Beitreten mit dem Code nicht. Einmal erlauben: Windows bittet Sie, als Administrator zu bestätigen.
+sinc-red-boton = Netzwerkzugriff erlauben
+sinc-red-pidiendo = Warte auf die Erlaubnis von Windows…
+sinc-red-listo = Netzwerkzugriff erlaubt
+sinc-red-hecho = Fertig: Ihre anderen Geräte finden PinDesk jetzt in diesem Netzwerk.
+sinc-red-publica = PinDesk ist in privaten Netzwerken jetzt erlaubt, aber dieses WLAN ist als „Öffentlich“ markiert. Stellen Sie es unter Einstellungen → Netzwerk und Internet → WLAN → dieses Netzwerk auf privat.
+sinc-red-cancelado = Die Erlaubnis wurde nicht erteilt. Sie können es jederzeit erneut versuchen.
+sinc-red-fallo = Windows hat das Hinzufügen der Erlaubnis nicht zugelassen (vielleicht verhindert es eine Richtlinie auf diesem PC). Bitten Sie die Person, die den PC verwaltet, um Hilfe.
 sinc-salir = Gruppe verlassen
 sinc-pasar = Jemandem etwas senden
 sinc-pasar-como = Einmalig, an jeden mit PinDesk in Ihrem Wi-Fi. Keine Gruppe nötig.
@@ -1349,10 +1359,17 @@ figuras-todas = Alle
 figuras-vacia = Noch keine Formen. Wählen Sie auf einer Leinwand etwas aus und dann „Als Form speichern“.
 figuras-borrar = Form löschen
 figuras-borrar-seguro = Zum Löschen erneut drücken
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = In { $app } öffnen
 figuras-elegir-para = Form für „{ $chat }“ auswählen
 figuras-adjuntar-a = An „{ $chat }“ anhängen
 figuras-adjuntar-pista = Oder doppelt auf die Form klicken oder Eingabe drücken.
 figuras-adjuntada = An „{ $chat }“ angehängt ✓
+figuras-param-titulo = Parameter
+figuras-param-por-hoja = Pro Blatt
+figuras-param-ano = Jahr
+figuras-param-restablecer = Zurücksetzen
+figuras-zoom-pista = Zum Zoomen zusammenziehen oder Strg + Mausrad · Doppelklick zum Einpassen
 asistente-adj-figura = Form
 asistente-adj-pedir-figura = Neue Form anfordern
 asistente-pide-figura = Erstelle mir eine Form von
@@ -2822,6 +2839,11 @@ horario-arrastra = Ziehen Sie „{ $asignatura }“ in die Woche
 horario-no-guardado = Der Stundenplan konnte nicht gespeichert werden
 tareas-destino-pista = Liste oder Fach der Aufgabe
 tareas-sin-asignatura = Kein Fach (in den Eingang)
+asignaturas-todas = Alle
+chat-asignatura-poner = Fach…
+chat-asignatura-quitar = Kein Fach
+chat-enviar-a-asignatura = An Fach senden…
+chat-enviado-a-asignatura = Nach „{ $chat }“ kopiert · { $asignatura }
 tareas-apuntar-en-asignatura = Neue Aufgabe für { $asignatura }…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3195,7 +3217,7 @@ cad-web-anotaciones = Anmerkungen
 cad-web-todas = Alle
 cad-web-ninguna = Keine
 cad-web-sin-soporte = Dieser Browser kann die Zeichnung nicht entpacken: Öffnen Sie sie mit einem aktuellen Edge, Chrome, Firefox oder Safari.
-cad-web-pista = Mausrad/zwei Finger: verschieben · Strg+Mausrad/Kneifen: Zoom · Doppelklick: einpassen · F, B, L
+cad-web-pista = Mausrad/Kneifen: Zoom · Zwei Finger/Ziehen: verschieben · Doppelklick: einpassen · F, B, L
 lamina-proyecto = PROJEKT
 lamina-lamina = BLATT
 lamina-titulo = TITEL
@@ -3373,3 +3395,30 @@ nube-cerrar-pregunta =
     Ja: diese Änderungen verwerfen (die der anderen bleiben).
     Nein: wieder online gehen und sie hochladen.
     Abbrechen: für das nächste Mal offline lassen.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = Dringend
+comentario-tipo-alta = Hohe Priorität
+comentario-tipo-media = Mittlere Priorität
+comentario-tipo-nota = Notiz
+comentario-abrir = Chat öffnen
+comentario-resolver = Erledigen
+comentario-reabrir = Wieder öffnen
+comentario-crear-tarea = Aufgabe erstellen
+comentario-tarea-creada = Aufgabe im Eingang erstellt
+comentario-quitar = Entfernen
+comentario-lista-titulo = Kommentare
+comentario-lista-vacia = Noch keine Kommentare. Wähle einen Typ und klicke dorthin, wo er kleben soll.
+comentario-plantando = Klicke dorthin, wo der Kommentar kleben soll (Esc zum Verlassen)
+comentario-escribir = Schreiben… (Eingabe sendet)
+comentario-sin-entradas = Schreib die erste Nachricht, füge ein Bild ein oder hänge eine Datei an.
+comentario-resuelto = Erledigt
+comentario-sin-sitio = Dieses Dokument ist nicht gespeichert: Anhängen ist nicht möglich.
+comentario-abre-el-chat = Öffne den Chat, um zu dieser Nachricht zu gehen.
+comentario-elegir-atajo = Verknüpfung zu…
+comentario-sin-atajos = Wähle etwas auf der Leinwand aus oder öffne ein Dokument aus einem Chat, um eine Verknüpfung zu erstellen.
+comentario-elemento = Element
+comentario-mensaje = Chatnachricht
+comentario-lienzo-propio = Leinwand
+comentario-anotar = Kommentieren
+comentario-anotada = Kommentiert

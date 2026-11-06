@@ -48,6 +48,12 @@ public final class HacerPedidos {
     @discardableResult
     public func abrir(enlace url: URL) -> Bool {
         let texto = url.absoluteString
+        // `pindesk://emparejar` (el QR de Windows dcf2b70b): unirse al grupo,
+        // preguntando antes. No es un pedido.
+        if esEnlaceDeEmparejar(texto: texto) {
+            emparejar(texto)
+            return true
+        }
         guard Enlaces.esEnlace(texto) else { return false }
         do {
             hacer(try Enlaces.leer(texto))
@@ -685,6 +691,30 @@ public final class HacerPedidos {
     }
 
     // MARK: Otros aparatos
+
+    /// **Unirse con el QR de emparejar**: pregunta «¿Unirte al grupo de …?»,
+    /// llama a sus direcciones en orden y, si ninguna contesta, busca por el
+    /// codigo (mDNS y la baliza). Nada se sincroniza hasta estar dentro.
+    private func emparejar(_ texto: String) {
+        guard let e = leerEnlaceDeEmparejar(texto: texto) else {
+            return avisar("Este QR ya no vale: vuelve a enseñarlo en el otro aparato.")
+        }
+        guard let sincro else { return avisar("La sincronización no está lista.") }
+        let alerta = NSAlert()
+        alerta.messageText = "¿Unirte al grupo de \(e.nombre.isEmpty ? "PinDesk" : e.nombre)?"
+        alerta.informativeText = sincro.codigoLegible != nil
+            ? "Este Mac saldrá de su grupo de ahora y se unirá a este."
+            : "Este Mac se sincronizará con los aparatos de ese grupo."
+        alerta.addButton(withTitle: "Unirme")
+        alerta.addButton(withTitle: "Cancelar")
+        NSApp.activate()
+        guard alerta.runModal() == .alertFirstButtonReturn else { return }
+        ventana("sincronizar")
+        Task {
+            let directa = await sincro.primeraQueContesta(e.hosts, puerto: e.puerto)
+            await sincro.unirse(codigo: e.codigo, direccion: directa)
+        }
+    }
 
     private func sincronizar(_ p: Pedido) async {
         guard let sincro else { return avisar("La sincronización no está lista.") }

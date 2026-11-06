@@ -11,6 +11,7 @@ import AppKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
 import Darwin
+import PixPinCore
 
 /// **El QR de `texto`**, nitido (escalado sin suavizar) y de `lado` puntos.
 /// `nil` si CoreImage no pudo (un texto demasiado largo para un QR).
@@ -59,4 +60,71 @@ public func elegirIPv4(_ candidatas: [(interfaz: String, ip: String)]) -> String
         .filter { $0.interfaz.hasPrefix("en") }
         .sorted { $0.interfaz.localizedStandardCompare($1.interfaz) == .orderedAscending }
     return (en.first ?? candidatas.first)?.ip
+}
+
+/// **Las redes IPv4 de este Mac** (su IP y el largo de su mascara), para
+/// preguntar por la baliza al unirse con un codigo (Windows c08e08b1): sin
+/// la de bucle ni las de enlace local.
+public func redesLocales() -> [RedLocal] {
+    var lista: UnsafeMutablePointer<ifaddrs>?
+    guard getifaddrs(&lista) == 0, let primera = lista else { return [] }
+    defer { freeifaddrs(lista) }
+    var redes: [RedLocal] = []
+    var p: UnsafeMutablePointer<ifaddrs>? = primera
+    while let actual = p {
+        defer { p = actual.pointee.ifa_next }
+        let flags = Int32(actual.pointee.ifa_flags)
+        guard (flags & IFF_UP) != 0, (flags & IFF_LOOPBACK) == 0,
+              let dir = actual.pointee.ifa_addr, dir.pointee.sa_family == UInt8(AF_INET),
+              let mascara = actual.pointee.ifa_netmask else { continue }
+        var texto = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+        guard getnameinfo(dir, socklen_t(dir.pointee.sa_len), &texto, socklen_t(texto.count),
+                          nil, 0, NI_NUMERICHOST) == 0 else { continue }
+        let ip = String(cString: texto)
+        if ip.hasPrefix("169.254.") { continue }
+        let bits = mascara.withMemoryRebound(to: sockaddr_in.self, capacity: 1) {
+            UInt32(bigEndian: $0.pointee.sin_addr.s_addr).nonzeroBitCount
+        }
+        let red = RedLocal(ip: ip, prefijo: UInt8(bits))
+        if !redes.contains(red) { redes.append(red) }
+    }
+    return redes
+}
+
+/// La primera de varias busquedas que encuentra una direccion (o `nil` si
+/// ninguna): mDNS y la baliza a la vez, sin esperar a la que tarda.
+final class CarreraDeDirecciones: @unchecked Sendable {
+    private let cerrojo = NSLock()
+    private var quedan: Int
+    private var hecha = false
+    private let seguir: CheckedContinuation<Direccion?, Never>
+
+    private init(_ quedan: Int, _ seguir: CheckedContinuation<Direccion?, Never>) {
+        self.quedan = quedan
+        self.seguir = seguir
+    }
+
+    static func primera(_ fuentes: [@Sendable () async -> Direccion?]) async -> Direccion? {
+        guard !fuentes.isEmpty else { return nil }
+        return await withCheckedContinuation { c in
+            let carrera = CarreraDeDirecciones(fuentes.count, c)
+            for f in fuentes {
+                Task.detached { carrera.llega(await f()) }
+            }
+        }
+    }
+
+    private func llega(_ d: Direccion?) {
+        cerrojo.lock()
+        defer { cerrojo.unlock() }
+        guard !hecha else { return }
+        quedan -= 1
+        if let d {
+            hecha = true
+            seguir.resume(returning: d)
+        } else if quedan == 0 {
+            hecha = true
+            seguir.resume(returning: nil)
+        }
+    }
 }

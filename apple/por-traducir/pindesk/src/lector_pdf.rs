@@ -100,6 +100,8 @@ use crate::overlay::Recursos;
 /// Lo que otro escribe en las capas con el lector abierto, a la vista.
 mod al_dia;
 mod cola;
+/// Las pegatinas de comentario (`crate::comentarios`) sobre sus paginas.
+mod comentar;
 pub(crate) mod elegir;
 /// Imprimir el PDF entero (el clic derecho en el boton del marco).
 mod entero;
@@ -783,6 +785,10 @@ enum Arrastre {
     Elegir,
 }
 
+/// Lo que ocupa abajo la barra del lector (escuchar, subir sola): el boton
+/// de comentar va encima.
+const RESERVA_ABAJO: f32 = 56.0;
+
 #[derive(Debug, Clone, Copy)]
 struct Marco {
     ancho: f32,
@@ -1117,6 +1123,8 @@ fn abrir_con(
     let mut vivo = true;
     // «En línea / Sin conexión», si el PDF es de un chat de la nube.
     let en_linea = crate::en_linea::EnLinea::de(ruta);
+    // Las pegatinas de comentario del documento (`crate::comentarios`).
+    let mut comentarios = crate::comentarios::Pegador::del_documento(ruta);
     // La ruta cambia si se renombra un PDF suelto (D5).
     let mut ruta_viva = ruta.to_path_buf();
     let mut ruta_nueva: Option<PathBuf> = None;
@@ -1230,6 +1238,32 @@ fn abrir_con(
             if let EventoOverlay::BotonPulsado(q) = &evento {
                 let (x, y) = local(*q);
                 if en_linea.pulsar(x, y) {
+                    continue;
+                }
+            }
+            // Las pegatinas de comentario, antes que la tinta y el lector:
+            // su boton, su tira y cada pegatina son botones.
+            if !e.fotografiando {
+                let ubicar = comentar::UbicarPdf { e: &e, m: marco };
+                let r = comentarios.evento(
+                    &evento,
+                    &crate::comentarios::Contexto {
+                        area,
+                        e: marco.e,
+                        reserva_abajo: RESERVA_ABAJO * marco.e,
+                        ubicar: &ubicar,
+                        ocupado: e.arrastre.is_some(),
+                        dueno: ventana.handle().0 as isize,
+                        atajo: None,
+                    },
+                );
+                if let Some(c) = r.cursor {
+                    ventana.poner_cursor(c);
+                }
+                if let Some(crate::comentarios::Pedido::IrA(a)) = &r.pedido {
+                    comentar::ir_a(&mut e, marco, a);
+                }
+                if r.consumido {
                     continue;
                 }
             }
@@ -1644,6 +1678,9 @@ fn abrir_con(
             alternar_espacio(&mut e, lado, ruta);
             hay_que_pintar = true;
         }
+        if comentarios.al_dia() {
+            hay_que_pintar = true;
+        }
         let sucias = e.capas.values().any(|c| c.sucia) && !e.tinta.trazando();
         if sucias && ahora > e.ultimo_trazo + MS_PARA_GUARDAR {
             guardar_capas(&mut e, ruta);
@@ -1669,6 +1706,23 @@ fn abrir_con(
                 let t = std::time::Instant::now();
                 let dibujado = motor.dibujar(&destino, |p: &Pintor| {
                     pintar(&mut e, p, marco, textos);
+                    if !e.fotografiando {
+                        let ubicar = comentar::UbicarPdf { e: &e, m: marco };
+                        comentarios.pintar_pegatinas(p, &ubicar, marco.e);
+                        comentarios.pintar_interfaz(
+                            p,
+                            &crate::comentarios::Contexto {
+                                area,
+                                e: marco.e,
+                                reserva_abajo: RESERVA_ABAJO * marco.e,
+                                ubicar: &ubicar,
+                                ocupado: false,
+                                dueno: 0,
+                                atajo: None,
+                            },
+                            64.0 * marco.e,
+                        );
+                    }
                     en_linea.pintar(p, 14.0 * marco.e, 14.0 * marco.e, marco.e, textos);
                 });
                 let _ = superficie.presentar();
@@ -1868,8 +1922,25 @@ fn zoom_minimo(e: &Estado, m: Marco) -> f32 {
     cabe.min(ZOOM_MINIMO_PDF)
 }
 
+/// **Lo que mas se acerca este PDF**: el seis del movil para una hoja A4, y
+/// en proporcion para las mas grandes. Todas las hojas miden lo mismo en el
+/// lector (`ANCHO_HOJA`), asi que con seis un plano A1 (cuatro A4 de ancho)
+/// solo llegaba a la cuarta parte del detalle de un A4 y sus cotas no se
+/// leian (4-nov-2026, el usuario: «el zoom no es suficiente»). Con esto se
+/// ve lo mismo de cerca en un A1 que en un A4.
+fn zoom_maximo(e: &Estado) -> f32 {
+    zoom_maximo_para(&e.medidas)
+}
+
+fn zoom_maximo_para(medidas: &[(f32, f32)]) -> f32 {
+    /// El ancho de un A4 en puntos, la hoja a la que se ajusto el seis.
+    const ANCHO_A4: f32 = 595.0;
+    let mas_ancha = medidas.iter().map(|&(w, _)| w).fold(0.0f32, f32::max);
+    vista::ZOOM_MAXIMO_PDF * (mas_ancha / ANCHO_A4).clamp(1.0, 8.0)
+}
+
 fn acotar(e: &mut Estado, m: Marco) {
-    e.zoom = e.zoom.clamp(zoom_minimo(e, m), vista::ZOOM_MAXIMO_PDF);
+    e.zoom = e.zoom.clamp(zoom_minimo(e, m), zoom_maximo(e));
     let s = px(e, m);
     let (izq, der) = limites(e);
     let (x, y) = vista::dentro(
@@ -2948,7 +3019,7 @@ fn lado(e: &mut Estado, cuanto: f32, m: Marco) {
 
 fn acercar(e: &mut Estado, muescas: f32, m: Marco) {
     let antes = px(e, m);
-    e.zoom = vista::zoom_con_rueda(e.zoom, muescas, zoom_minimo(e, m), vista::ZOOM_MAXIMO_PDF);
+    e.zoom = vista::zoom_con_rueda(e.zoom, muescas, zoom_minimo(e, m), zoom_maximo(e));
     let despues = px(e, m);
     e.x = vista::con_foco(e.x, e.raton.0, antes, despues);
     e.y = vista::con_foco(e.y, e.raton.1, antes, despues);
@@ -3379,7 +3450,7 @@ fn paso_de_las_fotos(e: &mut Estado, m: Marco) -> bool {
     if f.desde == 0 {
         let base = ancho_base(m) / vista::ANCHO_HOJA;
         let s = crate::marcos_doc::px_para_llenar(&marco, m.ancho, m.alto) as f32;
-        e.zoom = (s / base).clamp(0.05, vista::ZOOM_MAXIMO_PDF);
+        e.zoom = (s / base).clamp(0.05, zoom_maximo(e));
         let s = px(e, m);
         let c = marco.centro();
         e.x = c[0] as f32 - m.ancho / (2.0 * s);
@@ -4184,8 +4255,8 @@ fn nombre_del_pin(e: &Estado) -> String {
 }
 
 /// El zoom que da `s` pixeles por unidad del lector.
-fn zoom_para(_e: &Estado, m: Marco, s: f32) -> f32 {
-    (s / (ancho_base(m) / vista::ANCHO_HOJA)).clamp(0.05, vista::ZOOM_MAXIMO_PDF)
+fn zoom_para(e: &Estado, m: Marco, s: f32) -> f32 {
+    (s / (ancho_base(m) / vista::ANCHO_HOJA)).clamp(0.05, zoom_maximo(e))
 }
 
 #[cfg(test)]
@@ -4274,6 +4345,24 @@ mod pruebas {
             },
             como_texto: None,
         }
+    }
+
+    #[test]
+    fn un_plano_a1_se_acerca_tanto_como_un_a4() {
+        // Un A1 (2384 pt de ancho, el del usuario) mide cuatro A4 de ancho:
+        // su tope es cuatro veces el del A4, asi que de cerca se ve igual.
+        let a4 = zoom_maximo_para(&[(595.0, 842.0)]);
+        let a1 = zoom_maximo_para(&[(2384.0, 1684.0)]);
+        assert_eq!(a4, vista::ZOOM_MAXIMO_PDF);
+        assert!((a1 / a4 - 2384.0 / 595.0).abs() < 1e-3, "{a1}");
+        // Caso negativo: una hoja pequena, o un PDF sin medidas aun, no baja
+        // del seis, y un rollo enorme no se dispara.
+        assert_eq!(zoom_maximo_para(&[(300.0, 400.0)]), vista::ZOOM_MAXIMO_PDF);
+        assert_eq!(zoom_maximo_para(&[]), vista::ZOOM_MAXIMO_PDF);
+        assert_eq!(
+            zoom_maximo_para(&[(20_000.0, 1000.0)]),
+            vista::ZOOM_MAXIMO_PDF * 8.0
+        );
     }
 
     // ---- La pagina que sube sola y «Ver como texto» ----

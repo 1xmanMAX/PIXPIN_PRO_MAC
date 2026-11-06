@@ -348,6 +348,16 @@ sinc-con-direccion = Подключиться по адресу
 sinc-anadir = Добавить другое устройство
 sinc-anadir-como = На другом устройстве: Синхронизация → «Присоединиться по коду».
 sinc-toca-codigo = Щёлкните, чтобы увидеть код
+sinc-qr-como = Отсканируйте камерой телефона: откроется PinDesk и подключится сам. Скроется через 10 минут.
+sinc-red-titulo = У PinDesk нет разрешения на сеть
+sinc-red-texto = Брандмауэр Windows не пускает ваши другие устройства к PinDesk, поэтому они не появляются при подключении по коду. Разрешите один раз: Windows попросит подтвердить от имени администратора.
+sinc-red-boton = Разрешить доступ к сети
+sinc-red-pidiendo = Ждём разрешения Windows…
+sinc-red-listo = Доступ к сети разрешён
+sinc-red-hecho = Готово: ваши другие устройства теперь могут найти PinDesk в этой сети.
+sinc-red-publica = PinDesk теперь разрешён в частных сетях, но эта Wi‑Fi отмечена как «Общедоступная». Сделайте её частной: Параметры → Сеть и Интернет → Wi‑Fi → эта сеть.
+sinc-red-cancelado = Разрешение не выдано. Можно попробовать снова в любой момент.
+sinc-red-fallo = Windows не позволила добавить разрешение (возможно, мешает политика этого ПК). Обратитесь к тому, кто управляет этим ПК.
 sinc-salir = Покинуть группу
 sinc-pasar = Отправить что-нибудь кому-нибудь
 sinc-pasar-como = Один раз, любому с PinDesk в вашей сети Wi-Fi. Группа не нужна.
@@ -1368,10 +1378,17 @@ figuras-todas = Все
 figuras-vacia = Фигур пока нет. На холсте выделите что-нибудь и выберите «Сохранить как фигуру».
 figuras-borrar = Удалить фигуру
 figuras-borrar-seguro = Нажмите ещё раз, чтобы удалить
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = Открыть в { $app }
 figuras-elegir-para = Выберите фигуру для «{ $chat }»
 figuras-adjuntar-a = Вложить в «{ $chat }»
 figuras-adjuntar-pista = Или дважды щёлкните фигуру, или нажмите Enter.
 figuras-adjuntada = Вложено в «{ $chat }» ✓
+figuras-param-titulo = Параметры
+figuras-param-por-hoja = На листе
+figuras-param-ano = Год
+figuras-param-restablecer = Сбросить
+figuras-zoom-pista = Сведите пальцы или Ctrl + колесо для масштаба · двойной щелчок — вписать
 asistente-adj-figura = Фигура
 asistente-adj-pedir-figura = Попросить новую фигуру
 asistente-pide-figura = Сделай мне фигуру:
@@ -2891,6 +2908,11 @@ horario-arrastra = Перетащите «{ $asignatura }» на неделю
 horario-no-guardado = Не удалось сохранить расписание
 tareas-destino-pista = Список или предмет задачи
 tareas-sin-asignatura = Без предмета (во «Входящие»)
+asignaturas-todas = Все
+chat-asignatura-poner = Предмет…
+chat-asignatura-quitar = Без предмета
+chat-enviar-a-asignatura = Отправить в предмет…
+chat-enviado-a-asignatura = Скопировано в «{ $chat }» · { $asignatura }
 tareas-apuntar-en-asignatura = Новая задача по предмету «{ $asignatura }»…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3290,7 +3312,7 @@ cad-web-anotaciones = Аннотации
 cad-web-todas = Все
 cad-web-ninguna = Ни одного
 cad-web-sin-soporte = Этот браузер не умеет распаковывать чертёж: откройте его в свежей версии Edge, Chrome, Firefox или Safari.
-cad-web-pista = Колесо или два пальца — сдвиг · Ctrl+колесо или щипок — масштаб · Двойной щелчок — показать всё · F, B, L
+cad-web-pista = Колесо или щипок — масштаб · Два пальца или перетаскивание — сдвиг · Двойной щелчок — показать всё · F, B, L
 lamina-proyecto = ПРОЕКТ
 lamina-lamina = ЛИСТ
 lamina-titulo = НАЗВАНИЕ
@@ -3460,3 +3482,30 @@ nube-cerrar-pregunta =
     Да: отменить эти изменения (изменения других останутся).
     Нет: вернуться в сеть и загрузить их.
     Отмена: оставить без сети до следующего раза.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = Срочно
+comentario-tipo-alta = Высокий приоритет
+comentario-tipo-media = Средний приоритет
+comentario-tipo-nota = Заметка
+comentario-abrir = Открыть чат
+comentario-resolver = Решить
+comentario-reabrir = Открыть снова
+comentario-crear-tarea = Создать задачу
+comentario-tarea-creada = Задача создана во «Входящих»
+comentario-quitar = Убрать
+comentario-lista-titulo = Комментарии
+comentario-lista-vacia = Комментариев пока нет. Выберите тип и щёлкните там, где хотите его приклеить.
+comentario-plantando = Щёлкните там, где хотите приклеить комментарий (Esc — выйти)
+comentario-escribir = Напишите… (Enter — отправить)
+comentario-sin-entradas = Напишите первое сообщение, вставьте изображение или прикрепите файл.
+comentario-resuelto = Решено
+comentario-sin-sitio = Документ не сохранён: прикрепить ничего нельзя.
+comentario-abre-el-chat = Откройте чат, чтобы перейти к этому сообщению.
+comentario-elegir-atajo = Ярлык на…
+comentario-sin-atajos = Выделите что-нибудь на холсте или откройте документ из чата, чтобы сделать ярлык.
+comentario-elemento = Элемент
+comentario-mensaje = Сообщение чата
+comentario-lienzo-propio = Холст
+comentario-anotar = Аннотировать
+comentario-anotada = С аннотацией

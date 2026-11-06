@@ -339,6 +339,16 @@ sinc-con-direccion = 连接到地址
 sinc-anadir = 添加其他设备
 sinc-anadir-como = 在另一台设备上：同步 →“用代码加入”。
 sinc-toca-codigo = 点击查看代码
+sinc-qr-como = 用手机相机扫描：会打开 PinDesk 并自动加入。10 分钟后隐藏。
+sinc-red-titulo = PinDesk 没有网络权限
+sinc-red-texto = Windows 防火墙不允许你的其他设备连接到 PinDesk，所以用代码加入时看不到它们。只需允许一次：Windows 会要求你以管理员身份确认。
+sinc-red-boton = 允许网络访问
+sinc-red-pidiendo = 正在等待 Windows 的许可…
+sinc-red-listo = 已允许网络访问
+sinc-red-hecho = 完成：你的其他设备现在可以在此网络中找到 PinDesk。
+sinc-red-publica = PinDesk 已获准在专用网络中使用，但此 Wi‑Fi 被标记为“公用”。请在 设置 → 网络和 Internet → WLAN → 此网络 中将其设为专用。
+sinc-red-cancelado = 未授予权限。你可以随时再试一次。
+sinc-red-fallo = Windows 不允许添加该权限（可能是此电脑的策略阻止了它）。请向此电脑的管理员求助。
 sinc-salir = 退出群组
 sinc-pasar = 给别人发送内容
 sinc-pasar-como = 仅此一次，发送给同一 Wi-Fi 下任何装有 PinDesk 的人。无需群组。
@@ -1338,10 +1348,17 @@ figuras-todas = 全部
 figuras-vacia = 还没有形状。在画布上选中内容，然后选择“保存为形状”。
 figuras-borrar = 删除形状
 figuras-borrar-seguro = 再按一次以删除
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = 在 { $app } 中打开
 figuras-elegir-para = 为“{ $chat }”选择形状
 figuras-adjuntar-a = 附加到“{ $chat }”
 figuras-adjuntar-pista = 也可以双击形状或按 Enter。
 figuras-adjuntada = 已附加到“{ $chat }” ✓
+figuras-param-titulo = 参数
+figuras-param-por-hoja = 每页
+figuras-param-ano = 年份
+figuras-param-restablecer = 恢复默认
+figuras-zoom-pista = 双指捏合或 Ctrl + 滚轮缩放 · 双击适应窗口
 asistente-adj-figura = 形状
 asistente-adj-pedir-figura = 请求新形状
 asistente-pide-figura = 帮我做一个这样的形状：
@@ -2782,6 +2799,11 @@ horario-arrastra = 将“{ $asignatura }”拖到周视图中
 horario-no-guardado = 无法保存课程表
 tareas-destino-pista = 任务的清单或科目
 tareas-sin-asignatura = 无科目（放入收件箱）
+asignaturas-todas = 全部
+chat-asignatura-poner = 科目…
+chat-asignatura-quitar = 无科目
+chat-enviar-a-asignatura = 发送到科目…
+chat-enviado-a-asignatura = 已复制到“{ $chat }” · { $asignatura }
 tareas-apuntar-en-asignatura = 新建 { $asignatura } 任务…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3160,7 +3182,7 @@ cad-web-anotaciones = 批注
 cad-web-todas = 全部
 cad-web-ninguna = 无
 cad-web-sin-soporte = 此浏览器无法解压图纸：请用较新版本的 Edge、Chrome、Firefox 或 Safari 打开。
-cad-web-pista = 滚轮或双指：平移 · Ctrl+滚轮或捏合：缩放 · 双击：全部显示 · F、B、L
+cad-web-pista = 滚轮或捏合：缩放 · 双指或拖动：平移 · 双击：全部显示 · F、B、L
 # El membrete de un plano impreso
 lamina-proyecto = 项目
 lamina-lamina = 图号
@@ -3344,3 +3366,30 @@ nube-cerrar-pregunta =
     是：放弃这些修改（保留其他人的）。
     否：恢复在线并上传。
     取消：下次仍保持离线。
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = 紧急
+comentario-tipo-alta = 高优先级
+comentario-tipo-media = 中优先级
+comentario-tipo-nota = 备注
+comentario-abrir = 打开聊天
+comentario-resolver = 解决
+comentario-reabrir = 重新打开
+comentario-crear-tarea = 创建任务
+comentario-tarea-creada = 已在收件箱中创建任务
+comentario-quitar = 移除
+comentario-lista-titulo = 评论
+comentario-lista-vacia = 还没有评论。选择一种类型，然后在想贴的位置点击。
+comentario-plantando = 点击要贴评论的位置（按 Esc 退出）
+comentario-escribir = 输入…（回车发送）
+comentario-sin-entradas = 写下第一条消息、粘贴图片或附加文件。
+comentario-resuelto = 已解决
+comentario-sin-sitio = 此文档尚未保存：无法附加。
+comentario-abre-el-chat = 打开聊天以前往该消息。
+comentario-elegir-atajo = 快捷方式到…
+comentario-sin-atajos = 在画布上选择内容，或打开聊天中的文档，即可创建快捷方式。
+comentario-elemento = 元素
+comentario-mensaje = 聊天消息
+comentario-lienzo-propio = 画布
+comentario-anotar = 标注
+comentario-anotada = 已标注

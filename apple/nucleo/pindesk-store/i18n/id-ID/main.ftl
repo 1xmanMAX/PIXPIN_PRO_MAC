@@ -339,6 +339,16 @@ sinc-con-direccion = Sambungkan ke alamat
 sinc-anadir = Tambah perangkat lain
 sinc-anadir-como = Di perangkat lain: Sinkronkan → “Gabung dengan kode”.
 sinc-toca-codigo = Klik untuk melihat kode
+sinc-qr-como = Pindai dengan kamera ponsel: PinDesk terbuka dan bergabung sendiri. Disembunyikan dalam 10 menit.
+sinc-red-titulo = PinDesk tidak punya izin jaringan
+sinc-red-texto = Firewall Windows tidak mengizinkan perangkat Anda yang lain menjangkau PinDesk, jadi perangkat itu tidak muncul saat bergabung dengan kode. Izinkan sekali: Windows akan meminta konfirmasi sebagai administrator.
+sinc-red-boton = Izinkan akses jaringan
+sinc-red-pidiendo = Menunggu izin Windows…
+sinc-red-listo = Akses jaringan diizinkan
+sinc-red-hecho = Selesai: perangkat Anda yang lain kini bisa menemukan PinDesk di jaringan ini.
+sinc-red-publica = PinDesk sudah diizinkan di jaringan pribadi, tetapi Wi‑Fi ini ditandai «Publik». Jadikan pribadi di Pengaturan → Jaringan & internet → Wi‑Fi → jaringan ini.
+sinc-red-cancelado = Izin tidak diberikan. Anda bisa mencoba lagi kapan saja.
+sinc-red-fallo = Windows tidak mengizinkan penambahan izin (mungkin dicegah kebijakan di PC ini). Minta bantuan pengelola PC ini.
 sinc-salir = Keluar dari grup
 sinc-pasar = Kirim sesuatu ke seseorang
 sinc-pasar-como = Sekali saja, ke siapa pun yang memakai PinDesk di Wi-Fi Anda. Tidak perlu grup.
@@ -1338,10 +1348,17 @@ figuras-todas = Semua
 figuras-vacia = Belum ada bentuk. Di kanvas, pilih sesuatu lalu “Simpan sebagai bentuk”.
 figuras-borrar = Hapus bentuk
 figuras-borrar-seguro = Tekan lagi untuk menghapus
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = Buka di { $app }
 figuras-elegir-para = Pilih bentuk untuk “{ $chat }”
 figuras-adjuntar-a = Lampirkan ke “{ $chat }”
 figuras-adjuntar-pista = Atau klik dua kali bentuknya, atau tekan Enter.
 figuras-adjuntada = Dilampirkan ke “{ $chat }” ✓
+figuras-param-titulo = Parameter
+figuras-param-por-hoja = Per lembar
+figuras-param-ano = Tahun
+figuras-param-restablecer = Atur ulang
+figuras-zoom-pista = Cubit atau Ctrl + roda untuk memperbesar · klik dua kali untuk menyesuaikan
 asistente-adj-figura = Bentuk
 asistente-adj-pedir-figura = Minta bentuk baru
 asistente-pide-figura = Buatkan saya bentuk
@@ -2788,6 +2805,11 @@ horario-arrastra = Seret “{ $asignatura }” ke minggu
 horario-no-guardado = Jadwal tidak dapat disimpan
 tareas-destino-pista = Daftar atau mata pelajaran tugas
 tareas-sin-asignatura = Tanpa mata pelajaran (ke Kotak masuk)
+asignaturas-todas = Semua
+chat-asignatura-poner = Mata pelajaran…
+chat-asignatura-quitar = Tanpa mata pelajaran
+chat-enviar-a-asignatura = Kirim ke mata pelajaran…
+chat-enviado-a-asignatura = Disalin ke “{ $chat }” · { $asignatura }
 tareas-apuntar-en-asignatura = Tugas { $asignatura } baru…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3159,7 +3181,7 @@ cad-web-anotaciones = Anotasi
 cad-web-todas = Semua
 cad-web-ninguna = Tidak ada
 cad-web-sin-soporte = Browser ini tidak bisa membuka kompresi gambar: buka dengan Edge, Chrome, Firefox, atau Safari versi terbaru.
-cad-web-pista = Gulir atau dua jari: geser · Ctrl+gulir atau cubit: zoom · Klik ganda: tampilkan semua · F, B, L
+cad-web-pista = Gulir atau cubit: zoom · Dua jari atau seret: geser · Klik ganda: tampilkan semua · F, B, L
 lamina-proyecto = PROYEK
 lamina-lamina = LEMBAR
 lamina-titulo = JUDUL
@@ -3331,3 +3353,30 @@ nube-cerrar-pregunta =
     Ya: buang perubahan itu (milik orang lain tetap).
     Tidak: kembali daring dan unggah.
     Batal: biarkan luring untuk lain kali.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = Mendesak
+comentario-tipo-alta = Prioritas tinggi
+comentario-tipo-media = Prioritas sedang
+comentario-tipo-nota = Catatan
+comentario-abrir = Buka obrolan
+comentario-resolver = Selesaikan
+comentario-reabrir = Buka lagi
+comentario-crear-tarea = Buat tugas
+comentario-tarea-creada = Tugas dibuat di Kotak Masuk
+comentario-quitar = Hapus
+comentario-lista-titulo = Komentar
+comentario-lista-vacia = Belum ada komentar. Pilih jenis lalu klik tempat menempelkannya.
+comentario-plantando = Klik tempat untuk menempelkan komentar (Esc untuk keluar)
+comentario-escribir = Tulis… (Enter mengirim)
+comentario-sin-entradas = Tulis pesan pertama, tempel gambar, atau lampirkan file.
+comentario-resuelto = Selesai
+comentario-sin-sitio = Dokumen ini belum disimpan: tidak bisa melampirkan apa pun.
+comentario-abre-el-chat = Buka obrolan untuk menuju pesan itu.
+comentario-elegir-atajo = Pintasan ke…
+comentario-sin-atajos = Pilih sesuatu di kanvas, atau buka dokumen dari obrolan, untuk membuat pintasan.
+comentario-elemento = Elemen
+comentario-mensaje = Pesan obrolan
+comentario-lienzo-propio = Kanvas
+comentario-anotar = Anotasi
+comentario-anotada = Beranotasi

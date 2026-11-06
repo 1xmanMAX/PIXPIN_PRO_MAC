@@ -343,6 +343,16 @@ sinc-con-direccion = Conectar con una dirección
 sinc-anadir = Añadir otro aparato
 sinc-anadir-como = En el otro aparato: Sincronizar → «Unirme con un código».
 sinc-toca-codigo = Toca para ver el código
+sinc-qr-como = Escanéalo con la cámara del móvil: abre PinDesk y se une solo. Se oculta en 10 minutos.
+sinc-red-titulo = PinDesk no tiene permiso de red
+sinc-red-texto = El cortafuegos de Windows no deja que tus otros aparatos lleguen a PinDesk, por eso no aparecen al unirse con el código. Dale permiso una vez: Windows te pedirá confirmar como administrador.
+sinc-red-boton = Dar permiso de red
+sinc-red-pidiendo = Esperando el permiso de Windows…
+sinc-red-listo = Permiso de red dado
+sinc-red-hecho = Listo: tus otros aparatos ya pueden encontrar a PinDesk en esta red.
+sinc-red-publica = PinDesk ya tiene permiso en las redes privadas, pero esta Wi‑Fi está marcada como «Pública». Márcala como privada en Configuración → Red e Internet → Wi‑Fi → esta red.
+sinc-red-cancelado = No se dio el permiso. Puedes volver a intentarlo cuando quieras.
+sinc-red-fallo = Windows no dejó poner el permiso (puede que lo impida una directiva de este equipo). Pide ayuda a quien administre el PC.
 sinc-salir = Salir del grupo
 sinc-pasar = Pasar algo a otra persona
 sinc-pasar-como = Una sola vez, a cualquiera con PinDesk en tu misma Wi-Fi. No hace falta grupo.
@@ -1350,10 +1360,17 @@ figuras-todas = Todas
 figuras-vacia = Todavía no hay figuras. En un lienzo, elige algo y «Guardar como figura».
 figuras-borrar = Borrar la figura
 figuras-borrar-seguro = Pulsa otra vez para borrar
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = Abrir en { $app }
 figuras-elegir-para = Elige una figura para «{ $chat }»
 figuras-adjuntar-a = Adjuntar a «{ $chat }»
 figuras-adjuntar-pista = O doble clic en la figura, o Intro.
 figuras-adjuntada = Adjuntada a «{ $chat }» ✓
+figuras-param-titulo = Parámetros
+figuras-param-por-hoja = Por hoja
+figuras-param-ano = Año
+figuras-param-restablecer = Restablecer
+figuras-zoom-pista = Pellizca o Ctrl + rueda para acercar · doble clic para encajar
 asistente-adj-figura = Figura
 asistente-adj-pedir-figura = Pedir una figura nueva
 asistente-pide-figura = Hazme una figura de 
@@ -2825,6 +2842,12 @@ horario-arrastra = Arrastra «{ $asignatura }» a la semana
 horario-no-guardado = No se pudo guardar el horario
 tareas-destino-pista = Lista o asignatura de la tarea
 tareas-sin-asignatura = Sin asignatura (al Inbox)
+# El chat «Asignaturas» (6-nov-2026): la fila de sus chips y el menu del mensaje.
+asignaturas-todas = Todas
+chat-asignatura-poner = Asignatura…
+chat-asignatura-quitar = Sin asignatura
+chat-enviar-a-asignatura = Enviar a asignatura…
+chat-enviado-a-asignatura = Copiado a «{ $chat }» · { $asignatura }
 tareas-apuntar-en-asignatura = Nueva tarea de { $asignatura }…
 
 # El marco para imprimir de los visores (19-oct-2026)
@@ -3206,7 +3229,7 @@ cad-web-anotaciones = Anotaciones
 cad-web-todas = Todas
 cad-web-ninguna = Ninguna
 cad-web-sin-soporte = Este navegador no sabe descomprimir el plano: ábrelo con Edge, Chrome, Firefox o Safari recientes.
-cad-web-pista = Rueda o dos dedos: mover · Ctrl+rueda o pellizcar: acercar · Doble clic: ver todo · F, B, L
+cad-web-pista = Rueda o pellizcar: acercar · Dos dedos o arrastrar: mover · Doble clic: ver todo · F, B, L
 # El membrete de un plano impreso (plano_cad/imprimir.rs)
 lamina-proyecto = PROYECTO
 lamina-lamina = LÁMINA
@@ -3409,3 +3432,30 @@ nube-cerrar-pregunta =
     Sí: descartar esos cambios (se queda lo de los demás).
     No: volver a en línea y subirlos.
     Cancelar: dejarlo sin conexión para la próxima vez.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = Urgente
+comentario-tipo-alta = Prioridad alta
+comentario-tipo-media = Prioridad media
+comentario-tipo-nota = Nota
+comentario-abrir = Abrir el chat
+comentario-resolver = Resolver
+comentario-reabrir = Reabrir
+comentario-crear-tarea = Crear tarea
+comentario-tarea-creada = Tarea creada en el Inbox
+comentario-quitar = Quitar
+comentario-lista-titulo = Comentarios
+comentario-lista-vacia = Aún no hay comentarios. Elige un tipo y haz clic donde quieras pegarlo.
+comentario-plantando = Haz clic donde quieras pegar el comentario (Esc para salir)
+comentario-escribir = Escribe… (Intro envía)
+comentario-sin-entradas = Escribe lo primero, pega una imagen o adjunta un archivo.
+comentario-resuelto = Resuelto
+comentario-sin-sitio = Este documento no está guardado: no se puede adjuntar.
+comentario-abre-el-chat = Abre el chat para ir a ese mensaje.
+comentario-elegir-atajo = Atajo a…
+comentario-sin-atajos = Elige algo en el lienzo, o abre un documento de un chat, para hacer un atajo.
+comentario-elemento = Elemento
+comentario-mensaje = Mensaje del chat
+comentario-lienzo-propio = Lienzo
+comentario-anotar = Anotar
+comentario-anotada = Anotada

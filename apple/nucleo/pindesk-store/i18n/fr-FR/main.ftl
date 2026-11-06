@@ -342,6 +342,16 @@ sinc-con-direccion = Se connecter à une adresse
 sinc-anadir = Ajouter un autre appareil
 sinc-anadir-como = Sur l’autre appareil : Synchronisation → « Rejoindre avec un code ».
 sinc-toca-codigo = Cliquez pour voir le code
+sinc-qr-como = Scannez-le avec l’appareil photo du téléphone : il ouvre PinDesk et rejoint tout seul. Il se masque dans 10 minutes.
+sinc-red-titulo = PinDesk n’a pas l’autorisation réseau
+sinc-red-texto = Le pare-feu Windows empêche vos autres appareils d’atteindre PinDesk, c’est pourquoi ils n’apparaissent pas quand vous rejoignez avec le code. Autorisez-le une fois : Windows vous demandera de confirmer en tant qu’administrateur.
+sinc-red-boton = Autoriser l’accès réseau
+sinc-red-pidiendo = En attente de l’autorisation de Windows…
+sinc-red-listo = Accès réseau autorisé
+sinc-red-hecho = C’est fait : vos autres appareils peuvent maintenant trouver PinDesk sur ce réseau.
+sinc-red-publica = PinDesk est autorisé sur les réseaux privés, mais ce Wi‑Fi est marqué « Public ». Rendez-le privé dans Paramètres → Réseau et Internet → Wi‑Fi → ce réseau.
+sinc-red-cancelado = L’autorisation n’a pas été accordée. Vous pouvez réessayer quand vous voulez.
+sinc-red-fallo = Windows n’a pas permis d’ajouter l’autorisation (une stratégie de ce PC l’empêche peut-être). Demandez de l’aide à la personne qui gère ce PC.
 sinc-salir = Quitter le groupe
 sinc-pasar = Envoyer quelque chose à quelqu’un
 sinc-pasar-como = Une seule fois, à toute personne ayant PinDesk sur votre Wi-Fi. Pas besoin de groupe.
@@ -1349,10 +1359,17 @@ figuras-todas = Toutes
 figuras-vacia = Aucune forme pour l’instant. Sur un canevas, sélectionnez quelque chose puis « Enregistrer comme forme ».
 figuras-borrar = Supprimer la forme
 figuras-borrar-seguro = Appuyez à nouveau pour supprimer
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = Ouvrir dans { $app }
 figuras-elegir-para = Choisissez une forme pour « { $chat } »
 figuras-adjuntar-a = Joindre à « { $chat } »
 figuras-adjuntar-pista = Ou double-cliquez sur la forme, ou appuyez sur Entrée.
 figuras-adjuntada = Jointe à « { $chat } » ✓
+figuras-param-titulo = Paramètres
+figuras-param-por-hoja = Par feuille
+figuras-param-ano = Année
+figuras-param-restablecer = Réinitialiser
+figuras-zoom-pista = Pincez ou Ctrl + molette pour zoomer · double-clic pour ajuster
 asistente-adj-figura = Forme
 asistente-adj-pedir-figura = Demander une nouvelle forme
 asistente-pide-figura = Fais-moi une forme de
@@ -2822,6 +2839,11 @@ horario-arrastra = Faites glisser « { $asignatura } » sur la semaine
 horario-no-guardado = Impossible d’enregistrer l’emploi du temps
 tareas-destino-pista = Liste ou matière de la tâche
 tareas-sin-asignatura = Sans matière (vers la Boîte de réception)
+asignaturas-todas = Toutes
+chat-asignatura-poner = Matière…
+chat-asignatura-quitar = Sans matière
+chat-enviar-a-asignatura = Envoyer à une matière…
+chat-enviado-a-asignatura = Copié dans « { $chat } » · { $asignatura }
 tareas-apuntar-en-asignatura = Nouvelle tâche de { $asignatura }…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3195,7 +3217,7 @@ cad-web-anotaciones = Annotations
 cad-web-todas = Toutes
 cad-web-ninguna = Aucune
 cad-web-sin-soporte = Ce navigateur ne sait pas décompresser le plan : ouvrez-le avec une version récente d’Edge, Chrome, Firefox ou Safari.
-cad-web-pista = Molette ou deux doigts : déplacer · Ctrl+molette ou pincer : zoom · Double-clic : tout voir · F, B, L
+cad-web-pista = Molette ou pincer : zoom · Deux doigts ou glisser : déplacer · Double-clic : tout voir · F, B, L
 lamina-proyecto = PROJET
 lamina-lamina = PLANCHE
 lamina-titulo = TITRE
@@ -3373,3 +3395,30 @@ nube-cerrar-pregunta =
     Oui : abandonner ces modifications (celles des autres restent).
     Non : repasser en ligne et les envoyer.
     Annuler : le laisser hors ligne pour la prochaine fois.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = Urgent
+comentario-tipo-alta = Priorité haute
+comentario-tipo-media = Priorité moyenne
+comentario-tipo-nota = Note
+comentario-abrir = Ouvrir la discussion
+comentario-resolver = Résoudre
+comentario-reabrir = Rouvrir
+comentario-crear-tarea = Créer une tâche
+comentario-tarea-creada = Tâche créée dans la boîte de réception
+comentario-quitar = Retirer
+comentario-lista-titulo = Commentaires
+comentario-lista-vacia = Pas encore de commentaires. Choisissez un type et cliquez là où vous voulez le coller.
+comentario-plantando = Cliquez là où vous voulez coller le commentaire (Échap pour quitter)
+comentario-escribir = Écrivez… (Entrée envoie)
+comentario-sin-entradas = Écrivez le premier message, collez une image ou joignez un fichier.
+comentario-resuelto = Résolu
+comentario-sin-sitio = Ce document n’est pas enregistré : impossible de joindre quoi que ce soit.
+comentario-abre-el-chat = Ouvrez la discussion pour aller à ce message.
+comentario-elegir-atajo = Raccourci vers…
+comentario-sin-atajos = Sélectionnez quelque chose sur la toile, ou ouvrez un document d’une discussion, pour créer un raccourci.
+comentario-elemento = Élément
+comentario-mensaje = Message de la discussion
+comentario-lienzo-propio = Toile
+comentario-anotar = Annoter
+comentario-anotada = Annotée

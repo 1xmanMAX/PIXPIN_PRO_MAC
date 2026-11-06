@@ -339,6 +339,16 @@ sinc-con-direccion = 주소로 연결
 sinc-anadir = 다른 장치 추가
 sinc-anadir-como = 다른 장치에서: 동기화 → “코드로 참가”.
 sinc-toca-codigo = 클릭하여 코드 보기
+sinc-qr-como = 휴대폰 카메라로 스캔하세요. PinDesk가 열리고 자동으로 참여합니다. 10분 후 숨겨집니다.
+sinc-red-titulo = PinDesk에 네트워크 권한이 없습니다
+sinc-red-texto = Windows 방화벽이 다른 기기가 PinDesk에 연결하는 것을 막고 있어 코드로 참여해도 보이지 않습니다. 한 번만 허용하세요. Windows에서 관리자 확인을 요청합니다.
+sinc-red-boton = 네트워크 액세스 허용
+sinc-red-pidiendo = Windows의 허용을 기다리는 중…
+sinc-red-listo = 네트워크 액세스 허용됨
+sinc-red-hecho = 완료: 이제 다른 기기가 이 네트워크에서 PinDesk를 찾을 수 있습니다.
+sinc-red-publica = PinDesk가 개인 네트워크에서 허용되었지만 이 Wi‑Fi는 ‘공용’으로 설정되어 있습니다. 설정 → 네트워크 및 인터넷 → Wi‑Fi → 이 네트워크에서 개인으로 바꾸세요.
+sinc-red-cancelado = 권한이 허용되지 않았습니다. 언제든 다시 시도할 수 있습니다.
+sinc-red-fallo = Windows에서 권한 추가를 허용하지 않았습니다(이 PC의 정책 때문일 수 있음). PC 관리자에게 도움을 요청하세요.
 sinc-salir = 그룹 나가기
 sinc-pasar = 다른 사람에게 보내기
 sinc-pasar-como = 같은 Wi-Fi에서 PinDesk를 사용하는 누구에게나 한 번만 보냅니다. 그룹이 필요 없습니다.
@@ -1338,10 +1348,17 @@ figuras-todas = 모두
 figuras-vacia = 아직 도형이 없습니다. 캔버스에서 무언가를 선택하고 “도형으로 저장”을 누르세요.
 figuras-borrar = 도형 삭제
 figuras-borrar-seguro = 삭제하려면 다시 누르세요
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = { $app }에서 열기
 figuras-elegir-para = “{ $chat }”에 넣을 도형 선택
 figuras-adjuntar-a = “{ $chat }”에 첨부
 figuras-adjuntar-pista = 또는 도형을 두 번 클릭하거나 Enter를 누르세요.
 figuras-adjuntada = “{ $chat }”에 첨부됨 ✓
+figuras-param-titulo = 매개변수
+figuras-param-por-hoja = 시트당
+figuras-param-ano = 연도
+figuras-param-restablecer = 초기화
+figuras-zoom-pista = 핀치 또는 Ctrl + 휠로 확대 · 두 번 클릭하면 맞춤
 asistente-adj-figura = 도형
 asistente-adj-pedir-figura = 새 도형 요청
 asistente-pide-figura = 다음 도형을 만들어 주세요:
@@ -2782,6 +2799,11 @@ horario-arrastra = “{ $asignatura }”을(를) 주간 표로 끌어 놓으세�
 horario-no-guardado = 시간표를 저장할 수 없습니다
 tareas-destino-pista = 작업의 목록 또는 과목
 tareas-sin-asignatura = 과목 없음(받은 편지함으로)
+asignaturas-todas = 전체
+chat-asignatura-poner = 과목…
+chat-asignatura-quitar = 과목 없음
+chat-enviar-a-asignatura = 과목으로 보내기…
+chat-enviado-a-asignatura = “{ $chat }”에 복사했습니다 · { $asignatura }
 tareas-apuntar-en-asignatura = 새 { $asignatura } 작업…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3160,7 +3182,7 @@ cad-web-anotaciones = 주석
 cad-web-todas = 모두
 cad-web-ninguna = 없음
 cad-web-sin-soporte = 이 브라우저는 도면의 압축을 풀 수 없습니다: 최신 Edge, Chrome, Firefox 또는 Safari로 여세요.
-cad-web-pista = 휠 또는 두 손가락: 이동 · Ctrl+휠 또는 핀치: 확대/축소 · 더블클릭: 전체 보기 · F, B, L
+cad-web-pista = 휠 또는 핀치: 확대/축소 · 두 손가락 또는 드래그: 이동 · 더블클릭: 전체 보기 · F, B, L
 # El membrete de un plano impreso
 lamina-proyecto = 프로젝트
 lamina-lamina = 도면 번호
@@ -3344,3 +3366,30 @@ nube-cerrar-pregunta =
     예: 그 변경을 버립니다(다른 사람의 변경은 남습니다).
     아니요: 온라인으로 돌아가 올립니다.
     취소: 다음번까지 오프라인으로 둡니다.
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = 긴급
+comentario-tipo-alta = 높은 우선순위
+comentario-tipo-media = 보통 우선순위
+comentario-tipo-nota = 메모
+comentario-abrir = 채팅 열기
+comentario-resolver = 해결
+comentario-reabrir = 다시 열기
+comentario-crear-tarea = 작업 만들기
+comentario-tarea-creada = 받은편지함에 작업을 만들었습니다
+comentario-quitar = 제거
+comentario-lista-titulo = 댓글
+comentario-lista-vacia = 아직 댓글이 없습니다. 종류를 고르고 붙일 곳을 클릭하세요.
+comentario-plantando = 댓글을 붙일 곳을 클릭하세요(Esc로 나가기)
+comentario-escribir = 입력…(Enter로 보내기)
+comentario-sin-entradas = 첫 메시지를 쓰거나 이미지를 붙여 넣거나 파일을 첨부하세요.
+comentario-resuelto = 해결됨
+comentario-sin-sitio = 이 문서는 저장되지 않아 첨부할 수 없습니다.
+comentario-abre-el-chat = 해당 메시지로 가려면 채팅을 여세요.
+comentario-elegir-atajo = 바로 가기 대상…
+comentario-sin-atajos = 캔버스에서 무언가를 선택하거나 채팅의 문서를 열면 바로 가기를 만들 수 있습니다.
+comentario-elemento = 요소
+comentario-mensaje = 채팅 메시지
+comentario-lienzo-propio = 캔버스
+comentario-anotar = 주석 달기
+comentario-anotada = 주석 있음

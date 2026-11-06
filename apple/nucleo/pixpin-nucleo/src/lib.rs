@@ -103,6 +103,7 @@ pub mod hoja_adjuntar;
 // Editar una tabla dibujada con su cajetin (iPad, 25-oct).
 pub mod editor_tabla;
 pub mod editor_ventana;
+pub mod emparejar;
 pub mod envio;
 // La isla de la ficha del chat (Windows 71bd8b5).
 /// Buscar dentro de todos los chats desde la lista (Windows d106969).

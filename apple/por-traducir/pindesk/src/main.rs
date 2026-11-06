@@ -92,6 +92,8 @@ mod capa;
 mod captura2;
 mod centro_bandeja;
 mod cielo;
+/// La pegatina de comentario con su minichat, igual en todos los visores.
+mod comentarios;
 mod compartir;
 mod conversacion;
 mod cuenta_atras;
@@ -339,7 +341,15 @@ fn main() -> Result<()> {
     // registro antes del abort; tracing puede no estar inicializado aun, y
     // entonces simplemente no hace nada, que ya es lo que habia.
     std::panic::set_hook(Box::new(|info| {
-        tracing::error!(%info, "panico fatal");
+        // De que hilo: un panico al morir un hilo (el 4-nov-2026, «cannot
+        // access a Thread Local Storage value during or after destruction»)
+        // no dice donde, y sin simbolos el nombre es la unica pista.
+        tracing::error!(
+            %info,
+            hilo = %pindesk_shell::colocacion::nombre_del_hilo(),
+            id = pindesk_shell::colocacion::hilo_actual(),
+            "panico fatal"
+        );
         // Darle al escritor no bloqueante un instante para volcar la linea
         // antes de que abort() se lleve el proceso por delante.
         std::thread::sleep(std::time::Duration::from_millis(300));
@@ -1253,7 +1263,7 @@ fn arrancar(
             _ if comando == Some(comandos::Comando::GrabarClase) => {
                 // Su propio hilo, como el microfono flotante; si ya hay una
                 // clase grabandose no abre otra.
-                ventana_chat::grabar_clase(&textos, &ubicacion, lengua, &identidad_equipo);
+                ventana_chat::grabar_clase(&textos, &ubicacion, lengua, &identidad_equipo, None);
                 Continuar::Si
             }
             _ if comando == Some(comandos::Comando::Sincronizar) => {

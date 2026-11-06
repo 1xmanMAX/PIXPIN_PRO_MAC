@@ -342,6 +342,16 @@ sinc-con-direccion = किसी पते से कनेक्ट करे�
 sinc-anadir = दूसरा डिवाइस जोड़ें
 sinc-anadir-como = दूसरे डिवाइस पर: सिंक → “कोड से जुड़ें”।
 sinc-toca-codigo = कोड देखने के लिए क्लिक करें
+sinc-qr-como = इसे फ़ोन के कैमरे से स्कैन करें: यह PinDesk खोलेगा और अपने-आप जुड़ जाएगा। 10 मिनट में छिप जाएगा।
+sinc-red-titulo = PinDesk के पास नेटवर्क की अनुमति नहीं है
+sinc-red-texto = Windows फ़ायरवॉल आपके दूसरे डिवाइसों को PinDesk तक नहीं पहुँचने दे रहा, इसलिए कोड से जुड़ते समय वे नहीं दिखते। एक बार अनुमति दें: Windows आपसे व्यवस्थापक के रूप में पुष्टि करने को कहेगा।
+sinc-red-boton = नेटवर्क की अनुमति दें
+sinc-red-pidiendo = Windows की अनुमति का इंतज़ार…
+sinc-red-listo = नेटवर्क की अनुमति दे दी गई
+sinc-red-hecho = हो गया: अब आपके दूसरे डिवाइस इस नेटवर्क पर PinDesk को ढूँढ सकते हैं।
+sinc-red-publica = PinDesk को निजी नेटवर्क पर अनुमति मिल गई है, पर यह Wi‑Fi «सार्वजनिक» के रूप में चिह्नित है। इसे सेटिंग्स → नेटवर्क और इंटरनेट → Wi‑Fi → यह नेटवर्क में निजी पर सेट करें।
+sinc-red-cancelado = अनुमति नहीं दी गई। आप जब चाहें फिर से कोशिश कर सकते हैं।
+sinc-red-fallo = Windows ने अनुमति जोड़ने नहीं दी (शायद इस PC की कोई नीति इसे रोकती है)। इस PC को सँभालने वाले से मदद लें।
 sinc-salir = समूह छोड़ें
 sinc-pasar = किसी को कुछ भेजें
 sinc-pasar-como = सिर्फ़ एक बार, आपके Wi-Fi पर PinDesk वाले किसी को भी। समूह की ज़रूरत नहीं।
@@ -1349,10 +1359,17 @@ figuras-todas = सभी
 figuras-vacia = अभी कोई आकृति नहीं। किसी कैनवस पर कुछ चुनें और “आकृति के रूप में सहेजें” दबाएँ।
 figuras-borrar = आकृति हटाएँ
 figuras-borrar-seguro = हटाने के लिए फिर से दबाएँ
+# El boton de una figura que vino de PinDesk Plantillas; $app es su nombre.
+figuras-abrir-en-plantillas = { $app } में खोलें
 figuras-elegir-para = “{ $chat }” के लिए एक आकृति चुनें
 figuras-adjuntar-a = “{ $chat }” में संलग्न करें
 figuras-adjuntar-pista = या आकृति पर डबल-क्लिक करें, या Enter दबाएँ।
 figuras-adjuntada = “{ $chat }” में संलग्न किया गया ✓
+figuras-param-titulo = पैरामीटर
+figuras-param-por-hoja = प्रति शीट
+figuras-param-ano = वर्ष
+figuras-param-restablecer = रीसेट करें
+figuras-zoom-pista = ज़ूम के लिए पिंच करें या Ctrl + व्हील · फ़िट करने के लिए डबल-क्लिक
 asistente-adj-figura = आकृति
 asistente-adj-pedir-figura = नई आकृति माँगें
 asistente-pide-figura = मेरे लिए यह आकृति बनाएँ:
@@ -2822,6 +2839,11 @@ horario-arrastra = “{ $asignatura }” को सप्ताह पर खी
 horario-no-guardado = समय-सारिणी सहेजी नहीं जा सकी
 tareas-destino-pista = कार्य की सूची या विषय
 tareas-sin-asignatura = कोई विषय नहीं (इनबॉक्स में)
+asignaturas-todas = सभी
+chat-asignatura-poner = विषय…
+chat-asignatura-quitar = कोई विषय नहीं
+chat-enviar-a-asignatura = विषय में भेजें…
+chat-enviado-a-asignatura = “{ $chat }” में कॉपी किया गया · { $asignatura }
 tareas-apuntar-en-asignatura = नया { $asignatura } कार्य…
 
 # Viewers: the frame to print (2026-10-19)
@@ -3205,7 +3227,7 @@ cad-web-anotaciones = एनोटेशन
 cad-web-todas = सभी
 cad-web-ninguna = कोई नहीं
 cad-web-sin-soporte = यह ब्राउज़र ड्रॉइंग को अनपैक नहीं कर सकता: इसे हाल के Edge, Chrome, Firefox या Safari से खोलें।
-cad-web-pista = व्हील या दो उंगलियाँ: पैन · Ctrl+व्हील या पिंच: ज़ूम · डबल क्लिक: फ़िट करें · F, B, L
+cad-web-pista = व्हील या पिंच: ज़ूम · दो उंगलियाँ या खींचें: पैन · डबल क्लिक: फ़िट करें · F, B, L
 # El membrete de un plano impreso
 lamina-proyecto = प्रोजेक्ट
 lamina-lamina = शीट
@@ -3395,3 +3417,30 @@ nube-cerrar-pregunta =
     हाँ: ये बदलाव छोड़ दें (दूसरों के बदलाव रहेंगे)।
     नहीं: फिर से ऑनलाइन होकर इन्हें अपलोड करें।
     रद्द करें: अगली बार के लिए ऑफ़लाइन रखें।
+
+## Comentario avanzado: la pegatina con su minichat (3-nov-2026)
+comentario-tipo-urgente = अत्यावश्यक
+comentario-tipo-alta = उच्च प्राथमिकता
+comentario-tipo-media = मध्यम प्राथमिकता
+comentario-tipo-nota = नोट
+comentario-abrir = चैट खोलें
+comentario-resolver = हल करें
+comentario-reabrir = फिर से खोलें
+comentario-crear-tarea = कार्य बनाएँ
+comentario-tarea-creada = इनबॉक्स में कार्य बनाया गया
+comentario-quitar = हटाएँ
+comentario-lista-titulo = टिप्पणियाँ
+comentario-lista-vacia = अभी कोई टिप्पणी नहीं। एक प्रकार चुनें और जहाँ चिपकाना हो वहाँ क्लिक करें।
+comentario-plantando = जहाँ टिप्पणी चिपकानी हो वहाँ क्लिक करें (बाहर निकलने के लिए Esc)
+comentario-escribir = लिखें… (Enter भेजता है)
+comentario-sin-entradas = पहला संदेश लिखें, कोई चित्र चिपकाएँ या फ़ाइल जोड़ें।
+comentario-resuelto = हल हो गया
+comentario-sin-sitio = यह दस्तावेज़ सहेजा नहीं गया है: कुछ जोड़ा नहीं जा सकता।
+comentario-abre-el-chat = उस संदेश पर जाने के लिए चैट खोलें।
+comentario-elegir-atajo = इसका शॉर्टकट…
+comentario-sin-atajos = शॉर्टकट बनाने के लिए कैनवास पर कुछ चुनें, या किसी चैट का दस्तावेज़ खोलें।
+comentario-elemento = तत्व
+comentario-mensaje = चैट संदेश
+comentario-lienzo-propio = कैनवास
+comentario-anotar = एनोटेट करें
+comentario-anotada = एनोटेट किया गया
