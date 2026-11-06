@@ -86,6 +86,9 @@ uniffi = "0.32"
 # hilos (ya en el arbol por pdfsqueeze) y `sha2` para la huella de lo ya
 # aligerado (`cache/pdf-aligerados.txt`, la de Windows).
 pindesk-docs = { version = "0.1.0", path = "../pindesk-docs" }
+# Las pegatinas (comentario avanzado, Windows 125af09c): se conservan y se
+# juntan con las del disco al escribir los comentarios de una nota.
+pindesk-comentarios = { path = "../pindesk-comentarios" }
 pindesk-office = { version = "0.1.0", path = "../pindesk-office" }
 # La capa de texto de un PDF (buscar y anotar desde el asistente, E1): el
 # mismo lector que el de Windows, Rust puro.

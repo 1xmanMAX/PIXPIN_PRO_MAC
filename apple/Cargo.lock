@@ -1964,6 +1964,7 @@ dependencies = [
  "pindesk-bim",
  "pindesk-cad",
  "pindesk-codec",
+ "pindesk-comentarios",
  "pindesk-docs",
  "pindesk-frase",
  "pindesk-geom",

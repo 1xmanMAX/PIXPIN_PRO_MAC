@@ -164,19 +164,70 @@ impl Comentarista {
         if self.roto {
             return;
         }
-        let disco = sitio::leer(&ruta)
-            .map(|t| mc::leer(&t))
+        let texto_disco = sitio::leer(&ruta);
+        let disco = texto_disco
+            .as_deref()
+            .map(mc::leer)
             .unwrap_or_else(|| Ok(Comentarios::default()));
         let Ok(disco) = disco else {
             // Se rompio por fuera: no se pisa.
             return;
         };
         let junto = mc::fusionar(&self.base, &self.mio, &disco);
-        if sitio::escribir(&ruta, &mc::escribir(&junto)).is_ok() {
+        let nuevo = con_las_pegatinas_del_disco(mc::escribir(&junto), texto_disco.as_deref());
+        if sitio::escribir(&ruta, &nuevo).is_ok() {
             self.base = junto.clone();
             self.mio = junto;
         }
     }
+}
+
+/// **Las pegatinas del disco, con lo que se va a escribir** (comentario
+/// avanzado, Windows 125af09c/1a700a5b): van en el mismo fichero, en
+/// `pegatinas`, y las pone Windows o el movil. Si llego alguna mientras la
+/// nota estaba abierta, se juntan (`pindesk_comentarios::fusion::juntar`)
+/// en vez de perderse.
+pub(crate) fn con_las_pegatinas_del_disco(nuevo: String, disco: Option<&str>) -> String {
+    use pindesk_comentarios::{fichero, fusion};
+    use serde_json::Value;
+    let Some(d) = disco.filter(|d| fusion::lleva_pegatinas(d)) else {
+        return nuevo;
+    };
+    let crudas = |t: &str| -> Option<Vec<Value>> {
+        serde_json::from_str::<Value>(t)
+            .ok()?
+            .get(fichero::CLAVE)
+            .and_then(Value::as_array)
+            .cloned()
+            .or(Some(Vec::new()))
+    };
+    let (Some(mias), Some(suyas)) = (crudas(&nuevo), crudas(d)) else {
+        return nuevo;
+    };
+    // Si las dos se entienden enteras, la fusion de verdad (junta tambien
+    // las entradas de cada hilo).
+    if let (Ok(a), Ok(b)) = (fichero::leer(&nuevo), fichero::leer(d))
+        && a.lista.len() == mias.len()
+        && b.lista.len() == suyas.len()
+    {
+        return fichero::escribir(&nuevo, &fusion::juntar(&a, &b)).unwrap_or(nuevo);
+    }
+    // Si no, que no se pierda ninguna: por su `id`, la de `cambiado` mayor.
+    let mut todas: Vec<Value> = mias;
+    for p in suyas {
+        let id = p.get("id").cloned();
+        let cambiado = |v: &Value| v.get("cambiado").and_then(Value::as_i64).unwrap_or(0);
+        match todas.iter_mut().find(|x| x.get("id") == id.as_ref() && id.is_some()) {
+            Some(x) if cambiado(&p) > cambiado(x) => *x = p,
+            Some(_) => {}
+            None => todas.push(p),
+        }
+    }
+    let Ok(Value::Object(mut o)) = serde_json::from_str::<Value>(&nuevo) else {
+        return nuevo;
+    };
+    o.insert(fichero::CLAVE.into(), Value::Array(todas));
+    fichero::texto(&Value::Object(o))
 }
 
 #[cfg(test)]
@@ -227,6 +278,32 @@ mod pruebas {
         let mut c = Comentarista::abrir(Some(f.clone()), quien);
         let _ = c.nuevo("Hola mundo", 0, 4, "algo", 1);
         assert_eq!(std::fs::read_to_string(&f).unwrap(), "esto no es json");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn las_pegatinas_de_windows_no_se_pierden_al_comentar_en_el_mac() {
+        // Windows d81934f/1a700a5b: las pegatinas van en el mismo fichero, en
+        // `pegatinas`; quien escribe los comentarios de una nota las conserva.
+        let d = std::env::temp_dir().join(format!("pixpin-com-peg-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        let md = d.join("nota.md");
+        std::fs::write(&md, "Hola mundo bonito").unwrap();
+        let f = d.join("nota.comentarios.json");
+        let pegatina = r#"{"id":"pc1-1-0","tipo":"urgente","ancla":{"sitio":"texto","cita":"mundo"},"autor":"PC","aparato":"pc1","creado":1,"cambiado":1,"resuelto":false,"hilo":[]}"#;
+        std::fs::write(&f, format!(r#"{{"version":1,"comentarios":[],"pegatinas":[{pegatina}]}}"#)).unwrap();
+        let quien = Quien { autor: "Max".into(), aparato: "MAC1".into() };
+        let mut c = Comentarista::abrir(Some(f.clone()), quien);
+        assert!(c.nuevo("Hola mundo bonito", 5, 10, "¿seguro?", 2).is_some());
+        // Y una que llega de otro aparato mientras se comenta, tambien.
+        let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&f).unwrap()).unwrap();
+        assert_eq!(v["pegatinas"][0]["id"], "pc1-1-0", "{v}");
+        let mut v2 = v.clone();
+        v2["pegatinas"].as_array_mut().unwrap().push(serde_json::json!({"id":"pc1-2-0","tipo":"nota"}));
+        std::fs::write(&f, v2.to_string()).unwrap();
+        let _ = c.nuevo("Hola mundo bonito", 0, 4, "otra", 3);
+        let v: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&f).unwrap()).unwrap();
+        assert_eq!(v["pegatinas"].as_array().map(|a| a.len()), Some(2), "{v}");
         let _ = std::fs::remove_dir_all(&d);
     }
 }
