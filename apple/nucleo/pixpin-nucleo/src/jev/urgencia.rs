@@ -12,9 +12,13 @@
 //!
 //! Va en segundo plano: al leer las listas ([`aplicar`], desde
 //! `Nucleo::tareas_con_jev`) se pone lo ya sabido y se pregunta por lo que falta en
-//! un hilo; Swift relee mientras [`jev_preguntando_tareas`] diga que si. Lo
-//! sabido se queda en memoria mientras la app este abierta; nada va al
-//! disco ni viaja.
+//! un hilo; Swift relee mientras [`jev_preguntando_tareas`] diga que si.
+//!
+//! **La revision viaja** (Windows c3b09df6, Android): lo que dijo Jev de cada
+//! tarea se guarda junto a su lista, en `pins/draw/anot-<uid>.urgencia.json`
+//! del chat (`pindesk_sincro::urgencias`), y se sincroniza con los demas
+//! aparatos. Antes de preguntar se mira ahi: lo que ya reviso este Mac, el
+//! PC o el movil no se vuelve a preguntar.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -23,6 +27,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use pindesk_proyecto::{almacen, cuaderno};
+use pindesk_sincro::disco::Disco;
+use pindesk_sincro::urgencias::{self as guardadas, Guardada};
 use pindesk_typesafe::urgencia::{self as ju, Contexto, Marca, Prioridad, Senales};
 
 use super::Funcion;
@@ -109,9 +115,87 @@ pub fn pista_de_jev(motivo: MotivoJev, locale: String) -> String {
     format!("Jev: {}", partes.join(" · "))
 }
 
-/// Una tarea por preguntar: su clave, su chat, el mensaje de su lista y lo
-/// que se manda.
-type Falta = (String, String, String, Contexto);
+/// Una tarea por preguntar.
+struct Falta {
+    clave: String,
+    chat: String,
+    /// El id del mensaje de su lista.
+    mensaje: String,
+    /// Lo que se manda (`tarea` es tambien la clave en el fichero).
+    contexto: Contexto,
+    /// El fichero de la revision de su lista, si la lista es un mensaje del
+    /// cuaderno de un chat del almacen.
+    fichero: Option<PathBuf>,
+}
+
+/// Las senales de una tarea guardada en el fichero de su lista.
+fn senales_de(g: &Guardada) -> Senales {
+    Senales::de_partes(
+        g.consecuencia.clone(),
+        g.confianza,
+        g.bloquea,
+        g.plazo_ajeno,
+        g.piden_ya,
+    )
+}
+
+/// Lo que se guarda de lo que dijo Jev: cuando y en que aparato.
+fn guardada_de(s: &Senales, cuando: i64, aparato: &str) -> Guardada {
+    Guardada {
+        consecuencia: s.consecuencia.niveles.clone(),
+        confianza: s.consecuencia.confianza,
+        bloquea: s.bloquea,
+        plazo_ajeno: s.plazo_ajeno,
+        piden_ya: s.piden_ya,
+        cuando,
+        aparato: aparato.to_string(),
+    }
+}
+
+/// **Lo que ya se reviso de las listas, leido del disco una vez por
+/// tanda**: el fichero de cada lista y lo que tiene, por su codigo unico.
+struct DelDisco<'a> {
+    raiz: &'a Path,
+    /// El chat (`DiscoPc`) de cada ficha.
+    chats: HashMap<String, Option<String>>,
+    listas: HashMap<String, (Option<PathBuf>, guardadas::Tareas)>,
+}
+
+impl<'a> DelDisco<'a> {
+    fn nuevo(raiz: &'a Path) -> DelDisco<'a> {
+        DelDisco {
+            raiz,
+            chats: HashMap::new(),
+            listas: HashMap::new(),
+        }
+    }
+
+    fn de(&mut self, l: &ListaTareas) -> Option<&(Option<PathBuf>, guardadas::Tareas)> {
+        let uid = l.uid.as_deref()?;
+        if !self.listas.contains_key(uid) {
+            let raiz = self.raiz;
+            let chat = self
+                .chats
+                .entry(l.chat.clone())
+                .or_insert_with(|| pindesk_proyecto::vista::chat_de_ficha(raiz, &l.chat))
+                .clone();
+            let fichero = chat.map(|c| {
+                pindesk_proyecto::vista::DiscoPc::nuevo(raiz)
+                    .ruta(&c, &pindesk_proyecto::anotado::urgencia_rel(uid))
+            });
+            let dentro = fichero.as_deref().map(guardadas::leer).unwrap_or_default();
+            self.listas.insert(uid.to_string(), (fichero, dentro));
+        }
+        self.listas.get(uid)
+    }
+}
+
+/// El codigo de este Mac, el que va en `aparato` de lo que se pregunta aqui.
+fn yo(raiz: &Path) -> String {
+    pindesk_proyecto::identidad::Identidad::leer_o_crear(raiz, "Mac")
+        .map(|i| i.yo.codigo())
+        .unwrap_or_default()
+}
 
 /// Los dias que faltan para la fecha del titulo de la lista (dicha el dia en
 /// que se creo, `cuando` en ms UTC), contados desde `hoy` (dia local).
@@ -167,7 +251,7 @@ pub(crate) fn aplicar(raiz: &Path, listas: &mut [ListaTareas], desfase_ms: i64) 
         return;
     };
     let hoy = frase::ahora(desfase_ms).dia;
-    let faltan = poner_sabido(listas, hoy, desfase_ms);
+    let faltan = poner_sabido(listas, hoy, desfase_ms, &mut DelDisco::nuevo(raiz));
     if faltan.is_empty() || PREGUNTANDO.swap(true, Ordering::SeqCst) {
         return;
     }
@@ -186,10 +270,16 @@ pub(crate) fn aplicar(raiz: &Path, listas: &mut [ListaTareas], desfase_ms: i64) 
 }
 
 /// Lo sabido, puesto; devuelve lo que falta preguntar.
-fn poner_sabido(listas: &mut [ListaTareas], hoy: i64, desfase_ms: i64) -> Vec<Falta> {
+fn poner_sabido(
+    listas: &mut [ListaTareas],
+    hoy: i64,
+    desfase_ms: i64,
+    disco: &mut DelDisco,
+) -> Vec<Falta> {
     let mut faltan = Vec::new();
     for l in listas.iter_mut() {
         let dias_lista = dias_de_la_lista(l, hoy, desfase_ms);
+        let lista = l.clone();
         let (chat, titulo, nombre) = (l.chat.clone(), l.titulo.clone(), l.nombre_chat.clone());
         let mensaje = l.mensaje.clone();
         for t in l.tareas.iter_mut().filter(|t| !t.hecha) {
@@ -200,12 +290,21 @@ fn poner_sabido(listas: &mut [ListaTareas], hoy: i64, desfase_ms: i64) -> Vec<Fa
             }
             let dias = m.hora.map(|h| h.dia - hoy).or(dias_lista);
             let clave = clave_de(&chat, &titulo, &texto);
-            let sabido = con_sabido(|s| match s.get(&clave) {
+            let mut sabido = con_sabido(|s| match s.get(&clave) {
                 Some(Sabido::Senales(x)) => Some(Some(x.clone())),
                 Some(Sabido::Fallo(t)) if t.elapsed() < TRAS_UN_FALLO => Some(None),
                 Some(Sabido::Tema) => Some(None),
                 _ => None,
             });
+            // Lo que ya reviso este u otro aparato, del disco: no se
+            // pregunta otra vez (aunque aqui hubiera fallado hace poco).
+            if !matches!(sabido, Some(Some(_)))
+                && let Some(g) = disco.de(&lista).and_then(|(_, d)| d.get(&texto))
+            {
+                let s = senales_de(g);
+                con_sabido(|m| m.insert(clave.clone(), Sabido::Senales(s.clone())));
+                sabido = Some(Some(s));
+            }
             match sabido {
                 Some(Some(s)) => {
                     let marca = marca_de(m.urgencia);
@@ -215,17 +314,18 @@ fn poner_sabido(listas: &mut [ListaTareas], hoy: i64, desfase_ms: i64) -> Vec<Fa
                 }
                 // Fallo reciente o tema de reunion: lo de siempre.
                 Some(None) => {}
-                None => faltan.push((
+                None => faltan.push(Falta {
                     clave,
-                    chat.clone(),
-                    mensaje.clone(),
-                    Contexto {
+                    chat: chat.clone(),
+                    mensaje: mensaje.clone(),
+                    contexto: Contexto {
                         tarea: texto,
                         lista: titulo.clone(),
                         chat: nombre.clone(),
                         recientes: Vec::new(),
                     },
-                )),
+                    fichero: disco.de(&lista).and_then(|(f, _)| f.clone()),
+                }),
             }
         }
     }
@@ -237,14 +337,14 @@ fn preguntar(cliente: &pindesk_typesafe::Cliente, raiz: &Path, faltan: Vec<Falta
     let mut temas = Vec::new();
     let faltan: Vec<Falta> = faltan
         .into_iter()
-        .filter_map(|(clave, chat, mensaje, mut c)| {
-            let leido = chats.entry(chat.clone()).or_insert_with(|| leer_chat(raiz, &chat));
-            if leido.temas.contains(&(chat.clone(), mensaje.clone())) {
-                temas.push(clave);
+        .filter_map(|mut f| {
+            let leido = chats.entry(f.chat.clone()).or_insert_with(|| leer_chat(raiz, &f.chat));
+            if leido.temas.contains(&(f.chat.clone(), f.mensaje.clone())) {
+                temas.push(f.clave);
                 return None;
             }
-            c.recientes = leido.recientes.clone();
-            Some((clave, chat, mensaje, c))
+            f.contexto.recientes = leido.recientes.clone();
+            Some(f)
         })
         .collect();
     con_sabido(|s| {
@@ -252,16 +352,36 @@ fn preguntar(cliente: &pindesk_typesafe::Cliente, raiz: &Path, faltan: Vec<Falta
             s.insert(clave, Sabido::Tema);
         }
     });
-    let contextos: Vec<Contexto> = faltan.iter().map(|(_, _, _, c)| c.clone()).collect();
+    let contextos: Vec<Contexto> = faltan.iter().map(|f| f.contexto.clone()).collect();
     let respuestas = ju::preguntar_varias(cliente, &contextos, A_LA_VEZ);
+    // Lo dicho, por lista: a su fichero, para que ningun aparato lo vuelva
+    // a preguntar.
+    let ahora = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as i64);
+    let aparato = yo(raiz);
+    let mut a_guardar: HashMap<PathBuf, guardadas::Tareas> = HashMap::new();
     con_sabido(|s| {
-        for ((clave, _, _, _), r) in faltan.into_iter().zip(respuestas) {
+        for (f, r) in faltan.into_iter().zip(respuestas) {
             match r {
-                Ok(x) => s.insert(clave, Sabido::Senales(x)),
-                Err(_) => s.insert(clave, Sabido::Fallo(Instant::now())),
-            };
+                Ok(x) => {
+                    if let Some(fichero) = f.fichero {
+                        a_guardar
+                            .entry(fichero)
+                            .or_default()
+                            .insert(f.contexto.tarea, guardada_de(&x, ahora, &aparato));
+                    }
+                    s.insert(f.clave, Sabido::Senales(x));
+                }
+                Err(_) => {
+                    s.insert(f.clave, Sabido::Fallo(Instant::now()));
+                }
+            }
         }
     });
+    for (fichero, nuevas) in a_guardar {
+        let _ = guardadas::anadir(&fichero, &nuevas);
+    }
 }
 
 /// Lo que se lee de un chat para sus tareas.
@@ -355,6 +475,7 @@ mod pruebas {
                 .collect(),
             pendientes: textos.len() as u32,
             asignatura: None,
+            uid: None,
         }
     }
 
@@ -394,15 +515,62 @@ mod pruebas {
                 }),
             )
         });
-        let faltan = poner_sabido(&mut l, 0, 0);
+        let raiz = std::env::temp_dir();
+        let faltan = poner_sabido(&mut l, 0, 0, &mut DelDisco::nuevo(&raiz));
         assert_eq!(l[0].tareas[0].prioridad.as_deref(), Some("urgente"));
         assert!(l[0].tareas[1].prioridad.is_none());
         assert_eq!(faltan.len(), 1);
-        assert_eq!(faltan[0].3.tarea, "regar las plantas zz-prueba");
-        assert_eq!(faltan[0].3.chat, "Mensajes guardados");
+        assert_eq!(faltan[0].contexto.tarea, "regar las plantas zz-prueba");
+        assert_eq!(faltan[0].contexto.chat, "Mensajes guardados");
         // Sin marca del usuario, con su porque.
         let m = l[0].tareas[0].motivo_jev.clone().unwrap();
         assert_eq!((m.consecuencia, m.espera, m.plazo_ajeno, m.dias), (3, true, true, None));
+    }
+
+    /// **Lo que ya reviso otro aparato se lee del fichero de su lista**, el
+    /// mismo que viaja: no se vuelve a preguntar (Windows c3b09df6).
+    #[test]
+    fn el_fichero_de_la_lista_es_el_que_viaja_y_se_lee() {
+        let raiz =
+            std::env::temp_dir().join(format!("pindesk-mac-jev-urgencia-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&raiz);
+        let g = almacen::asegurar_guardados(&raiz, 1, "K7Q2").unwrap();
+        let f =
+            pindesk_proyecto::anotado::urgencia_de_la_lista(&raiz, &g.id, "ABCDE23456").unwrap();
+        let s = Senales::de_partes(vec![0.0, 0.0, 1.0], 0.6, 0.1, 0.0, None);
+        let tareas = guardadas::Tareas::from([("pan".to_string(), guardada_de(&s, 5, "MOVI"))]);
+        assert!(guardadas::anadir(&f, &tareas).unwrap());
+        let con = |chat: &str, uid: Option<&str>| ListaTareas {
+            chat: chat.into(),
+            uid: uid.map(str::to_string),
+            ..lista(&["pan", "leche zz-prueba"])
+        };
+        let mut disco = DelDisco::nuevo(&raiz);
+        let (fichero, dentro) = disco.de(&con(&g.id, Some("ABCDE23456"))).unwrap();
+        assert_eq!(fichero.as_deref(), Some(f.as_path()));
+        assert_eq!(dentro.get("pan").map(senales_de), Some(s));
+        // Lo del fichero se pone; solo se pregunta lo que no esta, y su
+        // respuesta ira al mismo fichero.
+        let mut l = vec![con(&g.id, Some("ABCDE23456"))];
+        let faltan = poner_sabido(&mut l, 0, 0, &mut DelDisco::nuevo(&raiz));
+        assert!(l[0].tareas[0].prioridad.is_some());
+        assert_eq!(faltan.len(), 1);
+        assert_eq!(faltan[0].contexto.tarea, "leche zz-prueba");
+        assert_eq!(faltan[0].fichero.as_deref(), Some(f.as_path()));
+        // Casos negativos: sin codigo no hay fichero, y de un chat que no
+        // esta en el almacen tampoco.
+        assert!(disco.de(&con(&g.id, None)).is_none());
+        let (fichero, dentro) = disco.de(&con("no-esta", Some("ZZZZZ23456"))).unwrap();
+        assert!(fichero.is_none() && dentro.is_empty());
+        let _ = std::fs::remove_dir_all(&raiz);
+    }
+
+    #[test]
+    fn lo_dicho_se_guarda_con_cuando_y_donde() {
+        let s = Senales::de_partes(vec![0.0, 1.0], 0.8, 0.5, 0.2, Some(0.3));
+        let g = guardada_de(&s, 1_793_582_613_265, "K7Q2");
+        assert_eq!((g.cuando, g.aparato.as_str()), (1_793_582_613_265, "K7Q2"));
+        assert_eq!(senales_de(&g), s);
     }
 
     #[test]

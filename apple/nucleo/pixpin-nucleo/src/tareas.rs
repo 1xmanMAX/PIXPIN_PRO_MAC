@@ -111,6 +111,11 @@ pub struct ListaTareas {
     /// apuntarles tareas, y con el color de la asignatura. No viaja: se
     /// calcula del horario de este equipo.
     pub asignatura: Option<u32>,
+    /// El codigo unico del mensaje de la lista (`Mensaje::codigo_unico`,
+    /// Windows c3b09df6): el nombre de su revision de urgencia, la que viaja
+    /// (`pins/draw/anot-<uid>.urgencia.json`, `jev::urgencia`).
+    #[uniffi(default = None)]
+    pub uid: Option<String>,
 }
 
 /// Si un mensaje es una lista de tareas (`pedidos::es_lista`).
@@ -190,6 +195,7 @@ impl Nucleo {
             pendientes: tareas.iter().filter(|t| !t.hecha).count() as u32,
             tareas,
             asignatura: None,
+            uid: Some(m.codigo_unico()),
         }
     }
 }

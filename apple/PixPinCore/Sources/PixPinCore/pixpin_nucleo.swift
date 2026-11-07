@@ -35111,6 +35111,12 @@ public struct ListaTareas: Equatable, Hashable {
      * calcula del horario de este equipo.
      */
     public var asignatura: UInt32?
+    /**
+     * El codigo unico del mensaje de la lista (`Mensaje::codigo_unico`,
+     * Windows c3b09df6): el nombre de su revision de urgencia, la que viaja
+     * (`pins/draw/anot-<uid>.urgencia.json`, `jev::urgencia`).
+     */
+    public var uid: String?
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -35139,7 +35145,12 @@ public struct ListaTareas: Equatable, Hashable {
          * Esas salen en Tarjetas y Kanban aunque esten vacias, para poder
          * apuntarles tareas, y con el color de la asignatura. No viaja: se
          * calcula del horario de este equipo.
-         */asignatura: UInt32?) {
+         */asignatura: UInt32?, 
+        /**
+         * El codigo unico del mensaje de la lista (`Mensaje::codigo_unico`,
+         * Windows c3b09df6): el nombre de su revision de urgencia, la que viaja
+         * (`pins/draw/anot-<uid>.urgencia.json`, `jev::urgencia`).
+         */uid: String? = nil) {
         self.chat = chat
         self.nombreChat = nombreChat
         self.guardados = guardados
@@ -35150,6 +35161,7 @@ public struct ListaTareas: Equatable, Hashable {
         self.tareas = tareas
         self.pendientes = pendientes
         self.asignatura = asignatura
+        self.uid = uid
     }
 
     
@@ -35177,7 +35189,8 @@ public struct FfiConverterTypeListaTareas: FfiConverterRustBuffer {
                 esInbox: FfiConverterBool.read(from: &buf), 
                 tareas: FfiConverterSequenceTypeTarea.read(from: &buf), 
                 pendientes: FfiConverterUInt32.read(from: &buf), 
-                asignatura: FfiConverterOptionUInt32.read(from: &buf)
+                asignatura: FfiConverterOptionUInt32.read(from: &buf), 
+                uid: FfiConverterOptionString.read(from: &buf)
         )
     }
 
@@ -35192,6 +35205,7 @@ public struct FfiConverterTypeListaTareas: FfiConverterRustBuffer {
         FfiConverterSequenceTypeTarea.write(value.tareas, into: &buf)
         FfiConverterUInt32.write(value.pendientes, into: &buf)
         FfiConverterOptionUInt32.write(value.asignatura, into: &buf)
+        FfiConverterOptionString.write(value.uid, into: &buf)
     }
 }
 

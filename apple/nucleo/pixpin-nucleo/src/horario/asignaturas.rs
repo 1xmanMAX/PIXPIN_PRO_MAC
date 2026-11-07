@@ -702,6 +702,7 @@ mod pruebas {
             tareas: Vec::new(),
             pendientes: 0,
             asignatura: None,
+            uid: None,
         }
     }
 

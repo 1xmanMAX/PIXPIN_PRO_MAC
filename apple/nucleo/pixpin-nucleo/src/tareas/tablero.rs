@@ -383,6 +383,7 @@ mod pruebas {
             pendientes: tareas.iter().filter(|t| !t.hecha).count() as u32,
             tareas,
             asignatura: None,
+            uid: None,
         }
     }
 
